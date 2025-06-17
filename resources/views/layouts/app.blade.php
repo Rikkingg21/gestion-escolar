@@ -90,7 +90,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="" class="nav-link text-white {{ request()->routeIs('docente.*') ? 'active' : '' }}">
+                    <a href="{{ route('docente.index') }}" class="nav-link text-white {{ request()->routeIs('docente.*') ? 'active' : '' }}">
                         <i class="bi bi-people me-2"></i> Docentes
                     </a>
                 </li>

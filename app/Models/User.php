@@ -42,12 +42,12 @@ class User extends Authenticatable
     public function getRoleColorAttribute()
     {
         $colors = [
-            'admin' => 'primary',
-            'director' => 'info',
+            'admin' => 'danger',
+            'director' => 'warning',
             'docente' => 'success',
-            'auxiliar' => 'warning',
-            'estudiante' => 'secondary',
-            'apoderado' => 'dark'
+            'auxiliar' => 'info',
+            'estudiante' => 'primary',
+            'apoderado' => 'secondary',
         ];
 
         return $colors[$this->role] ?? 'light';

@@ -154,6 +154,15 @@ Route::middleware('auth')->group(function () {
         Route::get('criterios/{tema_id}', [CriterioController::class, 'index'])->name('criterios.index');
         Route::get('criterios/{tema_id}/create', [CriterioController::class, 'create'])->name('criterios.create');
 
+        Route::resource('docente', DocenteController::class)->except(['show'])->names([
+            'index' => 'docente.index',
+            'create' => 'docente.create',
+            'store' => 'docente.store',
+            'edit' => 'docente.edit',
+            'update' => 'docente.update',
+            'destroy' => 'docente.destroy'
+        ]);
+
         Route::resource('grados', GradoController::class)->except(['show'])->names([
             'index' => 'grados.index',
             'create' => 'grados.create',
@@ -188,12 +197,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/estudiantes/datatable', [UserController::class, 'estudiantesDatatable'])->name('estudiantes.datatable');
         Route::get('/apoderados/datatable', [UserController::class, 'apoderadosDatatable'])->name('apoderados.datatable');
     });
-
+    /*
     // Rutas para docentes (requieren rol seleccionado)
     Route::middleware('check.selected.role:docente')->group(function () {
         Route::get('/docente', [DocenteController::class, 'dashboard'])->name('docente.dashboard');
 
     });
+    */
     // Rutas para auxiliares (requieren rol seleccionado)
     Route::middleware('check.selected.role:auxiliar')->group(function () {
         Route::get('/auxiliar', [AuxiliarController::class, 'dashboard'])->name('auxiliar.dashboard');

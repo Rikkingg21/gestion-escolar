@@ -93,4 +93,15 @@ class EstudianteController extends Controller
     {
         //
     }
+    public function dashboard()
+    {
+        $user = auth()->user();
+        $estudiante = Estudiante::where('user_id', $user->id)->first();
+
+        if (!$estudiante) {
+            return redirect()->route('home')->with('error', 'No se encontró el estudiante asociado a este usuario.');
+        }
+
+        return view('estudiantes.dashboard', compact('estudiante'));
+    }
 }

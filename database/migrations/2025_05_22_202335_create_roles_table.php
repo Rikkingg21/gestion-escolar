@@ -21,7 +21,7 @@ return new class extends Migration
             ['nombre' => 'director'],
             ['nombre' => 'auxiliar'],
             ['nombre' => 'docente'],
-            ['nombre' => 'alumno'],
+            ['nombre' => 'estudiante'],
             ['nombre' => 'apoderado'],
         ]);
     }

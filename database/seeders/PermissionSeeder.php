@@ -62,8 +62,8 @@ class PermissionSeeder extends Seeder
             'ver-notas'
         ]);
 
-        $alumno = Role::findByName('alumno');
-        $alumno->givePermissionTo([
+        $estudiante = Role::findByName('estudiante');
+        $estudiante->givePermissionTo([
             'ver-notas'
         ]);
 
