@@ -2,54 +2,43 @@
 
 @section('content')
 <div class="container-fluid">
-    <h1>Editar Maya</h1>
-    <form action="{{ route('mayas.update', $maya->id) }}" method="POST">
+    <h1>Editar Bimestre</h1>
+    <form action="{{ route('bimestres.update', $bimestre->id) }}" method="POST">
         @csrf
         @method('PUT')
 
         <div class="mb-3">
-            <label for="materia" class="form-label">Materia</label>
-            <select name="materia_id" id="materia" class="form-select" required>
-                <option value="">Seleccione una materia</option>
-                @foreach($materias as $materia)
-                    <option value="{{ $materia->id }}" {{ $maya->materia_id == $materia->id ? 'selected' : '' }}>
-                        {{ $materia->nombre ?? $materia->id }}
-                    </option>
-                @endforeach
-            </select>
+            <label class="form-label">Curso/Grado/Sec/Niv/Año</label>
+            <div class="form-control" readonly>
+                {{ $bimestre->cursoGradoSecNivAnio->materia->nombre ?? '' }} |
+                {{ $bimestre->cursoGradoSecNivAnio->grado->grado ?? '' }} - {{ $bimestre->cursoGradoSecNivAnio->grado->seccion ?? '' }} - {{ $bimestre->cursoGradoSecNivAnio->grado->nivel ?? '' }} |
+                {{ $bimestre->cursoGradoSecNivAnio->anio ?? '' }}
+            </div>
+            <input type="hidden" name="curso_grado_sec_niv_anio_id" value="{{ $bimestre->curso_grado_sec_niv_anio_id }}">
         </div>
 
         <div class="mb-3">
-            <label for="docente" class="form-label">Docente</label>
-            <select name="docente_designado_id" id="docente" class="form-select" required>
-                <option value="">Seleccione un docente</option>
-                @foreach($docentes as $docente)
-                    <option value="{{ $docente->id }}" {{ $maya->docente_designado_id == $docente->id ? 'selected' : '' }}>
-                        {{ $docente->user->nombre ?? '' }} {{ $docente->user->apellido_paterno ?? '' }} {{ $docente->user->apellido_materno ?? '' }} - {{ $docente->user->dni ?? '' }}
+            <label for="bimestre" class="form-label">Bimestre</label>
+            <select name="bimestre" id="bimestre" class="form-select" required>
+                @for($i = 1; $i <= 4; $i++)
+                    <option value="{{ $i }}"
+                        {{ $bimestre->nombre == $i ? 'selected' : '' }}
+                        {{ in_array($i, $ocupadoBimestres) ? 'disabled' : '' }}>
+                        Bimestre {{ $i }}{{ in_array($i, $ocupadoBimestres) ? ' (Ocupado)' : '' }}
                     </option>
-                @endforeach
+                @endfor
             </select>
         </div>
 
-        <div class="mb-3">
-            <label for="grado" class="form-label">Grado</label>
-            <select name="grado_id" id="grado" class="form-select" required>
-                <option value="">Seleccione un grado</option>
-                @foreach($grados as $grado)
-                    <option value="{{ $grado->id }}" {{ $maya->grado_id == $grado->id ? 'selected' : '' }}>
-                        {{ $grado->grado ?? $grado->id }} - {{ $grado->seccion ?? '' }} - {{ $grado->nivel ?? '' }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-
-        <div class="mb-3">
-            <label for="anio" class="form-label">Año</label>
-            <input type="number" name="anio" id="anio" class="form-control" value="{{ $maya->anio }}" required>
-        </div>
+        @if(request()->has('from_dashboard'))
+            <input type="hidden" name="from_dashboard" value="true">
+        @endif
+        @if(request()->has('maya_id'))
+            <input type="hidden" name="maya_id" value="{{ request('maya_id') }}">
+        @endif
 
         <button type="submit" class="btn btn-primary">Actualizar</button>
-        <a href="{{ route('mayas.index') }}" class="btn btn-secondary">Cancelar</a>
+        <a href="{{ url()->previous() }}" class="btn btn-secondary">Cancelar</a>
     </form>
 </div>
 @endsection
