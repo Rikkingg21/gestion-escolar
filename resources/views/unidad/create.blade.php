@@ -34,31 +34,12 @@
     </form>
 </div>
 <script>
-    //si bimestre es 1, se habilitan para seleccnar unidades 1 y 2
+    //si hay unidades ocupadas, que la opcion este deshabilitada
     document.addEventListener('DOMContentLoaded', function() {
         const unidadSelect = document.getElementById('unidad');
-        const bimestreId = {{ $bimestre->id ?? 0 }};
-        const unidadesHabilitadas = {
-            1: [1, 2],
-            2: [3, 4],
-            3: [5, 6],
-            4: [7, 8]
-        };
-        const unidadesOcupadas = @json($ocupadoUnidades);
-        const unidadesDisponibles = unidadesHabilitadas[bimestreId] || [];
-        // Habilitar solo las unidades correspondientes al bimestre
-        Array.from(unidadSelect.options).forEach(option => {
-            const unidadValue = parseInt(option.value);
-            if (unidadesDisponibles.includes(unidadValue)) {
-                option.disabled = false;
-                option.textContent = `Unidad ${unidadValue}`;
-            } else {
-                option.disabled = true;
-                option.textContent = `Unidad ${unidadValue} (No disponible)`;
-            }
-        });
-        // Deshabilitar unidades ocupadas
-        unidadesOcupadas.forEach(function(unidad) {
+        const ocupadoUnidades = @json($ocupadoUnidades);
+        // Deshabilitar opciones ocupadas
+        ocupadoUnidades.forEach(function(unidad) {
             const option = unidadSelect.querySelector(`option[value="${unidad}"]`);
             if (option) {
                 option.disabled = true;

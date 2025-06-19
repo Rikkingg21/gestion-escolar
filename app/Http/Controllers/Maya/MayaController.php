@@ -93,4 +93,22 @@ class MayaController extends Controller
         $maya->delete();
         return redirect()->route('mayas.index')->with('success', 'Maya eliminada exitosamente.');
     }
+
+    public function dashboard(Request $request)
+    {
+        $mayas = Cursogradosecnivanio::with(['materia', 'docente.user', 'grado'])
+                                      ->orderBy('anio', 'desc')
+                                      ->orderBy('id')
+                                      ->get();
+
+        $selectedMayaId = $request->input('maya_id', null);
+        $selectedMaya = null;
+        if ($selectedMayaId) {
+            $selectedMaya = Cursogradosecnivanio::with([
+                'bimestres.unidades.semanas.clases.temas.criterios' // Eager load all nested relationships
+            ])->find($selectedMayaId);
+        }
+
+        return view('maya.dashboard', compact('mayas', 'selectedMayaId', 'selectedMaya'));
+    }
 }

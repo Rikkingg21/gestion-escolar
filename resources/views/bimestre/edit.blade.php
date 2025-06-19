@@ -30,6 +30,13 @@
             </select>
         </div>
 
+        @if(request()->has('from_dashboard'))
+            <input type="hidden" name="from_dashboard" value="true">
+        @endif
+        @if(request()->has('maya_id'))
+            <input type="hidden" name="maya_id" value="{{ request('maya_id') }}">
+        @endif
+
         <button type="submit" class="btn btn-primary">Actualizar</button>
         <a href="{{ url()->previous() }}" class="btn btn-secondary">Cancelar</a>
     </form>

@@ -88,6 +88,7 @@ Route::middleware('auth')->group(function () {
             'update' => 'mayas.update',
             'destroy' => 'mayas.destroy'
         ]);
+        Route::get('/mayas/dashboard', [MayaController::class, 'dashboard'])->name('mayas.dashboard');
         Route::resource('bimestres', BimestreController::class)->except(['show'])->names([
             //'index' => 'bimestres.index',
             //'create' => 'bimestres.create',
@@ -98,6 +99,8 @@ Route::middleware('auth')->group(function () {
         ]);
         Route::get('bimestres/{curso_grado_sec_niv_anio_id}', [BimestreController::class, 'index'])->name('bimestres.index');
         Route::get('bimestres/{curso_grado_sec_niv_anio_id}/create', [BimestreController::class, 'create'])->name('bimestres.create');
+        Route::post('/bimestres/store-from-dashboard', [BimestreController::class, 'storeFromDashboard'])->name('bimestres.store_from_dashboard');
+        Route::delete('/bimestres/destroy-from-dashboard/{id}', [BimestreController::class, 'destroyFromDashboard'])->name('bimestres.destroy_from_dashboard');
 
         Route::resource('unidades', UnidadController::class)->except(['show'])->parameters(['unidades' => 'unidad'])->names([
             //'index' => 'unidades.index',
@@ -197,13 +200,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/estudiantes/datatable', [UserController::class, 'estudiantesDatatable'])->name('estudiantes.datatable');
         Route::get('/apoderados/datatable', [UserController::class, 'apoderadosDatatable'])->name('apoderados.datatable');
     });
-    /*
-    // Rutas para docentes (requieren rol seleccionado)
-    Route::middleware('check.selected.role:docente')->group(function () {
-        Route::get('/docente', [DocenteController::class, 'dashboard'])->name('docente.dashboard');
 
+    // Rutas para docentes (requieren rol seleccionado)
+    Route::middleware(['auth', 'role:docente'])->group(function () {
+        Route::get('/docente/dashboard', [DocenteController::class, 'dashboard'])->name('docente.dashboard');
+        // Otras subrutas de docente
     });
-    */
+
     // Rutas para auxiliares (requieren rol seleccionado)
     Route::middleware('check.selected.role:auxiliar')->group(function () {
         Route::get('/auxiliar', [AuxiliarController::class, 'dashboard'])->name('auxiliar.dashboard');
