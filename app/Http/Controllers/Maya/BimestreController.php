@@ -94,6 +94,11 @@ class BimestreController extends Controller
             'nombre' => $request->bimestre,
         ]);
 
+        if ($request->has('from_dashboard')) {
+            return redirect()->route('mayas.dashboard', ['maya_id' => $request->curso_grado_sec_niv_anio_id])
+                ->with('success', 'Bimestre actualizado correctamente desde el dashboard.');
+        }
+
         return redirect()->route('bimestres.index', $request->curso_grado_sec_niv_anio_id)
             ->with('success', 'Bimestre actualizado correctamente.');
     }
@@ -103,5 +108,46 @@ class BimestreController extends Controller
         $bimestre->delete();
         return redirect()->route('bimestres.index', $bimestre->curso_grado_sec_niv_anio_id)
             ->with('success', 'Bimestre eliminado correctamente.');
+    }
+
+    public function destroyFromDashboard(Request $request, $id)
+    {
+        $bimestre = Bimestre::findOrFail($id);
+        // $curso_grado_sec_niv_anio_id = $bimestre->curso_grado_sec_niv_anio_id; // Already available in $request->maya_id
+
+        // TODO: Consider implications of deleting a bimestre - what happens to its Unidades, Semanas etc.?
+        // Assuming soft deletes are used or cascading deletes are set up at DB level for related items.
+        // If not, manual deletion of children might be required here.
+        $bimestre->delete();
+
+        return redirect()->route('mayas.dashboard', ['maya_id' => $request->input('maya_id')])
+            ->with('success', 'Bimestre eliminado correctamente desde el dashboard.');
+    }
+
+    public function storeFromDashboard(Request $request)
+    {
+        $request->validate([
+            'curso_grado_sec_niv_anio_id' => 'required|exists:maya_curso_grado_sec_niv_anios,id',
+            'bimestre' => [
+                'required',
+                'in:1,2,3,4',
+                function($attribute, $value, $fail) use ($request) {
+                    $exists = \App\Models\Maya\Bimestre::where('curso_grado_sec_niv_anio_id', $request->curso_grado_sec_niv_anio_id)
+                        ->where('nombre', $value)
+                        ->exists();
+                    if ($exists) {
+                        $fail('Este bimestre ya está registrado para este curso.');
+                    }
+                }
+            ],
+        ]);
+
+        \App\Models\Maya\Bimestre::create([
+            'curso_grado_sec_niv_anio_id' => $request->curso_grado_sec_niv_anio_id,
+            'nombre' => $request->bimestre,
+        ]);
+
+        return redirect()->route('mayas.dashboard', ['maya_id' => $request->curso_grado_sec_niv_anio_id])
+            ->with('success', 'Bimestre creado exitosamente en el dashboard.');
     }
 }
