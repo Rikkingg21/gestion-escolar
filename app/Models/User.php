@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,81 +10,60 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $fillable = [
-        'dni',
-        'nombre_usuario',
-        'nombre',
-        'apellido_paterno',
-        'apellido_materno',
-        'email',
-        'password',
-        'foto_path',
-        'estado',
-        'remember_token'
+        'dni', 'nombre_usuario', 'nombre', 'apellido_paterno',
+        'apellido_materno', 'email', 'password', 'foto_path', 'estado'
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
-    }
-    public function getNombreCompletoAttribute()
-    {
-        return "{$this->nombre} {$this->apellido_paterno} {$this->apellido_materno}";
-    }
-    public function getRoleColorAttribute()
-    {
-        $colors = [
-            'admin' => 'danger',
-            'director' => 'warning',
-            'docente' => 'success',
-            'auxiliar' => 'info',
-            'estudiante' => 'primary',
-            'apoderado' => 'secondary',
-        ];
-
-        return $colors[$this->role] ?? 'light';
-    }
+    protected $hidden = ['password', 'remember_token'];
 
     public function roles()
     {
         return $this->belongsToMany(Role::class, 'user_roles');
     }
 
-    public function hasRole($roleName)
+    public function estudiante()
     {
-        return $this->roles()->where('nombre', $roleName)->exists();
+        return $this->hasOne(Estudiante::class);
     }
 
-    public function hasAnyRole(array $roles)
+    public function docente()
     {
-        return $this->roles()->whereIn('nombre', $roles)->exists();
+        return $this->hasOne(Docente::class);
     }
 
-    public function assignRole($roleName)
+    public function apoderado()
     {
-        $role = Role::firstOrCreate(['nombre' => $roleName]);
-        $this->roles()->syncWithoutDetaching([$role->id]);
+        return $this->hasOne(Apoderado::class);
     }
 
-    public function getRoleAttribute()
+    public function auxiliar()
     {
-        return session('current_role') ?? $this->roles->first()->nombre ?? null;
+        return $this->hasOne(Auxiliar::class);
     }
-    protected static function boot()
-    {
-        parent::boot();
 
-        static::creating(function ($user) {
-            if (empty($user->roles)) {
-                throw new \Exception('El usuario debe tener al menos un rol asignado');
-            }
-        });
+    public function director()
+    {
+        return $this->hasOne(Director::class);
     }
+
+    public function hasRole($role)
+    {
+        if (is_string($role)) {
+            return $this->roles->contains('nombre', $role);
+        }
+
+        return !! $role->intersect($this->roles)->count();
+    }
+
+    public function isAdmin()
+    {
+        return $this->hasRole('admin');
+    }
+
+    public function isDirector()
+    {
+        return $this->hasRole('director');
+    }
+
+    // ... otros métodos para verificar roles
 }

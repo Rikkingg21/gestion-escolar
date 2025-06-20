@@ -4,16 +4,29 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 class CheckRole
 {
-    public function handle(Request $request, Closure $next, ...$roles): Response
+    public function handle(Request $request, Closure $next, ...$roles)
     {
-        if (!in_array(session('current_role'), $roles)) {
-            abort(403, 'No tienes permiso para acceder a esta sección');
+        if (!Auth::check()) {
+            return redirect('login');
         }
 
-        return $next($request);
+        $user = Auth::user();
+
+        if ($user->isAdmin()) {
+            return $next($request);
+        }
+
+        foreach ($roles as $role) {
+            if ($user->hasRole($role)) {
+                return $next($request);
+            }
+        }
+
+        abort(403, 'No tienes permiso para acceder a esta página.');
     }
 }

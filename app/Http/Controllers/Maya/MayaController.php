@@ -96,19 +96,23 @@ class MayaController extends Controller
 
     public function dashboard(Request $request)
     {
-        $mayas = Cursogradosecnivanio::with(['materia', 'docente.user', 'grado'])
-                                      ->orderBy('anio', 'desc')
-                                      ->orderBy('id')
-                                      ->get();
+        $user = auth()->user();
+        $anios = Cursogradosecnivanio::select('anio')->distinct()->orderBy('anio', 'desc')->pluck('anio');
+        $anioSeleccionado = $request->get('anio', date('Y'));
 
-        $selectedMayaId = $request->input('maya_id', null);
-        $selectedMaya = null;
-        if ($selectedMayaId) {
-            $selectedMaya = Cursogradosecnivanio::with([
-                'bimestres.unidades.semanas.clases.temas.criterios' // Eager load all nested relationships
-            ])->find($selectedMayaId);
+        // Filtrar mayas según el rol
+        if ($user->hasRole('docente')) {
+            $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
+                ->where('docente_designado_id', $user->docente->id ?? 0)
+                ->orderBy('id')
+                ->get();
+            return view('docente.dashboard', compact('mayas', 'anios', 'anioSeleccionado'));
+        } else {
+            // admin o director
+            $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
+                ->orderBy('id')
+                ->get();
+            return view('maya.dashboard', compact('mayas', 'anios', 'anioSeleccionado'));
         }
-
-        return view('maya.dashboard', compact('mayas', 'selectedMayaId', 'selectedMaya'));
     }
 }

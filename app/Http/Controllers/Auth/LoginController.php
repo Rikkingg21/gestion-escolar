@@ -5,11 +5,12 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 
 class LoginController extends Controller
 {
-    public function showLoginForm()
+    public function index()
     {
         return view('auth.login');
     }
@@ -22,33 +23,16 @@ class LoginController extends Controller
         ]);
 
         if (Auth::attempt($credentials, $request->remember)) {
+            // Regenerar la sesión y guardar el usuario en 'sessionmain'
             $request->session()->regenerate();
+            $request->session()->put('sessionmain', Auth::user());
 
-            return redirect()->route('role.selection');
+            return redirect()->route('session.selection');
         }
 
         return back()->withErrors([
             'nombre_usuario' => 'Las credenciales no coinciden con nuestros registros.',
         ]);
-    }
-    protected function redirectToRole($role)
-    {
-        switch ($role) {
-            case 'admin':
-                return redirect()->route('colegioconfig.edit');
-            case 'director':
-                return redirect()->route('admin.dashboard');
-            case 'docente':
-                return redirect()->route('docente.dashboard');
-            case 'auxiliar':
-                return redirect()->route('auxiliar.dashboard');
-            case 'apoderado':
-                return redirect()->route('apoderado.dashboard');
-            case 'estudiante':
-                return redirect()->route('estudiante.dashboard');
-            default:
-                return redirect('/home');
-        }
     }
     public function logout(Request $request)
     {
@@ -57,4 +41,5 @@ class LoginController extends Controller
         $request->session()->regenerateToken();
         return redirect('/login');
     }
+
 }
