@@ -47,9 +47,12 @@ Route::middleware('auth')->group(function () {
     });
     //rutas para admin
     Route::controller(DasboardController::class)->group(function () {
-
         Route::get('/admin', 'admin')->name('admin.dashboard');
+        Route::get('/colegioconfig/edit', [ColegioController::class, 'edit'])->name('colegioconfig.edit');
     });
+
+
+
     //rutas para director
     Route::controller(DasboardController::class)->group(function () {
         Route::get('/director', 'director')->name('director.dashboard');

@@ -102,18 +102,6 @@ return [
     */
 
     'store' => env('SESSION_STORE'),
-    'stores' => [
-        'file' => [
-            'driver' => 'file',
-            'path' => storage_path('framework/sessions'),
-        ],
-        // ...otros stores...
-        'sub' => [
-            'driver' => 'database',
-            'table' => 'sessions_sub',
-            'connection' => null,
-        ],
-    ],
 
     /*
     |--------------------------------------------------------------------------

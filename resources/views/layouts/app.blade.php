@@ -7,120 +7,179 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.datatables.net/2.3.1/css/dataTables.dataTables.css" />
-    <style>
-        body {
-            background: #f8fafc;
-        }
-        .sidebar {
-            min-height: 100vh;
-            background: #0d6efd;
-            color: #fff;
-            padding: 2rem 1rem 1rem 1rem;
-        }
-        .sidebar .dropdown-menu {
-            background: #fff;
-            color: #212529;
-        }
-        .sidebar .dropdown-item {
-            color: #212529;
-        }
-        .sidebar .dropdown-item.text-danger {
-            color: #dc3545 !important;
-        }
-        .sidebar .session-info {
-            font-size: 0.95rem;
-        }
-        .sidebar .session-info strong {
-            color: #ffc107;
-        }
-        .sidebar .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin-bottom: 2rem;
-            letter-spacing: 1px;
-        }
-        .main-content {
-            padding: 2rem 2rem 2rem 2rem;
-        }
-        @media (max-width: 767px) {
-            .sidebar {
-                min-height: auto;
-                padding: 1rem;
-            }
-            .main-content {
-                padding: 1rem;
-            }
-        }
-    </style>
 </head>
-<body>
-<div class="container-fluid">
-    <div class="row">
-        <!-- Panel lateral izquierdo -->
-        <nav class="col-md-3 col-lg-2 sidebar d-flex flex-column">
-            <div class="logo mb-4">
-                <i class="bi bi-mortarboard-fill"></i> Gestión Escolar
-            </div>
-            <div class="session-info mb-4">
-                <div class="mb-2">
-                    <strong>Sesión principal:</strong><br>
-                    @if(session('sessionmain'))
-                        {{ session('sessionmain')->nombre_usuario ?? 'No disponible' }}<br>
-                        <span class="text-white-50">ID: {{ session('sessionmain')->id ?? '-' }}</span>
-                    @else
-                        <span class="text-white-50">No hay sesión principal.</span>
-                    @endif
-                </div>
+<body class="min-vh-100">
+
+    <div class="d-flex min-vh-100" style="height: 100vh;">
+
+        <!-- Sidebar -->
+        <div class="sidebar bg-dark text-white p-3 d-flex flex-column h-100" style="width: 250px;">
+            <div class="text-center mb-4"><!--encabezado-->
+                <h4 class="text-success">nombre colegio</h4>
                 <div>
-                    <strong>Sesión sub (actual):</strong><br>
-                    @if(auth()->check())
-                        {{ auth()->user()->nombre_usuario ?? 'No disponible' }}<br>
-                        <span class="text-white-50">ID: {{ auth()->user()->id ?? '-' }}</span>
-                        @if(session('current_role'))
-                            <br><span class="badge bg-warning text-dark">Rol: {{ session('current_role') }}</span>
-                        @endif
-                    @else
-                        <span class="text-white-50">No hay sesión sub activa.</span>
-                    @endif
+
                 </div>
-            </div>
-            <!-- Botón desplegable para cerrar sesión -->
-            <div class="mb-4">
-                <div class="dropdown">
-                    <button class="btn btn-light dropdown-toggle w-100" type="button" id="dropdownCerrarSesion" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-person-circle"></i> Opciones de sesión
-                    </button>
-                    <ul class="dropdown-menu w-100" aria-labelledby="dropdownCerrarSesion">
-                        <li>
-                            <form method="POST" action="{{ route('logout') }}">
-                                @csrf
-                                <button type="submit" class="dropdown-item text-danger">
-                                    <i class="bi bi-box-arrow-right"></i> Cerrar sesión principal
-                                </button>
-                            </form>
-                        </li>
-                        <li>
-                            <form method="POST" action="{{ route('logout_sub') }}">
-                                @csrf
-                                <button type="submit" class="dropdown-item">
-                                    <i class="bi bi-arrow-repeat"></i> Cerrar sesión sub (cambiar sesión)
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
+                <hr class="bg-light">
+                <div class="accordion mb-2" id="accordionSesiones">
+                    <!-- Sesión principal -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingPrincipal">
+                            <button class="accordion-button collapsed py-2 small" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePrincipal" aria-expanded="false" aria-controls="collapsePrincipal">
+                                Sesión principal
+                            </button>
+                        </h2>
+                        <div id="collapsePrincipal" class="accordion-collapse collapse" aria-labelledby="headingPrincipal">
+                            <div class="accordion-body py-2 small">
+                                @if(session('sessionmain'))
+                                    <div><strong>Usuario:</strong> {{ session('sessionmain')->nombre_usuario ?? 'No disponible' }}</div>
+                                    <div><strong>ID:</strong> <span class="badge bg-primary rounded-pill">{{ session('sessionmain')->id ?? '-' }}</span></div>
+                                @else
+                                    <div class="text-muted">No hay sesión principal.</div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Sesión sub (actual) -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingSub">
+                            <button class="accordion-button collapsed py-2 small" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSub" aria-expanded="false" aria-controls="collapseSub">
+                                Sesión sub (actual)
+                            </button>
+                        </h2>
+                        <div id="collapseSub" class="accordion-collapse collapse" aria-labelledby="headingSub">
+                            <div class="accordion-body py-2 small">
+                                @if(auth()->check())
+                                    <div><strong>DNI:</strong> {{ auth()->user()->dni ?? '-' }}</div>
+                                    <div>{{ auth()->user()->nombre ?? '-' }}
+                                    {{ auth()->user()->apellido_paterno ?? '-' }}
+                                    {{ auth()->user()->apellido_materno ?? '-' }}</div>
+                                    <div><strong>ID:</strong> <span class="badge bg-primary rounded-pill">{{ auth()->user()->id ?? '-' }}</span></div>
+                                    @if(session('current_role'))
+                                        <div><strong>Rol:</strong> <span class="badge bg-warning text-dark">{{ session('current_role') }}</span></div>
+                                    @endif
+                                @else
+                                    <div class="text-muted">No hay sesión sub activa.</div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                <p class="text small">Bienvenido, {{ auth()->user()->nombre }}</p>
+
+                <span class="badge bg-primary">
+                    Rol: {{ ucfirst(session('current_role')) }}
+                </span>
+
             </div>
-            <!-- Puedes agregar más opciones de menú aquí -->
+
+            <ul class="nav nav-pills flex-column"><!--contenido-->
+                @if(session('current_role') === 'admin')
+                {{-- Solo para admin --}}
+
+                <li class="nav-item">
+                    <a href="{{ route('colegioconfig.edit') }}" class="nav-link text-white {{ request()->routeIs('colegioconfig.*') ? 'active' : '' }}">
+                        <i class="bi bi-building me-2"></i> Colegio
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="" class="nav-link text-white {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Usuarios
+                    </a>
+                </li>
+                @endif
+
+                @if(session('current_role') === 'director')
+                <li class="nav-item">
+                    <a href="" class="nav-link text-white {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                        <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="" class="nav-link text-white {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Usuarios
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="" class="nav-link text-white {{ request()->routeIs('grado.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Grados
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="" class="nav-link text-white {{ request()->routeIs('materia.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Materias
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="" class="nav-link text-white {{ request()->routeIs('maya.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Mayas
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="" class="nav-link text-white {{ request()->routeIs('estudiante.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Estudiantes
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="" class="nav-link text-white {{ request()->routeIs('docente.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Docentes
+                    </a>
+                </li>
+                @endif
+
+                @if(session('current_role') === 'docente')
+                {{-- Ejemplo para docente --}}
+
+                <li class="nav-item">
+                    <a href="" class="nav-link text-white">
+                        <i class="bi bi-journal-text me-2"></i> Mi Maya
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="" class="nav-link text-white">
+                        <i class="bi bi-journal-text me-2"></i> Mis Cursos
+                    </a>
+                </li>
+                @endif
+
+
+            </ul>
+
             <div class="mt-auto text-center text-white-50 small">
+                <div class="dropdown">
+                        <button class="btn btn-danger dropdown-toggle w-100" type="button" id="dropdownCerrarSesion" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-box-arrow-left me-2"></i> Cerrar Sesión
+                        </button>
+                        <ul class="dropdown-menu w-100" aria-labelledby="dropdownCerrarSesion">
+                            <li>
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="bi bi-box-arrow-right"></i> Cerrar sesión principal
+                                    </button>
+                                </form>
+                            </li>
+                            <li>
+                                <form method="POST" action="{{ route('logout_sub') }}">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="bi bi-arrow-repeat"></i>Cambiar sesión
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
                 &copy; {{ date('Y') }} Gestión Escolar
             </div>
-        </nav>
-        <!-- Contenido principal -->
-        <main class="col-md-9 col-lg-10 main-content">
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-grow-1">
             @yield('content')
-        </main>
+        </div>
     </div>
-</div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>

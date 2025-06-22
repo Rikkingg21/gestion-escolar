@@ -58,11 +58,9 @@ Route::middleware('auth')->group(function () {
 
     //rutas para admin
     Route::middleware('check.selected.role:admin')->group(function () {
-        Route::get('/colegioconfig/edit', [ColegioController::class, 'edit'])
-        ->name('colegioconfig.edit');
+        Route::get('/colegioconfig/edit', [ColegioController::class, 'edit'])->name('colegioconfig.edit');
 
-        Route::put('/colegioconfig/{colegio}', [ColegioController::class, 'update'])
-        ->name('colegioconfig.update');
+        Route::put('/colegioconfig/{colegio}', [ColegioController::class, 'update'])->name('colegioconfig.update');
     });
 
     // Rutas para admin/director (requieren rol seleccionado)
