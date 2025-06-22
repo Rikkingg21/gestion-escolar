@@ -10,65 +10,63 @@ class SessionSelectionController extends Controller
 {
     public function showSessionSelection()
     {
-    $user = auth()->user();
+        // Usa el usuario principal guardado en la sesión
+        $user = session('sessionmain');
 
-    // Si es admin, ve todas las sesiones
-    if ($user->hasRole('admin')) {
-        $usuarios = User::where('estado', "activo")->with('roles')->get();
-    }
-    // Si es director, ve todas menos los admin
-    elseif ($user->hasRole('director')) {
-        $usuarios = User::where('estado', "activo")
-            ->whereDoesntHave('roles', function($q) {
-                $q->where('nombre', 'admin');
-            })
-            ->with('roles')->get();
-    }
-    // Si es docente, auxiliar o estudiante, solo ve su sesión
-    elseif ($user->hasRole('docente') || $user->hasRole('auxiliar') || $user->hasRole('estudiante')) {
-        $usuarios = User::where('id', $user->id)->with('roles')->get();
-    }
-    // Si es apoderado, ve su sesión y la de sus estudiantes asignados
-    elseif ($user->hasRole('apoderado')) {
-        // Suponiendo que tienes una relación 'estudiantes' en el modelo User para apoderado
-        $estudiantes = $user->apoderado && $user->apoderado->estudiantes
-            ? $user->apoderado->estudiantes->pluck('user_id')->toArray()
-            : [];
-        $usuarios = User::whereIn('id', array_merge([$user->id], $estudiantes))->with('roles')->get();
-    }
-    // Por defecto, solo su sesión
-    else {
-        $usuarios = User::where('id', $user->id)->with('roles')->get();
-    }
+        // Si no hay usuario principal, redirige al login
+        if (!$user) {
+            return redirect()->route('login')->withErrors('Sesión principal no encontrada.');
+        }
 
-    return view('auth.select-session', compact('usuarios'));
+        // Ahora usa $user para la lógica de roles
+        if ($user->hasRole('admin')) {
+            $usuarios = User::where('estado', "activo")->with('roles')->get();
+        } elseif ($user->hasRole('director')) {
+            $usuarios = User::where('estado', "activo")
+                ->whereDoesntHave('roles', function ($q) {
+                    $q->where('name', 'admin');
+                })
+                ->with('roles')->get();
+        } elseif ($user->hasRole('docente') || $user->hasRole('auxiliar') || $user->hasRole('estudiante')) {
+            $usuarios = User::where('id', $user->id)->with('roles')->get();
+        } elseif ($user->hasRole('apoderado')) {
+            // Aquí tu lógica para apoderado
+            $usuarios = collect([$user]);
+            // Puedes agregar estudiantes relacionados si lo necesitas
+        } else {
+            $usuarios = collect([$user]);
+        }
+
+        return view('auth.select-session', compact('usuarios'));
     }
-    /*
-    verificar rol
-    Si el usuario tiene rol
-    */
 
     public function selectSessionUser(Request $request)
     {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'role' => 'required|string'
+        ]);
 
-    }
+        $user = User::findOrFail($request->user_id);
 
-    protected function redirectToRole($role)
-    {
-        switch ($role) {
-            case 'admin':
-            case 'director':
-                return redirect()->route('admin.dashboard');
-            case 'docente':
-                return redirect()->route('docente.dashboard');
-            case 'auxiliar':
-                return redirect()->route('auxiliar.dashboard');
-            case 'apoderado':
-                return redirect()->route('apoderado.dashboard');
-            case 'estudiante':
-                return redirect()->route('estudiante.dashboard');
-            default:
-                return redirect('/home');
+        Auth::login($user);
+
+        // Guarda el rol seleccionado en la sesión
+        session(['current_role' => $request->role]);
+
+        // Redirige a la vista principal con la sub-sesión activa a admin.dashboard si el rol es admin, rol director a director.dashboard, etc.
+        if ($user->hasRole('admin')) {
+            return redirect()->route('admin.dashboard');
+        } elseif ($user->hasRole('director')) {
+            return redirect()->route('director.dashboard');
+        } elseif ($user->hasRole('docente')) {
+            return redirect()->route('docente.dashboard');
+        } elseif ($user->hasRole('auxiliar')) {
+            return redirect()->route('auxiliar.dashboard');
+        } elseif ($user->hasRole('estudiante')) {
+            return redirect()->route('estudiante.dashboard');
+        } elseif ($user->hasRole('apoderado')) {
+            return redirect()->route('apoderado.dashboard');
         }
     }
 }

@@ -34,6 +34,11 @@ class LoginController extends Controller
             'nombre_usuario' => 'Las credenciales no coinciden con nuestros registros.',
         ]);
     }
+    public function login_sub(Request $request)
+    {
+
+    }
+
     public function logout(Request $request)
     {
         Auth::logout();
@@ -41,5 +46,11 @@ class LoginController extends Controller
         $request->session()->regenerateToken();
         return redirect('/login');
     }
+    public function logout_sub(Request $request)
+    {
+        // Solo elimina la sesión secundaria
+        $request->session()->forget('sub_session');
 
+        return redirect()->route('session.selection');
+    }
 }

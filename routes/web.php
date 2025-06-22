@@ -2,6 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\SessionSelectionController;
+
+use App\Http\Controllers\Rol\DasboardController;
+
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ColegioController;
@@ -14,7 +18,7 @@ use App\Http\Controllers\Maya\ClaseController;
 use App\Http\Controllers\Maya\TemaController;
 use App\Http\Controllers\Maya\CriterioController;
 
-use App\Http\Controllers\SessionSelectionController;
+
 use App\Http\Controllers\GradoController;
 use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\EstudianteController;
@@ -31,28 +35,27 @@ Route::controller(LoginController::class)->group(function () {
     Route::post('/login', 'login')->name('login');;
     Route::post('/logout', 'logout')->name('logout');
 });
+Route::post('/logout-sub', [LoginController::class, 'logout_sub'])->name('logout_sub');
 
 // Grupo de rutas que requieren autenticación
 Route::middleware('auth')->group(function () {
-    // Selección de rol
+    // Selección de session
     Route::controller(SessionSelectionController::class)->group(function () {
         Route::get('/select-session', 'showSessionSelection')->name('session.selection');
-        Route::post('/select-session', 'selectSession')->name('session.select');
+        Route::post('/select-session', 'selectSessionUser')->name('session.select');
+
     });
+    //rutas para admin
+    Route::controller(DasboardController::class)->group(function () {
 
-
-    // Redirección post-login
-    Route::get('/home', function () {
-        return match(session('current_role')) {
-            'admin', 'director' => redirect()->route('admin.dashboard'),
-            'docente' => redirect()->route('docente.dashboard'),
-            'auxiliar' => redirect()->route('auxiliar.dashboard'),
-            'estudiante' => redirect()->route('estudiante.dashboard'),
-            'apoderado' => redirect()->route('apoderado.dashboard'),
-            default => redirect()->route('role.selection')
-        };
-    })->name('home');
-
-
-
+        Route::get('/admin', 'admin')->name('admin.dashboard');
+    });
+    //rutas para director
+    Route::controller(DasboardController::class)->group(function () {
+        Route::get('/director', 'director')->name('director.dashboard');
+    });
+    //rutas para docente
+    Route::controller(DasboardController::class)->group(function () {
+        Route::get('/docente', 'docente')->name('docente.dashboard');
+    });
 });
