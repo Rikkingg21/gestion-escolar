@@ -62,7 +62,16 @@ Route::middleware('auth')->group(function () {
     //rutas para director
     Route::controller(DasboardController::class)->group(function () {
         Route::get('/director', 'director')->name('director.dashboard');
+        Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
+        Route::get('/maya/create', [MayaController::class, 'create'])->name('maya.create');
+        Route::post('/maya', [MayaController::class, 'store'])->name('maya.store');
+        //Route::get('/maya/{id}', [MayaController::class, 'show'])->name('maya.show');
+        Route::get('/maya/{id}/edit', [MayaController::class, 'edit'])->name('maya.edit');
+        Route::put('/maya/{id}', [MayaController::class, 'update'])->name('maya.update');
+        Route::delete('/maya/{id}', [MayaController::class, 'destroy'])->name('maya.destroy');
     });
+
+
     //rutas para docente
     Route::controller(DasboardController::class)->group(function () {
         Route::get('/docente', 'docente')->name('docente.dashboard');

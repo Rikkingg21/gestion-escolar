@@ -110,7 +110,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="" class="nav-link text-white {{ request()->routeIs('maya.*') ? 'active' : '' }}">
+                    <a href="{{ route('maya.index') }}" class="nav-link text-white {{ request()->routeIs('maya.*') ? 'active' : '' }}">
                         <i class="bi bi-people me-2"></i> Mayas
                     </a>
                 </li>
@@ -131,12 +131,12 @@
                 {{-- Ejemplo para docente --}}
 
                 <li class="nav-item">
-                    <a href="" class="nav-link text-white">
+                    <a href="{{ route('maya.index') }}" class="nav-link text-white">
                         <i class="bi bi-journal-text me-2"></i> Mi Maya
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="" class="nav-link text-white">
+                    <a href="{{ route('docente.dashboard') }}" class="nav-link text-white">
                         <i class="bi bi-journal-text me-2"></i> Mis Cursos
                     </a>
                 </li>

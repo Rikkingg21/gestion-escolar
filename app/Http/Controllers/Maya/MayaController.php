@@ -24,7 +24,7 @@ class MayaController extends Controller
             ->orderBy('id')
             ->paginate(10);
 
-        return view('maya.index', compact('mayas', 'anios', 'anioSeleccionado'));
+        return view('modulos.maya.index', compact('mayas', 'anios', 'anioSeleccionado'));
     }
     public function create()
     {
@@ -35,7 +35,7 @@ class MayaController extends Controller
         // Cargar grados activos
         $grados = Grado::where('estado', 1)->orderBy('grado')->get();
 
-        return view('maya.create', compact('materias', 'docentes', 'grados'));
+        return view('modulos.maya.create', compact('materias', 'docentes', 'grados'));
     }
     public function store (Request $request)
     {
