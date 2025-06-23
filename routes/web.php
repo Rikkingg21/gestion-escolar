@@ -45,10 +45,16 @@ Route::middleware('auth')->group(function () {
         Route::post('/select-session', 'selectSessionUser')->name('session.select');
 
     });
+
+
+
+
+
     //rutas para admin
     Route::controller(DasboardController::class)->group(function () {
         Route::get('/admin', 'admin')->name('admin.dashboard');
         Route::get('/colegioconfig/edit', [ColegioController::class, 'edit'])->name('colegioconfig.edit');
+        Route::put('/colegioconfig/{colegio}', [ColegioController::class, 'update'])->name('colegioconfig.update');
     });
 
 

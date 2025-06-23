@@ -5,38 +5,25 @@ namespace App\Http\Controllers;
 use App\Models\Colegio;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 class ColegioController extends Controller
 {
 
-    public function index()
-    {
-        //
-    }
-
-    public function create()
-    {
-        //
-    }
-
-    public function store(Request $request)
-    {
-        //
-    }
-
-    public function show(Colegio $colegio)
-    {
-        //
-    }
-
     public function edit(Colegio $colegio)
     {
+        if (!Auth::user()->hasRole('admin')) {
+            abort(403, 'Acceso denegado');
+        }
         $colegio = Colegio::configuracion();
-        return view('colegioconfig.edit', compact('colegio'));
+        return view('rol.admin.colegioconfig.edit', compact('colegio'));
     }
 
     public function update(Request $request, Colegio $colegio)
     {
+        if (!Auth::user()->hasRole('admin')) {
+            abort(403, 'Acceso denegado');
+        }
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
             'direccion' => 'required|string',
@@ -65,10 +52,5 @@ class ColegioController extends Controller
 
         return redirect()->route('colegioconfig.edit')
             ->with('success', 'Configuración del colegio actualizada correctamente');
-    }
-
-    public function destroy(Colegio $colegio)
-    {
-        //
     }
 }
