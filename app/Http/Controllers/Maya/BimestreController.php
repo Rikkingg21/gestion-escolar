@@ -3,24 +3,26 @@
 namespace App\Http\Controllers\Maya;
 use App\Http\Controllers\Controller;
 
+use App\Models\Maya\Cursogradosecnivanio;
 use App\Models\Maya\Bimestre;
 use Illuminate\Http\Request;
 
 class BimestreController extends Controller
 {
-    public function index($curso_grado_sec_niv_anio_id)
+
+    public function create(Request $request)
     {
-        $bimestres = \App\Models\Maya\Bimestre::where('curso_grado_sec_niv_anio_id', $curso_grado_sec_niv_anio_id)->get();
-        return view('bimestre.index', compact('bimestres', 'curso_grado_sec_niv_anio_id'));
-    }
-    public function create($curso_grado_sec_niv_anio_id)
-    {
-        $cursos = \App\Models\Maya\Cursogradosecnivanio::with(['materia', 'grado'])->get();
-        // Obtener los bimestres ocupados para este curso
-        $ocupadoBimestres = \App\Models\Maya\Bimestre::where('curso_grado_sec_niv_anio_id', $curso_grado_sec_niv_anio_id)
+        $curso_grado_sec_niv_anio_id = $request->curso_grado_sec_niv_anio_id;
+
+        // Obtener los bimestres ocupados (nombres: 1,2,3,4)
+        $ocupadoBimestres = Bimestre::where('curso_grado_sec_niv_anio_id', $curso_grado_sec_niv_anio_id)
             ->pluck('nombre')
             ->toArray();
-        return view('bimestre.create', compact('cursos', 'curso_grado_sec_niv_anio_id', 'ocupadoBimestres'));
+
+        // Obtener todos los cursos para mostrar info en la vista
+        $cursos = Cursogradosecnivanio::with(['materia', 'grado'])->get();
+
+        return view('modulos.bimestre.create', compact('curso_grado_sec_niv_anio_id', 'ocupadoBimestres', 'cursos'));
     }
 
     public function store(Request $request)
@@ -31,7 +33,7 @@ class BimestreController extends Controller
                 'required',
                 'in:1,2,3,4',
                 function($attribute, $value, $fail) use ($request) {
-                    $exists = \App\Models\Maya\Bimestre::where('curso_grado_sec_niv_anio_id', $request->curso_grado_sec_niv_anio_id)
+                    $exists = Bimestre::where('curso_grado_sec_niv_anio_id', $request->curso_grado_sec_niv_anio_id)
                         ->where('nombre', $value)
                         ->exists();
                     if ($exists) {
@@ -41,12 +43,12 @@ class BimestreController extends Controller
             ],
         ]);
 
-        \App\Models\Maya\Bimestre::create([
+        Bimestre::create([
             'curso_grado_sec_niv_anio_id' => $request->curso_grado_sec_niv_anio_id,
             'nombre' => $request->bimestre,
         ]);
 
-        return redirect()->route('bimestres.index', $request->curso_grado_sec_niv_anio_id)
+        return redirect()->route('maya.index')
             ->with('success', 'Bimestre creado correctamente.');
     }
 
@@ -55,22 +57,21 @@ class BimestreController extends Controller
         //
     }
 
-    public function edit(Bimestre $bimestre)
+    public function edit($id)
     {
-        $cursos = \App\Models\Maya\Cursogradosecnivanio::with(['materia', 'grado'])->get();
+        $bimestre = Bimestre::findOrFail($id);
+        $cursos = Cursogradosecnivanio::with(['materia', 'grado'])->get();
         // Obtener los bimestres ocupados para este curso, excepto el actual
         $ocupadoBimestres = \App\Models\Maya\Bimestre::where('curso_grado_sec_niv_anio_id', $bimestre->curso_grado_sec_niv_anio_id)
             ->where('id', '!=', $bimestre->id)
             ->pluck('nombre')
             ->toArray();
-        return view('bimestre.edit', compact('bimestre', 'cursos', 'ocupadoBimestres'));
+        return view('modulos.bimestre.edit', compact('bimestre', 'cursos', 'ocupadoBimestres'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Bimestre $bimestre)
+    public function update(Request $request, $id)
     {
+        $bimestre = Bimestre::findOrFail($id);
         $request->validate([
             'curso_grado_sec_niv_anio_id' => 'required|exists:maya_curso_grado_sec_niv_anios,id',
             'bimestre' => [
@@ -78,7 +79,7 @@ class BimestreController extends Controller
                 'in:1,2,3,4',
                 // Único por curso, excepto el actual
                 function($attribute, $value, $fail) use ($request, $bimestre) {
-                    $exists = \App\Models\Maya\Bimestre::where('curso_grado_sec_niv_anio_id', $request->curso_grado_sec_niv_anio_id)
+                    $exists = Bimestre::where('curso_grado_sec_niv_anio_id', $request->curso_grado_sec_niv_anio_id)
                         ->where('nombre', $value)
                         ->where('id', '!=', $bimestre->id)
                         ->exists();
@@ -94,60 +95,15 @@ class BimestreController extends Controller
             'nombre' => $request->bimestre,
         ]);
 
-        if ($request->has('from_dashboard')) {
-            return redirect()->route('mayas.dashboard', ['maya_id' => $request->curso_grado_sec_niv_anio_id])
-                ->with('success', 'Bimestre actualizado correctamente desde el dashboard.');
-        }
-
-        return redirect()->route('bimestres.index', $request->curso_grado_sec_niv_anio_id)
+        return redirect()->route('maya.index')
             ->with('success', 'Bimestre actualizado correctamente.');
     }
     public function destroy($id)
     {
         $bimestre =Bimestre::findOrFail($id);
         $bimestre->delete();
-        return redirect()->route('bimestres.index', $bimestre->curso_grado_sec_niv_anio_id)
+        return redirect()->route('modulos.maya.index', $bimestre->curso_grado_sec_niv_anio_id)
             ->with('success', 'Bimestre eliminado correctamente.');
     }
 
-    public function destroyFromDashboard(Request $request, $id)
-    {
-        $bimestre = Bimestre::findOrFail($id);
-        // $curso_grado_sec_niv_anio_id = $bimestre->curso_grado_sec_niv_anio_id; // Already available in $request->maya_id
-
-        // TODO: Consider implications of deleting a bimestre - what happens to its Unidades, Semanas etc.?
-        // Assuming soft deletes are used or cascading deletes are set up at DB level for related items.
-        // If not, manual deletion of children might be required here.
-        $bimestre->delete();
-
-        return redirect()->route('mayas.dashboard', ['maya_id' => $request->input('maya_id')])
-            ->with('success', 'Bimestre eliminado correctamente desde el dashboard.');
-    }
-
-    public function storeFromDashboard(Request $request)
-    {
-        $request->validate([
-            'curso_grado_sec_niv_anio_id' => 'required|exists:maya_curso_grado_sec_niv_anios,id',
-            'bimestre' => [
-                'required',
-                'in:1,2,3,4',
-                function($attribute, $value, $fail) use ($request) {
-                    $exists = \App\Models\Maya\Bimestre::where('curso_grado_sec_niv_anio_id', $request->curso_grado_sec_niv_anio_id)
-                        ->where('nombre', $value)
-                        ->exists();
-                    if ($exists) {
-                        $fail('Este bimestre ya está registrado para este curso.');
-                    }
-                }
-            ],
-        ]);
-
-        \App\Models\Maya\Bimestre::create([
-            'curso_grado_sec_niv_anio_id' => $request->curso_grado_sec_niv_anio_id,
-            'nombre' => $request->bimestre,
-        ]);
-
-        return redirect()->route('mayas.dashboard', ['maya_id' => $request->curso_grado_sec_niv_anio_id])
-            ->with('success', 'Bimestre creado exitosamente en el dashboard.');
-    }
 }

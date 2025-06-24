@@ -6,92 +6,191 @@
         <h1 class="h3 mb-0 text-gray-800">
             <i class="bi bi-people-fill"></i> Administración de Mayas
         </h1>
-
-        <a href="{{ route('maya.create') }}" class="btn btn-primary shadow-sm">
-            <i class="bi bi-plus-lg me-2"></i> Nuevo Maya
-        </a>
+        <!-- Si rol es admin o director que se muestre nueva maya -->
+        @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+            <a href="{{ route('maya.create') }}" class="btn btn-primary shadow-sm">
+                <i class="bi bi-plus-lg me-2"></i> Nueva Maya
+            </a>
+        @endif
     </div>
     <div>
         <h2>Año de la maya:</h2>
-            <select name="anio" id="anio-select" class="form-select">
-                @foreach($anios as $anio)
-                    <option value="{{ $anio }}" {{ $anio == $anioSeleccionado ? 'selected' : '' }}>{{ $anio }}</option>
-                @endforeach
-            </select>
+        <select name="anio" id="anio-select" class="form-select">
+            @foreach($anios as $anio)
+                <option value="{{ $anio }}" {{ $anio == $anioSeleccionado ? 'selected' : '' }}>{{ $anio }}</option>
+            @endforeach
+        </select>
     </div><br>
-    <div class="card shadow mb-4">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="materiasTable" width="100%" cellspacing="0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>id</th>
-                            <th>Docente Asignado</th>
-                            <th>Materia</th>
-                            <th>Grado</th>
-                            <th>Año</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($mayas as $maya)
-                        <tr>
-                            <td>{{ $maya->id }}</td>
-                            <td>
-                                {{ $maya->docente && $maya->docente->user ? $maya->docente->user->nombre . ' ' . $maya->docente->user->apellido_paterno . ' ' . $maya->docente->user->apellido_materno : 'Sin docente' }}
-                            </td>
-                            <td>
-                                {{ $maya->materia->nombre ?? '' }}
-                            </td>
-                            <td>
-                                {{ $maya->grado->grado ?? '' }} - {{ $maya->grado->seccion ?? '' }} - {{ $maya->grado->nivel ?? '' }}
-                            </td>
-                            <td>{{ $maya->anio }}</td>
-                            <td>
-                                <div class="d-flex">
-                                    <a href=""
-                                       class="btn btn-sm btn-info mx-1"
-                                       title="Ver Detalles">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                    <a href="{{ route('maya.edit', $maya->id) }}"
-                                       class="btn btn-sm btn-warning mx-1"
-                                       title="Editar">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
+    <div id="formulario-dinamico">
 
-                                    <form action="{{ route('maya.destroy', $maya->id) }}" method="POST">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                                class="btn btn-sm btn-danger"
-                                                title="Eliminar"
-                                                onclick="return confirm('¿Eliminar esta materia?')">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="showing-results text-muted">
-                        Mostrando {{ $mayas->firstItem() }} a {{ $mayas->lastItem() }} de {{ $mayas->total() }} resultados
+    <div class="accordion" id="mayasAccordion">
+        @foreach($mayas as $maya)
+        <div class="accordion-item mb-3">
+            <h2 class="accordion-header" id="headingMaya{{ $maya->id }}"><!-- Módulo: Maya -->
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaya{{ $maya->id }}" aria-expanded="false" aria-controls="collapseMaya{{ $maya->id }}">
+                    <div class="mb-2">
+                    <strong>{{ $maya->materia->nombre ?? '' }}</strong> - {{ $maya->grado->grado ?? '' }} {{ $maya->grado->seccion ?? '' }} ({{ $maya->anio }})
+                    <a href="" class="btn btn-primary shadow-sm">Calificar</a>
                     </div>
-                    <div>
-                        {{ $mayas->links('pagination::bootstrap-4') }}
+                </button>
+            </h2>
+            <div id="collapseMaya{{ $maya->id }}" class="accordion-collapse collapse" aria-labelledby="headingMaya{{ $maya->id }}" data-bs-parent="#mayasAccordion">
+                <div class="accordion-body">
+                    <div class="mb-2">
+                        @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+                            <a href="{{ route('maya.edit', $maya->id) }}" class="btn btn-warning btn-sm">Editar Maya</a>
+                            <form action="{{ route('maya.destroy', $maya->id) }}" method="POST" class="d-inline">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar esta maya?')">Eliminar Maya</button>
+                            </form>
+                        @endif
+                        <a href="{{ route('bimestre.create', ['curso_grado_sec_niv_anio_id' => $maya->id]) }}" class="btn btn-primary btn-sm crear-bimestre-btn" data-bimestres="{{ $maya->bimestres->count() }}">Crear Bimestre</a>
+                    </div>
+                    <!-- Submódulo: Bimestres -->
+                    <div class="accordion" id="bimestresAccordion{{ $maya->id }}">
+                        <div class="accordion-item">
+                            @foreach ($maya->bimestres as $bimestre)
+                                <h2 class="accordion-header" id="headingBimestre{{ $bimestre->id }}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBimestre{{ $bimestre->id }}" aria-expanded="false" aria-controls="collapseBimestre{{ $bimestre->id }}">
+                                        {{ $bimestre->nombre }} Bimestre
+                                    </button>
+                                </h2>
+                                <div id="collapseBimestre{{ $bimestre->id }}" class="accordion-collapse collapse" aria-labelledby="headingBimestre{{ $bimestre->id }}" data-bs-parent="#bimestresAccordion{{ $maya->id }}">
+                                    <div class="accordion-body">
+                                        <div class="mb-2">
+                                            @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+
+                                                <a href="{{ route('bimestre.edit', $bimestre->id) }}" class="btn btn-warning btn-sm">Editar Bimestre</a>
+                                                <form action="{{ route('bimestre.destroy', $bimestre->id) }}" method="POST" class="d-inline">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este bimestre?')">Eliminar Bimestre</button>
+                                                </form>
+
+                                            @endif
+                                            <a href="" class="btn btn-primary btn-sm">Crear Unidad</a>
+                                        </div>
+
+
+                                        <!-- Unidades -->
+                                        <div class="accordion" id="unidadesAccordion{{ $bimestre->id }}">
+                                            <div class="accordion-item">
+                                                @foreach ($bimestre->unidades as $unidad)
+                                                    <h2 class="accordion-header" id="headingUnidad{{ $unidad->id }}">
+                                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUnidad{{ $unidad->id }}" aria-expanded="false" aria-controls="collapseUnidad{{ $unidad->id }}">
+                                                            {{ $unidad->nombre }} Unidad
+                                                        </button>
+                                                    </h2>
+                                                    <div id="collapseUnidad{{ $unidad->id }}" class="accordion-collapse collapse" aria-labelledby="headingUnidad{{ $unidad->id }}" data-bs-parent="#unidadesAccordion{{ $bimestre->id }}">
+                                                        <div class="accordion-body">
+                                                            <!-- Semanas -->
+                                                            <div class="accordion" id="semanasAccordion{{ $unidad->id }}">
+                                                                <div class="accordion-item">
+                                                                    @foreach ($unidad->semanas as $semana)
+                                                                        <h2 class="accordion-header" id="headingSemana{{ $semana->id }}">
+                                                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSemana{{ $semana->id }}" aria-expanded="false" aria-controls="collapseSemana{{ $semana->id }}">
+                                                                                {{ $semana->nombre }} Semana
+                                                                            </button>
+                                                                        </h2>
+                                                                        <div id="collapseSemana{{ $semana->id }}" class="accordion-collapse collapse" aria-labelledby="headingSemana{{ $semana->id }}" data-bs-parent="#semanasAccordion{{ $unidad->id }}">
+                                                                            <div class="accordion-body">
+                                                                                <!-- Clases -->
+                                                                                <div class="accordion" id="clasesAccordion{{ $semana->id }}">
+                                                                                    <div class="accordion-item">
+                                                                                        @foreach ($semana->clases as $clase)
+                                                                                            <h2 class="accordion-header" id="headingClase{{ $clase->id }}">
+                                                                                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseClase{{ $clase->id }}" aria-expanded="false" aria-controls="collapseClase{{ $clase->id }}">
+                                                                                                    Clase: {{ $clase->descripcion }} ({{ $clase->fecha_clase }})
+                                                                                                </button>
+                                                                                            </h2>
+                                                                                            <div id="collapseClase{{ $clase->id }}" class="accordion-collapse collapse" aria-labelledby="headingClase{{ $clase->id }}" data-bs-parent="#clasesAccordion{{ $semana->id }}">
+                                                                                                <div class="accordion-body">
+                                                                                                    <!-- Temas -->
+                                                                                                    <div class="accordion" id="temasAccordion{{ $clase->id }}">
+                                                                                                        <div class="accordion-item">
+                                                                                                            @foreach ($clase->temas as $tema)
+                                                                                                                <h2 class="accordion-header" id="headingTema{{ $tema->id }}">
+                                                                                                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTema{{ $tema->id }}" aria-expanded="false" aria-controls="collapseTema{{ $tema->id }}">
+                                                                                                                        Tema: {{ $tema->nombre }}
+                                                                                                                    </button>
+                                                                                                                </h2>
+                                                                                                                <div id="collapseTema{{ $tema->id }}" class="accordion-collapse collapse" aria-labelledby="headingTema{{ $tema->id }}" data-bs-parent="#temasAccordion{{ $clase->id }}">
+                                                                                                                    <div class="accordion-body">
+                                                                                                                        <!-- Criterios -->
+                                                                                                                        <ul>
+                                                                                                                            @foreach ($tema->criterios as $criterio)
+                                                                                                                                <li>{{ $criterio->descripcion }} ({{ $criterio->tipo }})</li>
+                                                                                                                            @endforeach
+                                                                                                                        </ul>
+                                                                                                                    </div>
+                                                                                                                </div>
+                                                                                                            @endforeach
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        @endforeach
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+        @endforeach
+
     </div>
 </div>
+
+
 
 <script>
     document.getElementById('anio-select').addEventListener('change', function() {
         window.location.href = '?anio=' + this.value;
     });
+
+    // Deshabilitar botón "Crear bimestre" si hay 4 o más bimestres
+    document.querySelectorAll('.crear-bimestre-btn').forEach(function(btn) {
+        if (parseInt(btn.dataset.bimestres) >= 4) {
+            btn.classList.add('disabled');
+            btn.setAttribute('aria-disabled', 'true');
+            btn.setAttribute('tabindex', '-1');
+            btn.onclick = function(e) { e.preventDefault(); };
+        }
+    });
+    // En cada bimestre debe tener 2 unidades como maximo, si llega a esa cantidad entonces deshabilitar el boton de crear unidad
+    /*fata*/
+
+
+    // Guardar el último acordeón abierto en localStorage
+    document.querySelectorAll('.accordion-button').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            localStorage.setItem('maya_last_open', this.dataset.bsTarget || this.getAttribute('data-bs-target'));
+        });
+    });
+
+    // Al cargar la página, abrir el último acordeón seleccionado
+    document.addEventListener('DOMContentLoaded', function() {
+        var lastOpen = localStorage.getItem('maya_last_open');
+        if (lastOpen) {
+            var collapse = document.querySelector(lastOpen);
+            if (collapse) {
+                var bsCollapse = new bootstrap.Collapse(collapse, {toggle: true});
+            }
+        }
+    });
 </script>
+
 @endsection

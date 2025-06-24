@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Models\Maya\Clase;
+use App\Models\Maya\Criterio;
+
 class Tema extends Model
 {
     use HasFactory;
@@ -24,5 +27,9 @@ class Tema extends Model
     public function clase()
     {
         return $this->belongsTo(Clase::class, 'clase_id');
+    }
+    public function criterios()
+    {
+        return $this->hasMany(Criterio::class, 'tema_id');
     }
 }

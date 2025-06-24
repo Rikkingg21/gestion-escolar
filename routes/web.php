@@ -62,15 +62,57 @@ Route::middleware('auth')->group(function () {
     //rutas para director
     Route::controller(DasboardController::class)->group(function () {
         Route::get('/director', 'director')->name('director.dashboard');
+
         Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
         Route::get('/maya/create', [MayaController::class, 'create'])->name('maya.create');
         Route::post('/maya', [MayaController::class, 'store'])->name('maya.store');
-        //Route::get('/maya/{id}', [MayaController::class, 'show'])->name('maya.show');
         Route::get('/maya/{id}/edit', [MayaController::class, 'edit'])->name('maya.edit');
         Route::put('/maya/{id}', [MayaController::class, 'update'])->name('maya.update');
         Route::delete('/maya/{id}', [MayaController::class, 'destroy'])->name('maya.destroy');
-    });
+        Route::get('/maya/dashboard', [MayaController::class, 'dashboard'])->name('maya.dashboard');
 
+        Route::get('/bimestre', [BimestreController::class, 'index'])->name('bimestre.index');
+        Route::get('/bimestre/create', [BimestreController::class, 'create'])->name('bimestre.create');
+        Route::post('/bimestre', [BimestreController::class, 'store'])->name('bimestre.store');
+        Route::get('/bimestre/{id}/edit', [BimestreController::class, 'edit'])->name('bimestre.edit');
+        Route::put('/bimestre/{id}', [BimestreController::class, 'update'])->name('bimestre.update');
+        Route::delete('/bimestre/{id}', [BimestreController::class, 'destroy'])->name('bimestre.destroy');
+
+        Route::get('/unidad', [UnidadController::class, 'index'])->name('unidad.index');
+        Route::get('/unidad/create', [UnidadController::class, 'create'])->name('unidad.create');
+        Route::post('/unidad', [UnidadController::class, 'store'])->name('unidad.store');
+        Route::get('/unidad/{id}/edit', [UnidadController::class, 'edit'])->name('unidad.edit');
+        Route::put('/unidad/{id}', [UnidadController::class, 'update'])->name('unidad.update');
+        Route::delete('/unidad/{id}', [UnidadController::class, 'destroy'])->name('unidad.destroy');
+
+        Route::get('/semana', [SemanaController::class, 'index'])->name('semana.index');
+        Route::get('/semana/create', [SemanaController::class, 'create'])->name('semana.create');
+        Route::post('/semana', [SemanaController::class, 'store'])->name('semana.store');
+        Route::get('/semana/{id}/edit', [SemanaController::class, 'edit'])->name('semana.edit');
+        Route::put('/semana/{id}', [SemanaController::class, 'update'])->name('semana.update');
+        Route::delete('/semana/{id}', [SemanaController::class, 'destroy'])->name('semana.destroy');
+
+        Route::get('/clase', [ClaseController::class, 'index'])->name('clase.index');
+        Route::get('/clase/create', [ClaseController::class, 'create'])->name('clase.create');
+        Route::post('/clase', [ClaseController::class, 'store'])->name('clase.store');
+        Route::get('/clase/{id}/edit', [ClaseController::class, 'edit'])->name('clase.edit');
+        Route::put('/clase/{id}', [ClaseController::class, 'update'])->name('clase.update');
+        Route::delete('/clase/{id}', [ClaseController::class, 'destroy'])->name('clase.destroy');
+
+        Route::get('/tema', [TemaController::class, 'index'])->name('tema.index');
+        Route::get('/tema/create', [TemaController::class, 'create'])->name('tema.create');
+        Route::post('/tema', [TemaController::class, 'store'])->name('tema.store');
+        Route::get('/tema/{id}/edit', [TemaController::class, 'edit'])->name('tema.edit');
+        Route::put('/tema/{id}', [TemaController::class, 'update'])->name('tema.update');
+        Route::delete('/tema/{id}', [TemaController::class, 'destroy'])->name('tema.destroy');
+
+        Route::get('/criterio', [CriterioController::class, 'index'])->name('criterio.index');
+        Route::get('/criterio/create', [CriterioController::class, 'create'])->name('criterio.create');
+        Route::post('/criterio', [CriterioController::class, 'store'])->name('criterio.store');
+        Route::get('/criterio/{id}/edit', [CriterioController::class, 'edit'])->name('criterio.edit');
+        Route::put('/criterio/{id}', [CriterioController::class, 'update'])->name('criterio.update');
+        Route::delete('/criterio/{id}', [CriterioController::class, 'destroy'])->name('criterio.destroy');
+    });
 
     //rutas para docente
     Route::controller(DasboardController::class)->group(function () {

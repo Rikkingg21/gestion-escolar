@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Models\Maya\Tema;
+
 class Criterio extends Model
 {
     use HasFactory;
@@ -19,7 +21,6 @@ class Criterio extends Model
         'tema_id',
         'descripcion',
         'tipo',
-        'peso',
         'orden',
     ];
 

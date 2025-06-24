@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Models\Maya\Bimestre;
+
 class Cursogradosecnivanio extends Model
 {
     use HasFactory;
@@ -31,5 +33,9 @@ class Cursogradosecnivanio extends Model
     public function materia()
     {
         return $this->belongsTo(\App\Models\Materia::class, 'materia_id');
+    }
+    public function bimestres()
+    {
+        return $this->hasMany(Bimestre::class, 'curso_grado_sec_niv_anio_id');
     }
 }

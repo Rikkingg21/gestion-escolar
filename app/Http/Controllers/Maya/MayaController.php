@@ -19,10 +19,10 @@ class MayaController extends Controller
         // Obtener el año seleccionado o el actual por defecto
         $anioSeleccionado = $request->get('anio', date('Y'));
 
-        // Filtrar por año seleccionado
+        // Filtrar por año seleccionado (sin paginación)
         $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
             ->orderBy('id')
-            ->paginate(10);
+            ->get();
 
         return view('modulos.maya.index', compact('mayas', 'anios', 'anioSeleccionado'));
     }
@@ -37,7 +37,7 @@ class MayaController extends Controller
 
         return view('modulos.maya.create', compact('materias', 'docentes', 'grados'));
     }
-    public function store (Request $request)
+    public function store(Request $request)
     {
         $request->validate([
             'materia_id' => 'required|exists:materias,id',
@@ -50,14 +50,12 @@ class MayaController extends Controller
         $data['docente_designado_id'] = strtoupper($data['docente_designado_id']);
         $data['grado_id'] = strtoupper($data['grado_id']);
         $data['anio'] = strtoupper($data['anio']);
-        Cursogradosecnivanio::create($data);
-        return redirect()->route('mayas.index')->with('success', 'Maya creada exitosamente.');
+        $maya = Cursogradosecnivanio::create($data);
+        return redirect()->route('maya.index', ['anio' => $maya->anio])
+            ->with('success', 'Maya creada exitosamente.');
     }
-    public function show($id)
-    {
-        $maya = Cursogradosecnivanio::findOrFail($id);
-        return view('maya.show', compact('maya'));
-    }
+
+
     public function edit($id)
     {
         $maya = Cursogradosecnivanio::findOrFail($id);
@@ -68,7 +66,7 @@ class MayaController extends Controller
         // Cargar grados activos
         $grados = Grado::where('estado', 1)->orderBy('grado')->get();
 
-        return view('maya.edit', compact('maya', 'materias', 'docentes', 'grados'));
+        return view('modulos.maya.edit', compact('maya', 'materias', 'docentes', 'grados'));
     }
     public function update(Request $request, $id)
     {
@@ -85,34 +83,34 @@ class MayaController extends Controller
         $data['grado_id'] = strtoupper($data['grado_id']);
         $data['anio'] = strtoupper($data['anio']);
         $maya->update($data);
-        return redirect()->route('mayas.index')->with('success', 'Maya actualizada exitosamente.');
+        return redirect()->route('maya.index', ['anio' => $maya->anio])
+            ->with('success', 'Maya actualizada exitosamente.');
     }
     public function destroy($id)
     {
         $maya = Cursogradosecnivanio::findOrFail($id);
+        $anio = $maya->anio;
         $maya->delete();
-        return redirect()->route('mayas.index')->with('success', 'Maya eliminada exitosamente.');
+        return redirect()->route('maya.index', ['anio' => $anio])
+            ->with('success', 'Maya eliminada exitosamente.');
     }
-
     public function dashboard(Request $request)
     {
         $user = auth()->user();
         $anios = Cursogradosecnivanio::select('anio')->distinct()->orderBy('anio', 'desc')->pluck('anio');
         $anioSeleccionado = $request->get('anio', date('Y'));
 
-        // Filtrar mayas según el rol
         if ($user->hasRole('docente')) {
             $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
                 ->where('docente_designado_id', $user->docente->id ?? 0)
                 ->orderBy('id')
-                ->get();
-            return view('docente.dashboard', compact('mayas', 'anios', 'anioSeleccionado'));
+                ->paginate(10); // Cambiado de get() a paginate()
         } else {
-            // admin o director
             $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
                 ->orderBy('id')
-                ->get();
-            return view('maya.dashboard', compact('mayas', 'anios', 'anioSeleccionado'));
+                ->paginate(10); // Cambiado de get() a paginate()
         }
+
+        return view('modulos.maya.index', compact('mayas', 'anios', 'anioSeleccionado'));
     }
 }
