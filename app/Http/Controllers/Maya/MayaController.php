@@ -14,15 +14,20 @@ class MayaController extends Controller
 {
     public function index(Request $request)
     {
+        $user = auth()->user();
         $anios = Cursogradosecnivanio::select('anio')->distinct()->orderBy('anio', 'desc')->pluck('anio');
-
-        // Obtener el año seleccionado o el actual por defecto
         $anioSeleccionado = $request->get('anio', date('Y'));
 
-        // Filtrar por año seleccionado (sin paginación)
-        $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
-            ->orderBy('id')
-            ->get();
+        if ($user->hasRole('docente')) {
+            $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
+                ->where('docente_designado_id', $user->docente->id ?? 0)
+                ->orderBy('id')
+                ->get();
+        } else {
+            $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
+                ->orderBy('id')
+                ->get();
+        }
 
         return view('modulos.maya.index', compact('mayas', 'anios', 'anioSeleccionado'));
     }
@@ -104,11 +109,11 @@ class MayaController extends Controller
             $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
                 ->where('docente_designado_id', $user->docente->id ?? 0)
                 ->orderBy('id')
-                ->paginate(10); // Cambiado de get() a paginate()
+                ->get();
         } else {
             $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
                 ->orderBy('id')
-                ->paginate(10); // Cambiado de get() a paginate()
+                ->get();
         }
 
         return view('modulos.maya.index', compact('mayas', 'anios', 'anioSeleccionado'));
