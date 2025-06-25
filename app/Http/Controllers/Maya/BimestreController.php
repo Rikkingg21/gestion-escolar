@@ -5,11 +5,22 @@ use App\Http\Controllers\Controller;
 
 use App\Models\Maya\Cursogradosecnivanio;
 use App\Models\Maya\Bimestre;
+use App\Models\Maya\Unidad;
 use Illuminate\Http\Request;
+
 
 class BimestreController extends Controller
 {
-
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
+                abort(403, 'Acceso no autorizado.');
+            }
+            return $next($request);
+        });
+    }
     public function create(Request $request)
     {
         $curso_grado_sec_niv_anio_id = $request->curso_grado_sec_niv_anio_id;
@@ -43,41 +54,45 @@ class BimestreController extends Controller
             ],
         ]);
 
-        Bimestre::create([
+        $data = [
             'curso_grado_sec_niv_anio_id' => $request->curso_grado_sec_niv_anio_id,
             'nombre' => $request->bimestre,
-        ]);
+        ];
 
-        return redirect()->route('maya.index')
+        $bimestre = Bimestre::create($data);
+
+        // Obtener el año del curso relacionado
+        $maya = Cursogradosecnivanio::find($bimestre->curso_grado_sec_niv_anio_id);
+        $anio = $maya ? $maya->anio : date('Y');
+
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Bimestre creado correctamente.');
-    }
-
-    public function show(Bimestre $bimestre)
-    {
-        //
     }
 
     public function edit($id)
     {
+        $maya = Cursogradosecnivanio::findOrFail($id);
         $bimestre = Bimestre::findOrFail($id);
+        // Obtener todos los cursos para mostrar info en la vista
         $cursos = Cursogradosecnivanio::with(['materia', 'grado'])->get();
         // Obtener los bimestres ocupados para este curso, excepto el actual
-        $ocupadoBimestres = \App\Models\Maya\Bimestre::where('curso_grado_sec_niv_anio_id', $bimestre->curso_grado_sec_niv_anio_id)
+        $ocupadoBimestres = Bimestre::where('curso_grado_sec_niv_anio_id', $bimestre->curso_grado_sec_niv_anio_id)
             ->where('id', '!=', $bimestre->id)
             ->pluck('nombre')
             ->toArray();
-        return view('modulos.bimestre.edit', compact('bimestre', 'cursos', 'ocupadoBimestres'));
+
+        return view('modulos.bimestre.edit', compact('maya', 'bimestre', 'cursos', 'ocupadoBimestres'));
     }
 
     public function update(Request $request, $id)
     {
         $bimestre = Bimestre::findOrFail($id);
+
         $request->validate([
             'curso_grado_sec_niv_anio_id' => 'required|exists:maya_curso_grado_sec_niv_anios,id',
             'bimestre' => [
                 'required',
                 'in:1,2,3,4',
-                // Único por curso, excepto el actual
                 function($attribute, $value, $fail) use ($request, $bimestre) {
                     $exists = Bimestre::where('curso_grado_sec_niv_anio_id', $request->curso_grado_sec_niv_anio_id)
                         ->where('nombre', $value)
@@ -90,19 +105,30 @@ class BimestreController extends Controller
             ],
         ]);
 
-        $bimestre->update([
+        $data = [
             'curso_grado_sec_niv_anio_id' => $request->curso_grado_sec_niv_anio_id,
             'nombre' => $request->bimestre,
-        ]);
+        ];
 
-        return redirect()->route('maya.index')
+        $bimestre->update($data);
+
+        // Obtener el año del curso relacionado
+        $maya = Cursogradosecnivanio::find($bimestre->curso_grado_sec_niv_anio_id);
+        $anio = $maya ? $maya->anio : date('Y');
+
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Bimestre actualizado correctamente.');
     }
+
     public function destroy($id)
     {
-        $bimestre =Bimestre::findOrFail($id);
+        $bimestre = Bimestre::findOrFail($id);
+        // Obtener el año del curso relacionado para redirigir correctamente
+        $maya = Cursogradosecnivanio::find($bimestre->curso_grado_sec_niv_anio_id);
+        $anio = $maya ? $maya->anio : date('Y');
         $bimestre->delete();
-        return redirect()->route('modulos.maya.index', $bimestre->curso_grado_sec_niv_anio_id)
+
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Bimestre eliminado correctamente.');
     }
 

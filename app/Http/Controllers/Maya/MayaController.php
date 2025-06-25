@@ -12,6 +12,16 @@ use App\Models\User;
 
 class MayaController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
+                abort(403, 'Acceso no autorizado.');
+            }
+            return $next($request);
+        });
+    }
     public function index(Request $request)
     {
         $user = auth()->user();
