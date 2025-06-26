@@ -6,25 +6,30 @@ use App\Http\Controllers\Controller;
 use App\Models\Maya\Unidad;
 use Illuminate\Http\Request;
 
+use App\Models\Maya\Bimestre;
+
 class UnidadController extends Controller
 {
-    public function index($bimestre_id)
+    public function __construct()
     {
-        $unidades = Unidad::where('bimestre_id', $bimestre_id)->get();
-        $bimestre = \App\Models\Maya\Bimestre::findOrFail($bimestre_id);
-        $curso_grado_sec_niv_anio_id = $bimestre->curso_grado_sec_niv_anio_id;
-
-        return view('unidad.index', compact('unidades', 'bimestre_id', 'curso_grado_sec_niv_anio_id'));
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
+                abort(403, 'Acceso no autorizado.');
+            }
+            return $next($request);
+        });
     }
-    public function create($bimestre_id)
+    public function create(Request $request)
     {
-        $bimestre = \App\Models\Maya\Bimestre::findOrFail($bimestre_id);
+        $bimestre_id = $request->bimestre_id;
+        $bimestre = Bimestre::findOrFail($bimestre_id);
         // Obtener las unidades ocupados para este bimestre
-        $ocupadoUnidades = \App\Models\Maya\Unidad::where('bimestre_id', $bimestre_id)
+        $ocupadoUnidades = Unidad::where('bimestre_id', $bimestre_id)
             ->pluck('nombre')
             ->toArray();
 
-        return view('unidad.create', compact('bimestre', 'ocupadoUnidades'));
+        return view('modulos.unidad.create', compact('bimestre', 'ocupadoUnidades'));
     }
     public function store(Request $request)
     {

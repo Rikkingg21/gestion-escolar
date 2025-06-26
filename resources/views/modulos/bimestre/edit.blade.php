@@ -31,7 +31,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary">Actualizar</button>
-        <a href="{{ route('maya.index', ['anio' => $maya->anio]) }}" class="btn btn-secondary">Cancelar</a>
+        <a href="{{ route('maya.index', ['anio' => $anio]) }}" class="btn btn-secondary">Cancelar</a>
     </form>
 </div>
 @endsection

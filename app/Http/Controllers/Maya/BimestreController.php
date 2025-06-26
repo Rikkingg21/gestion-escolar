@@ -73,15 +73,14 @@ class BimestreController extends Controller
     {
         $maya = Cursogradosecnivanio::findOrFail($id);
         $bimestre = Bimestre::findOrFail($id);
-        // Obtener todos los cursos para mostrar info en la vista
         $cursos = Cursogradosecnivanio::with(['materia', 'grado'])->get();
-        // Obtener los bimestres ocupados para este curso, excepto el actual
+        $anio = $bimestre->cursoGradoSecNivAnio->anio ?? date('Y');
         $ocupadoBimestres = Bimestre::where('curso_grado_sec_niv_anio_id', $bimestre->curso_grado_sec_niv_anio_id)
             ->where('id', '!=', $bimestre->id)
             ->pluck('nombre')
             ->toArray();
 
-        return view('modulos.bimestre.edit', compact('maya', 'bimestre', 'cursos', 'ocupadoBimestres'));
+        return view('modulos.bimestre.edit', compact('maya', 'bimestre', 'cursos', 'ocupadoBimestres', 'anio'));
     }
 
     public function update(Request $request, $id)

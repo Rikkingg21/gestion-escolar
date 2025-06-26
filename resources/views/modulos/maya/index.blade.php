@@ -67,7 +67,7 @@
                                                 </form>
 
                                             @endif
-                                            <a href="" class="btn btn-primary btn-sm">Crear Unidad</a>
+                                            <a href="{{ route('unidad.create', ['bimestre_id' => $bimestre->id]) }}" class="btn btn-primary btn-sm crear-unidad-btn" data-unidad="{{ $maya->bimestres->count() }}">Crear Unidad</a>
                                         </div>
 
 
