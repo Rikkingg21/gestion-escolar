@@ -106,6 +106,19 @@
                                                                         </h2>
                                                                         <div id="collapseSemana{{ $semana->id }}" class="accordion-collapse collapse" aria-labelledby="headingSemana{{ $semana->id }}" data-bs-parent="#semanasAccordion{{ $unidad->id }}">
                                                                             <div class="accordion-body">
+                                                                                <div class="mb-2">
+                                                                                    @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+
+                                                                                        <a href="{{ route('semana.edit', $semana->id) }}" class="btn btn-warning btn-sm">Editar Semana</a>
+                                                                                        <form action="{{ route('semana.destroy', $semana->id) }}" method="POST" class="d-inline">
+                                                                                            @csrf @method('DELETE')
+                                                                                            <input type="hidden" name="anio" value="{{ $anioSeleccionado }}">
+                                                                                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar esta semana?')">Eliminar Semana</button>
+                                                                                        </form>
+
+                                                                                    @endif
+                                                                                    <a href="{{ route('clase.create', ['semana_id' => $semana->id]) }}" class="btn btn-primary btn-sm crear-clase-btn" data-clases="{{ $semana->clases->count() }}">Crear Clase</a>
+                                                                                </div>
                                                                                 <!-- Clases -->
                                                                                 <div class="accordion" id="clasesAccordion{{ $semana->id }}">
                                                                                     <div class="accordion-item">
@@ -205,5 +218,4 @@
         }
     });
 </script>
-
 @endsection
