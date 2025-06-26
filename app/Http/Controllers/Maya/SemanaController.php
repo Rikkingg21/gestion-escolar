@@ -6,26 +6,32 @@ use App\Http\Controllers\Controller;
 use App\Models\Maya\Semana;
 use Illuminate\Http\Request;
 
+use App\Models\Maya\Unidad;
+
 class SemanaController extends Controller
 {
-    public function index($unidad_id)
+    public function __construct()
     {
-        $semanas = Semana::where('unidad_id', $unidad_id)->get();
-        $unidad = \App\Models\Maya\Unidad::findOrFail($unidad_id);
-        $bimestre_id = $unidad->bimestre_id;
-
-        return view('semana.index', compact('semanas', 'unidad_id', 'bimestre_id'));
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
+                abort(403, 'Acceso no autorizado.');
+            }
+            return $next($request);
+        });
     }
-    public function create($unidad_id)
+    public function create(Request $request)
     {
-        $unidad = \App\Models\Maya\Unidad::findOrFail($unidad_id);
-        // Obtener las semanas ocupadas para esta unidad
-        $ocupadoSemanas = \App\Models\Maya\Semana::where('unidad_id', $unidad_id)
+        $unidad_id = $request->unidad_id;
+        $unidad = Unidad::findOrFail($unidad_id);
+
+        $ocupadoSemanas = Semana::where('unidad_id', $unidad_id)
             ->pluck('nombre')
             ->toArray();
 
-        return view('semana.create', compact('unidad', 'ocupadoSemanas'));
+        return view('modulos.semana.create', compact('unidad',    'ocupadoSemanas'));
     }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -44,7 +50,7 @@ class SemanaController extends Controller
             ],
         ]);
 
-        \App\Models\Maya\Semana::create([
+        Semana::create([
             'unidad_id' => $request->unidad_id,
             'nombre' => $request->semana,
         ]);
@@ -52,19 +58,15 @@ class SemanaController extends Controller
         return redirect()->route('semanas.index', $request->unidad_id)
             ->with('success', 'Semana creada correctamente.');
     }
-    public function show(Semana $semana)
-    {
-        //
-    }
     public function edit(Semana $semana)
     {
-        $unidad = \App\Models\Maya\Unidad::findOrFail($semana->unidad_id);
+        $unidad = $semana->unidad;
         // Obtener las semanas ocupadas para esta unidad
-        $ocupadoSemanas = \App\Models\Maya\Semana::where('unidad_id', $semana->unidad_id)
+        $ocupadoSemanas = Semana::where('unidad_id', $semana->unidad_id)
             ->pluck('nombre')
             ->toArray();
 
-        return view('semana.edit', compact('semana', 'unidad', 'ocupadoSemanas'));
+        return view('modulos.semana.edit', compact('semana', 'unidad', 'ocupadoSemanas'));
     }
     public function update(Request $request, Semana $semana)
     {
@@ -78,13 +80,13 @@ class SemanaController extends Controller
             'unidad_id' => $request->unidad_id,
         ]);
 
-        return redirect()->route('semanas.index', $semana->unidad_id);
+        return redirect()->route('maya.index', $semana->unidad_id);
     }
     public function destroy($id)
     {
         $semana = Semana::findOrFail($id);
         $semana->delete();
-        return redirect()->route('semanas.index', $semana->unidad_id)
+        return redirect()->route('maya.index', $semana->unidad_id)
             ->with('success', 'Semana eliminada correctamente.');
     }
 

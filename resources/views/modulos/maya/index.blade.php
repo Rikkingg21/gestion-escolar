@@ -82,6 +82,19 @@
                                                     </h2>
                                                     <div id="collapseUnidad{{ $unidad->id }}" class="accordion-collapse collapse" aria-labelledby="headingUnidad{{ $unidad->id }}" data-bs-parent="#unidadesAccordion{{ $bimestre->id }}">
                                                         <div class="accordion-body">
+                                                            <div class="mb-2">
+                                                                @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+
+                                                                    <a href="{{ route('unidad.edit', $unidad->id) }}" class="btn btn-warning btn-sm">Editar Unidad</a>
+                                                                    <form action="{{ route('unidad.destroy', $unidad->id) }}" method="POST" class="d-inline">
+                                                                        @csrf @method('DELETE')
+                                                                        <input type="hidden" name="anio" value="{{ $anioSeleccionado }}">
+                                                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar esta unidad?')">Eliminar Unidad</button>
+                                                                    </form>
+
+                                                                @endif
+                                                                <a href="{{ route('semana.create', ['unidad_id' => $unidad->id]) }}" class="btn btn-primary btn-sm crear-semana-btn" data-semanas="{{ $unidad->semanas->count() }}">Crear Semana</a>
+                                                            </div>
                                                             <!-- Semanas -->
                                                             <div class="accordion" id="semanasAccordion{{ $unidad->id }}">
                                                                 <div class="accordion-item">

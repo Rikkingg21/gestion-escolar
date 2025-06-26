@@ -7,6 +7,7 @@ use App\Models\Maya\Unidad;
 use Illuminate\Http\Request;
 
 use App\Models\Maya\Bimestre;
+use App\Models\Maya\Cursogradosecnivanio;
 
 class UnidadController extends Controller
 {
@@ -37,7 +38,7 @@ class UnidadController extends Controller
             'bimestre_id' => 'required|exists:maya_bimestres,id',
             'unidad' => [
                 'required',
-                'in: 1,2,3,4,5,6,7,8',
+                'in:1,2,3,4,5,6,7,8',
                 function($attribute, $value, $fail) use ($request) {
                     $exists = \App\Models\Maya\Unidad::where('bimestre_id', $request->bimestre_id)
                         ->where('nombre', $value)
@@ -49,37 +50,31 @@ class UnidadController extends Controller
             ],
         ]);
 
-        \App\Models\Maya\Unidad::create([
+        $unidad = Unidad::create([
             'bimestre_id' => $request->bimestre_id,
             'nombre' => $request->unidad,
         ]);
 
-        return redirect()->route('unidades.index', $request->bimestre_id)
+        // Obtener el año del curso relacionado
+        $bimestre = Bimestre::find($unidad->bimestre_id);
+        $maya = $bimestre ? $bimestre->cursoGradoSecNivAnio : null;
+        $anio = $maya ? $maya->anio : date('Y');
+
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Unidad creada correctamente.');
     }
-
-    public function show(Unidad $unidad)
+    public function edit($id)
     {
-        //
-    }
-
-    public function edit(Unidad $unidad)
-    {
-        // Obtener el bimestre relacionado
-        $bimestre = $unidad->bimestre; // Usando la relación definida en el modelo
-
-        // Unidades ocupadas (excluyendo la actual)
+        $unidad = Unidad::findOrFail($id);
+        $bimestre = $unidad->bimestre; // Relación desde la unidad
+        $anio = $bimestre->cursoGradoSecNivAnio->anio ?? date('Y');
         $ocupadoUnidades = Unidad::where('bimestre_id', $unidad->bimestre_id)
             ->where('id', '!=', $unidad->id)
-            ->pluck('nombre')  // Cambiado de 'nombre' a 'numero' para coincidir con tu vista
+            ->pluck('nombre')
             ->toArray();
 
-        return view('unidad.edit', compact('unidad', 'bimestre', 'ocupadoUnidades'));
+        return view('modulos.unidad.edit', compact('bimestre', 'unidad', 'ocupadoUnidades', 'anio'));
     }
-
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Unidad $unidad)
     {
         $request->validate([
@@ -87,21 +82,29 @@ class UnidadController extends Controller
             'bimestre_id' => 'required|exists:maya_bimestres,id'
         ]);
         $unidad->update([
-            'nombre' => $request->unidad, // Mantienes 'nombre' como campo en DB
+            'nombre' => $request->unidad,
             'bimestre_id' => $request->bimestre_id
         ]);
 
-        return redirect()->route('unidades.index', $unidad->bimestre_id);
+        // Obtener el año del curso relacionado
+        $bimestre = Bimestre::find($unidad->bimestre_id);
+        $maya = $bimestre ? $bimestre->cursoGradoSecNivAnio : null;
+        $anio = $request->anio ?? ($maya ? $maya->anio : date('Y'));
+
+        return redirect()->route('maya.index', ['anio' => $anio])
+            ->with('success', 'Unidad actualizada correctamente.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $unidad = Unidad::findOrFail($id);
+
+        $maya = Cursogradosecnivanio::find($unidad->curso_grado_sec_niv_anio_id);
+        $anio = $request->anio ?? $maya->anio ?? date('Y');
+
         $unidad->delete();
-        return redirect()->route('unidades.index', $unidad->bimestre_id)
+
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Unidad eliminada correctamente.');
     }
 }
