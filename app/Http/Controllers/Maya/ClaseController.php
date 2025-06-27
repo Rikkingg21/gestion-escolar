@@ -3,29 +3,37 @@
 namespace App\Http\Controllers\Maya;
 use App\Http\Controllers\Controller;
 
-use App\Models\Maya\Clase;
 use Illuminate\Http\Request;
+
+use App\Models\Maya\Clase;
+use App\Models\Maya\Semana;
+use App\Models\Maya\Unidad;
+use App\Models\Maya\Cursogradosecnivanio;
 
 class ClaseController extends Controller
 {
-    public function index($semana_id)
+    public function __construct()
     {
-        $clases = Clase::where('semana_id', $semana_id)->get();
-        $semana = \App\Models\Maya\Semana::findOrFail($semana_id);
-        $unidad_id = $semana->unidad_id;
-        $bimestre_id = $semana->unidad->bimestre_id;
-
-        return view('clase.index', compact('clases', 'semana_id', 'unidad_id', 'bimestre_id'));
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
+                abort(403, 'Acceso no autorizado.');
+            }
+            return $next($request);
+        });
     }
-    public function create($semana_id)
+
+    public function create(Request $request)
     {
-        $semana = \App\Models\Maya\Semana::findOrFail($semana_id);
+        $semana_id = $request->semana_id;
+        $semana = Semana::findOrFail($semana_id);
+
         // Obtener las clases ocupadas para esta semana
         $ocupadoClases = \App\Models\Maya\Clase::where('semana_id', $semana_id)
             ->pluck('fecha_clase')
             ->toArray();
 
-        return view('clase.create', compact('semana', 'ocupadoClases'));
+        return view('modulos.clase.create', compact('semana', 'ocupadoClases'));
     }
 
     public function store(Request $request)
@@ -42,44 +50,61 @@ class ClaseController extends Controller
             'fecha_clase' => $request->fecha_clase,
             'descripcion' => $request->descripcion,
         ]);
-        return redirect()->route('clases.index', $request->semana_id)
+
+        // Obtener el ID de la unidad asociada a la semana
+        $semana = Semana::findOrFail($request->semana_id);
+        $unidad = $semana->unidad;
+        $maya = $unidad ? $unidad->bimestre->cursoGradoSecNivAnio : null;
+        $anio = $maya ? $maya->anio : date('Y');
+
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Clase creada correctamente.');
 
     }
-    public function edit(Clase $clase)
+    public function edit($id)
     {
+        $clase = Clase::findOrFail($id);
         $semana = $clase->semana;
-        $ocupadoClases = \App\Models\Maya\Clase::where('semana_id', $semana->id)
-            ->where('id', '!=', $clase->id) // Exclude the current class
+        $unidad = $semana->unidad;
+        $bimestre = $unidad->bimestre;
+        $ocupadoClases = Clase::where('semana_id', $semana->id)
+            ->where('id', '!=', $clase->id)
             ->pluck('fecha_clase')
             ->toArray();
-        return view('clase.edit', compact('clase', 'semana', 'ocupadoClases'));
+        $anio = $bimestre->cursoGradoSecNivAnio->anio ?? date('Y');
+        return view('modulos.clase.edit', compact('clase', 'semana', 'ocupadoClases', 'anio'));
     }
     public function update(Request $request, Clase $clase)
     {
+                // Obtener el anio de la unidad asociada a la semana
+        $semana = Semana::findOrFail($request->semana_id);
+        $unidad = $semana->unidad;
+        $maya = $unidad ? $unidad->bimestre->cursoGradoSecNivAnio : null;
+        $anio = $maya ? $maya->anio : date('Y');
         $request->validate([
             'semana_id' => 'required|exists:maya_semanas,id',
             'fecha_clase' => 'required|date',
             'descripcion' => 'nullable|string|max:255',
         ]);
 
-        // Update the class
         $clase->update([
             'semana_id' => $request->semana_id,
             'fecha_clase' => $request->fecha_clase,
             'descripcion' => $request->descripcion,
         ]);
 
-        return redirect()->route('clases.index', $clase->semana_id)
+
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Clase actualizada correctamente.');
     }
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $clase = Clase::findOrFail($id);
-        $semana_id = $clase->semana_id;
-        $clase->delete();
+        $maya = Cursogradosecnivanio::find($clase->semana->unidad->bimestre->cursoGradoSecNivAnio_id);
+        $anio = $request->anio ?? $maya->anio ?? date('Y');
 
-        return redirect()->route('clases.index', $semana_id)
+        $clase->delete();
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Clase eliminada correctamente.');
     }
 }

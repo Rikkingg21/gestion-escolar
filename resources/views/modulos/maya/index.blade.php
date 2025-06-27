@@ -1,6 +1,15 @@
 @extends('layouts.app')
 
 @section('content')
+@if ($errors->any())
+    <div class="alert alert-danger">
+        <ul>
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 <div class="container-fluid">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">
@@ -125,11 +134,24 @@
                                                                                         @foreach ($semana->clases as $clase)
                                                                                             <h2 class="accordion-header" id="headingClase{{ $clase->id }}">
                                                                                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseClase{{ $clase->id }}" aria-expanded="false" aria-controls="collapseClase{{ $clase->id }}">
-                                                                                                    Clase: {{ $clase->descripcion }} ({{ $clase->fecha_clase }})
+                                                                                                    Clase: {{ $clase->descripcion }} ({{ \Carbon\Carbon::parse($clase->fecha_clase)->format('d-m-Y') }})
                                                                                                 </button>
                                                                                             </h2>
                                                                                             <div id="collapseClase{{ $clase->id }}" class="accordion-collapse collapse" aria-labelledby="headingClase{{ $clase->id }}" data-bs-parent="#clasesAccordion{{ $semana->id }}">
                                                                                                 <div class="accordion-body">
+                                                                                                    <div class="mb-2">
+                                                                                                        @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+
+                                                                                                            <a href="{{ route('clase.edit', $clase->id) }}" class="btn btn-warning btn-sm">Editar Clase</a>
+                                                                                                            <form action="{{ route('clase.destroy', $clase->id) }}" method="POST" class="d-inline">
+                                                                                                                @csrf @method('DELETE')
+                                                                                                                <input type="hidden" name="anio" value="{{ $anioSeleccionado }}">
+                                                                                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar esta clase?')">Eliminar Clase</button>
+                                                                                                            </form>
+
+                                                                                                        @endif
+                                                                                                        <a href="{{ route('tema.create', ['clase_id' => $clase->id]) }}" class="btn btn-primary btn-sm crear-tema-btn" data-temas="{{ $clase->temas->count() }}">Crear Tema</a>
+                                                                                                    </div>
                                                                                                     <!-- Temas -->
                                                                                                     <div class="accordion" id="temasAccordion{{ $clase->id }}">
                                                                                                         <div class="accordion-item">

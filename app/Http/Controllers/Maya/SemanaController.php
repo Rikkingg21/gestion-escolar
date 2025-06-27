@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Maya;
 use App\Http\Controllers\Controller;
 
-use App\Models\Maya\Semana;
 use Illuminate\Http\Request;
 
+use App\Models\Maya\Semana;
 use App\Models\Maya\Unidad;
 use App\Models\Maya\Cursogradosecnivanio;
 

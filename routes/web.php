@@ -82,35 +82,35 @@ Route::middleware('auth')->group(function () {
         Route::get('/unidad/create', [UnidadController::class, 'create'])->name('unidad.create');
         Route::post('/unidad', [UnidadController::class, 'store'])->name('unidad.store');
         Route::get('/unidad/{id}/edit', [UnidadController::class, 'edit'])->name('unidad.edit');
-        Route::put('/unidad/{id}', [UnidadController::class, 'update'])->name('unidad.update');
+        Route::put('/unidad/{unidad}', [UnidadController::class, 'update'])->name('unidad.update');
         Route::delete('/unidad/{id}', [UnidadController::class, 'destroy'])->name('unidad.destroy');
 
         Route::get('/semana', [SemanaController::class, 'index'])->name('semana.index');
         Route::get('/semana/create', [SemanaController::class, 'create'])->name('semana.create');
         Route::post('/semana', [SemanaController::class, 'store'])->name('semana.store');
         Route::get('/semana/{id}/edit', [SemanaController::class, 'edit'])->name('semana.edit');
-        Route::put('/semana/{id}', [SemanaController::class, 'update'])->name('semana.update');
+        Route::put('/semana/{semana}', [SemanaController::class, 'update'])->name('semana.update');
         Route::delete('/semana/{id}', [SemanaController::class, 'destroy'])->name('semana.destroy');
 
         Route::get('/clase', [ClaseController::class, 'index'])->name('clase.index');
         Route::get('/clase/create', [ClaseController::class, 'create'])->name('clase.create');
         Route::post('/clase', [ClaseController::class, 'store'])->name('clase.store');
         Route::get('/clase/{id}/edit', [ClaseController::class, 'edit'])->name('clase.edit');
-        Route::put('/clase/{id}', [ClaseController::class, 'update'])->name('clase.update');
+        Route::put('/clase/{clase}', [ClaseController::class, 'update'])->name('clase.update');
         Route::delete('/clase/{id}', [ClaseController::class, 'destroy'])->name('clase.destroy');
 
         Route::get('/tema', [TemaController::class, 'index'])->name('tema.index');
         Route::get('/tema/create', [TemaController::class, 'create'])->name('tema.create');
         Route::post('/tema', [TemaController::class, 'store'])->name('tema.store');
         Route::get('/tema/{id}/edit', [TemaController::class, 'edit'])->name('tema.edit');
-        Route::put('/tema/{id}', [TemaController::class, 'update'])->name('tema.update');
+        Route::put('/tema/{tema}', [TemaController::class, 'update'])->name('tema.update');
         Route::delete('/tema/{id}', [TemaController::class, 'destroy'])->name('tema.destroy');
 
         Route::get('/criterio', [CriterioController::class, 'index'])->name('criterio.index');
         Route::get('/criterio/create', [CriterioController::class, 'create'])->name('criterio.create');
         Route::post('/criterio', [CriterioController::class, 'store'])->name('criterio.store');
         Route::get('/criterio/{id}/edit', [CriterioController::class, 'edit'])->name('criterio.edit');
-        Route::put('/criterio/{id}', [CriterioController::class, 'update'])->name('criterio.update');
+        Route::put('/criterio/{criterio}', [CriterioController::class, 'update'])->name('criterio.update');
         Route::delete('/criterio/{id}', [CriterioController::class, 'destroy'])->name('criterio.destroy');
     });
 
