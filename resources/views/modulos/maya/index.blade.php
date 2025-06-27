@@ -177,11 +177,25 @@
                                                                                                                             <a href="{{ route('criterio.create', ['tema_id' => $tema->id]) }}" class="btn btn-primary btn-sm crear-criterio-btn" data-criterios="{{ $tema->criterios->count() }}">Crear Criterio</a>
                                                                                                                         </div>
                                                                                                                         <!-- Criterios -->
-                                                                                                                        <ul>
+                                                                                                                        <div class="list-group">
                                                                                                                             @foreach ($tema->criterios as $criterio)
-                                                                                                                                <li>{{ $criterio->descripcion }} ({{ $criterio->tipo }})</li>
+                                                                                                                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                                                                                                    <div>
+                                                                                                                                        <strong>{{ $criterio->descripcion }}</strong> ({{ $criterio->tipo }})
+                                                                                                                                    </div>
+                                                                                                                                    <div>
+                                                                                                                                        @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+                                                                                                                                            <a href="{{ route('criterio.edit', $criterio->id) }}" class="btn btn-warning btn-sm">Editar</a>
+                                                                                                                                            <form action="{{ route('criterio.destroy', $criterio->id) }}" method="POST" class="d-inline">
+                                                                                                                                                @csrf @method('DELETE')
+                                                                                                                                                <input type="hidden" name="anio" value="{{ $anioSeleccionado }}">
+                                                                                                                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este criterio?')">Eliminar</button>
+                                                                                                                                            </form>
+                                                                                                                                        @endif
+                                                                                                                                    </div>
+                                                                                                                                </div>
                                                                                                                             @endforeach
-                                                                                                                        </ul>
+                                                                                                                        </div>
                                                                                                                     </div>
                                                                                                                 </div>
                                                                                                             @endforeach

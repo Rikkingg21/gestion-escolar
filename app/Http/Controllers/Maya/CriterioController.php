@@ -3,49 +3,39 @@
 namespace App\Http\Controllers\Maya;
 use App\Http\Controllers\Controller;
 
-use App\Models\Maya\Criterio;
 use Illuminate\Http\Request;
+
+use App\Models\Maya\Criterio;
+use App\Models\Maya\Tema;
+use App\Models\Maya\Clase;
+use App\Models\Maya\Semana;
+
+use App\Models\Maya\Cursogradosecnivanio;
 
 class CriterioController extends Controller
 {
-    public function index($tema_id)
+    public function __construct()
     {
-        $criterios = Criterio::where('tema_id', $tema_id)->orderBy('orden')->get();
-        $tema = \App\Models\Maya\Tema::findOrFail($tema_id);
-        $clase_id = $tema->clase_id;
-        $semana_id = $tema->clase->semana_id;
-        $unidad_id = $tema->clase->semana->unidad_id;
-        $bimestre_id = $tema->clase->semana->unidad->bimestre_id;
-
-        return view('criterio.index', compact('criterios', 'tema_id', 'clase_id', 'semana_id', 'unidad_id', 'bimestre_id'));
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
+                abort(403, 'Acceso no autorizado.');
+            }
+            return $next($request);
+        });
     }
-
-    public function create($tema_id)
+    public function create(Request $request)
     {
-        $tema = \App\Models\Maya\Tema::with(['clase.semana.unidad'])->findOrFail($tema_id);
-        $unidad = $tema->clase->semana->unidad;
+        $tema_id = $request->tema_id;
+        $tema = Tema::findOrFail($tema_id);
 
         // Obtener datos del tema actual
-        $ultimoOrden = \App\Models\Maya\Criterio::where('tema_id', $tema_id)
-                        ->max('orden') ?? 0;
+        $ultimoOrden = Criterio::where('tema_id', $tema_id)->max('orden');
 
-        $ocupadoCriterios = \App\Models\Maya\Criterio::where('tema_id', $tema_id)
+        $ocupadoCriterios = Criterio::where('tema_id', $tema_id)
                             ->pluck('orden')
                             ->toArray();
-
-        // Calcular peso ocupado en la UNIDAD completa
-        $pesoOcupado = \App\Models\Maya\Criterio::whereHas('tema.clase.semana', function($q) use ($unidad) {
-                            $q->where('unidad_id', $unidad->id);
-                        })->sum('peso');
-
-        return view('criterio.create', [
-            'tema' => $tema,
-            'unidad' => $unidad,
-            'ultimoOrden' => $ultimoOrden,
-            'ocupadoCriterios' => $ocupadoCriterios,
-            'pesoOcupado' => $pesoOcupado,
-            'pesoDisponible' => 100 - $pesoOcupado
-        ]);
+        return view('.modulos.criterio.create', compact('tema', 'ultimoOrden', 'ocupadoCriterios'));
     }
     public function store(Request $request)
     {
@@ -53,7 +43,6 @@ class CriterioController extends Controller
             'tema_id' => 'required|exists:maya_temas,id',
             'descripcion' => 'required|string|max:255',
             'tipo' => 'required|string|max:50',
-            'peso' => 'required|numeric|min:0',
             'orden' => 'required|integer|min:1',
         ]);
 
@@ -61,40 +50,49 @@ class CriterioController extends Controller
         if (Criterio::where('tema_id', $request->tema_id)->where('orden', $request->orden)->exists()) {
             return redirect()->back()->withErrors(['orden' => 'Ya existe un criterio con este orden.']);
         }
-        // peso del citerio no puede ser mayor a 100 en total por unidad
-        $totalPeso = Criterio::where('tema_id', $request->tema_id)->sum('peso');
-        if ($totalPeso + $request->peso > 100) {
-            return redirect()->back()->withErrors(['peso' => 'El peso total de los criterios no puede exceder 100.']);
-        }
         Criterio::create([
             'tema_id' => $request->tema_id,
             'descripcion' => $request->descripcion,
             'tipo' => $request->tipo,
-            'peso' => $request->peso,
             'orden' => $request->orden,
         ]);
-        return redirect()->route('criterios.index', $request->tema_id)
+
+        $semana = Semana::findOrFail($request->semana_id);
+        $unidad = $semana->unidad;
+        $maya = $unidad ? $unidad->bimestre->cursoGradoSecNivAnio : null;
+        $anio = $maya ? $maya->anio : date('Y');
+
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Criterio creado correctamente.');
     }
-    public function edit(Criterio $criterio)
+    public function edit($id)
     {
+        $criterio = Criterio::findOrFail($id);
         $tema = $criterio->tema;
+        $clase = $tema->clase;
+        $semana = $clase->semana;
+        $unidad = $semana->unidad;
+        $bimestre = $unidad->bimestre;
+        $anio = $bimestre->cursoGradoSecNivAnio->anio ?? date('Y');
+
         $ocupadoCriterios = Criterio::where('tema_id', $tema->id)
             ->where('id', '!=', $criterio->id) // Exclude the current criterio
             ->pluck('orden')
             ->toArray();
-        // Obtener peso ocupado por los criterios de este tema en relacion a la unidad
-        $pesoOcupado = Criterio::where('tema_id', $tema->id)->sum('peso');
 
-        return view('criterio.edit', compact('criterio', 'tema', 'ocupadoCriterios', 'pesoOcupado'));
+       return view('modulos.criterio.edit', compact('criterio', 'tema', 'ocupadoCriterios', 'anio'));
     }
     public function update(Request $request, Criterio $criterio)
     {
+        $semana = Semana::findOrFail($request->semana_id);
+        $unidad = $semana->unidad;
+        $maya = $unidad ? $unidad->bimestre->cursoGradoSecNivAnio : null;
+        $anio = $maya ? $maya->anio : date('Y');
+
         $request->validate([
             'tema_id' => 'required|exists:maya_temas,id',
             'descripcion' => 'required|string|max:255',
             'tipo' => 'required|string|max:50',
-            'peso' => 'required|numeric|min:0',
             'orden' => 'required|integer|min:1',
         ]);
 
@@ -102,28 +100,25 @@ class CriterioController extends Controller
         if (Criterio::where('tema_id', $request->tema_id)->where('orden', $request->orden)->where('id', '!=', $criterio->id)->exists()) {
             return redirect()->back()->withErrors(['orden' => 'Ya existe un criterio con este orden.']);
         }
-        // peso del citerio no puede ser mayor a 100 en total por unidad
-        $totalPeso = Criterio::where('tema_id', $request->tema_id)->sum('peso') - $criterio->peso;
-        if ($totalPeso + $request->peso > 100) {
-            return redirect()->back()->withErrors(['peso' => 'El peso total de los criterios no puede exceder 100.']);
-        }
+
         $criterio->update([
             'tema_id' => $request->tema_id,
             'descripcion' => $request->descripcion,
             'tipo' => $request->tipo,
-            'peso' => $request->peso,
             'orden' => $request->orden,
         ]);
-        return redirect()->route('criterios.index', $request->tema_id)
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Criterio actualizado correctamente.');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $criterio = Criterio::findOrFail($id);
-        $tema_id = $criterio->tema_id;
+        $maya = Cursogradosecnivanio::find($criterio->tema->clase->semana->unidad->bimestre->cursoGradoSecNivAnio_id);
+        $anio = $request->anio ?? $maya->anio ?? date('Y');
+
         $criterio->delete();
-        return redirect()->route('criterios.index', $tema_id)
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Criterio eliminado correctamente.');
     }
 }
