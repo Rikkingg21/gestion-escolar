@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 
 use App\Models\Maya\Clase;
 use App\Models\Maya\Semana;
-use App\Models\Maya\Unidad;
 use App\Models\Maya\Cursogradosecnivanio;
 
 class ClaseController extends Controller

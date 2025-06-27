@@ -3,33 +3,37 @@
 namespace App\Http\Controllers\Maya;
 use App\Http\Controllers\Controller;
 
-use App\Models\Maya\Tema;
 use Illuminate\Http\Request;
+
+use App\Models\Maya\Tema;
+use App\Models\Maya\Clase;
+use App\Models\Maya\Semana;
+use App\Models\Maya\Cursogradosecnivanio;
 
 class TemaController extends Controller
 {
-    public function index($clase_id)
+    public function __construct()
     {
-        $temas = Tema::where('clase_id', $clase_id)->orderBy('orden')->get();
-        $clase = \App\Models\Maya\Clase::findOrFail($clase_id);
-        $semana_id = $clase->semana_id;
-        $unidad_id = $clase->semana->unidad_id;
-        $bimestre_id = $clase->semana->unidad->bimestre_id;
-
-        return view('tema.index', compact('temas', 'clase_id', 'semana_id', 'unidad_id', 'bimestre_id'));
-
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
+                abort(403, 'Acceso no autorizado.');
+            }
+            return $next($request);
+        });
     }
-
-    public function create($clase_id)
+    public function create(Request $request)
     {
-        $clase = \App\Models\Maya\Clase::findOrFail($clase_id);
+        $clase_id = $request->clase_id;
+        $clase = Clase::findOrFail($clase_id);
+
         $ultimoOrden = Tema::where('clase_id', $clase_id)->max('orden');
         // Obtener los temas ocupados para esta clase
-        $ocupadoTemas = \App\Models\Maya\Tema::where('clase_id', $clase_id)
+        $ocupadoTemas = Tema::where('clase_id', $clase_id)
             ->pluck('orden')
             ->toArray();
 
-        return view('tema.create', compact('clase', 'ocupadoTemas', 'ultimoOrden'));
+        return view('modulos.tema.create', compact('clase', 'ocupadoTemas', 'ultimoOrden'));
     }
     public function store(Request $request)
     {
@@ -40,8 +44,6 @@ class TemaController extends Controller
             'orden' => 'required|integer|min:1',
         ]);
 
-        // no puede haver varios temas con el mismo orden
-
         if (Tema::where('clase_id', $request->clase_id)->where('orden', $request->orden)->exists()) {
             return redirect()->back()->withErrors(['orden' => 'Ya existe un tema con este orden.']);
         }
@@ -51,21 +53,36 @@ class TemaController extends Controller
             'descripcion' => $request->descripcion,
             'orden' => $request->orden,
         ]);
-        return redirect()->route('temas.index', $request->clase_id)
+
+        $semana = Semana::findOrFail($request->semana_id);
+        $unidad = $semana->unidad;
+        $maya = $unidad ? $unidad->bimestre->cursoGradoSecNivAnio : null;
+        $anio = $maya ? $maya->anio : date('Y');
+
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Tema creado correctamente.');
     }
-    public function edit(Tema $tema)
+    public function edit($id)
     {
+        $tema = Tema::findOrFail($id);
         $clase = $tema->clase;
-        $ocupadoTemas = \App\Models\Maya\Tema::where('clase_id', $clase->id)
+        $ocupadoTemas = Tema::where('clase_id', $clase->id)
             ->where('id', '!=', $tema->id) // Exclude the current tema
             ->pluck('orden')
             ->toArray();
-        return view('tema.edit', compact('tema', 'clase', 'ocupadoTemas'));
+        $semana = $clase->semana;
+        $unidad = $semana->unidad;
+        $bimestre = $unidad->bimestre;
+        $anio = $bimestre->cursoGradoSecNivAnio->anio ?? date('Y');
+        return view('modulos.tema.edit', compact('tema', 'clase', 'ocupadoTemas', 'anio'));
     }
 
     public function update(Request $request, Tema $tema)
     {
+        $semana = Semana::findOrFail($request->semana_id);
+        $unidad = $semana->unidad;
+        $maya = $unidad ? $unidad->bimestre->cursoGradoSecNivAnio : null;
+        $anio = $maya ? $maya->anio : date('Y');
         $request->validate([
             'clase_id' => 'required|exists:maya_clases,id',
             'nombre' => 'required|string|max:255',
@@ -88,17 +105,18 @@ class TemaController extends Controller
             'descripcion' => $request->descripcion,
             'orden' => $request->orden,
         ]);
-        return redirect()->route('temas.index', $tema->clase_id)
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Tema actualizado correctamente.');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $tema = Tema::findOrFail($id);
-        $clase_id = $tema->clase_id;
+        $maya = Cursogradosecnivanio::find($tema->clase->semana->unidad->bimestre->cursoGradoSecNivAnio_id);
+        $anio = $request->anio ?? $maya->anio ?? date('Y');
         $tema->delete();
 
-        return redirect()->route('temas.index', $clase_id)
+        return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Tema eliminado correctamente.');
     }
 }

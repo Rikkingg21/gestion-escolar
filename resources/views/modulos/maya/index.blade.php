@@ -163,6 +163,19 @@
                                                                                                                 </h2>
                                                                                                                 <div id="collapseTema{{ $tema->id }}" class="accordion-collapse collapse" aria-labelledby="headingTema{{ $tema->id }}" data-bs-parent="#temasAccordion{{ $clase->id }}">
                                                                                                                     <div class="accordion-body">
+                                                                                                                        <div class="mb-2">
+                                                                                                                            @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+
+                                                                                                                                <a href="{{ route('tema.edit', $tema->id) }}" class="btn btn-warning btn-sm">Editar Tema</a>
+                                                                                                                                <form action="{{ route('tema.destroy', $tema->id) }}" method="POST" class="d-inline">
+                                                                                                                                    @csrf @method('DELETE')
+                                                                                                                                    <input type="hidden" name="anio" value="{{ $anioSeleccionado }}">
+                                                                                                                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este tema?')">Eliminar Tema</button>
+                                                                                                                                </form>
+
+                                                                                                                            @endif
+                                                                                                                            <a href="{{ route('criterio.create', ['tema_id' => $tema->id]) }}" class="btn btn-primary btn-sm crear-criterio-btn" data-criterios="{{ $tema->criterios->count() }}">Crear Criterio</a>
+                                                                                                                        </div>
                                                                                                                         <!-- Criterios -->
                                                                                                                         <ul>
                                                                                                                             @foreach ($tema->criterios as $criterio)
