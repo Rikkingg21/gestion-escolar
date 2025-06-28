@@ -86,6 +86,7 @@
                         <i class="bi bi-people me-2"></i> Usuarios
                     </a>
                 </li>
+
                 @endif
 
                 @if(session('current_role') === 'director')
@@ -100,7 +101,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="" class="nav-link text-white {{ request()->routeIs('grado.*') ? 'active' : '' }}">
+                    <a href="{{ route('grado.index') }}" class="nav-link text-white {{ request()->routeIs('grado.*') ? 'active' : '' }}">
                         <i class="bi bi-people me-2"></i> Grados
                     </a>
                 </li>

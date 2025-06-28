@@ -112,6 +112,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/criterio/{id}/edit', [CriterioController::class, 'edit'])->name('criterio.edit');
         Route::put('/criterio/{criterio}', [CriterioController::class, 'update'])->name('criterio.update');
         Route::delete('/criterio/{id}', [CriterioController::class, 'destroy'])->name('criterio.destroy');
+
+
+
+
+
+
+
+        Route::get('/grado', [GradoController::class, 'index'])->name('grado.index');
+        Route::get('/grado/create', [GradoController::class, 'create'])->name('grado.create');
+        Route::post('/grado', [GradoController::class, 'store'])->name('grado.store');
+        Route::get('/grado/{id}/edit', [GradoController::class, 'edit'])->name('grado.edit');
+        Route::put('/grado/{grado}', [GradoController::class, 'update'])->name('grado.update');
+        Route::delete('/grado/{id}', [GradoController::class, 'destroy'])->name('grado.destroy');
     });
 
     //rutas para docente
