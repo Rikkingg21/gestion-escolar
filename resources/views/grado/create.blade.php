@@ -11,7 +11,7 @@
     </div>
 @endif
 <div class="container">
-    <h3 class="mb-4"><i class="bi bi-plus-lg me-2"></i>Editar Grado</h3>
+    <h3 class="mb-4"><i class="bi bi-plus-lg me-2"></i>Crear Grado</h3>
     <div class="card shadow">
         <div class="card-body">
             <form action="{{ route('grado.store') }}" method="POST">

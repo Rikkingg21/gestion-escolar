@@ -32,6 +32,7 @@ class MateriaController extends Controller
 
     public function create()
     {
+
         return view('materia.create');
     }
 
@@ -39,6 +40,7 @@ class MateriaController extends Controller
     {
         $request->validate([
             'nombre' => 'required|string|max:255',
+            'estado' => 'required|in:1,0',
         ]);
 
         $data = $request->all();
@@ -46,38 +48,38 @@ class MateriaController extends Controller
 
         Materia::create($data);
 
-        return redirect()->route('materias.index')->with('success', 'Materia creada exitosamente.');
+        return redirect()->route('materia.index')->with('success', 'Materia creada exitosamente.');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Materia $materia)
+    public function edit($id)
     {
-        //
+        $materia = Materia::findOrFail($id);
+        return view('materia.edit', compact('materia'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Materia $materia)
-    {
-        return view ('materia.edit');
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Materia $materia)
     {
-        //
+        $request->validate([
+        'nombre' => 'required|string|max:255',
+        'estado' => 'required|in:1,0',
+        ]);
+
+        $data = $request->all();
+        $data['nombre'] = strtoupper($data['nombre']);
+
+        $materia->update($data);
+
+        return redirect()->route('materia.index')->with('success', 'Materia actualizada exitosamente.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Materia $materia)
+
+    public function destroy($id)
     {
-        //
+        $materia = Materia::findOrFail($id);
+        if ($materia->estado == 1) {
+            return redirect()->route('materia.index')->with('error', 'No se puede eliminar la materia porque está activo.');
+        }
+        $materia->delete();
+        return redirect()->route('materia.index')->with('success', 'Materia eliminada    correctamente.');
     }
 }
