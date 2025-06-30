@@ -4,9 +4,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Gestión Escolar')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.datatables.net/2.3.1/css/dataTables.dataTables.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/2.3.2/js/dataTables.js"></script>
+
 </head>
 <body class="min-vh-100">
 
@@ -96,7 +100,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="" class="nav-link text-white {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                    <a href="{{ route('user.index') }}" class="nav-link text-white {{ request()->routeIs('users.*') ? 'active' : '' }}">
                         <i class="bi bi-people me-2"></i> Usuarios
                     </a>
                 </li>
@@ -106,7 +110,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="" class="nav-link text-white {{ request()->routeIs('materia.*') ? 'active' : '' }}">
+                    <a href="{{ route('materia.index') }}" class="nav-link text-white {{ request()->routeIs('materia.*') ? 'active' : '' }}">
                         <i class="bi bi-people me-2"></i> Materias
                     </a>
                 </li>

@@ -113,6 +113,16 @@ Route::middleware('auth')->group(function () {
         Route::put('/criterio/{criterio}', [CriterioController::class, 'update'])->name('criterio.update');
         Route::delete('/criterio/{id}', [CriterioController::class, 'destroy'])->name('criterio.destroy');
 
+        Route::get('/user', [UserController::class, 'index'])->name('user.index');
+        Route::get('/user/create', [UserController::class, 'create'])->name('user.create');
+        Route::post('/user', [UserController::class, 'store'])->name('user.store');
+        Route::get('/user/{id}/edit', [UserController::class, 'edit'])->name('user.edit');
+        Route::put('/user/{user}', [UserController::class, 'update'])->name('user.update');
+        Route::delete('/user/{id}', [UserController::class, 'destroy'])->name('user.destroy');
+        //ruta de usuarios mediante ajax
+        Route::get('/usuarios/activos', [UserController::class, 'ajaxUserActivo'])->name('usuarios.activos');
+        Route::get('/usuarios/lectores', [UserController::class, 'ajaxUserLector'])->name('usuarios.lectores');
+        Route::get('/usuarios/inactivos', [UserController::class, 'ajaxUserInactivo'])->name('usuarios.inactivos');
 
 
 
@@ -125,6 +135,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/grado/{id}/edit', [GradoController::class, 'edit'])->name('grado.edit');
         Route::put('/grado/{grado}', [GradoController::class, 'update'])->name('grado.update');
         Route::delete('/grado/{id}', [GradoController::class, 'destroy'])->name('grado.destroy');
+
+        Route::get('/materia', [MateriaController::class, 'index'])->name('materia.index');
+        Route::get('/materia/create', [MateriaController::class, 'create'])->name('materia.create');
+        Route::post('/materia', [MateriaController::class, 'store'])->name('materia.store');
+        Route::get('/materia/{id}/edit', [MateriaController::class, 'edit'])->name('materia.edit');
+        Route::put('/materia/{materia}', [MateriaController::class, 'update'])->name('materia.update');
+        Route::delete('/materia/{id}', [MateriaController::class, 'destroy'])->name('materia.destroy');
     });
 
     //rutas para docente

@@ -20,9 +20,9 @@ class SessionSelectionController extends Controller
 
         // Ahora usa $user para la lógica de roles
         if ($user->hasRole('admin')) {
-            $usuarios = User::where('estado', "activo")->with('roles')->get();
+            $usuarios = User::whereIn('estado', [1, 2])->with('roles')->get();
         } elseif ($user->hasRole('director')) {
-            $usuarios = User::where('estado', "activo")
+            $usuarios = User::where('estado', "1")
                 ->whereDoesntHave('roles', function ($q) {
                     $q->where('name', 'admin');
                 })

@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Docente extends Model
 {
+    use HasFactory;
+    use SoftDeletes;
+
     protected $table = 'docentes';
     protected $primaryKey = 'id';
     public $timestamps = true;
@@ -16,7 +21,7 @@ class Docente extends Model
         'especialidad',
         'materia_id',
         'grado_id',
-
+        'estado',
     ];
 
     public function user()

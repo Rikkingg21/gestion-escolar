@@ -12,63 +12,110 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Estudiante;
 use App\Models\Apoderado;
 use App\Models\Docente;
+use App\Models\Auxiliar;
+use App\Models\Director;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'role:admin,director'])->except(['show']);
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
+                abort(403, 'Acceso no autorizado.');
+            }
+            return $next($request);
+        });
+    }
+    public function ajaxUserActivo(Request $request)
+    {
+        return $this->getUsersByStatus($request, 1);
+    }
+    public function ajaxUserLector(Request $request)
+    {
+        return $this->getUsersByStatus($request, 2);
+    }
+    public function ajaxUserInactivo(Request $request)
+    {
+        return $this->getUsersByStatus($request, 0);
+    }
+    private function getUsersByStatus(Request $request, $status)
+    {
+        try {
+        $users = User::with('roles')
+            ->where('estado', $status)
+            ->get()
+            ->map(function($user) {
+                return [
+                    'dni' => $user->dni,
+                    'usuario' => $user->nombre_usuario,
+                    'nombre_completo' => $user->nombre.' '.$user->apellido_paterno.' '.$user->apellido_materno,
+                    'roles' => $user->roles->pluck('nombre')->implode(', '),
+                    'estado' => $user->estado == 1 ? 'Activo' : ($user->estado == 2 ? 'Lector' : 'Inactivo'),
+                    'acciones' => view('user.partials.actions', compact('user'))->render()
+                ];
+            });
+
+        return response()->json([
+            'data' => $users,
+            'draw' => $request->input('draw', 1),
+            'recordsTotal' => User::where('estado', $status)->count(),
+            'recordsFiltered' => $users->count()
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage()
+        ], 500);
+    }
+    }
+
+
+    public function ajaxDirector(Request $request)
+    {
+        try {
+            $estado = $request->input('estado', 'activos');
+
+            $query = User::with('roles');
+
+            if ($estado === 'activos') {
+                $query->where('estado', 1);
+            } else {
+                $query->where('estado', 0);
+            }
+
+            $users = $query->get()->map(function($user) {
+                return [
+                    'dni' => $user->dni,
+                    'usuario' => $user->nombre_usuario,
+                    'nombre_completo' => $user->nombre.' '.$user->apellido_paterno.' '.$user->apellido_materno,
+                    'roles' => $user->roles->pluck('nombre')->implode(', '),
+                    'estado' => $user->estado ? 'Activo' : 'Inactivo',
+                    'acciones' => view('director.partials.actions', compact('user'))->render()
+                ];
+            });
+
+            return response()->json([
+                'data' => $users, // DataTables espera los datos en una propiedad 'data'
+                'draw' => $request->input('draw', 1), // Necesario para serverSide
+                'recordsTotal' => User::count(),
+                'recordsFiltered' => $users->count()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function index(Request $request)
     {
-        $currentRole = session('current_role');
-        $perPage = 10;
-        $activeTab = $request->query('tab', 'all');
-        $search = $request->query('search');
-
-        // Base query para todos los usuarios
-        $baseQuery = User::with('roles')
-            ->when($search, function($query, $search) {
-                return $query->where(function($q) use ($search) {
-                    $q->where('nombre', 'like', "%{$search}%")
-                      ->orWhere('apellido_paterno', 'like', "%{$search}%")
-                      ->orWhere('dni', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
-                });
-            })
-            ->orderBy('created_at', 'desc');
-
-        // Aplicar restricciones según el rol actual
-        if ($currentRole === 'director') {
-            $baseQuery->whereDoesntHave('roles', function($q) {
-                $q->where('nombre', 'admin');
-            });
-        }
-
-        // Obtener datos para cada tab
-        $data = [
-            'users' => $baseQuery->paginate($perPage, ['*'], 'all_page'),
-            'directores' => $this->getUsersByRole($baseQuery, 'director', $perPage, 'directores_page'),
-            'docentes' => $this->getUsersByRole($baseQuery, 'docente', $perPage, 'docentes_page'),
-            'auxiliares' => $this->getUsersByRole($baseQuery, 'auxiliar', $perPage, 'auxiliares_page'),
-            'estudiantes' => $this->getUsersByRole($baseQuery, 'estudiante', $perPage, 'estudiantes_page'),
-            'apoderados' => $this->getUsersByRole($baseQuery, 'apoderado', $perPage, 'apoderados_page'),
-            'currentTab' => $activeTab,
-            'search' => $search
-        ];
-
-        return view('users.index', $data);
+        return view('user.index');
     }
 
-    protected function getUsersByRole($query, $roleName, $perPage, $pageName)
-    {
-        return $query->clone()
-            ->whereHas('roles', function($q) use ($roleName) {
-                $q->where('nombre', $roleName);
-            })
-            ->paginate($perPage, ['*'], $pageName);
-    }
+
 
     public function create()
     {

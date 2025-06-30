@@ -4,19 +4,35 @@ namespace App\Http\Controllers;
 
 use App\Models\Materia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class MateriaController extends Controller
 {
+        public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
+                abort(403, 'Acceso no autorizado.');
+            }
+            return $next($request);
+        });
+    }
     public function index()
     {
-        $materias = Materia::orderBy('nombre')->paginate(5); // 10 materias por página
+        $materiasActivas = Materia::where('estado', 1)
+            ->orderBy('nombre')
+            ->paginate(5, ['*'], 'activos');
 
-        return view('materias.index', compact('materias'));
+        $materiasInactivas = Materia::where('estado', 0)
+            ->orderBy('nombre')
+            ->paginate(5, ['*'], 'inactivos');
+        return view('materia.index', compact('materiasActivas', 'materiasInactivas'));
     }
 
     public function create()
     {
-        return view('materias.create');
+        return view('materia.create');
     }
 
     public function store(Request $request)
@@ -46,7 +62,7 @@ class MateriaController extends Controller
      */
     public function edit(Materia $materia)
     {
-        //
+        return view ('materia.edit');
     }
 
     /**
