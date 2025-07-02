@@ -14,6 +14,7 @@ class LoginController extends Controller
     {
         return view('auth.login');
     }
+    //verificar si hay alguna sessión activa en el dispositivo, si hay que regrese al ultimo enlace que estaba
 
     public function login(Request $request)
     {
@@ -33,10 +34,6 @@ class LoginController extends Controller
         return back()->withErrors([
             'nombre_usuario' => 'Las credenciales no coinciden con nuestros registros.',
         ]);
-    }
-    public function login_sub(Request $request)
-    {
-
     }
 
     public function logout(Request $request)

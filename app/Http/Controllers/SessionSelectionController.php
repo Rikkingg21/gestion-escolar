@@ -18,23 +18,27 @@ class SessionSelectionController extends Controller
             return redirect()->route('login')->withErrors('Sesión principal no encontrada.');
         }
 
-        // Ahora usa $user para la lógica de roles
+        $usuarios = collect(); // Inicializamos una colección vacía
+
+        // Ahora usa $user para la lógica de roles para obtener los usuarios PERMITIDOS
         if ($user->hasRole('admin')) {
-            $usuarios = User::whereIn('estado', [1, 2])->with('roles')->get();
-         } elseif ($user->hasRole('director')) {
-            $usuarios = User::where('estado', "1")
-                ->whereDoesntHave('roles', function ($q) {
+            // Un administrador puede ver todos los usuarios (activos, lectores, inactivos)
+            $usuarios = User::with('roles')->get();
+        } elseif ($user->hasRole('director')) {
+            // Un director ve todos los usuarios excepto administradores, independientemente de su estado
+            $usuarios = User::whereDoesntHave('roles', function ($q) {
                     $q->where('nombre', 'admin');
                 })
                 ->with('roles')->get();
-        } elseif ($user->hasRole('docente') || $user->hasRole('auxiliar') || $user->hasRole('estudiante')) {
-            $usuarios = User::where('id', $user->id)->with('roles')->get();
-        } elseif ($user->hasRole('apoderado')) {
-            // Aquí tu lógica para apoderado
-            $usuarios = collect([$user]);
-            // Puedes agregar estudiantes relacionados si lo necesitas
+        } elseif ($user->hasRole('docente') || $user->hasRole('auxiliar') || $user->hasRole('estudiante') || $user->hasRole('apoderado')) {
+            // Docentes, auxiliares, estudiantes, apoderados solo se ven a sí mismos.
+            // La visibilidad de su propio estado (activo/inactivo/lector) se manejará en la vista.
+            $usuarios = collect([$user->load('roles')]);
+            // Para apoderado, si necesitas agregar estudiantes relacionados, la lógica iría aquí.
+            // Ejemplo: $usuarios = $usuarios->merge($user->relatedStudents()->with('roles')->get());
         } else {
-            $usuarios = collect([$user]);
+            // Para cualquier otro rol, solo se ve a sí mismo
+            $usuarios = collect([$user->load('roles')]);
         }
 
         return view('auth.select-session', compact('usuarios'));

@@ -16,11 +16,17 @@
             <div class="card shadow">
                 <div class="card-body">
                     <h3 class="card-title text-center mb-4">Iniciar Sesión</h3>
-                    @if(session('error'))
+                    @if ($errors->any())
                         <div class="alert alert-danger">
-                            {{ session('error') }}
+                            <ul>
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
                         </div>
                     @endif
+
+
                     <form method="POST" action="{{ route('login') }}">
                         @csrf
                         <div class="mb-3">
