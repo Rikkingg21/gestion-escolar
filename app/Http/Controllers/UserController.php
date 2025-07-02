@@ -28,85 +28,87 @@ class UserController extends Controller
             return $next($request);
         });
     }
-    public function ajaxUserActivo(Request $request)
+    public function ajaxUserActivo()
     {
-        return $this->getUsersByStatus($request, 1);
-    }
-    public function ajaxUserLector(Request $request)
-    {
-        return $this->getUsersByStatus($request, 2);
-    }
-    public function ajaxUserInactivo(Request $request)
-    {
-        return $this->getUsersByStatus($request, 0);
-    }
-    private function getUsersByStatus(Request $request, $status)
-    {
-        try {
-        $users = User::with('roles')
-            ->where('estado', $status)
+        $users = User::activos()
+            ->with('roles')
+            ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado')
             ->get()
             ->map(function($user) {
                 return [
                     'dni' => $user->dni,
-                    'usuario' => $user->nombre_usuario,
-                    'nombre_completo' => $user->nombre.' '.$user->apellido_paterno.' '.$user->apellido_materno,
+                    'nombre_usuario' => $user->nombre_usuario,
+                    'nombre_completo' => $user->nombre . ' ' . $user->apellido_paterno . ' ' . $user->apellido_materno,
                     'roles' => $user->roles->pluck('nombre')->implode(', '),
-                    'estado' => $user->estado == 1 ? 'Activo' : ($user->estado == 2 ? 'Lector' : 'Inactivo'),
-                    'acciones' => view('user.partials.actions', compact('user'))->render()
+                    'estado' => $this->getEstadoTexto($user->estado), // Cambio aquí
+                    'acciones' => $this->getActionButtons($user)
                 ];
             });
 
-        return response()->json([
-            'data' => $users,
-            'draw' => $request->input('draw', 1),
-            'recordsTotal' => User::where('estado', $status)->count(),
-            'recordsFiltered' => $users->count()
-        ]);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => $e->getMessage()
-        ], 500);
+        return response()->json(['data' => $users]);
     }
-    }
-
-
-    public function ajaxDirector(Request $request)
+    public function ajaxUserLector()
     {
-        try {
-            $estado = $request->input('estado', 'activos');
-
-            $query = User::with('roles');
-
-            if ($estado === 'activos') {
-                $query->where('estado', 1);
-            } else {
-                $query->where('estado', 0);
-            }
-
-            $users = $query->get()->map(function($user) {
+        $users = User::lectores()
+            ->with('roles')
+            ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado')
+            ->get()
+            ->map(function($user) {
                 return [
                     'dni' => $user->dni,
-                    'usuario' => $user->nombre_usuario,
-                    'nombre_completo' => $user->nombre.' '.$user->apellido_paterno.' '.$user->apellido_materno,
+                    'nombre_usuario' => $user->nombre_usuario,
+                    'nombre_completo' => $user->nombre . ' ' . $user->apellido_paterno . ' ' . $user->apellido_materno,
                     'roles' => $user->roles->pluck('nombre')->implode(', '),
-                    'estado' => $user->estado ? 'Activo' : 'Inactivo',
-                    'acciones' => view('director.partials.actions', compact('user'))->render()
+                    'estado' => $this->getEstadoTexto($user->estado), // Cambio aquí
+                    'acciones' => $this->getActionButtons($user)
                 ];
             });
 
-            return response()->json([
-                'data' => $users, // DataTables espera los datos en una propiedad 'data'
-                'draw' => $request->input('draw', 1), // Necesario para serverSide
-                'recordsTotal' => User::count(),
-                'recordsFiltered' => $users->count()
-            ]);
+        return response()->json(['data' => $users]);
+    }
+    public function ajaxUserInactivo()
+    {
+        $users = User::inactivos()
+            ->with('roles')
+            ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado')
+            ->get()
+            ->map(function($user) {
+                return [
+                    'dni' => $user->dni,
+                    'nombre_usuario' => $user->nombre_usuario,
+                    'nombre_completo' => $user->nombre . ' ' . $user->apellido_paterno . ' ' . $user->apellido_materno,
+                    'roles' => $user->roles->pluck('nombre')->implode(', '),
+                    'estado' => $this->getEstadoTexto($user->estado), // Cambio aquí
+                    'acciones' => $this->getActionButtons($user)
+                ];
+            });
 
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => $e->getMessage()
-            ], 500);
+        return response()->json(['data' => $users]);
+    }
+    private function getActionButtons($user)
+    {
+        $buttons = '';
+
+        if (auth()->user()->can('view', $user)) {
+            $buttons .= '<a href="'.route('user.show', $user->id).'" class="btn btn-sm btn-primary">Ver</a> ';
+        }
+
+        if (auth()->user()->can('update', $user)) {
+            $buttons .= '<a href="'.route('user.edit', $user->id).'" class="btn btn-sm btn-warning">Editar</a> ';
+        }
+
+        if (auth()->user()->can('delete', $user)) {
+            $buttons .= '<button class="btn btn-sm btn-danger btn-delete" data-id="'.$user->id.'">Eliminar</button>';
+        }
+        return $buttons;
+    }
+    private function getEstadoTexto($estado)
+    {
+        switch ((int)$estado) {
+            case 0: return 'Inactivo';
+            case 1: return 'Activo';
+            case 2: return 'Lector';
+            default: return 'Desconocido';
         }
     }
 
@@ -132,7 +134,7 @@ class UserController extends Controller
 
             $allRoles = $query->get();
 
-            return view('users.create', compact('allRoles'));
+            return view('user.create', compact('allRoles'));
         }
     }
 
@@ -151,6 +153,7 @@ class UserController extends Controller
                 'password' => ['required', 'confirmed', Rules\Password::defaults()],
                 'roles' => 'required|array|min:1',
                 'roles.*' => 'exists:roles,id',
+                'estado' => 'required|in:1,0',
                 // Campos adicionales para estudiantes/apoderados
                 'grado_id' => 'nullable|required_if:roles,estudiante|exists:grados,id',
                 'fecha_nacimiento' => 'nullable|date',

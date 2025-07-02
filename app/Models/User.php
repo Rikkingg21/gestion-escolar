@@ -57,15 +57,18 @@ class User extends Authenticatable
         return !! $role->intersect($this->roles)->count();
     }
 
-    public function isAdmin()
+    public function scopeActivos($query)
     {
-        return $this->hasRole('admin');
+        return $query->where('estado', '1');
     }
 
-    public function isDirector()
+    public function scopeLectores($query)
     {
-        return $this->hasRole('director');
+        return $query->where('estado', '2');
     }
 
-    // ... otros métodos para verificar roles
+    public function scopeInactivos($query)
+    {
+        return $query->where('estado', '0');
+    }
 }

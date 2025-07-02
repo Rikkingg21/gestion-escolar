@@ -47,9 +47,6 @@ Route::middleware('auth')->group(function () {
     });
 
 
-
-
-
     //rutas para admin
     Route::controller(DasboardController::class)->group(function () {
         Route::get('/admin', 'admin')->name('admin.dashboard');
@@ -118,11 +115,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/user', [UserController::class, 'store'])->name('user.store');
         Route::get('/user/{id}/edit', [UserController::class, 'edit'])->name('user.edit');
         Route::put('/user/{user}', [UserController::class, 'update'])->name('user.update');
-        Route::delete('/user/{id}', [UserController::class, 'destroy'])->name('user.destroy');
+        //Route::delete('/user/{id}', [UserController::class, 'destroy'])->name('user.destroy');
         //ruta de usuarios mediante ajax
         Route::get('/usuarios/activos', [UserController::class, 'ajaxUserActivo'])->name('usuarios.activos');
         Route::get('/usuarios/lectores', [UserController::class, 'ajaxUserLector'])->name('usuarios.lectores');
         Route::get('/usuarios/inactivos', [UserController::class, 'ajaxUserInactivo'])->name('usuarios.inactivos');
+        Route::delete('/usuarios/{user}', [UserController::class, 'destroy'])->name('usuarios.destroy');
 
 
 
