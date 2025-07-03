@@ -20,6 +20,7 @@ class Auxiliar extends Model
         'user_id',
         'turno',
         'funciones',
+        'estado'
     ];
 
     public function user()

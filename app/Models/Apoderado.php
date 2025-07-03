@@ -5,17 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Apoderado extends Model
 {
+    use HasFactory;
+    use SoftDeletes;
+
     protected $table = 'apoderados';
     protected $primaryKey = 'id';
+    public $timestamps = true;
 
     protected $fillable = [
         'user_id',
         'parentesco',
-        'telefono1',
-        'telefono2'
+        'estado'
     ];
     public function user()
     {

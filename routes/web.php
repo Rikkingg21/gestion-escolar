@@ -122,6 +122,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/usuarios/inactivos', [UserController::class, 'ajaxUserInactivo'])->name('usuarios.inactivos');
         Route::delete('/usuarios/{user}', [UserController::class, 'destroy'])->name('usuarios.destroy');
 
+        Route::get('/apoderados/search', [ApoderadoController::class, 'search'])->name('apoderados.search');
+
 
 
 

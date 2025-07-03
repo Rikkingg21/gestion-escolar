@@ -4,10 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Estudiante extends Model
 {
+    use HasFactory;
+    use SoftDeletes;
+
     protected $table = 'estudiantes';
+    public $timestamps = true;
     protected $primaryKey = 'id';
 
     protected $fillable = [
@@ -15,6 +21,7 @@ class Estudiante extends Model
         'grado_id',
         'apoderado_id',
         'fecha_nacimiento',
+        'estado',
     ];
 
     public function user()
