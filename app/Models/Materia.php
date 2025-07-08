@@ -17,4 +17,8 @@ class Materia extends Model
         'nombre',
         'estado',
     ];
+    public function materiaCriterio()
+    {
+        return $this->belongsTo(Materia\MateriaCriterio::class, 'materia_id');
+    }
 }

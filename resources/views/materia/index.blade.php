@@ -57,16 +57,20 @@
                                     <td>{{ $materia->nombre}}</td>
                                     <td>
                                         <div class="d-flex">
+                                            <a href="{{ route('materiacompetencia.index', $materia->id) }}" class="btn btn-sm btn-primary mx-1" title="Criterios">
+                                                <i class="bi bi-clipboard2"></i>
+                                            </a>
                                             <a href="{{ route('materia.edit', $materia->id) }}" class="btn btn-sm btn-warning mx-1" title="Editar">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
                                             <form action="{{ route('materia.destroy', $materia->id) }}" method="POST">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-danger" title="Eliminar" onclick="return confirm('¿Eliminar esta materia?')">
+                                                <button type="submit" class="btn btn-sm btn-danger mx-1" title="Eliminar" onclick="return confirm('¿Eliminar esta materia?')">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </form>
+
                                         </div>
                                     </td>
                                 </tr>

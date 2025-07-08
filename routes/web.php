@@ -18,9 +18,14 @@ use App\Http\Controllers\Maya\ClaseController;
 use App\Http\Controllers\Maya\TemaController;
 use App\Http\Controllers\Maya\CriterioController;
 
+use App\Http\Controllers\NotaController;
+
 
 use App\Http\Controllers\GradoController;
 use App\Http\Controllers\MateriaController;
+use App\Http\Controllers\Materia\MateriaCompetenciaController;
+use App\Http\Controllers\Materia\MateriaCriterioController;
+
 use App\Http\Controllers\EstudianteController;
 use App\Http\Controllers\ApoderadoController;
 use App\Models\Apoderado;
@@ -110,6 +115,13 @@ Route::middleware('auth')->group(function () {
         Route::put('/criterio/{criterio}', [CriterioController::class, 'update'])->name('criterio.update');
         Route::delete('/criterio/{id}', [CriterioController::class, 'destroy'])->name('criterio.destroy');
 
+        Route::get('/nota', [NotaController::class, 'index'])->name('nota.index');
+        Route::get('/nota/create', [NotaController::class, 'create'])->name('nota.create');
+        Route::post('/nota', [NotaController::class, 'store'])->name('nota.store');
+        Route::get('/nota/{id}/edit', [NotaController::class, 'edit'])->name('nota.edit');
+        Route::put('/nota/{nota}', [NotaController::class, 'update'])->name('nota.update');
+        Route::delete('/nota/{id}', [NotaController::class, 'destroy'])->name('nota.destroy');
+
         Route::get('/user', [UserController::class, 'index'])->name('user.index');
         Route::get('/user/create', [UserController::class, 'create'])->name('user.create');
         Route::post('/user', [UserController::class, 'store'])->name('user.store');
@@ -142,6 +154,25 @@ Route::middleware('auth')->group(function () {
         Route::get('/materia/{id}/edit', [MateriaController::class, 'edit'])->name('materia.edit');
         Route::put('/materia/{materia}', [MateriaController::class, 'update'])->name('materia.update');
         Route::delete('/materia/{id}', [MateriaController::class, 'destroy'])->name('materia.destroy');
+
+        Route::get('/materia-competencia/{id}', [MateriaCompetenciaController::class, 'index'])->name('materiacompetencia.index');
+        Route::get('/materia-competencia/{id}/create', [MateriaCompetenciaController::class, 'create'])->name('materiacompetencia.create');
+        Route::post('/materia-competencia', [MateriaCompetenciaController::class, 'store'])->name('materiacompetencia.store');
+        Route::get('/materia-competencia/{materiacompetencia}/edit', [MateriaCompetenciaController::class, 'edit'])->name('materiacompetencia.edit');
+        Route::put('/materia-competencia/{materiacompetencia}', [MateriaCompetenciaController::class, 'update'])->name('materiacompetencia.update');
+        Route::delete('/materia-competencia/{id}', [MateriaCompetenciaController::class, 'destroy'])->name('materiacompetencia.destroy');
+
+        Route::get('/materia-criterio/{id}', [MateriaCriterioController::class, 'index'])->name('materiacriterio.index');
+        Route::get('/materia-criterio/{id}/create', [MateriaCriterioController::class, 'create'])->name('materiacriterio.create');
+        Route::post('/materia-criterio', [MateriaCriterioController::class, 'store'])->name('materiacriterio.store');
+        Route::get('/materia-criterio/{materiacriterio}/edit', [MateriaCriterioController::class, 'edit'])->name('materiacriterio.edit');
+        Route::put('/materia-criterio/{materiacriterio}', [MateriaCriterioController::class, 'update'])->name('materiacriterio.update');
+        Route::delete('/materia-criterio/{id}', [MateriaCriterioController::class, 'destroy'])->name('materiacriterio.destroy');
+
+
+
+
+
     });
 
     //rutas para docente

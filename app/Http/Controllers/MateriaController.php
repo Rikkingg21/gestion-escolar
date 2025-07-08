@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 
 class MateriaController extends Controller
 {
-        public function __construct()
+    public function __construct()
     {
         $this->middleware(function ($request, $next) {
             $user = auth()->user();
