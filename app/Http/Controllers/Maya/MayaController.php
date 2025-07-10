@@ -43,12 +43,32 @@ class MayaController extends Controller
     }
     public function create()
     {
-        // Cargar materias activas
         $materias = Materia::where('estado', 1)->orderBy('nombre')->get();
-        // Cargar docentes activos
+
         $docentes = Docente::where('estado', 1)->orderBy('id')->get();
-        // Cargar grados activos
-        $grados = Grado::where('estado', 1)->orderBy('grado')->get();
+
+        $grados = Grado::where('estado', 1)->get();
+
+        $grados = $grados->sort(function ($a, $b) {
+            $ordenNivel = [
+                'Inicial' => 1,
+                'Primaria' => 2,
+                'Secundaria' => 3,
+            ];
+
+            $nivelA = $ordenNivel[$a->nivel] ?? 99;
+            $nivelB = $ordenNivel[$b->nivel] ?? 99;
+
+            if ($nivelA !== $nivelB) {
+                return $nivelA <=> $nivelB;
+            }
+
+            if ($a->grado !== $b->grado) {
+                return $a->grado <=> $b->grado;
+            }
+
+            return $a->seccion <=> $b->seccion;
+        })->values();
 
         return view('modulos.maya.create', compact('materias', 'docentes', 'grados'));
     }
@@ -71,15 +91,45 @@ class MayaController extends Controller
     }
 
 
-    public function edit($id)
+public function edit($id)
     {
         $maya = Cursogradosecnivanio::findOrFail($id);
+
         // Cargar materias activas
         $materias = Materia::where('estado', 1)->orderBy('nombre')->get();
+
         // Cargar docentes activos
         $docentes = Docente::where('estado', 1)->orderBy('id')->get();
-        // Cargar grados activos
-        $grados = Grado::where('estado', 1)->orderBy('grado')->get();
+
+        // Cargar grados activos y ordenarlos de forma personalizada
+        $grados = Grado::where('estado', 1)->get(); // Obtener todos los grados activos primero
+
+        // Ordenar la colección de grados
+        $grados = $grados->sort(function ($a, $b) {
+            // Define un orden personalizado para los niveles si el orden alfabético no es el deseado
+            $ordenNivel = [
+                'Inicial' => 1,
+                'Primaria' => 2,
+                'Secundaria' => 3,
+                // Agrega otros niveles si los tienes y define su orden
+            ];
+
+            // Comparar por Nivel (usando el orden personalizado, si existe)
+            $nivelA = $ordenNivel[$a->nivel] ?? 99;
+            $nivelB = $ordenNivel[$b->nivel] ?? 99;
+
+            if ($nivelA !== $nivelB) {
+                return $nivelA <=> $nivelB;
+            }
+
+            // Si los niveles son iguales, comparar por Grado (numéricamente)
+            if ($a->grado !== $b->grado) {
+                return $a->grado <=> $b->grado;
+            }
+
+            // Si los grados también son iguales, comparar por Sección (alfabéticamente)
+            return $a->seccion <=> $b->seccion;
+        })->values(); // Re-indexa la colección después de ordenar
 
         return view('modulos.maya.edit', compact('maya', 'materias', 'docentes', 'grados'));
     }

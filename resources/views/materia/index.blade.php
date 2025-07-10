@@ -57,7 +57,7 @@
                                     <td>{{ $materia->nombre}}</td>
                                     <td>
                                         <div class="d-flex">
-                                            <a href="{{ route('materiacompetencia.index', $materia->id) }}" class="btn btn-sm btn-primary mx-1" title="Criterios">
+                                            <a href="{{ route('materiacompetencia.index', $materia->id) }}" class="btn btn-sm btn-primary mx-1" title="Competencias">
                                                 <i class="bi bi-clipboard2"></i>
                                             </a>
                                             <a href="{{ route('materia.edit', $materia->id) }}" class="btn btn-sm btn-warning mx-1" title="Editar">
