@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 use App\Models\Maya\Bimestre;
+use App\Models\Maya\Docente;
 
 class Cursogradosecnivanio extends Model
 {

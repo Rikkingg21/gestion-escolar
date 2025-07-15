@@ -120,16 +120,6 @@
                     </a>
                 </li>
 
-                <li class="nav-item">
-                    <a href="" class="nav-link text-white {{ request()->routeIs('estudiante.*') ? 'active' : '' }}">
-                        <i class="bi bi-people me-2"></i> Estudiantes
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="" class="nav-link text-white {{ request()->routeIs('docente.*') ? 'active' : '' }}">
-                        <i class="bi bi-people me-2"></i> Docentes
-                    </a>
-                </li>
                 @endif
 
                 @if(session('current_role') === 'docente')

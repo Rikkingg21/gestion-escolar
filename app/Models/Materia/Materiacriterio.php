@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 use App\Models\Materia;
+use App\Models\Grado;
 use App\Models\Materia\Materiacompetencia;
 
 class Materiacriterio extends Model
@@ -18,11 +19,22 @@ class Materiacriterio extends Model
     public $timestamps = true;
     protected $fillable = [
         'materia_competencia_id',
+        'materia_id',
+        'grado_id',
+        'anio',
         'nombre',
         'descripcion'
     ];
     public function materiaCompetencia()
     {
         return $this->belongsTo(Materiacompetencia::class, 'materia_competencia_id');
+    }
+    public function materia()
+    {
+        return $this->belongsTo(Materia::class, 'materia_id');
+    }
+    public function grado()
+    {
+        return $this->belongsTo(Grado::class, 'grado_id');
     }
 }

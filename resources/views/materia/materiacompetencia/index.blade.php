@@ -9,6 +9,10 @@
         <a href="{{ route('materiacompetencia.create', $materia->id) }}" class="btn btn-primary shadow-sm">
             <i class="bi bi-plus-lg me-2"></i> Nueva Competencia
         </a>
+        <a href="{{ route('materiacriterio.index', $materia->id) }}"
+            class="btn btn-primary shadow-sm">
+            <i class="bi bi-list-check"></i> Ver Criterios
+        </a>
     </div>
 
     @if ($errors->any())
@@ -53,10 +57,7 @@
                             <td>{{ $competencia->descripcion }}</td>
                             <td>
                                 <div class="d-flex">
-                                    <a href="{{ route('materiacriterio.index', $competencia->id) }}"
-                                       class="btn btn-sm btn-info mx-1" title="Ver Criterios">
-                                        <i class="bi bi-list-check"></i>
-                                    </a>
+
                                     <a href="{{ route('materiacompetencia.edit', $competencia->id) }}"
                                        class="btn btn-sm btn-warning mx-1" title="Editar">
                                         <i class="bi bi-pencil"></i>

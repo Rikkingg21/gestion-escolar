@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
+
 @if ($errors->any())
     <div class="alert alert-danger">
         <ul>
@@ -39,7 +40,7 @@
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaya{{ $maya->id }}" aria-expanded="false" aria-controls="collapseMaya{{ $maya->id }}">
                     <div class="mb-2">
                     <strong>{{ $maya->materia->nombre ?? '' }}</strong> - {{ $maya->grado->grado ?? '' }} {{ $maya->grado->seccion ?? '' }} ({{ $maya->anio }})
-                    <a href="" class="btn btn-primary shadow-sm">Calificar</a>
+
                     </div>
                 </button>
             </h2>
@@ -62,7 +63,9 @@
                                 <h2 class="accordion-header" id="headingBimestre{{ $bimestre->id }}">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBimestre{{ $bimestre->id }}" aria-expanded="false" aria-controls="collapseBimestre{{ $bimestre->id }}">
                                         {{ $bimestre->nombre }} Bimestre
+                                        <a href="" class="btn btn-primary shadow-sm">Calificar</a>
                                     </button>
+
                                 </h2>
                                 <div id="collapseBimestre{{ $bimestre->id }}" class="accordion-collapse collapse" aria-labelledby="headingBimestre{{ $bimestre->id }}" data-bs-parent="#bimestresAccordion{{ $maya->id }}">
                                     <div class="accordion-body">
@@ -81,141 +84,7 @@
 
 
                                         <!-- Unidades -->
-                                        <div class="accordion" id="unidadesAccordion{{ $bimestre->id }}">
-                                            <div class="accordion-item">
-                                                @foreach ($bimestre->unidades as $unidad)
-                                                    <h2 class="accordion-header" id="headingUnidad{{ $unidad->id }}">
-                                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUnidad{{ $unidad->id }}" aria-expanded="false" aria-controls="collapseUnidad{{ $unidad->id }}">
-                                                            {{ $unidad->nombre }} Unidad
-                                                        </button>
-                                                    </h2>
-                                                    <div id="collapseUnidad{{ $unidad->id }}" class="accordion-collapse collapse" aria-labelledby="headingUnidad{{ $unidad->id }}" data-bs-parent="#unidadesAccordion{{ $bimestre->id }}">
-                                                        <div class="accordion-body">
-                                                            <div class="mb-2">
-                                                                @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
 
-                                                                    <a href="{{ route('unidad.edit', $unidad->id) }}" class="btn btn-warning btn-sm">Editar Unidad</a>
-                                                                    <form action="{{ route('unidad.destroy', $unidad->id) }}" method="POST" class="d-inline">
-                                                                        @csrf @method('DELETE')
-                                                                        <input type="hidden" name="anio" value="{{ $anioSeleccionado }}">
-                                                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar esta unidad?')">Eliminar Unidad</button>
-                                                                    </form>
-
-                                                                @endif
-                                                                <a href="{{ route('semana.create', ['unidad_id' => $unidad->id]) }}" class="btn btn-primary btn-sm crear-semana-btn" data-semanas="{{ $unidad->semanas->count() }}">Crear Semana</a>
-                                                            </div>
-                                                            <!-- Semanas -->
-                                                            <div class="accordion" id="semanasAccordion{{ $unidad->id }}">
-                                                                <div class="accordion-item">
-                                                                    @foreach ($unidad->semanas as $semana)
-                                                                        <h2 class="accordion-header" id="headingSemana{{ $semana->id }}">
-                                                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSemana{{ $semana->id }}" aria-expanded="false" aria-controls="collapseSemana{{ $semana->id }}">
-                                                                                {{ $semana->nombre }} Semana
-                                                                            </button>
-                                                                        </h2>
-                                                                        <div id="collapseSemana{{ $semana->id }}" class="accordion-collapse collapse" aria-labelledby="headingSemana{{ $semana->id }}" data-bs-parent="#semanasAccordion{{ $unidad->id }}">
-                                                                            <div class="accordion-body">
-                                                                                <div class="mb-2">
-                                                                                    @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
-
-                                                                                        <a href="{{ route('semana.edit', $semana->id) }}" class="btn btn-warning btn-sm">Editar Semana</a>
-                                                                                        <form action="{{ route('semana.destroy', $semana->id) }}" method="POST" class="d-inline">
-                                                                                            @csrf @method('DELETE')
-                                                                                            <input type="hidden" name="anio" value="{{ $anioSeleccionado }}">
-                                                                                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar esta semana?')">Eliminar Semana</button>
-                                                                                        </form>
-
-                                                                                    @endif
-                                                                                    <a href="{{ route('clase.create', ['semana_id' => $semana->id]) }}" class="btn btn-primary btn-sm crear-clase-btn" data-clases="{{ $semana->clases->count() }}">Crear Clase</a>
-                                                                                </div>
-                                                                                <!-- Clases -->
-                                                                                <div class="accordion" id="clasesAccordion{{ $semana->id }}">
-                                                                                    <div class="accordion-item">
-                                                                                        @foreach ($semana->clases as $clase)
-                                                                                            <h2 class="accordion-header" id="headingClase{{ $clase->id }}">
-                                                                                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseClase{{ $clase->id }}" aria-expanded="false" aria-controls="collapseClase{{ $clase->id }}">
-                                                                                                    Clase: {{ $clase->descripcion }} ({{ \Carbon\Carbon::parse($clase->fecha_clase)->format('d-m-Y') }})
-                                                                                                </button>
-                                                                                            </h2>
-                                                                                            <div id="collapseClase{{ $clase->id }}" class="accordion-collapse collapse" aria-labelledby="headingClase{{ $clase->id }}" data-bs-parent="#clasesAccordion{{ $semana->id }}">
-                                                                                                <div class="accordion-body">
-                                                                                                    <div class="mb-2">
-                                                                                                        @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
-
-                                                                                                            <a href="{{ route('clase.edit', $clase->id) }}" class="btn btn-warning btn-sm">Editar Clase</a>
-                                                                                                            <form action="{{ route('clase.destroy', $clase->id) }}" method="POST" class="d-inline">
-                                                                                                                @csrf @method('DELETE')
-                                                                                                                <input type="hidden" name="anio" value="{{ $anioSeleccionado }}">
-                                                                                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar esta clase?')">Eliminar Clase</button>
-                                                                                                            </form>
-
-                                                                                                        @endif
-                                                                                                        <a href="{{ route('tema.create', ['clase_id' => $clase->id]) }}" class="btn btn-primary btn-sm crear-tema-btn" data-temas="{{ $clase->temas->count() }}">Crear Tema</a>
-                                                                                                    </div>
-                                                                                                    <!-- Temas -->
-                                                                                                    <div class="accordion" id="temasAccordion{{ $clase->id }}">
-                                                                                                        <div class="accordion-item">
-                                                                                                            @foreach ($clase->temas as $tema)
-                                                                                                                <h2 class="accordion-header" id="headingTema{{ $tema->id }}">
-                                                                                                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTema{{ $tema->id }}" aria-expanded="false" aria-controls="collapseTema{{ $tema->id }}">
-                                                                                                                        Tema: {{ $tema->nombre }}
-                                                                                                                    </button>
-                                                                                                                </h2>
-                                                                                                                <div id="collapseTema{{ $tema->id }}" class="accordion-collapse collapse" aria-labelledby="headingTema{{ $tema->id }}" data-bs-parent="#temasAccordion{{ $clase->id }}">
-                                                                                                                    <div class="accordion-body">
-                                                                                                                        <div class="mb-2">
-                                                                                                                            @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
-
-                                                                                                                                <a href="{{ route('tema.edit', $tema->id) }}" class="btn btn-warning btn-sm">Editar Tema</a>
-                                                                                                                                <form action="{{ route('tema.destroy', $tema->id) }}" method="POST" class="d-inline">
-                                                                                                                                    @csrf @method('DELETE')
-                                                                                                                                    <input type="hidden" name="anio" value="{{ $anioSeleccionado }}">
-                                                                                                                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este tema?')">Eliminar Tema</button>
-                                                                                                                                </form>
-
-                                                                                                                            @endif
-                                                                                                                            <a href="{{ route('criterio.create', ['tema_id' => $tema->id]) }}" class="btn btn-primary btn-sm crear-criterio-btn" data-criterios="{{ $tema->criterios->count() }}">Crear Criterio</a>
-                                                                                                                        </div>
-                                                                                                                        <!-- Criterios -->
-                                                                                                                        <div class="list-group">
-                                                                                                                            @foreach ($tema->criterios as $criterio)
-                                                                                                                                <div class="list-group-item d-flex justify-content-between align-items-center">
-                                                                                                                                    <div>
-                                                                                                                                        <strong>{{ $criterio->descripcion }}</strong> ({{ $criterio->tipo }})
-                                                                                                                                    </div>
-                                                                                                                                    <div>
-                                                                                                                                        @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
-                                                                                                                                            <a href="{{ route('criterio.edit', $criterio->id) }}" class="btn btn-warning btn-sm">Editar</a>
-                                                                                                                                            <form action="{{ route('criterio.destroy', $criterio->id) }}" method="POST" class="d-inline">
-                                                                                                                                                @csrf @method('DELETE')
-                                                                                                                                                <input type="hidden" name="anio" value="{{ $anioSeleccionado }}">
-                                                                                                                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este criterio?')">Eliminar</button>
-                                                                                                                                            </form>
-                                                                                                                                        @endif
-                                                                                                                                    </div>
-                                                                                                                                </div>
-                                                                                                                            @endforeach
-                                                                                                                        </div>
-                                                                                                                    </div>
-                                                                                                                </div>
-                                                                                                            @endforeach
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        @endforeach
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    @endforeach
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             @endforeach
