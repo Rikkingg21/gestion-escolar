@@ -27,6 +27,6 @@ class Materiacompetencia extends Model
     }
     public function materiaCriterio()
     {
-        return $this->belongsTo(Materia\MateriaCriterio::class, 'materia_criterio_id');
+        return $this->belongsTo(MateriaCriterio::class, 'materia_criterio_id');
     }
 }

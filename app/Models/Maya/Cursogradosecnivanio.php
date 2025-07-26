@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 use App\Models\Maya\Bimestre;
-use App\Models\Maya\Docente;
+use App\Models\Docente;
+use App\Models\Grado;
+use App\Models\Materia;
 
 class Cursogradosecnivanio extends Model
 {
@@ -25,15 +27,15 @@ class Cursogradosecnivanio extends Model
     ];
     public function grado()
     {
-        return $this->belongsTo(\App\Models\Grado::class, 'grado_id');
+        return $this->belongsTo(Grado::class, 'grado_id');
     }
     public function docente()
     {
-        return $this->belongsTo(\App\Models\Docente::class, 'docente_designado_id');
+        return $this->belongsTo(Docente::class, 'docente_designado_id');
     }
     public function materia()
     {
-        return $this->belongsTo(\App\Models\Materia::class, 'materia_id');
+        return $this->belongsTo(Materia::class, 'materia_id');
     }
     public function bimestres()
     {

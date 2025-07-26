@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models\Maya;
 
 use Illuminate\Database\Eloquent\Model;
@@ -24,9 +23,5 @@ class Bimestre extends Model
     public function cursoGradoSecNivAnio()
     {
         return $this->belongsTo(Cursogradosecnivanio::class, 'curso_grado_sec_niv_anio_id');
-    }
-    public function unidades()
-    {
-        return $this->hasMany(Unidad::class, 'bimestre_id');
     }
 }
