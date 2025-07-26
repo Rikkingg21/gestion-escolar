@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Nota;
 use App\Models\Maya\Bimestre;
+use App\Models\Maya\Cursogradosecnivanio;
 use App\Models\Estudiante;
+use App\Models\Materia;
+use App\Models\Docente;
 use App\Models\Materia\Materiacompetencia;
 use App\Models\Materia\Materiacriterio;
 use Illuminate\Http\Request;
@@ -25,43 +28,53 @@ class NotaController extends Controller
     public function index(Bimestre $bimestre)
     {
         // Obtener el curso relacionado al bimestre
-        $curso = $bimestre->cursoGradoSecNivAnio;
+        $curso = $bimestre->cursoGradoSecNivAnio()
+            ->with(['grado', 'materia', 'docente.user'])
+            ->first();
 
-        // Obtener datos necesarios
-        $materia = $curso->materia;
-        $grado = $curso->grado;
+        if (!$curso) {
+            abort(404, 'Curso no encontrado para el bimestre.');
+        }
+
+        // Obtener estudiantes del grado
+        $estudiantes = Estudiante::where('grado_id', $curso->grado_id)
+            ->with('user')
+            ->get()
+            ->sortBy(function($est) {
+                return $est->user->apellido_paterno ?? '';
+            })
+            ->values();
+
+        // Obtener competencias y criterios de la materia y grado
+        $competencias = Materiacompetencia::where('materia_id', $curso->materia_id)
+            ->with(['materiaCriterio' => function($q) use ($curso) {
+                $q->where('grado_id', $curso->grado_id)
+                ->where('anio', $curso->anio);
+            }])
+            ->get();
+
+        // Reorganizar criterios por competencia para la vista
+        foreach ($competencias as $comp) {
+            $comp->criterios = $comp->materiaCriterio ?? collect();
+        }
+
+        // Obtener notas existentes para el bimestre, estudiantes y criterios
+        $criteriosIds = $competencias->flatMap->criterios->pluck('id')->unique();
+        $notasExistentes = Nota::where('bimestre_id', $bimestre->id)
+            ->whereIn('materia_criterio_id', $criteriosIds)
+            ->whereIn('estudiante_id', $estudiantes->pluck('id'))
+            ->get()
+            ->groupBy([
+                'estudiante_id',
+                'materia_criterio_id'
+            ]);
+
+        // Docente asignado
         $docente = $curso->docente;
 
-        // Obtener estudiantes del mismo grado ordenados alfabéticamente
-        $estudiantes = Estudiante::with(['user' => function($query) {
-                $query->orderBy('apellido_paterno')
-                    ->orderBy('apellido_materno')
-                    ->orderBy('nombre');
-            }])
-            ->where('grado_id', $grado->id)
-            ->where('estado', 'activo')
-            ->get()
-            ->sortBy(function($estudiante) {
-                return $estudiante->user->apellido_paterno.' '.
-                    $estudiante->user->apellido_materno.' '.
-                    $estudiante->user->nombre;
-            });
-
-        // Obtener competencias con sus criterios
-        $competencias = Materiacompetencia::where('materia_id', $materia->id)
-            ->get()
-            ->map(function($competencia) use ($grado) {
-                $competencia->criterios = MateriaCriterio::where([
-                    'materia_competencia_id' => $competencia->id,
-                    'grado_id' => $grado->id
-                ])->get();
-                return $competencia;
-            });
-
-        // Obtener notas existentes para este bimestre
-        $notasExistentes = Nota::where('bimestre_id', $bimestre->id)
-            ->get()
-            ->groupBy(['estudiante_id', 'materia_criterio_id']);
+        // Materia y grado para la cabecera
+        $materia = $curso->materia;
+        $grado = $curso->grado;
 
         return view('nota.index', compact(
             'bimestre',
@@ -69,13 +82,17 @@ class NotaController extends Controller
             'materia',
             'grado',
             'docente',
-            'estudiantes',
             'competencias',
+            'estudiantes',
             'notasExistentes'
         ));
     }
 
     public function store(Request $request)
+    {
+
+    }
+    public function GuardadoAutomatico(Request $request)
     {
 
     }

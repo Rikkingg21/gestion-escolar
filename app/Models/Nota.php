@@ -33,6 +33,6 @@ class Nota extends Model
     }
     public function bimestre()
     {
-        return $this->belongsTo(Bimestre::class, 'bimeste_id');
+        return $this->belongsTo(Bimestre::class, 'bimestre_id');
     }
 }
