@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Materia\Materiacriterio;
+use App\Models\Materia\Materiacompetencia;
 use App\Models\Maya\Bimestre;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,5 +35,16 @@ class Nota extends Model
     public function bimestre()
     {
         return $this->belongsTo(Bimestre::class, 'bimestre_id');
+    }
+    public function competencia()
+    {
+        return $this->hasOneThrough(
+            Materiacompetencia::class,
+            Materiacriterio::class,
+            'id', // FK en MateriaCriterio
+            'id', // FK en MateriaCompetencia
+            'materia_criterio_id', // Local key en Nota
+            'materia_competencia_id' // Local key en MateriaCriterio
+        );
     }
 }

@@ -17,7 +17,7 @@
         </div>
 
         <div class="card-body">
-            <form action="{{ route('nota.store') }}" method="POST">
+            <form action="{{ route('nota.store') }}" method="POST" id="formNotas">
                 @csrf
                 <input type="hidden" name="bimestre_id" value="{{ $bimestre->id }}">
 
@@ -55,15 +55,18 @@
                                         @foreach($competencia->criterios as $criterio)
                                             <td>
                                                 @php
-                                                    $nota = $notasExistentes[$estudiante->id][$criterio->id][0]->nota ?? null;
+                                                    $nota = $notasExistentes
+                                                        ->get($estudiante->id, collect())
+                                                        ->get($criterio->id, (object)['nota' => null])
+                                                        ->nota;
                                                 @endphp
                                                 <input type="number"
                                                     name="notas[{{ $estudiante->id }}][{{ $criterio->id }}]"
                                                     value="{{ $nota }}"
-                                                    min="0"
-                                                    max="20"
+                                                    min="1"
+                                                    max="4"
                                                     step="0.1"
-                                                    class="form-control form-control-sm">
+                                                    class="form-control form-control-sm nota-input">
                                             </td>
                                         @endforeach
                                     @endforeach
@@ -88,13 +91,65 @@
 @endsection
 
 @section('scripts')
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    // Validación para que las notas estén entre 0 y 20
-    document.querySelectorAll('input[type="number"]').forEach(input => {
-        input.addEventListener('change', function() {
-            if (this.value < 0) this.value = 0;
-            if (this.value > 20) this.value = 20;
+$(document).ready(function() {
+    // Configuración de toastr (si lo estás usando)
+    toastr.options = {
+        "closeButton": true,
+        "progressBar": true,
+        "positionClass": "toast-bottom-right"
+    };
+
+    $(document).on('change', '.auto-save-nota', function() {
+        let input = $(this);
+        let value = parseFloat(input.val()) || 1; // Valor por defecto 1 si está vacío
+
+        // Validación para 1-4
+        if (value < 1) {
+            input.val(1);
+            value = 1;
+        }
+        if (value > 4) {
+            input.val(4);
+            value = 4;
+        }
+
+        // Deshabilitar temporalmente el input durante la petición
+        input.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('nota.auto-save') }}",
+            method: "POST",
+            data: {
+                estudiante_id: input.data('estudiante'),
+                criterio_id: input.data('criterio'),
+                bimestre_id: input.data('bimestre'),
+                nota: value,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                input.removeClass('is-invalid')
+                     .addClass('is-valid')
+                     .prop('disabled', false);
+
+                setTimeout(() => input.removeClass('is-valid'), 2000);
+                toastr.success('Nota guardada correctamente');
+
+                // Debug en consola
+                console.log('Nota guardada:', response);
+            },
+            error: function(xhr) {
+                input.addClass('is-invalid')
+                     .prop('disabled', false);
+                toastr.error('Error al guardar la nota');
+
+                // Debug en consola
+                console.error('Error:', xhr.responseText);
+            }
         });
     });
+});
 </script>
 @endsection

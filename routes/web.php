@@ -81,6 +81,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/bimestre/{id}', [BimestreController::class, 'destroy'])->name('bimestre.destroy');
 
         Route::get('/nota/{bimestre}', [NotaController::class, 'index'])->name('nota.index');
+        Route::post('/notas/auto-save', [NotaController::class, 'GuardadoAutomatico'])->name('nota.auto-save');
         Route::get('/nota/create', [NotaController::class, 'create'])->name('nota.create');
         Route::post('/nota', [NotaController::class, 'store'])->name('nota.store');
         Route::get('/nota/{id}/edit', [NotaController::class, 'edit'])->name('nota.edit');

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 use App\Models\Materia;
+use App\Models\Nota;
 use App\Models\Grado;
 use App\Models\Materia\Materiacompetencia;
 
@@ -36,5 +37,9 @@ class Materiacriterio extends Model
     public function grado()
     {
         return $this->belongsTo(Grado::class, 'grado_id');
+    }
+    public function notas()
+    {
+        return $this->hasMany(Nota::class, 'materia_criterio_id');
     }
 }

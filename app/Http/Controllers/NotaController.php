@@ -64,10 +64,9 @@ class NotaController extends Controller
             ->whereIn('materia_criterio_id', $criteriosIds)
             ->whereIn('estudiante_id', $estudiantes->pluck('id'))
             ->get()
-            ->groupBy([
-                'estudiante_id',
-                'materia_criterio_id'
-            ]);
+            ->mapToGroups(function ($item) {
+                return [$item['estudiante_id'] => [$item['materia_criterio_id'] => $item]];
+            });
 
         // Docente asignado
         $docente = $curso->docente;
@@ -90,10 +89,80 @@ class NotaController extends Controller
 
     public function store(Request $request)
     {
+        $request->validate([
+            'bimestre_id' => 'required|exists:maya_bimestres,id',
+            'notas' => 'required|array',
+            'notas.*.*' => 'nullable|numeric|min:1|max:4'
+        ]);
 
-    }
-    public function GuardadoAutomatico(Request $request)
-    {
+        // Verificar que el bimestre existe
+        $bimestre = Bimestre::findOrFail($request->bimestre_id);
 
+        try {
+            \DB::beginTransaction();
+
+            $notasGuardadas = 0;
+            $errores = [];
+
+            foreach ($request->notas as $estudianteId => $criterios) {
+                // Verificar que el estudiante existe
+                if (!Estudiante::where('id', $estudianteId)->exists()) {
+                    $errores[] = "Estudiante con ID $estudianteId no encontrado";
+                    continue;
+                }
+
+                foreach ($criterios as $criterioId => $valorNota) {
+                    // Verificar que el criterio existe
+                    if (!Materiacriterio::where('id', $criterioId)->exists()) {
+                        $errores[] = "Criterio con ID $criterioId no encontrado";
+                        continue;
+                    }
+
+                    if (!is_null($valorNota)) {
+                        Nota::updateOrCreate(
+                            [
+                                'estudiante_id' => $estudianteId,
+                                'materia_criterio_id' => $criterioId,
+                                'bimestre_id' => $request->bimestre_id
+                            ],
+                            [
+                                'nota' => $valorNota,
+                                'publico' => 0
+                            ]
+                        );
+                        $notasGuardadas++;
+                    }
+                }
+            }
+
+            \DB::commit();
+
+            $mensaje = "Se guardaron $notasGuardadas notas correctamente.";
+            if (!empty($errores)) {
+                $mensaje .= ' Pero ocurrieron algunos errores: ' . implode(', ', array_slice($errores, 0, 3));
+                if (count($errores) > 3) {
+                    $mensaje .= ' y ' . (count($errores) - 3) . ' más...';
+                }
+            }
+
+            return redirect()
+                ->route('nota.index', ['bimestre' => $request->bimestre_id])
+                ->with(
+                    !empty($errores) ? 'warning' : 'success',
+                    $mensaje
+                );
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+
+            \Log::error('Error al guardar notas: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()
+                ->withInput()
+                ->with('error', 'Error al guardar las notas: ' . $e->getMessage());
+        }
     }
 }
