@@ -21,4 +21,8 @@ class Materia extends Model
     {
         return $this->belongsTo(Materia\MateriaCriterio::class, 'materia_id');
     }
+    public function materiaCompetencia()
+    {
+        return $this->hasMany(Materia\Materiacompetencia::class, 'materia_id');
+    }
 }

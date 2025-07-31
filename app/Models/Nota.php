@@ -22,7 +22,10 @@ class Nota extends Model
         'bimestre_id',
         'publico',
         'nota',
-
+    ];
+    protected $casts = [
+        'publico' => 'string', // Forzamos a string para el ENUM
+        'nota' => 'integer',  // Aseguramos que la nota sea entera
     ];
     public function estudiante()
     {

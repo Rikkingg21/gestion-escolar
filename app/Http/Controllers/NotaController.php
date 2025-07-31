@@ -12,6 +12,7 @@ use App\Models\Materia\Materiacompetencia;
 use App\Models\Materia\Materiacriterio;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class NotaController extends Controller
 {
@@ -27,142 +28,110 @@ class NotaController extends Controller
     }
     public function index(Bimestre $bimestre)
     {
-        // Obtener el curso relacionado al bimestre
-        $curso = $bimestre->cursoGradoSecNivAnio()
-            ->with(['grado', 'materia', 'docente.user'])
-            ->first();
+        // Cargar relaciones con validación
+        $bimestre->load([
+            'cursoGradoSecNivAnio' => function($query) {
+                $query->with([
+                    'grado',
+                    'materia.materiaCompetencia.materiaCriterio',
+                    'docente.user'
+                ]);
+            }
+        ]);
+
+        $curso = $bimestre->cursoGradoSecNivAnio;
 
         if (!$curso) {
             abort(404, 'Curso no encontrado para el bimestre.');
         }
 
-        // Obtener estudiantes del grado
-        $estudiantes = Estudiante::where('grado_id', $curso->grado_id)
-            ->with('user')
-            ->get()
-            ->sortBy(function($est) {
-                return $est->user->apellido_paterno ?? '';
-            })
-            ->values();
-
-        // Obtener competencias y criterios de la materia y grado
-        $competencias = Materiacompetencia::where('materia_id', $curso->materia_id)
-            ->with(['materiaCriterio' => function($q) use ($curso) {
-                $q->where('grado_id', $curso->grado_id)
-                ->where('anio', $curso->anio);
-            }])
+        // Obtener estudiantes
+        $estudiantes = Estudiante::with(['user'])
+            ->where('grado_id', $curso->grado_id)
+            ->orderByRaw("
+                (SELECT apellido_paterno FROM users WHERE users.id = estudiantes.user_id),
+                (SELECT apellido_materno FROM users WHERE users.id = estudiantes.user_id),
+                (SELECT nombre FROM users WHERE users.id = estudiantes.user_id)
+            ")
             ->get();
 
-        // Reorganizar criterios por competencia para la vista
-        foreach ($competencias as $comp) {
-            $comp->criterios = $comp->materiaCriterio ?? collect();
-        }
+        // Preparar competencias con criterios
+        $competencias = $curso->materia->materiaCompetencia->map(function($competencia) use ($curso) {
+            $competencia->criterios = $competencia->materiaCriterio
+                ->where('grado_id', $curso->grado_id)
+                ->where('anio', $curso->anio)
+                ->values();
+            return $competencia;
+        })->filter(fn($c) => $c->criterios->isNotEmpty());
 
-        // Obtener notas existentes para el bimestre, estudiantes y criterios
-        $criteriosIds = $competencias->flatMap->criterios->pluck('id')->unique();
+        // Obtener notas existentes
+        $criteriosIds = $competencias->flatMap->criterios->pluck('id');
         $notasExistentes = Nota::where('bimestre_id', $bimestre->id)
-            ->whereIn('materia_criterio_id', $criteriosIds)
-            ->whereIn('estudiante_id', $estudiantes->pluck('id'))
-            ->get()
-            ->mapToGroups(function ($item) {
-                return [$item['estudiante_id'] => [$item['materia_criterio_id'] => $item]];
-            });
+                ->whereIn('materia_criterio_id', $criteriosIds)
+                ->whereIn('estudiante_id', $estudiantes->pluck('id'))
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [
+                        $item['estudiante_id'].'-'.$item['materia_criterio_id'] => $item['nota']
+                    ];
+                });
 
-        // Docente asignado
-        $docente = $curso->docente;
-
-        // Materia y grado para la cabecera
-        $materia = $curso->materia;
-        $grado = $curso->grado;
-
-        return view('nota.index', compact(
-            'bimestre',
-            'curso',
-            'materia',
-            'grado',
-            'docente',
-            'competencias',
-            'estudiantes',
-            'notasExistentes'
-        ));
+        return view('nota.index', [
+            'bimestre' => $bimestre,
+            'curso' => $curso,
+            'materia' => $curso->materia,
+            'grado' => $curso->grado,
+            'docente' => $curso->docente,
+            'competencias' => $competencias,
+            'estudiantes' => $estudiantes,
+            'notasExistentes' => $notasExistentes
+        ]);
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        // Validación de datos
+        $validated = $request->validate([
             'bimestre_id' => 'required|exists:maya_bimestres,id',
             'notas' => 'required|array',
-            'notas.*.*' => 'nullable|numeric|min:1|max:4'
+            'notas.*' => 'required|array',
+            'notas.*.*' => 'nullable|numeric|min:1|max:4',
         ]);
-
-        // Verificar que el bimestre existe
-        $bimestre = Bimestre::findOrFail($request->bimestre_id);
 
         try {
             \DB::beginTransaction();
 
-            $notasGuardadas = 0;
-            $errores = [];
-
-            foreach ($request->notas as $estudianteId => $criterios) {
-                // Verificar que el estudiante existe
-                if (!Estudiante::where('id', $estudianteId)->exists()) {
-                    $errores[] = "Estudiante con ID $estudianteId no encontrado";
-                    continue;
-                }
-
-                foreach ($criterios as $criterioId => $valorNota) {
-                    // Verificar que el criterio existe
-                    if (!Materiacriterio::where('id', $criterioId)->exists()) {
-                        $errores[] = "Criterio con ID $criterioId no encontrado";
-                        continue;
-                    }
-
-                    if (!is_null($valorNota)) {
+            foreach ($validated['notas'] as $estudiante_id => $criterios) {
+                foreach ($criterios as $criterio_id => $valor_nota) {
+                    // Solo actualizamos si hay un valor
+                    if (!is_null($valor_nota)) {
                         Nota::updateOrCreate(
                             [
-                                'estudiante_id' => $estudianteId,
-                                'materia_criterio_id' => $criterioId,
-                                'bimestre_id' => $request->bimestre_id
+                                'estudiante_id' => $estudiante_id,
+                                'materia_criterio_id' => $criterio_id,
+                                'bimestre_id' => $validated['bimestre_id'],
                             ],
                             [
-                                'nota' => $valorNota,
-                                'publico' => 0
+                                'nota' => (int) $valor_nota, // Aseguramos que sea entero
+                                'publico' => '0' // No publicadas por defecto
                             ]
                         );
-                        $notasGuardadas++;
                     }
                 }
             }
 
             \DB::commit();
 
-            $mensaje = "Se guardaron $notasGuardadas notas correctamente.";
-            if (!empty($errores)) {
-                $mensaje .= ' Pero ocurrieron algunos errores: ' . implode(', ', array_slice($errores, 0, 3));
-                if (count($errores) > 3) {
-                    $mensaje .= ' y ' . (count($errores) - 3) . ' más...';
-                }
-            }
-
-            return redirect()
-                ->route('nota.index', ['bimestre' => $request->bimestre_id])
-                ->with(
-                    !empty($errores) ? 'warning' : 'success',
-                    $mensaje
-                );
-
+            return redirect()->back()->with('success', 'Notas guardadas correctamente.');
         } catch (\Exception $e) {
             \DB::rollBack();
-
-            \Log::error('Error al guardar notas: ' . $e->getMessage(), [
-                'request' => $request->all(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return back()
-                ->withInput()
-                ->with('error', 'Error al guardar las notas: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al guardar las notas: ' . $e->getMessage());
         }
+    }
+
+    public function publicar(Bimestre $bimestre)
+    {
+        Nota::where('bimestre_id', $bimestre->id)->update(['publico' => '1']); // Usamos string '1'
+        return redirect()->back()->with('success', 'Notas publicadas correctamente.');
     }
 }

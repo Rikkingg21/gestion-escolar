@@ -38,8 +38,5 @@ class Materiacriterio extends Model
     {
         return $this->belongsTo(Grado::class, 'grado_id');
     }
-    public function notas()
-    {
-        return $this->hasMany(Nota::class, 'materia_criterio_id');
-    }
+
 }

@@ -18,24 +18,11 @@ class Docente extends Model
 
     protected $fillable = [
         'user_id',
-        'especialidad',
-        'materia_id',
-        'grado_id',
         'estado',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
-    }
-
-    // Relación con Grado (asumiendo que existe el modelo Grado)
-    public function grado()
-    {
-        return $this->belongsTo(Grado::class);
-    }
-    public function materia()
-    {
-        return $this->belongsTo(Materia::class);
     }
 }

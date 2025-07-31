@@ -87,13 +87,13 @@ Route::middleware('auth')->group(function () {
         Route::delete('/bimestre/{id}', [BimestreController::class, 'destroy'])->name('bimestre.destroy');
 
         Route::get('/nota/{bimestre}', [NotaController::class, 'index'])->name('nota.index');
-        Route::post('/notas/auto-save', [NotaController::class, 'GuardadoAutomatico'])->name('nota.auto-save');
         Route::get('/nota/create', [NotaController::class, 'create'])->name('nota.create');
         Route::post('/nota', [NotaController::class, 'store'])->name('nota.store');
         Route::get('/nota/{id}/edit', [NotaController::class, 'edit'])->name('nota.edit');
         Route::put('/nota/{id}', [NotaController::class, 'update'])->name('nota.update');
         Route::delete('/nota/{id}', [NotaController::class, 'destroy'])->name('nota.destroy');
-
+        Route::post('nota/publicar/{bimestre}', [NotaController::class, 'publicar'])->name('nota.publicar');
+        /*
         Route::get('/unidad', [UnidadController::class, 'index'])->name('unidad.index');
         Route::get('/unidad/create', [UnidadController::class, 'create'])->name('unidad.create');
         Route::post('/unidad', [UnidadController::class, 'store'])->name('unidad.store');
@@ -128,6 +128,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/criterio/{id}/edit', [CriterioController::class, 'edit'])->name('criterio.edit');
         Route::put('/criterio/{criterio}', [CriterioController::class, 'update'])->name('criterio.update');
         Route::delete('/criterio/{id}', [CriterioController::class, 'destroy'])->name('criterio.destroy');
+        */
 
         Route::get('/user', [UserController::class, 'index'])->name('user.index');
         Route::get('/user/create', [UserController::class, 'create'])->name('user.create');
