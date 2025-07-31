@@ -90,6 +90,11 @@
                         <i class="bi bi-people me-2"></i> Usuarios
                     </a>
                 </li>
+                                <li class="nav-item">
+                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Reportes
+                    </a>
+                </li>
 
                 @endif
 
@@ -119,6 +124,11 @@
                         <i class="bi bi-people me-2"></i> Mayas
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Reportes
+                    </a>
+                </li>
 
                 @endif
 
@@ -133,6 +143,33 @@
                 <li class="nav-item">
                     <a href="{{ route('docente.dashboard') }}" class="nav-link text-white">
                         <i class="bi bi-journal-text me-2"></i> Mis Cursos
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Reportes
+                    </a>
+                </li>
+                @endif
+
+                @if(session('current_role') === 'auxiliar')
+                <li class="nav-item">
+                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Reportes
+                    </a>
+                </li>
+                @endif
+                @if(session('current_role') === 'apoderado')
+                <li class="nav-item">
+                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Reportes
+                    </a>
+                </li>
+                @endif
+                @if(session('current_role') === 'estudiante')
+                <li class="nav-item">
+                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Reportes
                     </a>
                 </li>
                 @endif

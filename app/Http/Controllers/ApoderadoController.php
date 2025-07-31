@@ -8,6 +8,10 @@ use Illuminate\Http\Request;
 
 class ApoderadoController extends Controller
 {
+    public function dashboard()
+    {
+        return view('apoderado.dashboard');
+    }
     public function index()
     {
         $apoderado = Apoderado::with(['user', 'grado'])->get();
@@ -18,9 +22,7 @@ class ApoderadoController extends Controller
         return view('apoderado.index', compact('apoderados'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
+
     public function create()
     {
         //

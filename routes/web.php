@@ -10,6 +10,10 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ColegioController;
 use App\Http\Controllers\DocenteController;
+use App\Http\Controllers\AuxiliarController;
+use App\Http\Controllers\ApoceradoController;
+use App\Http\Controllers\EsstudianteController;
+
 use App\Http\Controllers\Maya\MayaController;
 use App\Http\Controllers\Maya\BimestreController;
 use App\Http\Controllers\Maya\UnidadController;
@@ -25,6 +29,8 @@ use App\Http\Controllers\GradoController;
 use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\Materia\MateriaCompetenciaController;
 use App\Http\Controllers\Materia\MateriaCriterioController;
+
+use App\Http\Controllers\ReporteController;
 
 use App\Http\Controllers\EstudianteController;
 use App\Http\Controllers\ApoderadoController;
@@ -170,8 +176,13 @@ Route::middleware('auth')->group(function () {
         Route::put('/materia-criterio/{materiacriterio}', [MateriaCriterioController::class, 'update'])->name('materiacriterio.update');
         Route::delete('/materia-criterio/{id}', [MateriaCriterioController::class, 'destroy'])->name('materiacriterio.destroy');
 
-
-
+        Route::get('/reporte', [ReporteController::class, 'index'])->name('reporte.index');
+        Route::get('/reporte/create', [ReporteController::class, 'create'])->name('reporte.create');
+        Route::get('/reporte/{id}', [ReporteController::class, 'show'])->name('reporte.show');
+        Route::post('/reporte', [ReporteController::class, 'store'])->name('reporte.store');
+        Route::get('/reporte/{id}/edit', [ReporteController::class, 'edit'])->name('reporte.edit');
+        Route::put('/reporte/{reporte}', [ReporteController::class, 'update'])->name('reporte.update');
+        Route::delete('/reporte/{id}', [ReporteController::class, 'destroy'])->name('reporte.destroy');
 
 
     });
@@ -179,5 +190,8 @@ Route::middleware('auth')->group(function () {
     //rutas para docente
     Route::controller(DasboardController::class)->group(function () {
         Route::get('/docente', 'docente')->name('docente.dashboard');
+        Route::get('/auxiliar', 'auxiliar')->name('auxiliar.dashboard');
+        Route::get('/apoderado', 'apoderado')->name('apoderado.dashboard');
     });
+
 });
