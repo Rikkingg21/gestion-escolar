@@ -23,6 +23,7 @@ use App\Http\Controllers\Maya\TemaController;
 use App\Http\Controllers\Maya\CriterioController;
 
 use App\Http\Controllers\NotaController;
+use App\Http\Controllers\LibretaController;
 
 
 use App\Http\Controllers\GradoController;
@@ -185,6 +186,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/reporte/{reporte}', [ReporteController::class, 'update'])->name('reporte.update');
         Route::delete('/reporte/{id}', [ReporteController::class, 'destroy'])->name('reporte.destroy');
 
+        Route::get('/libreta', [LibretaController::class, 'index'])->name('libreta.index');
+
 
     });
 
@@ -193,6 +196,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/docente', 'docente')->name('docente.dashboard');
         Route::get('/auxiliar', 'auxiliar')->name('auxiliar.dashboard');
         Route::get('/apoderado', 'apoderado')->name('apoderado.dashboard');
+        Route::get('/estudiante', 'estudiante')->name('estudiante.dashboard');
     });
 
 });

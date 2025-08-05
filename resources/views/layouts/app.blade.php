@@ -18,6 +18,9 @@
 
         <!-- Sidebar -->
         <div class="sidebar bg-dark text-white p-3 d-flex flex-column h-100" style="width: 250px;">
+            <button class="toggle-btn mb-3" onclick="toggleSidebar()">
+                <i class="bi bi-list"></i>
+            </button>
             <div class="text-center mb-4"><!--encabezado-->
                 <h4 class="text-success">nombre colegio</h4>
                 <div>
@@ -79,6 +82,25 @@
             <ul class="nav nav-pills flex-column"><!--contenido-->
                 @if(session('current_role') === 'admin')
                 {{-- Solo para admin --}}
+                <li class="nav-item">
+                    <a class="nav-link text-white" data-bs-toggle="collapse" href="#collapseAdmin" role="button" aria-expanded="false" aria-controls="collapseAdmin">
+                        <i class="bi bi-person-gear me-2"></i> <span>Administración</span>
+                    </a>
+                    <div class="collapse ps-3" id="collapseAdmin">
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a href="{{ route('colegioconfig.edit') }}" class="nav-link text-white {{ request()->routeIs('colegioconfig.*') ? 'active' : '' }}">
+                                    <i class="bi bi-building me-2"></i> <span>Colegio</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="" class="nav-link text-white {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                                    <i class="bi bi-people me-2"></i> <span>Usuarios</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
 
                 <li class="nav-item">
                     <a href="{{ route('colegioconfig.edit') }}" class="nav-link text-white {{ request()->routeIs('colegioconfig.*') ? 'active' : '' }}">
@@ -172,6 +194,11 @@
                         <i class="bi bi-people me-2"></i> Reportes
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="{{ route('libreta.index') }}" class="nav-link text-white {{ request()->routeIs('libreta.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Libreta
+                    </a>
+                </li>
                 @endif
 
 
@@ -210,6 +237,43 @@
             @yield('content')
         </div>
     </div>
+    <style>
+    .sidebar {
+        transition: width 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+        width: 70px !important;
+    }
+
+    .sidebar.collapsed .nav-link span,
+    .sidebar.collapsed h4,
+    .sidebar.collapsed .accordion,
+    .sidebar.collapsed p,
+    .sidebar.collapsed .badge,
+    .sidebar.collapsed .text-muted,
+    .sidebar.collapsed .dropdown {
+        display: none !important;
+    }
+
+    .toggle-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 20px;
+    }
+
+    .nav-link.active {
+        background-color: rgba(255, 255, 255, 0.2);
+        border-radius: 5px;
+    }
+</style>
+<script>
+    function toggleSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        sidebar.classList.toggle('collapsed');
+    }
+</script>
 
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
