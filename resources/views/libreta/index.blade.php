@@ -6,148 +6,208 @@
     <div class="card mb-4">
         <br>
         <form method="GET" class="mb-3 row g-2">
-        <div class="col-md-3">
-            <select name="grado_id" class="form-select">
-                <option value="">-- Grado --</option>
-                @foreach($grados as $grado)
-                    <option value="{{ $grado->id }}" {{ $grado_id == $grado->id ? 'selected' : '' }}>
-                        {{ $grado->nombre ?? 'Sin grado' }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-        <div class="col-md-3">
-            <select name="bimestre_id" class="form-select">
-                <option value="">-- Bimestre --</option>
-                @foreach($bimestres as $bim)
-                    <option value="{{ $bim->id }}" {{ $bimestre_id == $bim->id ? 'selected' : '' }}>
-                        {{ $bim->nombre ?? 'Sin bimestre' }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-        <div class="col-md-3">
-            <select name="anio" class="form-select">
-                <option value="">-- Año --</option>
-                @foreach($anios as $a)
-                    <option value="{{ $a }}" {{ $anio == $a ? 'selected' : '' }}>{{ $a }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="col-md-3">
-            <button type="submit" class="btn btn-primary w-100">Filtrar</button>
-        </div>
-    </form>
+            <div class="col-md-3">
+                <select name="grado_id" class="form-select">
+                    <option value="">-- Grado --</option>
+                    @foreach($grados as $grado)
+                        <option value="{{ $grado->id }}" {{ $grado_id == $grado->id ? 'selected' : '' }}>
+                            {{ $grado->nombre ?? 'Sin grado' }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="bimestre_id" class="form-select">
+                    <option value="">-- Bimestre --</option>
+                    @foreach($bimestres as $bim)
+                        <option value="{{ $bim->id }}" {{ $bimestre_id == $bim->id ? 'selected' : '' }}>
+                            {{ $bim->nombre ?? 'Sin bimestre' }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="anio" class="form-select">
+                    <option value="">-- Año --</option>
+                    @foreach($anios as $a)
+                        <option value="{{ $a }}" {{ $anio == $a ? 'selected' : '' }}>{{ $a }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+            </div>
+        </form>
     </div>
 
-<table class="table table-bordered mb-4">
+    <table class="table table-bordered mb-4" style="border-collapse: collapse;">
         <!-- Encabezado de informe -->
-        <tr>
-            <td colspan="5">INFORME DE PROGRESO DE LAS COMPETENCIAS DEL ESTUDIANTE (SECUNDARIA EBR)</td>
-        </tr>
-        <tr>
-            <td colspan="5">AÑO - {{ $anio ?? date('Y') }} - {{ $bimestre_selected->nombre ?? 'I BIMESTRE' }} BIMESTRE</td>
-        </tr>
-        <tr>
-            <td rowspan="6">imagen</td>
-            <td>UGEL:</td>
-            <td>Tacna</td>
-        </tr>
-        <tr>
-            <td>Nivel:</td><td>Secundaria</td>
-        </tr>
-        <tr>
-            <td>II.EE:</td><td>Santa Teresita del Niño Jesús</td>
-        </tr>
-        <tr>
-            <td>Grado:</td><td>{{ $grado_selected->nombre ?? '1' }}</td>
-        </tr>
-        <tr>
-            <td>Sección:</td><td>{{ $estudiante->seccion ?? 'A' }}</td>
-        </tr>
-        <tr>
-            <td>Estudiante:</td><td>{{ $estudiante->user->apellido_paterno }} {{ $estudiante->user->apellido_materno }}, {{ $estudiante->user->nombre }}</td>
-        </tr>
-        <tr>
-            <th>Área</th>
-            <th>Competencias</th>
-            <th>Criterios de evaluación alcanzados</th>
-            <th>CRIT.</th>
-            <th>Valor</th>
-        </tr>
-
-        @forelse($detalle as $materiaData)
-            @php
-                $materiaRowspan = $materiaData['total_criterios'];
-            @endphp
-
-            @foreach($materiaData['competencias'] as $competencia)
+        <thead>
+            <tr style="background-color: #2c3e50; color: white;">
+                <th colspan="5" style="text-align: center; font-size: 1.2em; padding: 15px;">
+                    INFORME DE PROGRESO DE LAS COMPETENCIAS DEL ESTUDIANTE (SECUNDARIA EBR)
+                </th>
+            </tr>
+            <tr style="background-color: #3498db; color: white;">
+                <th colspan="5" style="text-align: center; padding: 12px;">
+                    AÑO - {{ $anio ?? date('Y') }} - {{ $bimestre_selected->nombre ?? 'I BIMESTRE' }} BIMESTRE
+                </th>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td rowspan="6" style="width: 120px; text-align: center; vertical-align: middle;">
+                    <div style="width: 100px; height: 120px; background-color: #e9ecef; margin: 0 auto;
+                                display: flex; align-items: center; justify-content: center; border: 1px dashed #adb5bd;">
+                        <span style="color: #6c757d;">Imagen</span>
+                    </div>
+                </td>
+                <td style="width: 120px; font-weight: bold;">UGEL:</td>
+                <td colspan="3">Tacna</td>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td style="font-weight: bold;">Nivel:</td>
+                <td colspan="3">Secundaria</td>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td style="font-weight: bold;">II.EE:</td>
+                <td colspan="3">Santa Teresita del Niño Jesús</td>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td style="font-weight: bold;">Grado:</td>
+                <td colspan="3">{{ $grado_selected->nombre ?? '1' }}</td>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td style="font-weight: bold;">Sección:</td>
+                <td colspan="3">{{ $estudiante->seccion ?? 'A' }}</td>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td style="font-weight: bold;">Estudiante:</td>
+                <td colspan="3">{{ $estudiante->user->apellido_paterno }} {{ $estudiante->user->apellido_materno }}, {{ $estudiante->user->nombre }}</td>
+            </tr>
+            <tr style="background-color: #34495e; color: white;">
+                <th style="width: 15%;">Área</th>
+                <th style="width: 25%;">Competencias</th>
+                <th style="width: 35%;">Criterios de evaluación alcanzados</th>
+                <th style="width: 10%;">CRIT.</th>
+                <th style="width: 15%;">Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($detalle as $materiaData)
                 @php
-                    $compRowspan = $competencia['total_criterios'] + 1; // +1 para la fila de valoración
+                    $materiaRowspan = $materiaData['total_criterios'];
+                    $materiaColors = ['#e3f2fd', '#bbdefb', '#90caf9'];
+                    $materiaColor = $materiaColors[$loop->index % count($materiaColors)];
                 @endphp
 
-                @foreach($competencia['criterios'] as $index => $criterio)
-                    <tr>
-                        @if($loop->parent->first && $loop->first)
-                            <td rowspan="{{ $materiaRowspan }}">{{ $materiaData['nombre'] }}</td>
-                        @endif
+                @foreach($materiaData['competencias'] as $competencia)
+                    @php
+                        $compRowspan = $competencia['total_criterios'] + 1; // +1 para la fila de valoración
+                        $competenciaColors = ['#f5f5f5', '#eeeeee'];
+                        $competenciaColor = $competenciaColors[$loop->index % count($competenciaColors)];
+                    @endphp
 
-                        @if($loop->first)
-                            <td rowspan="{{ $compRowspan }}">{{ $competencia['nombre'] }}</td>
-                        @endif
+                    @foreach($competencia['criterios'] as $index => $criterio)
+                        <tr style="background-color: {{ $loop->parent->first && $loop->first ? $materiaColor : 'white' }};">
+                            @if($loop->parent->first && $loop->first)
+                                <td rowspan="{{ $materiaRowspan }}" style="background-color: {{ $materiaColor }}; font-weight: bold; vertical-align: middle;">
+                                    {{ $materiaData['nombre'] }}
+                                </td>
+                            @endif
 
-                        <td>{{ $criterio['nombre'] }}</td>
-                        <td>C{{ $loop->parent->index * 10 + $loop->iteration }}</td>
-                        <td class="{{ $criterio['valor_class'] }}">{{ $criterio['valor'] }}</td>
+                            @if($loop->first)
+                                <td rowspan="{{ $compRowspan }}" style="background-color: {{ $competenciaColor }}; vertical-align: middle;">
+                                    {{ $competencia['nombre'] }}
+                                </td>
+                            @endif
+
+                            <td>{{ $criterio['nombre'] }}</td>
+                            <td style="font-weight: bold;">C{{ $loop->parent->index * 10 + $loop->iteration }}</td>
+                            <td class="{{ $criterio['valor_class'] }}" style="font-weight: bold; text-align: center;">
+                                {{ $criterio['valor'] }}
+                            </td>
+                        </tr>
+                    @endforeach
+
+                    {{-- Fila de valoración de competencia --}}
+                    <tr style="background-color: {{ $competenciaColor }};">
+                        <td style="font-weight: bold;">VALORACIÓN DE COMPETENCIA</td>
+                        <td style="font-weight: bold;">{{ $competencia['codigo_valoracion'] }}</td>
+                        <td class="{{ $competencia['valor_competencia_class'] }}" style="font-weight: bold; text-align: center;">
+                            {{ $competencia['valor_competencia'] }}
+                        </td>
                     </tr>
                 @endforeach
-
-                {{-- Fila de valoración de competencia --}}
+            @empty
                 <tr>
-                    <td>VALORACIÓN DE COMPETENCIA</td>
-                    <td>{{ $competencia['codigo_valoracion'] }}</td>
-                    <td class="{{ $competencia['valor_competencia_class'] }}">
-                        {{ $competencia['valor_competencia'] }}
-                    </td>
+                    <td colspan="5" class="text-center">No hay registros de notas públicas para mostrar.</td>
                 </tr>
-            @endforeach
-        @empty
-            <tr>
-                <td colspan="5" class="text-center">No hay registros de notas públicas para mostrar.</td>
-            </tr>
-        @endforelse
+            @endforelse
+        </tbody>
     </table>
 </div>
 
 <style>
+    .table {
+        width: 100%;
+        margin-bottom: 1rem;
+        color: #212529;
+        border: 1px solid #dee2e6;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
     .table th, .table td {
         vertical-align: middle;
         text-align: center;
+        padding: 12px;
+        border: 1px solid #dee2e6;
     }
+
+    .table thead th {
+        vertical-align: bottom;
+        border-bottom: 2px solid #dee2e6;
+    }
+
     .valor-ad {
         background-color: #4e73df;
         color: white;
         font-weight: bold;
     }
+
     .valor-a {
         background-color: #1cc88a;
         color: white;
         font-weight: bold;
     }
+
     .valor-b {
         background-color: #f6c23e;
         color: #2c3e50;
         font-weight: bold;
     }
+
     .valor-c {
         background-color: #e74a3b;
         color: white;
         font-weight: bold;
     }
+
     .valor-d {
         background-color: #5a5c69;
         color: white;
         font-weight: bold;
+    }
+
+    /* Efecto hover para filas */
+    tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    /* Estilo para filas vacías */
+    .text-center {
+        text-align: center !important;
+        padding: 20px;
+        font-style: italic;
+        color: #6c757d;
     }
 </style>
 @endsection

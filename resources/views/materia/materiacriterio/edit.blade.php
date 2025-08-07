@@ -44,28 +44,43 @@
 
                         <div class="row mb-3">
                             <label for="grados" class="col-md-4 col-form-label text-md-end">
-                                Grados *
+                                Grado *
                             </label>
                             <div class="col-md-6">
-                                <select id="grados"
-                                        name="grados[]"
-                                        class="form-select @error('grados') is-invalid @enderror"
-                                        multiple
-                                        size="5"
-                                        required>
-                                    @foreach($grados as $grado)
-                                        <option value="{{ $grado->id }}"
-                                            {{ in_array($grado->id, old('grados', $gradosSeleccionados)) ? 'selected' : '' }}>
-                                            {{ $grado->nombreCompleto }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                @if($criterio->id) {{-- Si estamos editando --}}
+                                    <select id="grados"
+                                            name="grados[]"
+                                            class="form-select @error('grados') is-invalid @enderror"
+                                            required>
+                                        @foreach($grados as $grado)
+                                            <option value="{{ $grado->id }}"
+                                                {{ $criterio->grado_id == $grado->id ? 'selected' : '' }}>
+                                                {{ $grado->nombreCompleto }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                @else {{-- Si estamos creando --}}
+                                    <select id="grados"
+                                            name="grados[]"
+                                            class="form-select @error('grados') is-invalid @enderror"
+                                            multiple
+                                            size="5"
+                                            required>
+                                        @foreach($grados as $grado)
+                                            <option value="{{ $grado->id }}"
+                                                {{ in_array($grado->id, old('grados', $gradosSeleccionados ?? [])) ? 'selected' : '' }}>
+                                                {{ $grado->nombreCompleto }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted">Mantén presionada la tecla Ctrl (Windows) o Command (Mac) para seleccionar múltiples opciones</small>
+                                @endif
+
                                 @error('grados')
                                     <span class="invalid-feedback" role="alert">
                                         <strong>{{ $message }}</strong>
                                     </span>
                                 @enderror
-                                <small class="text-muted">Mantén presionada la tecla Ctrl (Windows) o Command (Mac) para seleccionar múltiples opciones</small>
                             </div>
                         </div>
 
