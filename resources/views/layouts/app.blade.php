@@ -22,7 +22,7 @@
                 <i class="bi bi-list"></i>
             </button>
             <div class="text-center mb-4"><!--encabezado-->
-                <h4 class="text-success">nombre colegio</h4>
+                <h4 class="text-success">{{ $colegio->nombre }}</h4>
                 <div>
 
                 </div>
