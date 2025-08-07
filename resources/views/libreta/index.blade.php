@@ -6,17 +6,7 @@
     <div class="card mb-4">
         <br>
         <form method="GET" class="mb-3 row g-2">
-            <div class="col-md-3">
-                <select name="grado_id" class="form-select">
-                    <option value="">-- Grado --</option>
-                    @foreach($grados as $grado)
-                        <option value="{{ $grado->id }}" {{ $grado_id == $grado->id ? 'selected' : '' }}>
-                            {{ $grado->nombre ?? 'Sin grado' }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-6">
                 <select name="bimestre_id" class="form-select">
                     <option value="">-- Bimestre --</option>
                     @foreach($bimestres as $bim)
@@ -26,7 +16,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <select name="anio" class="form-select">
                     <option value="">-- Año --</option>
                     @foreach($anios as $a)
@@ -34,7 +24,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">Filtrar</button>
             </div>
         </form>
@@ -45,12 +35,12 @@
         <thead>
             <tr style="background-color: #2c3e50; color: white;">
                 <th colspan="5" style="text-align: center; font-size: 1.2em; padding: 15px;">
-                    INFORME DE PROGRESO DE LAS COMPETENCIAS DEL ESTUDIANTE (SECUNDARIA EBR)
+                    INFORME DE PROGRESO DE LAS COMPETENCIAS DEL ESTUDIANTE ({{ $estudiante->nivel ?? 'sec' }} EBR)
                 </th>
             </tr>
             <tr style="background-color: #3498db; color: white;">
                 <th colspan="5" style="text-align: center; padding: 12px;">
-                    AÑO - {{ $anio ?? date('Y') }} - {{ $bimestre_selected->nombre ?? 'I BIMESTRE' }} BIMESTRE
+                    AÑO - {{ $anio ?? date('Y') }} - {{ $bimestre_selected->nombre ?? 'I BIMESTRE' }}
                 </th>
             </tr>
             <tr style="background-color: #f8f9fa;">
@@ -69,7 +59,7 @@
             </tr>
             <tr style="background-color: #f8f9fa;">
                 <td style="font-weight: bold;">II.EE:</td>
-                <td colspan="3">Santa Teresita del Niño Jesús</td>
+                <td colspan="3">{{ $colegio->nombre }}</td>
             </tr>
             <tr style="background-color: #f8f9fa;">
                 <td style="font-weight: bold;">Grado:</td>
@@ -145,6 +135,56 @@
         </tbody>
     </table>
 </div>
+<div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i> Escala de Valoración
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2 mb-3">
+                            <div class="p-3 valor-ad rounded">
+                                <h5 class="mb-1">AD</h5>
+                                <small>Logro destacado</small>
+                                <div class="mt-2">4.0 - 5.0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <div class="p-3 valor-a rounded">
+                                <h5 class="mb-1">A</h5>
+                                <small>Logro esperado</small>
+                                <div class="mt-2">3.0 - 3.9</div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <div class="p-3 valor-b rounded">
+                                <h5 class="mb-1">B</h5>
+                                <small>En proceso</small>
+                                <div class="mt-2">2.0 - 2.9</div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <div class="p-3 valor-c rounded">
+                                <h5 class="mb-1">C</h5>
+                                <small>En inicio</small>
+                                <div class="mt-2">1.0 - 1.9</div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <div class="p-3 bg-light rounded">
+                                <h5 class="mb-1">-</h5>
+                                <small>Sin registro</small>
+                                <div class="mt-2">N/A</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
 <style>
     .table {

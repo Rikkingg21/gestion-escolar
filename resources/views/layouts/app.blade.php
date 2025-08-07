@@ -233,7 +233,7 @@
         </div>
 
         <!-- Main Content -->
-        <div class="flex-grow-1">
+        <div class="flex-grow-1 overflow-auto" style="max-height: 100vh; padding: 1rem;">
             @yield('content')
         </div>
     </div>
