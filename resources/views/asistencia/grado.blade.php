@@ -11,17 +11,17 @@
             <i class="fas fa-arrow-left"></i> Volver
         </a>
     </div>
-    <form method="GET" action="" class="d-flex align-items-center">
-        @csrf
+    <form id="fechaForm" class="d-flex align-items-center mb-4">
         <div class="input-group me-3">
             <span class="input-group-text">Fecha:</span>
             <input type="date"
                 name="fecha"
+                id="fechaInput"
                 class="form-control"
-                value="{{ $fechaSeleccionada }}"
-                onchange="this.form.submit()">
+                value="{{ \Carbon\Carbon::createFromFormat('d-m-Y', $fechaSeleccionada)->format('Y-m-d') }}"
+                min="{{ now()->subYears(1)->format('Y-m-d') }}"
+                max="{{ now()->addYear()->format('Y-m-d') }}">
         </div>
-
     </form>
 
     <div class="card shadow-sm">
@@ -30,6 +30,8 @@
                 @csrf
                 <input type="hidden" name="grado_id" value="{{ $grado->id }}">
                 <input type="hidden" name="fecha" value="{{ $fechaFormateada }}">
+                <input type="hidden" name="grado_grado_seccion" value="{{ $grado->grado }}{{ $grado->seccion }}">
+                <input type="hidden" name="grado_nivel" value="{{ strtolower($grado->nivel) }}">
 
                 <div class="table-responsive">
                     <table class="table table-hover">
@@ -98,4 +100,34 @@
         </div>
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fechaInput = document.getElementById('fechaInput');
+
+        fechaInput.addEventListener('change', function() {
+            // Obtener el valor de la fecha en formato Y-m-d
+            const fechaEnFormatoYMD = this.value;
+
+            if (fechaEnFormatoYMD) {
+                // Convertir Y-m-d a d-m-Y
+                const partes = fechaEnFormatoYMD.split('-');
+                const fechaEnFormatoDMY = partes[2] + '-' + partes[1] + '-' + partes[0];
+
+                // Obtener las variables de la ruta (ya están disponibles en la vista)
+                const gradoSeccion = "{{ $grado->grado }}{{ $grado->seccion }}";
+                const gradoNivel = "{{ strtolower($grado->nivel) }}";
+
+                // Construir la nueva URL usando las variables y la fecha formateada
+                const nuevaUrl = "{{ route('asistencia.grado', ['grado_grado_seccion' => ':gradoSeccion', 'grado_nivel' => ':gradoNivel', 'date' => ':date']) }}"
+                    .replace(':gradoSeccion', gradoSeccion)
+                    .replace(':gradoNivel', gradoNivel)
+                    .replace(':date', fechaEnFormatoDMY);
+
+                // Redireccionar a la nueva URL
+                window.location.href = nuevaUrl;
+            }
+        });
+    });
+</script>
+
 @endsection
