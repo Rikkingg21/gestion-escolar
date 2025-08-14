@@ -19,7 +19,7 @@ class Asistencia extends Model
     public $timestamps = true;
     protected $fillable = [
         'estudiante_id',
-        'gado_id',
+        'grado_id',
         'tipo_asistencia_id',
         'fecha',
         'hora',

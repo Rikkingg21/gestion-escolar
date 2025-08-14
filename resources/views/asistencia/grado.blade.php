@@ -60,7 +60,7 @@
                                         <option value="{{ $tipo->id }}"
                                             @if($estudiante->asistencias->isNotEmpty())
                                                 selected
-                                            @elseif($tipo->id == 5)
+                                            @elseif(!$existenRegistros && $tipo->id == 5)
                                                 selected
                                             @endif>
                                             {{ $tipo->nombre }}
@@ -129,5 +129,4 @@
         });
     });
 </script>
-
 @endsection

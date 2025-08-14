@@ -63,6 +63,7 @@ class AsistenciaController extends Controller
             'availableYears' => $yearsWithAttendance
         ]);
     }
+
     public function showDate($grado_grado_seccion, $grado_nivel, $date)
     {
         try {
@@ -71,7 +72,7 @@ class AsistenciaController extends Controller
             abort(400, 'Formato de fecha inválido. Use dd-mm-yyyy');
         }
 
-        // Extraer grado y sección de forma más robusta
+        // Extraer grado y sección
         if (!preg_match('/^(\d+)([a-zA-Z]+)$/', $grado_grado_seccion, $matches)) {
             abort(400, 'Formato de grado/sección inválido. Ejemplo: 1a, 2b');
         }
@@ -84,65 +85,43 @@ class AsistenciaController extends Controller
                 ->where('nivel', $grado_nivel)
                 ->firstOrFail();
 
-        // Consulta más eficiente usando withCount
-        $estudiantes = Estudiante::with(['user'])
-                    ->withCount(['asistencias' => function($q) use ($fechaFormateada) {
-                        $q->whereDate('fecha', $fechaFormateada);
+        // Obtener estudiantes activos con sus asistencias para la fecha seleccionada
+        $estudiantes = Estudiante::with(['user', 'asistencias' => function($query) use ($fechaFormateada) {
+                        $query->whereDate('fecha', $fechaFormateada);
                     }])
                     ->where('grado_id', $grado->id)
                     ->where('estado', 1)
                     ->get()
                     ->sortBy(function($estudiante) {
                         return optional($estudiante->user)->apellido_paterno.
-                                optional($estudiante->user)->apellido_materno.
-                                optional($estudiante->user)->nombre;
+                            optional($estudiante->user)->apellido_materno.
+                            optional($estudiante->user)->nombre;
                     });
+
+        // Verificar si hay registros para esta fecha
+        $existenRegistros = Asistencia::where('grado_id', $grado->id)
+                            ->whereDate('fecha', $fechaFormateada)
+                            ->exists();
+
+        $tiposAsistencia = Tipoasistencia::all();
 
         return view('asistencia.grado', [
             'grado' => $grado,
             'estudiantes' => $estudiantes,
             'fechaSeleccionada' => $date,
             'fechaFormateada' => $fechaFormateada,
-            'tiposAsistencia' => Tipoasistencia::all()
+            'tiposAsistencia' => $tiposAsistencia,
+            'existenRegistros' => $existenRegistros
         ]);
     }
 
-    public function showManual(Request $request, $curso, $bimestre)
-    {
-        $curso = \App\Models\Maya\Cursogradosecnivanio::with(['grado', 'materia'])->findOrFail($curso);
-        $bimestre = \App\Models\Maya\Bimestre::findOrFail($bimestre);
-
-        // Obtener la fecha del request o usar la fecha actual
-        $fecha = $request->input('fecha', now()->toDateString());
-
-        // Cargar estudiantes con sus asistencias para la fecha seleccionada
-        $estudiantes = \App\Models\Estudiante::with(['asistencias' => function($query) use ($bimestre, $fecha) {
-            $query->where('bimestre_id', $bimestre->id)
-                ->whereDate('fecha', $fecha);
-        }])
-        ->where('grado_id', $curso->grado_id)
-        ->get()
-        ->sortBy(function($estudiante) {
-            return optional($estudiante->user)->apellido_paterno.
-                optional($estudiante->user)->apellido_materno.
-                optional($estudiante->user)->nombre;
-        });
-
-        $tipos = \App\Models\Asistencia\Tipoasistencia::all();
-
-        return view('asistencia.manual', [
-            'curso' => $curso,
-            'bimestre' => $bimestre,
-            'estudiantes' => $estudiantes,
-            'tipos' => $tipos,
-            'fechaSeleccionada' => $fecha
-        ]);
-    }
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'grado_id' => 'required|exists:grados,id',
             'fecha' => 'required|date_format:Y-m-d',
+            'grado_grado_seccion' => 'required|string',
+            'grado_nivel' => 'required|string',
             'asistencias' => 'required|array',
             'asistencias.*' => 'required|exists:tipo_asistencias,id',
             'horas.*' => 'nullable|date_format:H:i'
@@ -150,12 +129,12 @@ class AsistenciaController extends Controller
 
         DB::beginTransaction();
         try {
-            foreach ($request->asistencias as $estudiante_id => $tipo_asistencia_id) {
+            foreach ($validated['asistencias'] as $estudiante_id => $tipo_asistencia_id) {
                 Asistencia::updateOrCreate(
                     [
                         'estudiante_id' => $estudiante_id,
-                        'fecha' => $request->fecha,
-                        'grado_id' => $request->grado_id
+                        'fecha' => $validated['fecha'],
+                        'grado_id' => $validated['grado_id']
                     ],
                     [
                         'tipo_asistencia_id' => $tipo_asistencia_id,
@@ -170,9 +149,9 @@ class AsistenciaController extends Controller
 
             return redirect()
                 ->route('asistencia.grado', [
-                    'grado_grado_seccion' => $request->grado_grado_seccion,
-                    'grado_nivel' => $request->grado_nivel,
-                    'date' => \Carbon\Carbon::createFromFormat('Y-m-d', $request->fecha)->format('d-m-Y')
+                    'grado_grado_seccion' => $validated['grado_grado_seccion'],
+                    'grado_nivel' => $validated['grado_nivel'],
+                    'date' => \Carbon\Carbon::createFromFormat('Y-m-d', $validated['fecha'])->format('d-m-Y')
                 ])
                 ->with('success', 'Asistencias guardadas correctamente');
 
