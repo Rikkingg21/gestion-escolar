@@ -6,16 +6,6 @@
     <div class="card mb-4">
         <br>
         <form method="GET" class="mb-3 row g-2">
-            <div class="col-md-6">
-                <select name="bimestre_id" class="form-select">
-                    <option value="">-- Bimestre --</option>
-                    @foreach($bimestres as $bim)
-                        <option value="{{ $bim->id }}" {{ $bimestre_id == $bim->id ? 'selected' : '' }}>
-                            {{ $bim->nombre ?? 'Sin bimestre' }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
             <div class="col-md-4">
                 <select name="anio" class="form-select">
                     <option value="">-- Año --</option>
@@ -24,11 +14,22 @@
                     @endforeach
                 </select>
             </div>
+            <div class="col-md-6">
+                <select name="bimestre_id" class="form-select">
+                    <option value="">-- Bimestre --</option>
+                    @foreach($bimestres as $bim)
+                        <option value="{{ $bim->id }}" {{ $bimestre_id == $bim->id ? 'selected' : '' }}>
+                            {{ $bim->nombre }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">Filtrar</button>
             </div>
         </form>
     </div>
+
 
     <table class="table table-bordered mb-4" style="border-collapse: collapse;">
         <!-- Encabezado de informe -->

@@ -112,7 +112,7 @@
                         <i class="bi bi-people me-2"></i> Usuarios
                     </a>
                 </li>
-                                <li class="nav-item">
+                <li class="nav-item">
                     <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
                         <i class="bi bi-people me-2"></i> Reportes
                     </a>
@@ -151,6 +151,11 @@
                         <i class="bi bi-people me-2"></i> Reportes
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="{{ route('asistencia.index') }}" class="nav-link text-white {{ request()->routeIs('asistencia.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Asistencia
+                    </a>
+                </li>
 
                 @endif
 
@@ -172,12 +177,22 @@
                         <i class="bi bi-people me-2"></i> Reportes
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="{{ route('asistencia.index') }}" class="nav-link text-white {{ request()->routeIs('asistencia.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Asistencia
+                    </a>
+                </li>
                 @endif
 
                 @if(session('current_role') === 'auxiliar')
                 <li class="nav-item">
                     <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
                         <i class="bi bi-people me-2"></i> Reportes
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('asistencia.index') }}" class="nav-link text-white {{ request()->routeIs('asistencia.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Asistencia
                     </a>
                 </li>
                 @endif

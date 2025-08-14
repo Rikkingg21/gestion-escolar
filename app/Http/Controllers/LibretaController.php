@@ -26,39 +26,47 @@ class LibretaController extends Controller
             return $next($request);
         });
     }
-        public function index(Request $request)
-    {
-        $user = auth()->user();
-        $this->validarAccesoEstudiante($user);
 
-        $estudiante = $this->obtenerEstudiante($user);
-        $bimestre_id = $request->input('bimestre_id');
-        $anio = $request->input('anio');
+    public function index(Request $request)
+{
+    $user = auth()->user();
+    $this->validarAccesoEstudiante($user);
 
-        $bimestres = $this->obtenerBimestresConNotas($estudiante);
-        $anios = $this->obtenerAniosConNotas($estudiante);
-        $grado_id = $estudiante->grado_id;
+    $estudiante = $this->obtenerEstudiante($user);
 
-        $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
-        $materias = $this->obtenerMateriasEstudiante($cursos);
-        $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_id, $anio);
-        $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
+    // Define $grado_id después de obtener $estudiante
+    $grado_id = $estudiante->grado_id;
 
-        $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio);
-        $bimestre_selected = $bimestre_id ? Bimestre::find($bimestre_id) : null;
-        $colegio = $this->cargarColegio();
+    $bimestre_id = $request->input('bimestre_id');
+    $anio = $request->input('anio');
 
-        return view('libreta.index', [
-            'estudiante' => $estudiante,
-            'detalle' => $detalle,
-            'bimestres' => $bimestres,
-            'anios' => $anios,
-            'bimestre_id' => $bimestre_id,
-            'anio' => $anio,
-            'bimestre_selected' => $bimestre_selected,
-            'colegio' => $colegio,
-        ]);
-    }
+    $bimestres = $this->obtenerBimestresUnicos($grado_id, $anio);
+    $anios = $this->obtenerAniosConNotas($estudiante);
+
+    $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
+    $materias = $this->obtenerMateriasEstudiante($cursos);
+    $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_id, $anio);
+    $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
+
+    $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio);
+    $bimestre_selected = $bimestre_id ? Bimestre::find($bimestre_id) : null;
+    $colegio = $this->cargarColegio();
+
+    // Si necesitas el grado seleccionado para la vista:
+    $grado_selected = \App\Models\Grado::find($grado_id);
+
+    return view('libreta.index', [
+        'estudiante' => $estudiante,
+        'detalle' => $detalle,
+        'bimestres' => $bimestres,
+        'anios' => $anios,
+        'bimestre_id' => $bimestre_id,
+        'anio' => $anio,
+        'bimestre_selected' => $bimestre_selected,
+        'colegio' => $colegio,
+        'grado_selected' => $grado_selected,
+    ]);
+}
 
     protected function validarAccesoEstudiante($user)
     {
@@ -74,6 +82,27 @@ class LibretaController extends Controller
             abort(404, 'No se encontró información de estudiante.');
         }
         return $estudiante;
+    }
+    protected function obtenerBimestresUnicos($grado_id, $anio)
+    {
+        // Obtén todos los cursos del grado y año
+        $cursos = \App\Models\Maya\Cursogradosecnivanio::with('bimestres')
+            ->where('grado_id', $grado_id)
+            ->when($anio, fn($q) => $q->where('anio', $anio))
+            ->get();
+
+        // Junta todos los bimestres de todos los cursos
+        $todosBimestres = $cursos->flatMap(function($curso) {
+            return $curso->bimestres;
+        });
+
+        // Agrupa por nombre y toma el primer id de cada nombre
+        $bimestresUnicos = $todosBimestres
+            ->sortBy('nombre')
+            ->unique('nombre')
+            ->values();
+
+        return $bimestresUnicos;
     }
 
     protected function obtenerBimestresConNotas($estudiante)

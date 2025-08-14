@@ -25,6 +25,7 @@ use App\Http\Controllers\Maya\CriterioController;
 use App\Http\Controllers\NotaController;
 use App\Http\Controllers\LibretaController;
 
+use App\Http\Controllers\AsistenciaController;
 
 use App\Http\Controllers\GradoController;
 use App\Http\Controllers\MateriaController;
@@ -188,7 +189,16 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/libreta', [LibretaController::class, 'index'])->name('libreta.index');
 
+        Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asistencia.index');
+        Route::get('/asistencia/{grado_grado_seccion}/{grado_nivel}/{date}', [AsistenciaController::class, 'showDate'])
+            ->name('asistencia.grado')
+            ->where([
+                'grado_grado_seccion' => '[0-9]+[a-zA-Z]+', // Números y letras para grado y sección (ej: 1a, 2b)
+                'grado_nivel' => '[a-zA-Z]+', // Solo letras para el nivel
+                'date' => '\d{2}-\d{2}-\d{4}' // Formato dd-mm-yyyy
+            ]);
 
+        Route::post('/asistencia', [AsistenciaController::class, 'store'])->name('asistencia.store');
     });
 
     //rutas para docente

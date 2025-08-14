@@ -24,4 +24,8 @@ class Bimestre extends Model
     {
         return $this->belongsTo(Cursogradosecnivanio::class, 'curso_grado_sec_niv_anio_id');
     }
+    public function asistencias()
+    {
+        return $this->hasMany(\App\Models\Asistencia\Asistencia::class, 'bimestre_id');
+    }
 }

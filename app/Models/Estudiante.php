@@ -38,4 +38,8 @@ class Estudiante extends Model
     {
         return $this->belongsTo(Apoderado::class);
     }
+    public function asistencias()
+    {
+        return $this->hasMany(\App\Models\Asistencia\Asistencia::class, 'estudiante_id');
+    }
 }

@@ -41,4 +41,12 @@ class Cursogradosecnivanio extends Model
     {
         return $this->hasMany(Bimestre::class, 'curso_grado_sec_niv_anio_id');
     }
+    public function getHighestBimestreWithAsistencia()
+    {
+        return $this->bimestres()
+            ->whereHas('asistencias')
+            ->orderBy('id', 'desc')
+            ->first()
+            ?->id;
+    }
 }
