@@ -12,6 +12,38 @@
             <i class="fas fa-arrow-left"></i> Volver
         </a>
     </div>
+    <div>
+    {{--mensaje de error--}}
+        @if(session('error'))
+            <div class="alert alert-danger">
+                {{ session('error') }}
+            </div>
+        @endif
+
+        {{--mensaje de éxito--}}
+        @if(session('success'))
+            <div class="alert alert-success">
+                {{ session('success') }}
+            </div>
+        @endif
+    </div>
+
+    <div class="d-flex align-items-center mb-4">
+        <div class="input-group me-3">
+            <span class="input-group-text">Bimestre:</span>
+            <select class="form-select" name="bimestre" id="bimestre" required>
+                @if($existenRegistros)
+                    <option value="{{ $bimestreActual }}" selected>Bimestre {{ $bimestreActual }}</option>
+                @else
+                    <option value="" disabled selected>Seleccione bimestre</option>
+                    <option value="1">Bimestre 1</option>
+                    <option value="2">Bimestre 2</option>
+                    <option value="3">Bimestre 3</option>
+                    <option value="4">Bimestre 4</option>
+                @endif
+            </select>
+        </div>
+    </div>
 
     <form id="fechaForm" class="d-flex align-items-center mb-4">
         <div class="input-group me-3">
@@ -36,6 +68,7 @@
                     <input type="hidden" name="fecha" value="{{ $fechaFormateada }}">
                     <input type="hidden" name="grado_grado_seccion" value="{{ $grado->grado }}{{ $grado->seccion }}">
                     <input type="hidden" name="grado_nivel" value="{{ strtolower($grado->nivel) }}">
+                    <input type="hidden" name="bimestre" value="{{ $bimestreActual }}">
 
                     <div class="table-responsive">
                         <table class="table table-hover">
@@ -77,7 +110,7 @@
                                             value="{{ $estudiante->asistencias->isNotEmpty() ? substr($estudiante->asistencias->first()->hora, 0, 5) : now()->format('H:i') }}">
                                     </td>
                                     <td>
-                                        @if($estudiante->asistencias->isNotEmpty())
+                                        @if($estudiante->asistencias->where('fecha', $fechaFormateada)->isNotEmpty())
                                             <span class="badge bg-success">Registrado</span>
                                         @else
                                             <span class="badge bg-warning">Pendiente</span>
@@ -105,6 +138,7 @@
                     <input type="hidden" name="fecha" value="{{ $fechaFormateada }}">
                     <input type="hidden" name="grado_grado_seccion" value="{{ $grado->grado }}{{ $grado->seccion }}">
                     <input type="hidden" name="grado_nivel" value="{{ strtolower($grado->nivel) }}">
+                    <input type="hidden" name="bimestre" id="bimestreHidden" value="">
 
                     <div class="table-responsive">
                         <table class="table table-hover">
@@ -131,11 +165,7 @@
                                             <option value="">Seleccione...</option>
                                             @foreach($tiposAsistencia as $tipo)
                                             <option value="{{ $tipo->id }}"
-                                                @if($estudiante->asistencias->isNotEmpty())
-                                                    selected
-                                                @elseif(!$existenRegistros && $tipo->id == 5)
-                                                    selected
-                                                @endif>
+                                                @if($tipo->id == 5) selected @endif>
                                                 {{ $tipo->nombre }}
                                             </option>
                                             @endforeach
@@ -145,10 +175,10 @@
                                         <input type="time"
                                             name="horas[{{ $estudiante->id }}]"
                                             class="form-control"
-                                            value="{{ $estudiante->asistencias->isNotEmpty() ? $estudiante->asistencias->first()->hora : now()->format('H:i') }}">
+                                            value="{{ $estudiante->asistencias->where('fecha', $fechaFormateada)->isNotEmpty() ? \Carbon\Carbon::parse($estudiante->asistencias->where('fecha', $fechaFormateada)->first()->hora)->format('H:i') : now()->format('H:i') }}">
                                     </td>
                                     <td>
-                                        @if($estudiante->asistencias->isNotEmpty())
+                                        @if($estudiante->asistencias->where('fecha', $fechaFormateada)->isNotEmpty())
                                             <span class="badge bg-success">Registrado</span>
                                         @else
                                             <span class="badge bg-warning">Pendiente</span>
@@ -173,14 +203,24 @@
             </div>
         </div>
     @endif
-
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const estudiantes = @json($estudiantes->pluck('id'));
-        console.log('IDs de estudiantes:', estudiantes);
-
         const fechaInput = document.getElementById('fechaInput');
+        const bimestreSelect = document.getElementById('bimestre');
+        const bimestreHidden = document.querySelector('input[name="bimestre"]');
+
+        // Sincronizar el select con el campo hidden
+        if (bimestreSelect && bimestreHidden) {
+            bimestreSelect.addEventListener('change', function() {
+                bimestreHidden.value = this.value;
+            });
+
+            // Establecer valor inicial si hay selección
+            if (bimestreSelect.value) {
+                bimestreHidden.value = bimestreSelect.value;
+            }
+        }
 
         fechaInput.addEventListener('change', function() {
             // Obtener el valor de la fecha en formato Y-m-d

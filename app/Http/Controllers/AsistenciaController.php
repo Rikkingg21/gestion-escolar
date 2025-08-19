@@ -85,32 +85,46 @@ class AsistenciaController extends Controller
                 ->where('nivel', $grado_nivel)
                 ->firstOrFail();
 
-        // Obtener IDs de estudiantes con registros de asistencia para esta fecha
-        $estudiantesConAsistencia = Asistencia::where('grado_id', $grado->id)
-            ->whereDate('fecha', $fechaFormateada)
-            ->pluck('estudiante_id')
-            ->toArray();
-
-        // Obtener estudiantes activos o inactivos con asistencia en esa fecha
-        $estudiantes = Estudiante::with(['user', 'asistencias' => function($query) use ($fechaFormateada) {
-                $query->whereDate('fecha', $fechaFormateada);
-            }])
-            ->where('grado_id', $grado->id)
-            ->whereIn('id', $estudiantesConAsistencia)
-            ->get()
-            ->sortBy(function($estudiante) {
-                return optional($estudiante->user)->apellido_paterno .
-                    optional($estudiante->user)->apellido_materno .
-                    optional($estudiante->user)->nombre;
-            });
-
         // Verificar si hay registros para esta fecha
         $existenRegistros = Asistencia::where('grado_id', $grado->id)
                             ->whereDate('fecha', $fechaFormateada)
                             ->exists();
 
+        // Obtener estudiantes según si existen registros o no
+        if ($existenRegistros) {
+            // Si hay registros, obtener estudiantes con asistencia en esa fecha (activos e inactivos)
+            $estudiantes = Estudiante::with(['user', 'asistencias' => function($query) use ($fechaFormateada) {
+                    $query->whereDate('fecha', $fechaFormateada);
+                }])
+                ->where('grado_id', $grado->id)
+                ->whereHas('asistencias', function($query) use ($fechaFormateada) {
+                    $query->whereDate('fecha', $fechaFormateada);
+                })
+                ->get();
+        } else {
+            // Si no hay registros, obtener solo estudiantes activos
+            $estudiantes = Estudiante::with(['user'])
+                ->where('grado_id', $grado->id)
+                ->where('estado', 1)
+                ->get();
+        }
+
+        // Ordenar estudiantes por apellidos y nombre
+        $estudiantes = $estudiantes->sortBy(function($estudiante) {
+            return optional($estudiante->user)->apellido_paterno .
+                optional($estudiante->user)->apellido_materno .
+                optional($estudiante->user)->nombre;
+        });
+
         $tiposAsistencia = Tipoasistencia::all();
 
+        $bimestreActual = null;
+        if ($existenRegistros) {
+            $registroEjemplo = Asistencia::where('grado_id', $grado->id)
+                ->whereDate('fecha', $fechaFormateada)
+                ->first();
+            $bimestreActual = $registroEjemplo ? $registroEjemplo->bimestre : null;
+        }
 
         return view('asistencia.grado', [
             'grado' => $grado,
@@ -118,7 +132,8 @@ class AsistenciaController extends Controller
             'fechaSeleccionada' => $date,
             'fechaFormateada' => $fechaFormateada,
             'tiposAsistencia' => $tiposAsistencia,
-            'existenRegistros' => $existenRegistros
+            'existenRegistros' => $existenRegistros,
+            'bimestreActual' => $bimestreActual
         ]);
     }
 
@@ -129,6 +144,7 @@ class AsistenciaController extends Controller
             'fecha' => 'required|date_format:Y-m-d',
             'grado_grado_seccion' => 'required|string',
             'grado_nivel' => 'required|string',
+            'bimestre' => 'required|integer|min:1|max:4',
             'asistencias' => 'required|array',
             'asistencias.*' => 'required|exists:tipo_asistencias,id',
             'horas.*' => 'nullable|date_format:H:i'
@@ -137,19 +153,18 @@ class AsistenciaController extends Controller
         DB::beginTransaction();
         try {
             foreach ($validated['asistencias'] as $estudiante_id => $tipo_asistencia_id) {
-                Asistencia::updateOrCreate(
-                    [
-                        'estudiante_id' => $estudiante_id,
-                        'fecha' => $validated['fecha'],
-                        'grado_id' => $validated['grado_id']
-                    ],
-                    [
-                        'tipo_asistencia_id' => $tipo_asistencia_id,
-                        'hora' => $request->input("horas.$estudiante_id", '00:00:00'),
-                        'registrador_id' => auth()->id(),
-                        'descripcion' => 'Asistencia registrada manualmente'
-                    ]
-                );
+                $hora = $request->input("horas.$estudiante_id", '00:00');
+
+                Asistencia::create([
+                    'estudiante_id' => $estudiante_id,
+                    'grado_id' => $validated['grado_id'],
+                    'fecha' => $validated['fecha'],
+                    'bimestre' => $validated['bimestre'],
+                    'tipo_asistencia_id' => $tipo_asistencia_id,
+                    'hora' => $hora.':00', // Asegurar formato H:i:s
+                    'registrador_id' => auth()->id(),
+                    'descripcion' => 'Asistencia registrada manualmente'
+                ]);
             }
 
             DB::commit();
@@ -176,6 +191,7 @@ class AsistenciaController extends Controller
             'fecha' => 'required|date_format:Y-m-d',
             'grado_grado_seccion' => 'required|string',
             'grado_nivel' => 'required|string',
+            'bimestre' => 'required|integer|min:1|max:4',
             'asistencias' => 'required|array',
             'asistencias.*' => 'required|exists:tipo_asistencias,id',
             'horas.*' => 'nullable|date_format:H:i'
