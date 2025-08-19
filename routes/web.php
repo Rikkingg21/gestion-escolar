@@ -199,6 +199,7 @@ Route::middleware('auth')->group(function () {
             ]);
 
         Route::post('/asistencia', [AsistenciaController::class, 'store'])->name('asistencia.store');
+        Route::put('/asistencia', [AsistenciaController::class, 'update'])->name('asistencia.update');
     });
 
     //rutas para docente

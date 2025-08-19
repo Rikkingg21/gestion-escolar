@@ -19,4 +19,8 @@ class Tipoasistencia extends Model
     protected $fillable = [
         'nombre',
     ];
+    public function asistencias()
+    {
+        return $this->hasMany(Asistencia::class, 'tipo_asistencia_id');
+    }
 }

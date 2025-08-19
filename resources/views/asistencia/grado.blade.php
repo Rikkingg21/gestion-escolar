@@ -7,10 +7,12 @@
             Asistencia: {{ $grado->grado }}° {{ $grado->seccion }} - {{ $grado->nivel }}
             <small class="text-muted">Fecha: {{ $fechaSeleccionada }}</small>
         </h3>
+
         <a href="{{ route('asistencia.index') }}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left"></i> Volver
         </a>
     </div>
+
     <form id="fechaForm" class="d-flex align-items-center mb-4">
         <div class="input-group me-3">
             <span class="input-group-text">Fecha:</span>
@@ -24,84 +26,160 @@
         </div>
     </form>
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <form method="POST" action="{{ route('asistencia.store') }}">
-                @csrf
-                <input type="hidden" name="grado_id" value="{{ $grado->id }}">
-                <input type="hidden" name="fecha" value="{{ $fechaFormateada }}">
-                <input type="hidden" name="grado_grado_seccion" value="{{ $grado->grado }}{{ $grado->seccion }}">
-                <input type="hidden" name="grado_nivel" value="{{ strtolower($grado->nivel) }}">
+    @if($existenRegistros)
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="POST" action="{{ route('asistencia.update') }}">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="grado_id" value="{{ $grado->id }}">
+                    <input type="hidden" name="fecha" value="{{ $fechaFormateada }}">
+                    <input type="hidden" name="grado_grado_seccion" value="{{ $grado->grado }}{{ $grado->seccion }}">
+                    <input type="hidden" name="grado_nivel" value="{{ strtolower($grado->nivel) }}">
 
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="thead-light">
-                            <tr>
-                                <th>#</th>
-                                <th>Estudiante</th>
-                                <th>Tipo Asistencia</th>
-                                <th>Hora</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($estudiantes as $estudiante)
-                            <tr>
-                                <td>{{ $loop->iteration }}</td>
-                                <td>
-                                    {{ $estudiante->user->apellido_paterno ?? '' }}
-                                    {{ $estudiante->user->apellido_materno ?? '' }}
-                                    {{ $estudiante->user->nombre ?? '' }}
-                                </td>
-                                <td>
-                                    <select name="asistencias[{{ $estudiante->id }}]" class="form-select" required>
-                                        <option value="">Seleccione...</option>
-                                        @foreach($tiposAsistencia as $tipo)
-                                        <option value="{{ $tipo->id }}"
-                                            @if($estudiante->asistencias->isNotEmpty())
-                                                selected
-                                            @elseif(!$existenRegistros && $tipo->id == 5)
-                                                selected
-                                            @endif>
-                                            {{ $tipo->nombre }}
-                                        </option>
-                                        @endforeach
-                                    </select>
-                                </td>
-                                <td>
-                                    <input type="time"
-                                           name="horas[{{ $estudiante->id }}]"
-                                           class="form-control"
-                                           value="{{ $estudiante->asistencias->isNotEmpty() ? $estudiante->asistencias->first()->hora : now()->format('H:i') }}">
-                                </td>
-                                <td>
-                                    @if($estudiante->asistencias->isNotEmpty())
-                                        <span class="badge bg-success">Registrado</span>
-                                    @else
-                                        <span class="badge bg-warning">Pendiente</span>
-                                    @endif
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="5" class="text-center">No hay estudiantes activos en este grado</td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Guardar Asistencias
-                    </button>
-                </div>
-            </form>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Estudiante</th>
+                                    <th>Tipo Asistencia</th>
+                                    <th>Hora</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($estudiantes as $estudiante)
+                                <tr>
+                                    <td>{{ $loop->iteration }}</td>
+                                    <td>
+                                        {{ $estudiante->user->apellido_paterno ?? '' }}
+                                        {{ $estudiante->user->apellido_materno ?? '' }}
+                                        {{ $estudiante->user->nombre ?? '' }}
+                                    </td>
+                                    <td>
+                                        <select name="asistencias[{{ $estudiante->id }}]" class="form-select" required>
+                                            <option value="">Seleccione...</option>
+                                            @foreach($tiposAsistencia as $tipo)
+                                            <option value="{{ $tipo->id }}"
+                                                @if($estudiante->asistencias->isNotEmpty() && $estudiante->asistencias->first()->tipo_asistencia_id == $tipo->id)
+                                                    selected
+                                                @endif>
+                                                {{ $tipo->nombre }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="time"
+                                            name="horas[{{ $estudiante->id }}]"
+                                            class="form-control"
+                                            value="{{ $estudiante->asistencias->isNotEmpty() ? substr($estudiante->asistencias->first()->hora, 0, 5) : now()->format('H:i') }}">
+                                    </td>
+                                    <td>
+                                        @if($estudiante->asistencias->isNotEmpty())
+                                            <span class="badge bg-success">Registrado</span>
+                                        @else
+                                            <span class="badge bg-warning">Pendiente</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Actualizar Asistencias
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
+    @else
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="POST" action="{{ route('asistencia.store') }}">
+                    @csrf
+                    <input type="hidden" name="grado_id" value="{{ $grado->id }}">
+                    <input type="hidden" name="fecha" value="{{ $fechaFormateada }}">
+                    <input type="hidden" name="grado_grado_seccion" value="{{ $grado->grado }}{{ $grado->seccion }}">
+                    <input type="hidden" name="grado_nivel" value="{{ strtolower($grado->nivel) }}">
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Estudiante</th>
+                                    <th>Tipo Asistencia</th>
+                                    <th>Hora</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($estudiantes as $estudiante)
+                                <tr>
+                                    <td>{{ $loop->iteration }}</td>
+                                    <td>
+                                        {{ $estudiante->user->apellido_paterno ?? '' }}
+                                        {{ $estudiante->user->apellido_materno ?? '' }}
+                                        {{ $estudiante->user->nombre ?? '' }}
+                                    </td>
+                                    <td>
+                                        <select name="asistencias[{{ $estudiante->id }}]" class="form-select" required>
+                                            <option value="">Seleccione...</option>
+                                            @foreach($tiposAsistencia as $tipo)
+                                            <option value="{{ $tipo->id }}"
+                                                @if($estudiante->asistencias->isNotEmpty())
+                                                    selected
+                                                @elseif(!$existenRegistros && $tipo->id == 5)
+                                                    selected
+                                                @endif>
+                                                {{ $tipo->nombre }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="time"
+                                            name="horas[{{ $estudiante->id }}]"
+                                            class="form-control"
+                                            value="{{ $estudiante->asistencias->isNotEmpty() ? $estudiante->asistencias->first()->hora : now()->format('H:i') }}">
+                                    </td>
+                                    <td>
+                                        @if($estudiante->asistencias->isNotEmpty())
+                                            <span class="badge bg-success">Registrado</span>
+                                        @else
+                                            <span class="badge bg-warning">Pendiente</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="text-center">No hay estudiantes activos en este grado</td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Guardar Asistencias
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const estudiantes = @json($estudiantes->pluck('id'));
+        console.log('IDs de estudiantes:', estudiantes);
+
         const fechaInput = document.getElementById('fechaInput');
 
         fechaInput.addEventListener('change', function() {

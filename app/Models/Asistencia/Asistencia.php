@@ -20,6 +20,7 @@ class Asistencia extends Model
     protected $fillable = [
         'estudiante_id',
         'grado_id',
+        'bimestre',
         'tipo_asistencia_id',
         'fecha',
         'hora',
