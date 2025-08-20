@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Grado;
+use App\Models\Estudiante;
 use Illuminate\Http\Request;
 
 class GradoController extends Controller
@@ -101,5 +102,45 @@ class GradoController extends Controller
         $grado->delete();
 
         return redirect()->route('grado.index')->with('success', 'Grado eliminado correctamente.');
+    }
+
+    public function estudiantes($id)
+    {
+        $grado = Grado::findOrFail($id);
+
+        $estudiantes = Estudiante::where('grado_id', $id)
+            ->where('estado', 1)
+            ->with(['user', 'apoderado.user'])
+            ->get();
+
+        return view('grado.gradoestudiantes', compact('grado', 'estudiantes'));
+    }
+    public function estudiantesUpdateGrado(Request $request, $gradoId)
+    {
+        $request->validate([
+            'nuevo_grado' => 'required|integer',
+            'nueva_seccion' => 'required|string|max:1',
+            'nuevo_nivel' => 'required|string',
+            'estudiantes' => 'required|array',
+            'estudiantes.*' => 'exists:estudiantes,id'
+        ]);
+
+        // Buscar o crear el nuevo grado
+        $nuevoGrado = Grado::firstOrCreate(
+            [
+                'grado' => $request->nuevo_grado,
+                'seccion' => $request->nueva_seccion,
+                'nivel' => $request->nuevo_nivel
+            ],
+            ['estado' => 1]
+        );
+
+        // Actualizar los estudiantes seleccionados
+        Estudiante::whereIn('id', $request->estudiantes)
+            ->update(['grado_id' => $nuevoGrado->id]);
+
+        return redirect()->route('grado.estudiantes', $gradoId)
+            ->with('success', 'Estudiantes ascendidos correctamente al grado ' .
+                $nuevoGrado->grado . '° "' . $nuevoGrado->seccion . '" - ' . $nuevoGrado->nivel);
     }
 }

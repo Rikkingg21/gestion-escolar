@@ -146,17 +146,19 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/apoderados/search', [ApoderadoController::class, 'search'])->name('apoderados.search');
 
-
-
-
-
-
         Route::get('/grado', [GradoController::class, 'index'])->name('grado.index');
+
+        Route::get('/grado/estudiantes/{id}', [GradoController::class, 'estudiantes'])->name('grado.estudiantes');
+        Route::put('/grado/estudiantes/{grado}', [GradoController::class, 'estudiantesUpdateGrado'])->name('grado.estudiantesupdategrado');
+
         Route::get('/grado/create', [GradoController::class, 'create'])->name('grado.create');
         Route::post('/grado', [GradoController::class, 'store'])->name('grado.store');
         Route::get('/grado/{id}/edit', [GradoController::class, 'edit'])->name('grado.edit');
         Route::put('/grado/{grado}', [GradoController::class, 'update'])->name('grado.update');
         Route::delete('/grado/{id}', [GradoController::class, 'destroy'])->name('grado.destroy');
+
+
+
 
         Route::get('/materia', [MateriaController::class, 'index'])->name('materia.index');
         Route::get('/materia/create', [MateriaController::class, 'create'])->name('materia.create');

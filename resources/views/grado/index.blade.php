@@ -65,6 +65,9 @@
                                     <td>{{ $grado->nombreCompleto }}</td>
                                     <td>
                                         <div class="d-flex">
+                                            <a href="{{ route('grado.estudiantes', $grado->id) }}" class="btn btn-sm btn-primary" title="Relación de Estudiantes">
+                                                <i class="bi bi-person-rolodex"></i>
+                                            </a>
                                             <a href="{{ route('grado.edit', $grado->id) }}" class="btn btn-sm btn-warning mx-1" title="Editar">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
