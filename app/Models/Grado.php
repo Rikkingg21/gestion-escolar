@@ -44,7 +44,7 @@ class Grado extends Model
         return $this->hasMany(Estudiante::class)->where('estado', 1);
     }
     public function getGradoSeccionAttribute()
-{
-    return $this->grado . $this->seccion; // Ej: "1a"
-}
+    {
+        return $this->grado . $this->seccion; // Ej: "1a"
+    }
 }

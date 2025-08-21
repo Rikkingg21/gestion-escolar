@@ -26,9 +26,10 @@ class NotaController extends Controller
             return $next($request);
         });
     }
+
     public function index(Bimestre $bimestre)
     {
-        // Cargar relaciones con validación
+        // Cargar relaciones con validación (código existente)
         $bimestre->load([
             'cursoGradoSecNivAnio' => function($query) {
                 $query->with([
@@ -45,9 +46,10 @@ class NotaController extends Controller
             abort(404, 'Curso no encontrado para el bimestre.');
         }
 
-        // Obtener estudiantes
-        $estudiantes = Estudiante::with(['user'])
+        // Obtener estudiantes activos
+        $estudiantesActivos = Estudiante::with(['user'])
             ->where('grado_id', $curso->grado_id)
+            ->where('estado', '1') // Solo estudiantes activos
             ->orderByRaw("
                 (SELECT apellido_paterno FROM users WHERE users.id = estudiantes.user_id),
                 (SELECT apellido_materno FROM users WHERE users.id = estudiantes.user_id),
@@ -55,7 +57,21 @@ class NotaController extends Controller
             ")
             ->get();
 
-        // Preparar competencias con criterios
+        // Obtener estudiantes inactivos que tienen notas en este bimestre
+        $estudiantesInactivosConNotas = Estudiante::with(['user'])
+            ->where('grado_id', $curso->grado_id)
+            ->where('estado', '0')
+            ->whereHas('notas', function($query) use ($bimestre) {
+                $query->where('bimestre_id', $bimestre->id);
+            })
+            ->orderByRaw("
+                (SELECT apellido_paterno FROM users WHERE users.id = estudiantes.user_id),
+                (SELECT apellido_materno FROM users WHERE users.id = estudiantes.user_id),
+                (SELECT nombre FROM users WHERE users.id = estudiantes.user_id)
+            ")
+            ->get();
+
+        // Preparar competencias con criterios (código existente)
         $competencias = $curso->materia->materiaCompetencia->map(function($competencia) use ($curso) {
             $competencia->criterios = $competencia->materiaCriterio
                 ->where('grado_id', $curso->grado_id)
@@ -64,11 +80,14 @@ class NotaController extends Controller
             return $competencia;
         })->filter(fn($c) => $c->criterios->isNotEmpty());
 
-        // Obtener notas existentes
+        // Obtener notas existentes (código existente)
         $criteriosIds = $competencias->flatMap->criterios->pluck('id');
         $notasExistentes = Nota::where('bimestre_id', $bimestre->id)
                 ->whereIn('materia_criterio_id', $criteriosIds)
-                ->whereIn('estudiante_id', $estudiantes->pluck('id'))
+                ->whereIn('estudiante_id',
+                    $estudiantesActivos->pluck('id')
+                        ->merge($estudiantesInactivosConNotas->pluck('id'))
+                )
                 ->get()
                 ->mapWithKeys(function ($item) {
                     return [
@@ -83,7 +102,8 @@ class NotaController extends Controller
             'grado' => $curso->grado,
             'docente' => $curso->docente,
             'competencias' => $competencias,
-            'estudiantes' => $estudiantes,
+            'estudiantesActivos' => $estudiantesActivos,
+            'estudiantesInactivos' => $estudiantesInactivosConNotas,
             'notasExistentes' => $notasExistentes
         ]);
     }

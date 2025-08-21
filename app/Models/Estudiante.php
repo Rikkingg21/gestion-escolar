@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Models\Nota;
+
 class Estudiante extends Model
 {
     use HasFactory;
@@ -42,4 +44,9 @@ class Estudiante extends Model
     {
         return $this->hasMany(\App\Models\Asistencia\Asistencia::class, 'estudiante_id');
     }
+    public function notas()
+    {
+        return $this->hasMany(Nota::class, 'estudiante_id');
+    }
+
 }

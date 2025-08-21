@@ -31,8 +31,13 @@
                 @csrf
                 <input type="hidden" name="bimestre_id" value="{{ $bimestre->id }}">
 
+                <!-- Tabla para Estudiantes Activos -->
+                @if($estudiantesActivos->count() > 0)
+                <h5 class="mb-3 text-success">
+                    <i class="fas fa-user-check"></i> Estudiantes Activos
+                </h5>
                 <div class="table-responsive">
-                    <table class="table table-bordered" id="tablaNotas">
+                    <table class="table table-bordered" id="tablaNotasActivos">
                         <thead class="thead-dark">
                             <tr>
                                 <th rowspan="2">Estudiante</th>
@@ -56,7 +61,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($estudiantes as $estudiante)
+                            @foreach($estudiantesActivos as $estudiante)
                                 <tr>
                                     <td>
                                         {{ $estudiante->user->apellido_paterno }}
@@ -85,6 +90,70 @@
                         </tbody>
                     </table>
                 </div>
+                @endif
+
+                <!-- Tabla para Estudiantes Inactivos (solo lectura) -->
+                @if($estudiantesInactivos->count() > 0)
+                <h5 class="mb-3 mt-4 text-secondary">
+                    <i class="fas fa-user-times"></i> Estudiantes Inactivos (Solo Lectura)
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="tablaNotasInactivos">
+                        <thead class="thead-light">
+                            <tr>
+                                <th rowspan="2">Estudiante</th>
+                                @foreach($competencias as $competencia)
+                                    @if($competencia->criterios && $competencia->criterios->count() > 0)
+                                        <th colspan="{{ $competencia->criterios->count() }}">
+                                            {{ $competencia->nombre }}
+                                        </th>
+                                    @endif
+                                @endforeach
+                            </tr>
+                            <tr>
+                                @foreach($competencias as $competencia)
+                                    @foreach($competencia->criterios ?? [] as $criterio)
+                                        <th title="{{ $criterio->descripcion }}">
+                                            {{ $criterio->nombre }}
+                                        </th>
+                                    @endforeach
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($estudiantesInactivos as $estudiante)
+                                <tr class="table-secondary">
+                                    <td>
+                                        <i class="fas fa-lock text-muted mr-1"></i>
+                                        {{ $estudiante->user->apellido_paterno }}
+                                        {{ $estudiante->user->apellido_materno }},
+                                        {{ $estudiante->user->nombre }}
+                                        <span class="badge badge-warning ml-2">Inactivo</span>
+                                    </td>
+                                    @foreach($competencias as $competencia)
+                                        @foreach($competencia->criterios as $criterio)
+                                            <td>
+                                                @php
+                                                    $key = $estudiante->id.'-'.$criterio->id;
+                                                    $nota = $notasExistentes[$key] ?? null;
+                                                @endphp
+                                                <input type="number"
+                                                    value="{{ $nota }}"
+                                                    min="1"
+                                                    max="4"
+                                                    step="1"
+                                                    class="form-control form-control-sm"
+                                                    readonly
+                                                    style="background-color: #f8f9fa;">
+                                            </td>
+                                        @endforeach
+                                    @endforeach
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @endif
 
                 <div class="form-group mt-4">
                     <button type="submit" class="btn btn-primary">
@@ -94,20 +163,18 @@
                         <i class="fas fa-arrow-left"></i> Volver
                     </a>
                 </div>
-                </form>
+            </form>
 
-                <form action="{{ route('nota.publicar', $bimestre->id) }}" method="POST" class="mt-2">
-                    @csrf
-                    <button type="submit" class="btn btn-success"
-                        onclick="return confirm('¿Seguro que deseas publicar todas las notas?')">
-                        <i class="fas fa-bullhorn"></i> Publicar Notas
-                    </button>
-                </form>
+            <form action="{{ route('nota.publicar', $bimestre->id) }}" method="POST" class="mt-2">
+                @csrf
+                <button type="submit" class="btn btn-success"
+                    onclick="return confirm('¿Seguro que deseas publicar todas las notas?')">
+                    <i class="fas fa-bullhorn"></i> Publicar Notas
+                </button>
             </form>
         </div>
     </div>
 </div>
-
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
@@ -137,5 +204,4 @@ $(document).ready(function() {
     });
 });
 </script>
-
 @endsection
