@@ -13,7 +13,7 @@ class Conductanota extends Model
 {
     use hasFactory;
     use SoftDeletes;
-    protected $table = 'condicta_notas';
+    protected $table = 'conducta_notas';
     protected $primaryKey = 'id';
     public $timestamps = true;
     protected $fillable = [
@@ -33,7 +33,7 @@ class Conductanota extends Model
     }
     public function conducta()
     {
-        return $this->belongsTo(Conducta::class, 'nota_comportamiento_id');
+        return $this->belongsTo(Conducta::class, 'conducta_id');
     }
     public function bimestre()
     {
