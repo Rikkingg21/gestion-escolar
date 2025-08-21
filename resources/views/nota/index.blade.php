@@ -6,6 +6,18 @@
         <h1 class="h3 mb-0 text-gray-800">
             <i class="fas fa-graduation-cap"></i> Registro de Calificaciones
         </h1>
+
+        <!-- Indicador de estado actual -->
+        @php
+            $estados = [
+                '0' => ['Privado', 'secondary'],
+                '1' => ['Pre-Oficial', 'warning'],
+                '2' => ['Oficial', 'success']
+            ];
+        @endphp
+        <span class="badge badge-{{ $estados[$estadoActual][1] }} badge-lg">
+            Estado: {{ $estados[$estadoActual][0] }}
+        </span>
     </div>
 
     <div class="card shadow mb-4">
@@ -27,6 +39,19 @@
         </div>
 
         <div class="card-body">
+            <!-- Mensajes de advertencia según el estado -->
+            @if($estadoActual == '1')
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                Las notas están en fase pre-oficial. Solo directores y administradores pueden editarlas.
+            </div>
+            @elseif($estadoActual == '2')
+            <div class="alert alert-success">
+                <i class="fas fa-lock"></i>
+                Las notas están en fase oficial. Solo administradores pueden editarlas.
+            </div>
+            @endif
+
             <form action="{{ route('nota.store') }}" method="POST" id="formNotas">
                 @csrf
                 <input type="hidden" name="bimestre_id" value="{{ $bimestre->id }}">
@@ -74,6 +99,16 @@
                                                 @php
                                                     $key = $estudiante->id.'-'.$criterio->id;
                                                     $nota = $notasExistentes[$key] ?? null;
+                                                    // Determinar si el campo es editable
+                                                    $readonly = false;
+                                                    $background = '';
+                                                    if ($estadoActual == '1' && !(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))) {
+                                                        $readonly = true;
+                                                        $background = 'background-color: #f8f9fa;';
+                                                    } elseif ($estadoActual == '2' && !auth()->user()->hasRole('admin')) {
+                                                        $readonly = true;
+                                                        $background = 'background-color: #f8f9fa;';
+                                                    }
                                                 @endphp
                                                 <input type="number"
                                                     name="notas[{{ $estudiante->id }}][{{ $criterio->id }}]"
@@ -81,7 +116,9 @@
                                                     min="1"
                                                     max="4"
                                                     step="1"
-                                                    class="form-control form-control-sm nota-input">
+                                                    class="form-control form-control-sm nota-input"
+                                                    {{ $readonly ? 'readonly' : '' }}
+                                                    style="{{ $background }}">
                                             </td>
                                         @endforeach
                                     @endforeach
@@ -156,7 +193,9 @@
                 @endif
 
                 <div class="form-group mt-4">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary"
+                        {{ ($estadoActual == '1' && !(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))) ||
+                           ($estadoActual == '2' && !auth()->user()->hasRole('admin')) ? 'disabled' : '' }}>
                         <i class="fas fa-save"></i> Guardar Calificaciones
                     </button>
                     <a href="{{ route('maya.index') }}" class="btn btn-secondary">
@@ -165,13 +204,50 @@
                 </div>
             </form>
 
-            <form action="{{ route('nota.publicar', $bimestre->id) }}" method="POST" class="mt-2">
-                @csrf
-                <button type="submit" class="btn btn-success"
-                    onclick="return confirm('¿Seguro que deseas publicar todas las notas?')">
-                    <i class="fas fa-bullhorn"></i> Publicar Notas
-                </button>
-            </form>
+            <!-- Botones de publicación según permisos y estado actual -->
+            <div class="mt-3">
+                @if($estadoActual == '0' && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director') || auth()->user()->hasRole('docente')))
+                <form action="{{ route('nota.publicar', $bimestre->id) }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-warning"
+                        onclick="return confirm('¿Publicar notas en fase pre-oficial?')">
+                        <i class="fas fa-share-square"></i> Publicar Pre-Oficial
+                    </button>
+                </form>
+                @endif
+
+                @if($estadoActual == '1')
+                    @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+                    <form action="{{ route('nota.publicar', $bimestre->id) }}" method="POST" class="d-inline">
+                        @csrf
+                        <button type="submit" class="btn btn-success ml-2"
+                            onclick="return confirm('¿Oficializar las notas? Solo administradores podrán editarlas.')">
+                            <i class="fas fa-check-circle"></i> Oficializar Notas
+                        </button>
+                    </form>
+                    @endif
+
+                    @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+                    <form action="{{ route('nota.revertir', $bimestre->id) }}" method="POST" class="d-inline">
+                        @csrf
+                        <button type="submit" class="btn btn-info ml-2"
+                            onclick="return confirm('¿Revertir notas a estado privado? Los docentes podrán editarlas nuevamente.')">
+                            <i class="fas fa-undo"></i> Revertir a Privado
+                        </button>
+                    </form>
+                    @endif
+                @endif
+
+                @if($estadoActual == '2' && auth()->user()->hasRole('admin'))
+                <form action="{{ route('nota.revertir', $bimestre->id) }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-info"
+                        onclick="return confirm('¿Revertir notas a fase pre-oficial?')">
+                        <i class="fas fa-undo"></i> Revertir a Pre-Oficial
+                    </button>
+                </form>
+                @endif
+            </div>
         </div>
     </div>
 </div>

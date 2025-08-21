@@ -101,6 +101,11 @@
                         </ul>
                     </div>
                 </li>
+                <li class="nav-item">
+                    <a href="{{ route('maya.index') }}" class="nav-link text-white {{ request()->routeIs('maya.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-2"></i> Mayas
+                    </a>
+                </li>
 
                 <li class="nav-item">
                     <a href="{{ route('colegioconfig.edit') }}" class="nav-link text-white {{ request()->routeIs('colegioconfig.*') ? 'active' : '' }}">

@@ -94,6 +94,8 @@ class NotaController extends Controller
                         $item['estudiante_id'].'-'.$item['materia_criterio_id'] => $item['nota']
                     ];
                 });
+        $estadoActual = Nota::where('bimestre_id', $bimestre->id)
+        ->value('publico') ?? '0';
 
         return view('nota.index', [
             'bimestre' => $bimestre,
@@ -104,7 +106,8 @@ class NotaController extends Controller
             'competencias' => $competencias,
             'estudiantesActivos' => $estudiantesActivos,
             'estudiantesInactivos' => $estudiantesInactivosConNotas,
-            'notasExistentes' => $notasExistentes
+            'notasExistentes' => $notasExistentes,
+            'estadoActual' => $estadoActual
         ]);
     }
 
@@ -121,6 +124,24 @@ class NotaController extends Controller
         try {
             \DB::beginTransaction();
 
+            // Verificar permisos según el estado actual de las notas
+            $bimestreId = $validated['bimestre_id'];
+            $user = auth()->user();
+
+            // Obtener el estado actual de las notas del bimestre
+            $estadoActual = Nota::where('bimestre_id', $bimestreId)
+                ->value('publico') ?? '0';
+
+            // Si las notas están en fase oficial (2), solo admin puede editar
+            if ($estadoActual == '2' && !$user->hasRole('admin')) {
+                return redirect()->back()->with('error', 'No tienes permisos para editar notas en fase oficial.');
+            }
+
+            // Si las notas están en fase pre-oficial (1), solo admin y director pueden editar
+            if ($estadoActual == '1' && !$user->hasRole('admin') && !$user->hasRole('director')) {
+                return redirect()->back()->with('error', 'No tienes permisos para editar notas en fase pre-oficial.');
+            }
+
             foreach ($validated['notas'] as $estudiante_id => $criterios) {
                 foreach ($criterios as $criterio_id => $valor_nota) {
                     // Solo actualizamos si hay un valor
@@ -132,8 +153,8 @@ class NotaController extends Controller
                                 'bimestre_id' => $validated['bimestre_id'],
                             ],
                             [
-                                'nota' => (int) $valor_nota, // Aseguramos que sea entero
-                                'publico' => '0' // No publicadas por defecto
+                                'nota' => (int) $valor_nota,
+                                'publico' => $estadoActual // Mantener el estado actual
                             ]
                         );
                     }
@@ -151,7 +172,67 @@ class NotaController extends Controller
 
     public function publicar(Bimestre $bimestre)
     {
-        Nota::where('bimestre_id', $bimestre->id)->update(['publico' => '1']); // Usamos string '1'
-        return redirect()->back()->with('success', 'Notas publicadas correctamente.');
+        $user = auth()->user();
+        $estadoActual = Nota::where('bimestre_id', $bimestre->id)
+            ->value('publico') ?? '0';
+
+        // Determinar el próximo estado basado en el estado actual
+        if ($estadoActual == '0') {
+            // Cambiar a fase pre-oficial (0 → 1)
+            // Docente, director y admin pueden publicar a pre-oficial
+            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
+                return redirect()->back()->with('error', 'No tienes permisos para publicar notas en fase pre-oficial.');
+            }
+
+            Nota::where('bimestre_id', $bimestre->id)->update(['publico' => '1']);
+            return redirect()->back()->with('success', 'Notas publicadas en fase pre-oficial correctamente.');
+        }
+        elseif ($estadoActual == '1') {
+            // Cambiar a fase oficial (1 → 2)
+            // Director y admin pueden publicar a oficial
+            if (!$user->hasRole('admin') && !$user->hasRole('director')) {
+                return redirect()->back()->with('error', 'No tienes permisos para oficializar notas.');
+            }
+
+            Nota::where('bimestre_id', $bimestre->id)->update(['publico' => '2']);
+            return redirect()->back()->with('success', 'Notas oficializadas correctamente.');
+        }
+        else {
+            return redirect()->back()->with('error', 'Las notas ya están en su estado final (oficial).');
+        }
+    }
+
+    public function revertir(Bimestre $bimestre)
+    {
+        $user = auth()->user();
+        $estadoActual = Nota::where('bimestre_id', $bimestre->id)
+            ->value('publico') ?? '0';
+
+        if ($estadoActual == '1') {
+            // Revertir a privado (1 → 0)
+            // Director y admin pueden revertir de "1" a "0"
+            if (!$user->hasRole('admin') && !$user->hasRole('director')) {
+                return redirect()->back()->with('error', 'No tienes permisos para revertir notas a privado.');
+            }
+
+            Nota::where('bimestre_id', $bimestre->id)->update(['publico' => '0']);
+            return redirect()->back()->with('success', 'Notas revertidas a privado correctamente.');
+        }
+        elseif ($estadoActual == '2') {
+            // Revertir a pre-oficial (2 → 1) o a privado (2 → 0)
+            // Solo admin puede revertir de "2"
+            if (!$user->hasRole('admin')) {
+                return redirect()->back()->with('error', 'No tienes permisos para revertir notas oficializadas.');
+            }
+
+            // Determinar a qué estado revertir basado en la solicitud
+            // Podrías agregar un parámetro para especificar el destino
+            // Por ahora, revertimos a pre-oficial (2 → 1)
+            Nota::where('bimestre_id', $bimestre->id)->update(['publico' => '1']);
+            return redirect()->back()->with('success', 'Notas revertidas a fase pre-oficial correctamente.');
+        }
+        else {
+            return redirect()->back()->with('error', 'Las notas ya están en estado privado.');
+        }
     }
 }
