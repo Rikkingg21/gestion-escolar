@@ -40,8 +40,14 @@
     <div class="card shadow mb-4">
         <div class="card-body">
             <div class="table-responsive">
+                @php
+                    $activas = $competencias->where('estado', 1);
+                    $inactivas = $competencias->where('estado', 0);
+                @endphp
+
+                <h4 class="mt-4">Competencias Activas</h4>
                 <table class="table table-bordered table-hover">
-                    <thead class="table-dark">
+                    <thead class="table-success">
                         <tr>
                             <th width="5%">#</th>
                             <th>Nombre</th>
@@ -50,16 +56,15 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($competencias as $competencia)
+                        @forelse ($activas as $competencia)
                         <tr>
                             <td>{{ $loop->iteration }}</td>
                             <td>{{ $competencia->nombre }}</td>
                             <td>{{ $competencia->descripcion }}</td>
                             <td>
                                 <div class="d-flex">
-
                                     <a href="{{ route('materiacompetencia.edit', $competencia->id) }}"
-                                       class="btn btn-sm btn-warning mx-1" title="Editar">
+                                    class="btn btn-sm btn-warning mx-1" title="Editar">
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     <form action="{{ route('materiacompetencia.destroy', $competencia->id) }}" method="POST">
@@ -75,7 +80,48 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="4" class="text-center">No hay competencias registradas</td>
+                            <td colspan="4" class="text-center">No hay competencias activas</td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+
+                <h4 class="mt-4">Competencias Inactivas</h4>
+                <table class="table table-bordered table-hover">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th width="5%">#</th>
+                            <th>Nombre</th>
+                            <th>Descripción</th>
+                            <th width="20%">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($inactivas as $competencia)
+                        <tr>
+                            <td>{{ $loop->iteration }}</td>
+                            <td>{{ $competencia->nombre }}</td>
+                            <td>{{ $competencia->descripcion }}</td>
+                            <td>
+                                <div class="d-flex">
+                                    <a href="{{ route('materiacompetencia.edit', $competencia->id) }}"
+                                    class="btn btn-sm btn-warning mx-1" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form action="{{ route('materiacompetencia.destroy', $competencia->id) }}" method="POST">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger mx-1"
+                                                title="Eliminar" onclick="return confirm('¿Eliminar esta competencia?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="4" class="text-center">No hay competencias inactivas</td>
                         </tr>
                         @endforelse
                     </tbody>

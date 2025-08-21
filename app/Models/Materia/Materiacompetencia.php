@@ -19,7 +19,8 @@ class Materiacompetencia extends Model
     protected $fillable = [
         'materia_id',
         'nombre',
-        'descripcion'
+        'descripcion',
+        'estado'
     ];
     public function materia()
     {

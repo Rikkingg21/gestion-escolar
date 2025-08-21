@@ -44,6 +44,7 @@ class MateriaCompetenciaController extends Controller
             'materia_id' => 'required|exists:materias,id',
             'nombre' => 'required|string|max:255',
             'descripcion' => 'nullable|string',
+            'estado' => 'required|in:0,1',
         ]);
 
         try {
@@ -71,6 +72,7 @@ class MateriaCompetenciaController extends Controller
         $request->validate([
             'nombre' => 'required|string|max:255',
             'descripcion' => 'nullable|string',
+            'estado' => 'required|in:0,1',
         ]);
 
         try {

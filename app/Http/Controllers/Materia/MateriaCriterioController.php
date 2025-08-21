@@ -23,86 +23,86 @@ class MateriaCriterioController extends Controller
     }
 
     public function index($id, Request $request)
-{
-    $currentYear = date('Y');
-    $selectedYear = $request->input('anio', $currentYear);
+    {
+        $currentYear = date('Y');
+        $selectedYear = $request->input('anio', $currentYear);
 
-    // Determinar el tipo de ID recibido (materia, grado o competencia)
-    $tipoFiltro = $this->determinarTipoFiltro($id); // Nueva función helper
+        // Determinar el tipo de ID recibido (materia, grado o competencia)
+        $tipoFiltro = $this->determinarTipoFiltro($id); // Nueva función helper
 
-    // Consulta base con eager loading
-    $query = MateriaCriterio::with(['materia', 'grado', 'materiaCompetencia'])
-        ->where($tipoFiltro['campo'], $id)
-        ->where('anio', $selectedYear);
+        // Consulta base con eager loading
+        $query = MateriaCriterio::with(['materia', 'grado', 'materiaCompetencia'])
+            ->where($tipoFiltro['campo'], $id)
+            ->where('anio', $selectedYear);
 
-    // Aplicar filtro de grado si existe
-    if ($request->has('grado_id') && $request->grado_id != '') {
-        $query->where('grado_id', $request->grado_id);
+        // Aplicar filtro de grado si existe
+        if ($request->has('grado_id') && $request->grado_id != '') {
+            $query->where('grado_id', $request->grado_id);
+        }
+
+        // Ordenar usando joins en lugar de subconsultas
+        $query->join('grados', 'grados.id', '=', 'materia_criterios.grado_id')
+            ->orderByRaw("
+                CASE grados.nivel
+                    WHEN 'Primaria' THEN 1
+                    WHEN 'Secundaria' THEN 2
+                    ELSE 3
+                END,
+                grados.grado ASC,
+                grados.seccion ASC
+            ")
+            ->select('materia_criterios.*'); // Para evitar ambigüedad
+
+        $materiaCriterios = $query->get();
+        $materia = Materia::find($tipoFiltro['campo'] == 'materia_id' ? $id : null);
+
+        // Obtener años disponibles para el filtro
+        $anios = MateriaCriterio::where($tipoFiltro['campo'], $id)
+                    ->distinct()
+                    ->pluck('anio')
+                    ->sort();
+
+        // Obtener grados disponibles para el filtro
+        $gradosDisponibles = Grado::whereIn('id', function($query) use ($id, $tipoFiltro) {
+                $query->select('grado_id')
+                    ->from('materia_criterios')
+                    ->where($tipoFiltro['campo'], $id);
+            })
+            ->orderByRaw("
+                CASE nivel
+                    WHEN 'Primaria' THEN 1
+                    WHEN 'Secundaria' THEN 2
+                    ELSE 3
+                END,
+                grado ASC,
+                seccion ASC
+            ")
+            ->get();
+
+        return view('materia.materiacriterio.index', [
+            'materiaCriterios' => $materiaCriterios,
+            'materia' => $materia,
+            'id' => $id,
+            'anios' => $anios,
+            'gradosDisponibles' => $gradosDisponibles,
+            'selectedYear' => $selectedYear,
+            'tipoFiltro' => $tipoFiltro['tipo'] // Para usar en la vista si es necesario
+        ]);
     }
 
-    // Ordenar usando joins en lugar de subconsultas
-    $query->join('grados', 'grados.id', '=', 'materia_criterios.grado_id')
-        ->orderByRaw("
-            CASE grados.nivel
-                WHEN 'Primaria' THEN 1
-                WHEN 'Secundaria' THEN 2
-                ELSE 3
-            END,
-            grados.grado ASC,
-            grados.seccion ASC
-        ")
-        ->select('materia_criterios.*'); // Para evitar ambigüedad
-
-    $materiaCriterios = $query->get();
-    $materia = Materia::find($tipoFiltro['campo'] == 'materia_id' ? $id : null);
-
-    // Obtener años disponibles para el filtro
-    $anios = MateriaCriterio::where($tipoFiltro['campo'], $id)
-                ->distinct()
-                ->pluck('anio')
-                ->sort();
-
-    // Obtener grados disponibles para el filtro
-    $gradosDisponibles = Grado::whereIn('id', function($query) use ($id, $tipoFiltro) {
-            $query->select('grado_id')
-                ->from('materia_criterios')
-                ->where($tipoFiltro['campo'], $id);
-        })
-        ->orderByRaw("
-            CASE nivel
-                WHEN 'Primaria' THEN 1
-                WHEN 'Secundaria' THEN 2
-                ELSE 3
-            END,
-            grado ASC,
-            seccion ASC
-        ")
-        ->get();
-
-    return view('materia.materiacriterio.index', [
-        'materiaCriterios' => $materiaCriterios,
-        'materia' => $materia,
-        'id' => $id,
-        'anios' => $anios,
-        'gradosDisponibles' => $gradosDisponibles,
-        'selectedYear' => $selectedYear,
-        'tipoFiltro' => $tipoFiltro['tipo'] // Para usar en la vista si es necesario
-    ]);
-}
-
-// Función helper para determinar el tipo de filtro
-protected function determinarTipoFiltro($id)
-{
-    // Aquí deberías implementar lógica para determinar si el ID es de materia, grado o competencia
-    // Esto es un ejemplo básico - ajusta según tu necesidad
-    if (Materia::where('id', $id)->exists()) {
-        return ['campo' => 'materia_id', 'tipo' => 'materia'];
-    } elseif (Grado::where('id', $id)->exists()) {
-        return ['campo' => 'grado_id', 'tipo' => 'grado'];
-    } else {
-        return ['campo' => 'materia_competencia_id', 'tipo' => 'competencia'];
+    // Función helper para determinar el tipo de filtro
+    protected function determinarTipoFiltro($id)
+    {
+        // Aquí deberías implementar lógica para determinar si el ID es de materia, grado o competencia
+        // Esto es un ejemplo básico - ajusta según tu necesidad
+        if (Materia::where('id', $id)->exists()) {
+            return ['campo' => 'materia_id', 'tipo' => 'materia'];
+        } elseif (Grado::where('id', $id)->exists()) {
+            return ['campo' => 'grado_id', 'tipo' => 'grado'];
+        } else {
+            return ['campo' => 'materia_competencia_id', 'tipo' => 'competencia'];
+        }
     }
-}
 
     public function create($id)
     {
@@ -121,8 +121,9 @@ protected function determinarTipoFiltro($id)
                         seccion ASC
                     ")
                     ->get();
-
-        $competencias = MateriaCompetencia::where('materia_id', $id)->get();
+        $competencias = MateriaCompetencia::where('materia_id', $id)
+        ->where('estado', "1")
+        ->get();
 
         $competencia = null;
         if(request()->has('competencia_id')) {
@@ -194,7 +195,9 @@ protected function determinarTipoFiltro($id)
                     ")
                     ->get();
 
-        $competencias = MateriaCompetencia::where('materia_id', $criterio->materia_id)->get();
+        $competencias = MateriaCompetencia::where('materia_id', $criterio->materia_id)
+        ->where('estado', "1")
+        ->get();
 
         return view('materia.materiacriterio.edit', [
             'criterio' => $criterio,

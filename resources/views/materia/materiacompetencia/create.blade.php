@@ -46,6 +46,18 @@
                         @enderror
                     </div>
                 </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="estado" class="form-label">Estado *</label>
+                        <select class="form-select @error('estado') is-invalid @enderror" id="estado" name="estado" required>
+                            <option value="1" {{ old('estado', '1') == '1' ? 'selected' : '' }}>Activo</option>
+                            <option value="0" {{ old('estado') == '0' ? 'selected' : '' }}>Inactivo</option>
+                        </select>
+                        @error('estado')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
 
                 <div class="mt-4">
                     <button type="submit" class="btn btn-primary">
