@@ -23,6 +23,7 @@ use App\Http\Controllers\Maya\TemaController;
 use App\Http\Controllers\Maya\CriterioController;
 
 use App\Http\Controllers\NotaController;
+use App\Http\Controllers\ConductaController;
 use App\Http\Controllers\LibretaController;
 
 use App\Http\Controllers\AsistenciaController;
@@ -182,6 +183,13 @@ Route::middleware('auth')->group(function () {
         Route::put('/materia-criterio/{materiacriterio}', [MateriaCriterioController::class, 'update'])->name('materiacriterio.update');
         Route::delete('/materia-criterio/{id}', [MateriaCriterioController::class, 'destroy'])->name('materiacriterio.destroy');
 
+        Route::get('/conducta', [ConductaController::class, 'index'])->name('conducta.index');
+        Route::get('/conducta/create', [ConductaController::class, 'create'])->name('conducta.create');
+        Route::post('/conducta', [ConductaController::class, 'store'])->name('conducta.store');
+        Route::get('/conducta/{conducta}/edit', [ConductaController::class, 'edit'])->name('conducta.edit');
+        Route::put('/conducta/{conducta}', [ConductaController::class, 'update'])->name('conducta.update');
+        Route::delete('/conducta/{conducta}', [ConductaController::class, 'destroy'])->name('conducta.destroy');
+
         Route::get('/reporte', [ReporteController::class, 'index'])->name('reporte.index');
         Route::get('/reporte/create', [ReporteController::class, 'create'])->name('reporte.create');
         Route::get('/reporte/{id}', [ReporteController::class, 'show'])->name('reporte.show');
@@ -200,9 +208,10 @@ Route::middleware('auth')->group(function () {
                 'grado_nivel' => '[a-zA-Z]+', // Solo letras para el nivel
                 'date' => '\d{2}-\d{2}-\d{4}' // Formato dd-mm-yyyy
             ]);
-
         Route::post('/asistencia', [AsistenciaController::class, 'store'])->name('asistencia.store');
         Route::put('/asistencia', [AsistenciaController::class, 'update'])->name('asistencia.update');
+
+
     });
 
     //rutas para docente
