@@ -38,7 +38,7 @@
                         <td>{{ $reporte->destinatario->apoderado->user->nombre ?? '-' }}</td>
                         <td>{{ $reporte->materia->nombre ?? '-' }}</td>
                         <td>{{ $reporte->asunto }}</td>
-                        <td>{{ $reporte->fecha }} -- {{ $reporte->hora }}</td>
+                        <td>{{ \Carbon\Carbon::parse($reporte->fecha)->format('d/m/Y') }} -- {{ $reporte->hora }}</td>
                         <td>
                             @php
                                 $estado = $reporte->estadoreporte->estado ?? 1;

@@ -37,7 +37,7 @@
                         </tr>
                         <tr>
                             <th>Fecha:</th>
-                            <td>{{ $reporte->fecha }}</td>
+                            <td>{{ \Carbon\Carbon::parse($reporte->fecha)->format('d/m/Y') }}</td>
                         </tr>
                         <tr>
                             <th>Hora:</th>
