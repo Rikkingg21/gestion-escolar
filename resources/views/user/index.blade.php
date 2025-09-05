@@ -1,79 +1,52 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid">
-    <!-- Encabezado -->
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-people-fill"></i> Administración de Usuarios
-        </h1>
+<div class="container-fluid py-4">
+        <!-- Encabezado -->
+        <div class="d-sm-flex align-items-center justify-content-between mb-4 page-header">
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="bi bi-people-fill"></i> Administración de Usuarios
+            </h1>
 
-        @can('create', App\Models\User::class)
-        <a href="{{ route('user.create') }}" class="btn btn-primary shadow-sm">
-            <i class="bi bi-plus-lg me-2"></i> Nuevo Usuario
-        </a>
-        @endcan
-    </div>
+            <a href="#" class="btn btn-primary shadow-sm">
+                <i class="bi bi-plus-lg me-2"></i> Nuevo Usuario
+            </a>
+        </div>
 
+        <!-- Tarjeta de contenido -->
+        <div class="card shadow mb-4">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <!-- Selector de estado -->
+                    <fieldset class="mb-3">
+                        <legend class="h6 mt-4">Filtrar por estado:</legend>
+                        <select class="form-select w-auto" id="estadoSelect">
+                            <option value="activos" selected>Activos</option>
+                            <option value="lectores">Lectores</option>
+                            <option value="inactivos">Inactivos</option>
+                        </select>
+                    </fieldset>
 
-    <ul class="nav nav-tabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <a class="nav-link active" data-bs-toggle="tab" href="#home" aria-selected="true" role="tab">Usuarios</a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link" data-bs-toggle="tab" href="#profile" aria-selected="false" tabindex="-1" role="tab">Directores</a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link" data-bs-toggle="tab" href="#contact" aria-selected="false" tabindex="-1" role="tab">Auxiliares</a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link" data-bs-toggle="tab" href="#contact2" aria-selected="false" tabindex="-1" role="tab">Docentes</a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link" data-bs-toggle="tab" href="#contact3" aria-selected="false" tabindex="-1" role="tab">Estudiantes</a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link" data-bs-toggle="tab" href="#contact4" aria-selected="false" tabindex="-1" role="tab">Apoderados</a>
-        </li>
-    </ul>
-    <div id="myTabContent" class="tab-content">
-        <div class="tab-pane fade show active" id="home" role="tabpanel">
-            <div class="card shadow mb-4">
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <fieldset>
-                            <legend class="mt-4">Estado</legend>
-                            <select class="form-select w-auto" id="estadoSelect">
-                                <option value="activos" selected>Activos</option>
-                                <option value="lectores">Lectores</option>
-                                <option value="inactivos">Inactivos</option>
-                            </select>
-                        </fieldset>
-                        <table class="table table-bordered table-hover" id="usersTable" width="100%" cellspacing="0">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>DNI</th>
-                                    <th>Usuario</th>
-                                    <th>Nombre Completo</th>
-                                    <th>Roles</th> <!-- Cambiado de "Rol" a "Roles" -->
-                                    <th>Estado</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-
-                            </tbody>
-                        </table>
-                        <div class="d-flex justify-content-between align-items-center">
-
-                        </div>
-                    </div>
+                    <!-- Tabla de usuarios -->
+                    <table class="table table-bordered table-hover" id="usersTable" width="100%" cellspacing="0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>DNI</th>
+                                <th>Usuario</th>
+                                <th>Nombre Completo</th>
+                                <th>Roles</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Los datos se cargarán mediante JavaScript -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
-
     </div>
-</div>
 <script>
 $(document).ready(function() {
     // Variable para almacenar la tabla
@@ -156,7 +129,6 @@ $(document).ready(function() {
                 route = '{{ route("usuarios.inactivos") }}';
                 break;
         }
-
         initDataTable(route);
     });
 });
