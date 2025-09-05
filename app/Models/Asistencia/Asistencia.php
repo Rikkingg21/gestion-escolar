@@ -40,4 +40,8 @@ class Asistencia extends Model
     {
         return $this->belongsTo(Tipoasistencia::class, 'tipo_asistencia_id');
     }
+    public function bimestre()
+    {
+        return $this->belongsTo(Bimestre::class, 'bimestre');
+    }
 }

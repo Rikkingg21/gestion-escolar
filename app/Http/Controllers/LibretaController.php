@@ -5,14 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\Nota;
 use App\Models\Maya\Bimestre;
 use App\Models\Maya\Cursogradosecnivanio;
+use App\Models\Asistencia\Asistencia;
+use App\Models\Grado;
 use App\Models\Estudiante;
 use App\Models\Materia;
 use App\Models\Docente;
 use App\Models\Materia\Materiacompetencia;
 use App\Models\Materia\Materiacriterio;
+use App\Models\Colegio;
+use App\Models\Conductanota;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class LibretaController extends Controller
 {
@@ -27,46 +33,92 @@ class LibretaController extends Controller
         });
     }
 
-    public function index(Request $request)
-{
-    $user = auth()->user();
-    $this->validarAccesoEstudiante($user);
+    public function index(Request $request, $anio, $bimestre_nombre)
+    {
+        $user = auth()->user();
+        $this->validarAccesoEstudiante($user);
 
-    $estudiante = $this->obtenerEstudiante($user);
+        $estudiante = $this->obtenerEstudiante($user);
+        $grado_id = $estudiante->grado_id;
 
-    // Define $grado_id después de obtener $estudiante
-    $grado_id = $estudiante->grado_id;
+        // Obtener bimestres y años disponibles
+        $bimestres = $this->obtenerBimestresUnicos($grado_id, $anio);
+        $anios = $this->obtenerAniosConNotas($estudiante);
 
-    $bimestre_id = $request->input('bimestre_id');
-    $anio = $request->input('anio');
+        // Obtener cursos, materias y notas
+        $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
+        $materias = $this->obtenerMateriasEstudiante($cursos);
+        $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_nombre, $anio);
+        $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
 
-    $bimestres = $this->obtenerBimestresUnicos($grado_id, $anio);
-    $anios = $this->obtenerAniosConNotas($estudiante);
+        // Detalle de competencias y criterios
+        $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio);
 
-    $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
-    $materias = $this->obtenerMateriasEstudiante($cursos);
-    $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_id, $anio);
-    $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
+        // Bimestre y colegio seleccionados
+        $bimestre_selected = $bimestre_nombre
+        ? Bimestre::where('nombre', $bimestre_nombre)
+            ->whereHas('cursoGradoSecNivAnio', function($q) use ($anio, $grado_id) {
+                $q->where('anio', $anio)->where('grado_id', $grado_id);
+            })->first()
+        : null;
+        $colegio = $this->cargarColegio();
+        $grado_selected = Grado::find($grado_id);
 
-    $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio);
-    $bimestre_selected = $bimestre_id ? Bimestre::find($bimestre_id) : null;
-    $colegio = $this->cargarColegio();
+        // --- Notas de Conducta ---
+        $conductaNotas = Conductanota::with(['conducta', 'bimestre.cursoGradoSecNivAnio'])
+            ->where('estudiante_id', $estudiante->id)
+            ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio, $grado_id) {
+                $q->where('nombre', $bimestre_nombre)
+                ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio, $grado_id) {
+                    $q2->where('anio', $anio)->where('grado_id', $grado_id);
+                });
+            })
+            ->whereIn('publico', ["1", "2"])
+            ->get();
 
-    // Si necesitas el grado seleccionado para la vista:
-    $grado_selected = \App\Models\Grado::find($grado_id);
+        // --- Asistencias ---
+        $asistencias = Asistencia::with('tipoasistencia')
+        ->where('estudiante_id', $estudiante->id)
+        ->where('grado_id', $grado_id)
+        ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio, $grado_id) {
+            $q->where('nombre', $bimestre_nombre)
+              ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio, $grado_id) {
+                  $q2->where('anio', $anio)->where('grado_id', $grado_id);
+              });
+        })
+        ->whereYear('fecha', $anio)
+        ->get();
+        $resumenAsistencias = [
+            'Puntualidad' => 0,
+            'Tardanza' => 0,
+            'Falta' => 0,
+            'Falta Justificada' => 0,
+            'Tardanza Injustificada' => 0,
+        ];
+        foreach ($asistencias as $asistencia) {
+            $tipo = strtolower($asistencia->tipoasistencia->nombre ?? '');
+            if (str_contains($tipo, 'puntual')) $resumenAsistencias['Puntualidad']++;
+            elseif (str_contains($tipo, 'tardanza injustificada')) $resumenAsistencias['Tardanza Injustificada']++;
+            elseif (str_contains($tipo, 'tardanza')) $resumenAsistencias['Tardanza']++;
+            elseif (str_contains($tipo, 'falta justificada')) $resumenAsistencias['Falta Justificada']++;
+            elseif (str_contains($tipo, 'falta')) $resumenAsistencias['Falta']++;
+        }
 
-    return view('libreta.index', [
-        'estudiante' => $estudiante,
-        'detalle' => $detalle,
-        'bimestres' => $bimestres,
-        'anios' => $anios,
-        'bimestre_id' => $bimestre_id,
-        'anio' => $anio,
-        'bimestre_selected' => $bimestre_selected,
-        'colegio' => $colegio,
-        'grado_selected' => $grado_selected,
-    ]);
-}
+        return view('libreta.index', [
+            'estudiante' => $estudiante,
+            'detalle' => $detalle,
+            'bimestres' => $bimestres,
+            'anios' => $anios,
+            'bimestre_nombre' => $bimestre_nombre,
+            'anio' => $anio,
+            'bimestre_selected' => $bimestre_selected,
+            'colegio' => $colegio,
+            'grado_selected' => $grado_selected,
+            'conductaNotas' => $conductaNotas,
+            'asistencias' => $asistencias,
+            'resumenAsistencias' => $resumenAsistencias,
+        ]);
+    }
 
     protected function validarAccesoEstudiante($user)
     {
@@ -85,24 +137,15 @@ class LibretaController extends Controller
     }
     protected function obtenerBimestresUnicos($grado_id, $anio)
     {
-        // Obtén todos los cursos del grado y año
-        $cursos = \App\Models\Maya\Cursogradosecnivanio::with('bimestres')
-            ->where('grado_id', $grado_id)
-            ->when($anio, fn($q) => $q->where('anio', $anio))
-            ->get();
-
-        // Junta todos los bimestres de todos los cursos
-        $todosBimestres = $cursos->flatMap(function($curso) {
-            return $curso->bimestres;
-        });
-
-        // Agrupa por nombre y toma el primer id de cada nombre
-        $bimestresUnicos = $todosBimestres
-            ->sortBy('nombre')
+        return Bimestre::with('cursoGradoSecNivAnio')
+            ->whereHas('cursoGradoSecNivAnio', function($q) use ($grado_id, $anio) {
+                $q->where('grado_id', $grado_id)
+                ->where('anio', $anio);
+            })
+            ->orderBy('nombre')
+            ->get()
             ->unique('nombre')
             ->values();
-
-        return $bimestresUnicos;
     }
 
     protected function obtenerBimestresConNotas($estudiante)
@@ -140,20 +183,25 @@ class LibretaController extends Controller
         return $cursos->pluck('materia')->unique('id')->filter();
     }
 
-    protected function obtenerNotasEstudiante($estudiante, $bimestre_id, $anio)
+    protected function obtenerNotasEstudiante($estudiante, $bimestre_nombre, $anio)
     {
         $notasQuery = Nota::where('estudiante_id', $estudiante->id)
-            ->where('publico', '1')
-            ->with(['criterio.materiaCompetencia', 'criterio.materia', 'bimestre']);
+            ->whereIn('publico', ["1", "2"])
+            ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio) {
+                $q->where('nombre', $bimestre_nombre)
+                ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio) {
+                    $q2->where('anio', $anio);
+                });
+            })
+            ->with([
+                'criterio.materiaCompetencia',
+                'criterio.materia',
+                'bimestre.cursoGradoSecNivAnio'
+            ]);
 
-        if ($bimestre_id) {
-            $notasQuery->where('bimestre_id', $bimestre_id);
-        }
-        if ($anio) {
-            $notasQuery->whereHas('criterio', fn($q) => $q->where('anio', $anio));
-        }
+        $notas = $notasQuery->get();
 
-        return $notasQuery->get();
+        return $notas;
     }
 
     protected function cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio)
@@ -294,7 +342,7 @@ class LibretaController extends Controller
 
     protected function cargarColegio()
     {
-        return \App\Models\Colegio::configuracion();
+        return Colegio::configuracion();
     }
 
     protected function getValorLetra($promedio)
@@ -308,5 +356,100 @@ class LibretaController extends Controller
     protected function getValorClass($valor)
     {
         return 'valor-'.strtolower($valor);
+    }
+
+    public function pdf(Request $request, $anio, $bimestre)
+    {
+        // Obtener los mismos datos que en el método index
+        $data = $this->getLibretaData($anio, $bimestre);
+
+        // Cargar la vista PDF
+        $pdf = PDF::loadView('libreta.pdf', $data);
+
+        // Configurar el PDF
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->setOption('isHtml5ParserEnabled', true);
+        $pdf->setOption('isRemoteEnabled', true);
+
+        // Descargar el PDF
+        $filename = "libreta_{$data['estudiante']->user->apellido_paterno}_{$anio}_{$data['bimestre_selected']->nombre}.pdf";
+
+        return $pdf->download($filename);
+    }
+
+    // Método auxiliar para obtener los datos (si no existe)
+    private function getLibretaData($anio, $bimestre_id)
+    {
+        $user = auth()->user();
+        $this->validarAccesoEstudiante($user);
+
+        $estudiante = $this->obtenerEstudiante($user);
+        $grado_id = $estudiante->grado_id;
+
+        // Obtener bimestres y años disponibles
+        $bimestres = $this->obtenerBimestresUnicos($grado_id, $anio);
+        $anios = $this->obtenerAniosConNotas($estudiante);
+
+        // Obtener cursos, materias y notas
+        $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
+        $materias = $this->obtenerMateriasEstudiante($cursos);
+        $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_id, $anio);
+        $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
+
+        // Detalle de competencias y criterios
+        $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio);
+
+        // Bimestre y colegio seleccionados
+        $bimestre_selected = $bimestre_id ? \App\Models\Maya\Bimestre::find($bimestre_id) : null;
+        $colegio = $this->cargarColegio();
+        $grado_selected = Grado::find($grado_id);
+
+        // --- Notas de Conducta ---
+        $conductaNotas = \App\Models\Conductanota::with(['conducta', 'bimestre.cursoGradoSecNivAnio'])
+            ->where('estudiante_id', $estudiante->id)
+            ->where('bimestre_id', $bimestre_id)
+            ->whereIn('publico', ["1", "2"])
+            ->whereHas('bimestre.cursoGradoSecNivAnio', function($q) use ($anio) {
+                $q->where('anio', $anio);
+            })
+            ->get();
+
+        // --- Asistencias ---
+        $asistencias = Asistencia::with('tipoasistencia')
+            ->where('estudiante_id', $estudiante->id)
+            ->where('grado_id', $grado_id)
+            ->where('bimestre', $bimestre_id)
+            ->whereYear('fecha', $anio)
+            ->get();
+        $resumenAsistencias = [
+            'Puntualidad' => 0,
+            'Tardanza' => 0,
+            'Falta' => 0,
+            'Falta Justificada' => 0,
+            'Tardanza Injustificada' => 0,
+        ];
+        foreach ($asistencias as $asistencia) {
+            $tipo = strtolower($asistencia->tipoasistencia->nombre ?? '');
+            if (str_contains($tipo, 'puntual')) $resumenAsistencias['Puntualidad']++;
+            elseif (str_contains($tipo, 'tardanza injustificada')) $resumenAsistencias['Tardanza Injustificada']++;
+            elseif (str_contains($tipo, 'tardanza')) $resumenAsistencias['Tardanza']++;
+            elseif (str_contains($tipo, 'falta justificada')) $resumenAsistencias['Falta Justificada']++;
+            elseif (str_contains($tipo, 'falta')) $resumenAsistencias['Falta']++;
+        }
+
+        return [
+            'estudiante' => $estudiante,
+            'detalle' => $detalle,
+            'bimestres' => $bimestres,
+            'anios' => $anios,
+            'bimestre_id' => $bimestre_id,
+            'anio' => $anio,
+            'bimestre_selected' => $bimestre_selected,
+            'colegio' => $colegio,
+            'grado_selected' => $grado_selected,
+            'conductaNotas' => $conductaNotas,
+            'asistencias' => $asistencias,
+            'resumenAsistencias' => $resumenAsistencias,
+        ];
     }
 }

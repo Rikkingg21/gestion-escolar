@@ -5,7 +5,7 @@
     <br>
     <div class="card mb-4">
         <br>
-        <form method="GET" class="mb-3 row g-2">
+        <div class="mb-3 row g-2">
             <div class="col-md-4">
                 <select name="anio" class="form-select">
                     <option value="">-- Año --</option>
@@ -15,23 +15,30 @@
                 </select>
             </div>
             <div class="col-md-6">
-                <select name="bimestre_id" class="form-select">
+                <select name="bimestre_nombre" class="form-select">
                     <option value="">-- Bimestre --</option>
                     @foreach($bimestres as $bim)
-                        <option value="{{ $bim->id }}" {{ $bimestre_id == $bim->id ? 'selected' : '' }}>
+                        <option value="{{ $bim->nombre }}" {{ $bimestre_selected && $bimestre_selected->nombre == $bim->nombre ? 'selected' : '' }}>
                             {{ $bim->nombre }}
                         </option>
                     @endforeach
                 </select>
             </div>
+            {{-- BOTÓN DE DESCARGA PDF --}}
             <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                <form action="{{ route('libreta.pdf', ['anio' => $anio, 'bimestre' => $bimestre_nombre]) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-danger w-100">
+                        <i class="fas fa-file-pdf"></i> Descargar PDF
+                    </button>
+                </form>
             </div>
-        </form>
+        </div>
     </div>
 
 
     <table class="table table-bordered mb-4" style="border-collapse: collapse;">
+
         <!-- Encabezado de informe -->
         <thead>
             <tr style="background-color: #2c3e50; color: white;">
@@ -135,7 +142,74 @@
             @endforelse
         </tbody>
     </table>
+    <div>
+        @if($conductaNotas->count())
+            <div class="card mt-4">
+                <div class="card-header bg-warning text-dark">
+                    <strong>Notas de Conducta</strong>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Conducta</th>
+                                <th>Nota</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($conductaNotas as $nota)
+                                <tr>
+                                    <td>{{ $nota->conducta->nombre ?? '-' }}</td>
+                                    <td>{{ $nota->nota }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+        @if(!empty($resumenAsistencias))
+            <div class="card mt-4">
+                <div class="card-header bg-success text-white">
+                    <strong>Resumen de Asistencias</strong>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered w-50 mx-auto">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Puntualidad</td>
+                                <td>{{ $resumenAsistencias['Puntualidad'] }}</td>
+                            </tr>
+                            <tr>
+                                <td>Tardanza</td>
+                                <td>{{ $resumenAsistencias['Tardanza'] }}</td>
+                            </tr>
+                            <tr>
+                                <td>Tardanza Injustificada</td>
+                                <td>{{ $resumenAsistencias['Tardanza Injustificada'] }}</td>
+                            </tr>
+                            <tr>
+                                <td>Falta</td>
+                                <td>{{ $resumenAsistencias['Falta'] }}</td>
+                            </tr>
+                            <tr>
+                                <td>Falta Justificada</td>
+                                <td>{{ $resumenAsistencias['Falta Justificada'] }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+    </div>
 </div>
+
 <div class="row mt-4">
         <div class="col-md-12">
             <div class="card shadow">
@@ -251,4 +325,21 @@
         color: #6c757d;
     }
 </style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const anioSelect = document.querySelector('select[name="anio"]');
+    const bimestreSelect = document.querySelector('select[name="bimestre_nombre"]'); // corregido
+
+    function actualizarRuta() {
+        const anio = anioSelect.value || '{{ $anio }}';
+        const bimestre = bimestreSelect.value || '{{ $bimestre_nombre }}';
+        if(anio && bimestre) {
+            window.location.href = `/libreta/${anio}/${bimestre}`;
+        }
+    }
+
+    anioSelect.addEventListener('change', actualizarRuta);
+    bimestreSelect.addEventListener('change', actualizarRuta);
+});
+</script>
 @endsection

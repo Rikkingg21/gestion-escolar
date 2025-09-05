@@ -216,12 +216,8 @@
                 @endif
                 @if(session('current_role') === 'estudiante')
                 <li class="nav-item">
-                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
-                        <i class="bi bi-people me-2"></i> Reportes
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('libreta.index') }}" class="nav-link text-white {{ request()->routeIs('libreta.*') ? 'active' : '' }}">
+                    <a href="{{ route('libreta.index', ['anio' => date('Y'), 'bimestre' => 1]) }}"
+                    class="nav-link text-white {{ request()->routeIs('libreta.*') ? 'active' : '' }}">
                         <i class="bi bi-people me-2"></i> Libreta
                     </a>
                 </li>

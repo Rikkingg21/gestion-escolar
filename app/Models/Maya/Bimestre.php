@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 use App\Models\Maya\Cursogradosecnivanio;
+use App\Models\Asistencia\Asistencia;
 use App\Models\Maya\Unidad;
 
 class Bimestre extends Model
@@ -26,6 +27,6 @@ class Bimestre extends Model
     }
     public function asistencias()
     {
-        return $this->hasMany(\App\Models\Asistencia\Asistencia::class, 'bimestre_id');
+        return $this->hasMany(Asistencia::class, 'bimestre_id');
     }
 }
