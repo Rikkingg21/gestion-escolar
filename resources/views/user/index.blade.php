@@ -8,7 +8,7 @@
                 <i class="bi bi-people-fill"></i> Administración de Usuarios
             </h1>
 
-            <a href="#" class="btn btn-primary shadow-sm">
+            <a href="{{ route('user.create') }}" class="btn btn-primary shadow-sm">
                 <i class="bi bi-plus-lg me-2"></i> Nuevo Usuario
             </a>
         </div>
@@ -129,6 +129,7 @@ $(document).ready(function() {
                 route = '{{ route("usuarios.inactivos") }}';
                 break;
         }
+
         initDataTable(route);
     });
 });
