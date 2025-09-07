@@ -30,8 +30,6 @@ class Estudiante extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
-
-    // Relación con Grado (asumiendo que existe el modelo Grado)
     public function grado()
     {
         return $this->belongsTo(Grado::class);

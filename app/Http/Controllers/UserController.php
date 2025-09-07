@@ -17,6 +17,8 @@ use App\Models\Director;
 use App\Models\Grado;
 use App\Models\Materia;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 
 class UserController extends Controller
@@ -376,4 +378,208 @@ class UserController extends Controller
 
         return redirect()->route('user.index')->with('success', 'Usuario actualizado exitosamente.');
     }
+    public function importar()
+    {
+        return view('user.importar');
+    }
+    public function importarApoderados(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls'
+        ]);
+
+        $spreadsheet = IOFactory::load($request->file('file'));
+        $sheet = $spreadsheet->getActiveSheet();
+        $rows = $sheet->toArray();
+
+        $exitosos = 0;
+        $errores = [];
+
+        // Saltar la primera fila (encabezados)
+        for ($i = 1; $i < count($rows); $i++) {
+            $row = $rows[$i];
+
+            try {
+                // Validar que todos los campos necesarios estén presentes
+                if (empty($row[0]) || empty($row[1]) || empty($row[2]) || empty($row[3]) || empty($row[5])) {
+                    $errores[] = "Fila $i: Faltan campos obligatorios";
+                    continue;
+                }
+
+                // Verificar si el usuario ya existe
+                if (User::where('dni', $row[0])->exists()) {
+                    $errores[] = "Fila $i: El DNI {$row[0]} ya existe";
+                    continue;
+                }
+
+                // Crear el usuario apoderado
+                $user = User::create([
+                    'dni' => $row[0],
+                    'nombre_usuario' => $row[0],
+                    'nombre' => mb_strtoupper($row[3], 'UTF-8'),
+                    'apellido_paterno' => mb_strtoupper($row[1], 'UTF-8'),
+                    'apellido_materno' => mb_strtoupper($row[2], 'UTF-8'),
+                    'email' => $row[0] . '@ietere.com',
+                    'password' => Hash::make($row[0]),
+                    'telefono' => $row[4] ?? null,
+                    'estado' => '1',
+                ]);
+
+                // Asignar rol de apoderado (ID 5)
+                $user->roles()->attach(5);
+
+                // Crear registro de apoderado
+                Apoderado::create([
+                    'user_id' => $user->id,
+                    'parentesco' => $row[5],
+                    'estado' => '1',
+                ]);
+
+                $exitosos++;
+            } catch (\Exception $e) {
+                $errores[] = "Fila $i: " . $e->getMessage();
+            }
+        }
+
+        return response()->json([
+            'exitosos' => $exitosos,
+            'errores' => $errores
+        ]);
+    }
+
+public function importarEstudiantes(Request $request)
+{
+    $request->validate([
+        'file' => 'required|mimes:xlsx,xls'
+    ]);
+
+    $spreadsheet = IOFactory::load($request->file('file'));
+    $sheet = $spreadsheet->getActiveSheet();
+    $rows = $sheet->toArray();
+
+    $exitosos = 0;
+    $errores = [];
+
+    // Saltar la primera fila (encabezados)
+    for ($i = 1; $i < count($rows); $i++) {
+        $row = $rows[$i];
+
+        // Saltar filas vacías
+        if (empty(array_filter($row))) {
+            continue;
+        }
+
+        try {
+            // Validar campos obligatorios
+            $camposObligatorios = [
+                'DNI del estudiante' => $row[0] ?? null,
+                'Apellido paterno' => $row[1] ?? null,
+                'Nombres' => $row[3] ?? null,
+                'DNI Apoderado' => $row[5] ?? null,
+                'Grado' => $row[6] ?? null,
+                'Seccion' => $row[7] ?? null,
+                'Nivel' => $row[8] ?? null
+            ];
+
+            $camposFaltantes = [];
+            foreach ($camposObligatorios as $campo => $valor) {
+                if (empty($valor)) {
+                    $camposFaltantes[] = $campo;
+                }
+            }
+
+            if (!empty($camposFaltantes)) {
+                $errores[] = "Fila " . ($i + 1) . ": Faltan campos obligatorios: " . implode(', ', $camposFaltantes);
+                continue;
+            }
+
+            // Verificar si el usuario ya existe
+            if (User::where('dni', $row[0])->exists()) {
+                $errores[] = "Fila " . ($i + 1) . ": El DNI {$row[0]} ya existe";
+                continue;
+            }
+
+            // Buscar el grado por grado, sección y nivel (todo en mayúsculas)
+            $grado = Grado::where('grado', mb_strtoupper($row[6], 'UTF-8'))
+                        ->where('seccion', mb_strtoupper($row[7], 'UTF-8'))
+                        ->where('nivel', mb_strtoupper($row[8], 'UTF-8'))
+                        ->first();
+
+            if (!$grado) {
+                $errores[] = "Fila " . ($i + 1) . ": No se encontró el grado " .
+                             mb_strtoupper($row[6], 'UTF-8') . " - sección " .
+                             mb_strtoupper($row[7], 'UTF-8') . " - nivel " .
+                             mb_strtoupper($row[8], 'UTF-8');
+                continue;
+            }
+
+            // Buscar al apoderado por DNI
+            $apoderadoUser = User::where('dni', $row[5])->first();
+            if (!$apoderadoUser) {
+                $errores[] = "Fila " . ($i + 1) . ": No se encontró al apoderado con DNI {$row[5]}";
+                continue;
+            }
+
+            $apoderado = Apoderado::where('user_id', $apoderadoUser->id)->first();
+            if (!$apoderado) {
+                $errores[] = "Fila " . ($i + 1) . ": El usuario con DNI {$row[5]} no es un apoderado";
+                continue;
+            }
+
+            // Crear el usuario estudiante (todo en mayúsculas)
+            $user = User::create([
+                'dni' => $row[0],
+                'nombre_usuario' => $row[0],
+                'nombre' => mb_strtoupper($row[3], 'UTF-8'),
+                'apellido_paterno' => mb_strtoupper($row[1], 'UTF-8'),
+                'apellido_materno' => !empty($row[2]) ? mb_strtoupper($row[2], 'UTF-8') : null,
+                'email' => $row[0] . '@ietere.com',
+                'password' => Hash::make($row[0]),
+                'estado' => '1',
+            ]);
+
+            // Asignar rol de estudiante (ID 6)
+            $user->roles()->attach(6);
+
+            // Convertir fecha de nacimiento
+            $fechaNacimiento = null;
+            if (!empty($row[4])) {
+                try {
+                    $fechaNacimiento = \Carbon\Carbon::createFromFormat('d/m/Y', $row[4])->format('Y-m-d');
+                } catch (\Exception $e) {
+                    try {
+                        $fechaNacimiento = \Carbon\Carbon::parse($row[4])->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        $errores[] = "Fila " . ($i + 1) . ": Formato de fecha inválido: {$row[4]}";
+                        $fechaNacimiento = null;
+                    }
+                }
+            }
+
+            // Crear registro de estudiante
+            Estudiante::create([
+                'user_id' => $user->id,
+                'grado_id' => $grado->id,
+                'apoderado_id' => $apoderado->id,
+                'fecha_nacimiento' => $fechaNacimiento,
+                'parentesco' => 'Hijo(a)',
+                'estado' => '1',
+            ]);
+
+            $exitosos++;
+        } catch (\Exception $e) {
+            $errores[] = "Fila " . ($i + 1) . ": " . $e->getMessage();
+
+            // Eliminar usuario si se creó pero falló algo después
+            if (isset($user)) {
+                $user->delete();
+            }
+        }
+    }
+
+    return response()->json([
+        'exitosos' => $exitosos,
+        'errores' => $errores
+    ]);
+}
 }

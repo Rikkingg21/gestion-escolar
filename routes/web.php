@@ -139,6 +139,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/user', [UserController::class, 'index'])->name('user.index');
         Route::get('/user/create', [UserController::class, 'create'])->name('user.create');
+
         Route::post('/user', [UserController::class, 'store'])->name('user.store');
         Route::get('/user/{user}/edit', [UserController::class, 'edit'])->name('user.edit');
         Route::put('/user/{user}', [UserController::class, 'update'])->name('user.update');
@@ -150,6 +151,11 @@ Route::middleware('auth')->group(function () {
         Route::delete('/usuarios/{user}', [UserController::class, 'destroy'])->name('usuarios.destroy');
 
         Route::get('/apoderados/search', [ApoderadoController::class, 'search'])->name('apoderados.search');
+
+        Route::get('/user/importar', [UserController::class, 'importar'])->name('user.importar');
+        Route::post('/importar/apoderados', [UserController::class, 'importarApoderados'])->name('importar.apoderados');
+        Route::post('/importar/estudiantes', [UserController::class, 'importarEstudiantes'])->name('importar.estudiantes');
+
 
         Route::get('/grado', [GradoController::class, 'index'])->name('grado.index');
 
