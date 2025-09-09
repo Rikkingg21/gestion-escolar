@@ -11,6 +11,9 @@
             <a href="{{ route('user.create') }}" class="btn btn-primary shadow-sm">
                 <i class="bi bi-plus-lg me-2"></i> Nuevo Usuario
             </a>
+            <a href="{{ route('user.importar') }}" class="btn btn-primary shadow-sm">
+                <i class="bi bi-plus-lg me-2"></i> Importar Usuarios
+            </a>
         </div>
 
         <!-- Tarjeta de contenido -->

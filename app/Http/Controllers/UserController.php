@@ -232,7 +232,6 @@ class UserController extends Controller
         return redirect()->route('user.index')->with('success', 'Usuario creado exitosamente.');
     }
 
-
     public function edit(User $user)
     {
         $roles = Role::all();

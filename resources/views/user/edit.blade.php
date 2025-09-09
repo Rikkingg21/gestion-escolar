@@ -180,52 +180,54 @@
                                 </div>
                             </div>
                             <div class="mb-3">
-                                <h5 class="mb-3"><i class="bi bi-people-fill me-2"></i>Apoderado</h5>
+    <h5 class="mb-3"><i class="bi bi-people-fill me-2"></i>Apoderado</h5>
 
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" id="sin_apoderado" name="sin_apoderado" {{ old('sin_apoderado') ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="sin_apoderado">
-                                        El estudiante no tiene apoderado
-                                    </label>
-                                </div>
+    <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="sin_apoderado" name="sin_apoderado"
+            {{ old('sin_apoderado', $user->estudiante->apoderado_id ? false : true) ? 'checked' : '' }}>
+        <label class="form-check-label" for="sin_apoderado">
+            El estudiante no tiene apoderado
+        </label>
+    </div>
 
-                                <div id="apoderadoContainer" class="{{ old('sin_apoderado') ? 'd-none' : '' }}">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Buscar Apoderado</label>
-                                            <select class="form-select select2-apoderado @error('apoderado_id') is-invalid @enderror" id="apoderado_id" name="apoderado_id">
-                                                <option value=""></option>
-                                                @if(old('apoderado_id'))
-                                                    @php
-                                                        $apoderado = \App\Models\Apoderado::with('user')->find(old('apoderado_id'));
-                                                    @endphp
-                                                    @if($apoderado)
-                                                        <option value="{{ $apoderado->id }}" selected>
-                                                            {{ $apoderado->user->nombre }} {{ $apoderado->user->apellido_paterno }} (DNI: {{ $apoderado->user->dni }})
-                                                        </option>
-                                                    @endif
-                                                @endif
-                                            </select>
-                                            @error('apoderado_id')
-                                                <div class="invalid-feedback">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Parentesco</label>
-                                            <select name="parentesco" class="form-select @error('parentesco') is-invalid @enderror">
-                                                <option value="padre" {{ old('parentesco') == 'padre' ? 'selected' : '' }}>Padre</option>
-                                                <option value="madre" {{ old('parentesco') == 'madre' ? 'selected' : '' }}>Madre</option>
-                                                <option value="tutor" {{ old('parentesco') == 'tutor' ? 'selected' : '' }}>Tutor</option>
-                                                <option value="otro" {{ old('parentesco') == 'otro' ? 'selected' : '' }}>Otro</option>
-                                            </select>
-                                            @error('parentesco')
-                                                <div class="invalid-feedback">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </div>
+    <div id="apoderadoContainer" class="{{ old('sin_apoderado', $user->estudiante->apoderado_id ? false : true) ? 'd-none' : '' }}">
+        <div class="row">
+            <div class="col-md-6">
+                <label class="form-label">Buscar Apoderado</label>
+                <select class="form-select select2-apoderado @error('apoderado_id') is-invalid @enderror"
+                    id="apoderado_id" name="apoderado_id">
+                    <option value=""></option>
+                    @if(old('apoderado_id', $user->estudiante->apoderado_id))
+                        @php
+                            $apoderado = \App\Models\Apoderado::with('user')
+                                ->find(old('apoderado_id', $user->estudiante->apoderado_id));
+                        @endphp
+                        @if($apoderado)
+                            <option value="{{ $apoderado->id }}" selected>
+                                {{ $apoderado->user->nombre }} {{ $apoderado->user->apellido_paterno }} (DNI: {{ $apoderado->user->dni }})
+                            </option>
+                        @endif
+                    @endif
+                </select>
+                @error('apoderado_id')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Parentesco</label>
+                <select name="parentesco" class="form-select @error('parentesco') is-invalid @enderror">
+                    <option value="padre" {{ old('parentesco', $user->estudiante->parentesco ?? '') == 'padre' ? 'selected' : '' }}>Padre</option>
+                    <option value="madre" {{ old('parentesco', $user->estudiante->parentesco ?? '') == 'madre' ? 'selected' : '' }}>Madre</option>
+                    <option value="tutor" {{ old('parentesco', $user->estudiante->parentesco ?? '') == 'tutor' ? 'selected' : '' }}>Tutor</option>
+                    <option value="otro" {{ old('parentesco', $user->estudiante->parentesco ?? '') == 'otro' ? 'selected' : '' }}>Otro</option>
+                </select>
+                @error('parentesco')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+        </div>
+    </div>
+</div>
                         </div>
                         @endif
 
@@ -367,17 +369,9 @@
     });
 </script>
 <script>
-    // Mostrar/ocultar campos de apoderado según checkbox
-    document.getElementById('sin_apoderado').addEventListener('change', function() {
-        const apoderadoContainer = document.getElementById('apoderadoContainer');
-        if (this.checked) {
-            apoderadoContainer.classList.add('d-none');
-            document.getElementById('apoderado_id').value = '';
-        } else {
-            apoderadoContainer.classList.remove('d-none');
-        }
-    });
     $(document).ready(function() {
+    // Inicializar Select2 para apoderados
+    function initializeSelect2() {
         $('.select2-apoderado').select2({
             placeholder: "Buscar apoderado...",
             minimumInputLength: 3,
@@ -405,7 +399,22 @@
             templateResult: formatApoderado,
             templateSelection: formatApoderadoSelection
         });
+    }
+
+    // Inicializar Select2 cuando la página cargue
+    initializeSelect2();
+
+    // Mostrar/ocultar campos de apoderado según checkbox
+    $('#sin_apoderado').change(function() {
+        if (this.checked) {
+            $('#apoderadoContainer').addClass('d-none');
+            $('#apoderado_id').val('').trigger('change');
+        } else {
+            $('#apoderadoContainer').removeClass('d-none');
+        }
     });
+
+
 
     function formatApoderado(apoderado) {
         if (apoderado.loading) return apoderado.text;
