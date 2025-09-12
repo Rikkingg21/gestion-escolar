@@ -77,16 +77,18 @@ class LibretaController extends Controller
         $grado_selected = Grado::find($grado_id);
 
         // --- Notas de Conducta ---
-        $conductaNotas = Conductanota::with(['conducta', 'bimestre.cursoGradoSecNivAnio'])
-            ->where('estudiante_id', $estudiante->id)
-            ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio, $grado_id) {
-                $q->where('nombre', $bimestre_nombre)
-                ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio, $grado_id) {
-                    $q2->where('anio', $anio)->where('grado_id', $grado_id);
-                });
-            })
-            ->whereIn('publico', ["1", "2"])
-            ->get();
+        $conductaNotas = Conductanota::selectRaw('conducta_id, AVG(nota) as promedio')
+        ->where('estudiante_id', $estudiante->id)
+        ->whereIn('publico', [1, 2])
+        ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio, $grado_id) {
+            $q->where('nombre', $bimestre_nombre)
+            ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio, $grado_id) {
+                $q2->where('anio', $anio)->where('grado_id', $grado_id);
+            });
+        })
+        ->groupBy('conducta_id')
+        ->with('conducta') // para que traiga el nombre de la conducta
+        ->get();
 
         // --- Asistencias ---
         $asistencias = Asistencia::with('tipoasistencia')

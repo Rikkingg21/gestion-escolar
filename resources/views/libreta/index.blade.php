@@ -160,7 +160,7 @@
                             @foreach($conductaNotas as $nota)
                                 <tr>
                                     <td>{{ $nota->conducta->nombre ?? '-' }}</td>
-                                    <td>{{ $nota->nota }}</td>
+                                    <td>{{ number_format($nota->promedio, 1) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
