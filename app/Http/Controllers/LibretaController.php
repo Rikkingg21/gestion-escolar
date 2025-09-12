@@ -47,11 +47,23 @@ class LibretaController extends Controller
 
         // Obtener cursos, materias y notas
         $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
-        $materias = $this->obtenerMateriasEstudiante($cursos);
+        //$materias = $this->obtenerMateriasEstudiante($cursos);
         $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_nombre, $anio);
         $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
 
-        // Detalle de competencias y criterios
+        $materiaIdsConNotas = $notas
+            ->map(fn($n) => optional($n->criterio->materia)->id)
+            ->filter()
+            ->unique()
+            ->values();
+        if ($materiaIdsConNotas->isNotEmpty()) {
+            $materias = $this->obtenerMateriasEstudiante($cursos)
+                        ->filter(fn($m) => $materiaIdsConNotas->contains($m->id))
+                        ->values();
+        } else {
+            // Si no hay notas, devolvemos una colección vacía para evitar mostrar todas las materias del grado
+            $materias = collect();
+        }
         $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio);
 
         // Bimestre y colegio seleccionados
