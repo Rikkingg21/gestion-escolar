@@ -38,5 +38,4 @@ class Materiacriterio extends Model
     {
         return $this->belongsTo(Grado::class, 'grado_id');
     }
-
 }

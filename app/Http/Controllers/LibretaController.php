@@ -68,13 +68,17 @@ class LibretaController extends Controller
 
         // Bimestre y colegio seleccionados
         $bimestre_selected = $bimestre_nombre
-        ? Bimestre::where('nombre', $bimestre_nombre)
-            ->whereHas('cursoGradoSecNivAnio', function($q) use ($anio, $grado_id) {
-                $q->where('anio', $anio)->where('grado_id', $grado_id);
-            })->first()
-        : null;
+            ? Bimestre::where('nombre', $bimestre_nombre)
+                ->whereHas('cursoGradoSecNivAnio', function($q) use ($anio, $grado_id) {
+                    $q->where('anio', $anio)->where('grado_id', $grado_id);
+                })
+                ->with('cursoGradoSecNivAnio.grado')
+                ->first()
+            : null;
         $colegio = $this->cargarColegio();
-        $grado_selected = Grado::find($grado_id);
+        $grado_selected = $bimestre_selected?->cursoGradoSecNivAnio->grado;
+        $nivel_selected = $grado_selected?->nivel;
+        $seccion_selected = $grado_selected?->seccion;
 
         // --- Notas de Conducta ---
         $conductaNotas = Conductanota::selectRaw('conducta_id, AVG(nota) as promedio')
@@ -117,7 +121,7 @@ class LibretaController extends Controller
             elseif (str_contains($tipo, 'falta justificada')) $resumenAsistencias['Falta Justificada']++;
             elseif (str_contains($tipo, 'falta')) $resumenAsistencias['Falta']++;
         }
-
+        //dd($anios);
         return view('libreta.index', [
             'estudiante' => $estudiante,
             'detalle' => $detalle,
@@ -126,6 +130,8 @@ class LibretaController extends Controller
             'bimestre_nombre' => $bimestre_nombre,
             'anio' => $anio,
             'bimestre_selected' => $bimestre_selected,
+            'nivel_selected' => $nivel_selected,
+            'seccion_selected' => $seccion_selected,
             'colegio' => $colegio,
             'grado_selected' => $grado_selected,
             'conductaNotas' => $conductaNotas,
@@ -175,13 +181,17 @@ class LibretaController extends Controller
 
     protected function obtenerAniosConNotas($estudiante)
     {
-        return Nota::where('estudiante_id', $estudiante->id)
-            ->where('publico', '1')
-            ->with('criterio')
-            ->get()
-            ->pluck('criterio.anio')
+        $notas = Nota::where('estudiante_id', $estudiante->id)
+            ->whereIn('publico', ['1', '2'])
+            ->with('bimestre.cursoGradoSecNivAnio')
+            ->get();
+
+        return $notas
+            ->map(fn($nota) => $nota->bimestre?->cursoGradoSecNivAnio?->anio)
+            ->filter()
             ->unique()
-            ->filter();
+            ->sortDesc()
+            ->values();
     }
 
     protected function obtenerCursosEstudiante($grado_id, $anio)

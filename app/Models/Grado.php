@@ -45,6 +45,6 @@ class Grado extends Model
     }
     public function getGradoSeccionAttribute()
     {
-        return $this->grado . $this->seccion; // Ej: "1a"
+        return $this->grado . $this->seccion;
     }
 }

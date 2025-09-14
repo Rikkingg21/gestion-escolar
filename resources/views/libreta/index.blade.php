@@ -1,42 +1,51 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container">
-    <br>
-    <div class="card mb-4">
-        <br>
-        <div class="mb-3 row g-2">
-            <div class="col-md-4">
-                <select name="anio" class="form-select">
-                    <option value="">-- Año --</option>
-                    @foreach($anios as $a)
-                        <option value="{{ $a }}" {{ $anio == $a ? 'selected' : '' }}>{{ $a }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-6">
-                <select name="bimestre_nombre" class="form-select">
-                    <option value="">-- Bimestre --</option>
-                    @foreach($bimestres as $bim)
-                        <option value="{{ $bim->nombre }}" {{ $bimestre_selected && $bimestre_selected->nombre == $bim->nombre ? 'selected' : '' }}>
-                            {{ $bim->nombre }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            {{-- BOTÓN DE DESCARGA PDF --}}
-            <div class="col-md-2">
-                <form action="{{ route('libreta.pdf', ['anio' => $anio, 'bimestre' => $bimestre_nombre]) }}" method="POST">
-                    @csrf
-                    <button type="submit" class="btn btn-danger w-100">
-                        <i class="fas fa-file-pdf"></i> Descargar PDF
-                    </button>
-                </form>
-            </div>
+<div class="container mt-4">
+    <div class="card border-1 rounded-3">
+        <div class="card-header bg-primary text-white d-flex align-items-center">
+            <i class="fas fa-book-open me-2"></i> <strong>Generar Libreta</strong>
         </div>
-    </div>
+        <div class="card-body">
+            <form action="{{ route('libreta.pdf', ['anio' => $anio, 'bimestre' => $bimestre_nombre]) }}" method="POST">
+                @csrf
+                <div class="row g-3 align-items-end">
+                    <!-- Año -->
+                    <div class="col-md-4">
+                        <label for="anio" class="form-label fw-semibold">Año</label>
+                        <select name="anio" id="anio" class="form-select">
+                            <option value="">-- Seleccione Año --</option>
+                            @foreach($anios as $a)
+                                <option value="{{ $a }}" {{ $anio == $a ? 'selected' : '' }}>
+                                    {{ $a }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
 
+                    <!-- Bimestre -->
+                    <div class="col-md-4">
+                        <label for="bimestre_nombre" class="form-label fw-semibold">Bimestre</label>
+                        <select name="bimestre_nombre" id="bimestre_nombre" class="form-select">
+                            <option value="">-- Seleccione Bimestre --</option>
+                            @foreach($bimestres as $bim)
+                                <option value="{{ $bim->nombre }}" {{ $bimestre_selected && $bimestre_selected->nombre == $bim->nombre ? 'selected' : '' }}>
+                                    {{ $bim->nombre }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
 
+                    <!-- Botón PDF -->
+                    <div class="col-md-4 text-end">
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="fas fa-file-pdf me-2"></i> Descargar PDF
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div><br>
     <table class="table table-bordered mb-4" style="border-collapse: collapse;">
 
         <!-- Encabezado de informe -->
@@ -63,7 +72,7 @@
             </tr>
             <tr style="background-color: #f8f9fa;">
                 <td style="font-weight: bold;">Nivel:</td>
-                <td colspan="3">Secundaria</td>
+                <td colspan="3">{{ $nivel_selected ?? '-' }}</td>
             </tr>
             <tr style="background-color: #f8f9fa;">
                 <td style="font-weight: bold;">II.EE:</td>
@@ -71,11 +80,11 @@
             </tr>
             <tr style="background-color: #f8f9fa;">
                 <td style="font-weight: bold;">Grado:</td>
-                <td colspan="3">{{ $grado_selected->nombre ?? '1' }}</td>
+                <td colspan="3">{{ $grado_selected?->grado ?? '-' }}</td>
             </tr>
             <tr style="background-color: #f8f9fa;">
                 <td style="font-weight: bold;">Sección:</td>
-                <td colspan="3">{{ $estudiante->seccion ?? 'A' }}</td>
+                <td colspan="3">{{ $seccion_selected ?? '-' }}</td>
             </tr>
             <tr style="background-color: #f8f9fa;">
                 <td style="font-weight: bold;">Estudiante:</td>
