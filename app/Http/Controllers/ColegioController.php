@@ -24,6 +24,7 @@ class ColegioController extends Controller
         if (!Auth::user()->hasRole('admin')) {
             abort(403, 'Acceso denegado');
         }
+        //dd($request->all());
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
             'direccion' => 'required|string',
@@ -31,20 +32,22 @@ class ColegioController extends Controller
             'email' => 'nullable|email|max:100',
             'ruc' => 'nullable|string|size:11',
             'director_actual' => 'nullable|string|max:255',
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg|max:5000'
         ]);
 
         $colegio = Colegio::configuracion();
 
         // Manejo del logo
         if ($request->hasFile('logo')) {
-            // Eliminar logo anterior si existe
-            if ($colegio->logo_path) {
-                Storage::delete(str_replace('storage/', 'public/', $colegio->logo_path));
+            $file = $request->file('logo');
+            $rutaImagen = $file->store('logo', ['disk' => 'public']);
+
+            // Solo eliminar si ya existe un logo
+            if ($colegio->logo_path && Storage::disk('public')->exists($colegio->logo_path)) {
+                Storage::disk('public')->delete($colegio->logo_path);
             }
 
-            $path = $request->file('logo')->store('public/logos');
-            $validated['logo_path'] = str_replace('public/', 'storage/', $path);
+            $colegio->logo_path = $rutaImagen;
         }
 
         // Actualizar datos

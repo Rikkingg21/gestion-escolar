@@ -30,7 +30,9 @@
         <tr>
             <td rowspan="6" style="width: 100px; background: #e9ecef;">
                 <div style="width: 80px; height: 100px; background: #e9ecef; margin: 0 auto; border: 1px dashed #adb5bd; display: flex; align-items: center; justify-content: center;">
-                    <span style="color: #6c757d;">Imagen</span>
+                    <img src="{{ public_path('storage/' . $colegio->logo_path) }}"
+     alt="Logo del colegio"
+     style="max-height: 100px; max-width: 200px;">
                 </div>
             </td>
             <td style="font-weight: bold;">UGEL:</td>

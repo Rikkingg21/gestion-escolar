@@ -94,8 +94,8 @@
                         @if($colegio->logo_path)
                             <div class="mt-3">
                                 <p>Logo actual:</p>
-                                <img src="{{ asset($colegio->logo_path) }}" alt="Logo del colegio"
-                                     style="max-height: 100px; max-width: 200px;" class="img-thumbnail">
+                                <img src="{{ Storage::url($colegio->logo_path) }}" alt="Logo del colegio"
+                                    style="max-height: 100px; max-width: 200px;" class="img-thumbnail">
                                 <div class="form-check mt-2">
                                     <input class="form-check-input" type="checkbox"
                                            id="eliminar_logo" name="eliminar_logo">

@@ -65,7 +65,9 @@
                     <td rowspan="6" style="width: 120px; text-align: center; vertical-align: middle;">
                         <div style="width: 100px; height: 120px; background-color: #e9ecef; margin: 0 auto;
                                     display: flex; align-items: center; justify-content: center; border: 1px dashed #adb5bd;">
-                            <span style="color: #6c757d;">Imagen</span>
+                            <span style="color: #6c757d;">
+                                <img src="{{ Storage::url($colegio->logo_path) }}" alt="Logo del colegio" style="max-height: 100px; max-width: 200px;" class="img-thumbnail">
+                            </span>
                         </div>
                     </td>
                     <td style="width: 120px; font-weight: bold;">UGEL:</td>
