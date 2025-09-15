@@ -402,7 +402,7 @@ class LibretaController extends Controller
     }
 
     // Método auxiliar para obtener los datos (si no existe)
-    private function getLibretaData($anio, $bimestre_id)
+    private function getLibretaData($anio, $bimestre_nombre)
     {
         $user = auth()->user();
         $this->validarAccesoEstudiante($user);
@@ -416,35 +416,67 @@ class LibretaController extends Controller
 
         // Obtener cursos, materias y notas
         $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
-        $materias = $this->obtenerMateriasEstudiante($cursos);
-        $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_id, $anio);
+        $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_nombre, $anio);
         $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
 
-        // Detalle de competencias y criterios
+        $materiaIdsConNotas = $notas
+            ->map(fn($n) => optional($n->criterio->materia)->id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($materiaIdsConNotas->isNotEmpty()) {
+            $materias = $this->obtenerMateriasEstudiante($cursos)
+                ->filter(fn($m) => $materiaIdsConNotas->contains($m->id))
+                ->values();
+        } else {
+            $materias = collect();
+        }
+
         $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio);
 
-        // Bimestre y colegio seleccionados
-        $bimestre_selected = $bimestre_id ? \App\Models\Maya\Bimestre::find($bimestre_id) : null;
+        // Bimestre seleccionado
+        $bimestre_selected = $bimestre_nombre
+            ? Bimestre::where('nombre', $bimestre_nombre)
+                ->whereHas('cursoGradoSecNivAnio', function($q) use ($anio, $grado_id) {
+                    $q->where('anio', $anio)->where('grado_id', $grado_id);
+                })
+                ->with('cursoGradoSecNivAnio.grado')
+                ->first()
+            : null;
+
         $colegio = $this->cargarColegio();
-        $grado_selected = Grado::find($grado_id);
+        $grado_selected = $bimestre_selected?->cursoGradoSecNivAnio->grado;
+        $nivel_selected = $grado_selected?->nivel;
+        $seccion_selected = $grado_selected?->seccion;
 
         // --- Notas de Conducta ---
-        $conductaNotas = \App\Models\Conductanota::with(['conducta', 'bimestre.cursoGradoSecNivAnio'])
+        $conductaNotas = Conductanota::selectRaw('conducta_id, AVG(nota) as promedio')
             ->where('estudiante_id', $estudiante->id)
-            ->where('bimestre_id', $bimestre_id)
-            ->whereIn('publico', ["1", "2"])
-            ->whereHas('bimestre.cursoGradoSecNivAnio', function($q) use ($anio) {
-                $q->where('anio', $anio);
+            ->whereIn('publico', [1, 2])
+            ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio, $grado_id) {
+                $q->where('nombre', $bimestre_nombre)
+                ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio, $grado_id) {
+                    $q2->where('anio', $anio)->where('grado_id', $grado_id);
+                });
             })
+            ->groupBy('conducta_id')
+            ->with('conducta')
             ->get();
 
         // --- Asistencias ---
         $asistencias = Asistencia::with('tipoasistencia')
             ->where('estudiante_id', $estudiante->id)
             ->where('grado_id', $grado_id)
-            ->where('bimestre', $bimestre_id)
+            ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio, $grado_id) {
+                $q->where('nombre', $bimestre_nombre)
+                ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio, $grado_id) {
+                    $q2->where('anio', $anio)->where('grado_id', $grado_id);
+                });
+            })
             ->whereYear('fecha', $anio)
             ->get();
+
         $resumenAsistencias = [
             'Puntualidad' => 0,
             'Tardanza' => 0,
@@ -452,6 +484,7 @@ class LibretaController extends Controller
             'Falta Justificada' => 0,
             'Tardanza Injustificada' => 0,
         ];
+
         foreach ($asistencias as $asistencia) {
             $tipo = strtolower($asistencia->tipoasistencia->nombre ?? '');
             if (str_contains($tipo, 'puntual')) $resumenAsistencias['Puntualidad']++;
@@ -466,9 +499,11 @@ class LibretaController extends Controller
             'detalle' => $detalle,
             'bimestres' => $bimestres,
             'anios' => $anios,
-            'bimestre_id' => $bimestre_id,
+            'bimestre_nombre' => $bimestre_nombre,
             'anio' => $anio,
             'bimestre_selected' => $bimestre_selected,
+            'nivel_selected' => $nivel_selected,
+            'seccion_selected' => $seccion_selected,
             'colegio' => $colegio,
             'grado_selected' => $grado_selected,
             'conductaNotas' => $conductaNotas,
