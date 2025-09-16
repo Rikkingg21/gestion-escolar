@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Apoderado;
+use App\Models\Estudiante;
 use App\Models\User;
 
 class SessionSelectionController extends Controller
@@ -30,12 +32,30 @@ class SessionSelectionController extends Controller
                     $q->where('nombre', 'admin');
                 })
                 ->with('roles')->get();
-        } elseif ($user->hasRole('docente') || $user->hasRole('auxiliar') || $user->hasRole('estudiante') || $user->hasRole('apoderado')) {
-            // Docentes, auxiliares, estudiantes, apoderados solo se ven a sí mismos.
-            // La visibilidad de su propio estado (activo/inactivo/lector) se manejará en la vista.
+        } elseif ($user->hasRole('apoderado')) {
+            // Apoderado: obtener todos los estudiantes asociados a este apoderado
+            $apoderado = Apoderado::where('user_id', $user->id)->first();
+
+            if ($apoderado) {
+                // Obtener todos los estudiantes asociados a este apoderado
+                $estudiantes = Estudiante::where('apoderado_id', $apoderado->id)
+                    ->with('user.roles')
+                    ->get();
+
+                // Extraer los usuarios de los estudiantes
+                $usuarios = $estudiantes->map(function ($estudiante) {
+                    return $estudiante->user;
+                });
+
+                // También agregar al propio apoderado a la lista
+                $usuarios->prepend($user->load('roles'));
+            } else {
+                // Si no se encuentra el apoderado, solo mostrar el usuario actual
+                $usuarios = collect([$user->load('roles')]);
+            }
+        } elseif ($user->hasRole('docente') || $user->hasRole('auxiliar') || $user->hasRole('estudiante')) {
+            // Docentes, auxiliares, estudiantes solo se ven a sí mismos
             $usuarios = collect([$user->load('roles')]);
-            // Para apoderado, si necesitas agregar estudiantes relacionados, la lógica iría aquí.
-            // Ejemplo: $usuarios = $usuarios->merge($user->relatedStudents()->with('roles')->get());
         } else {
             // Para cualquier otro rol, solo se ve a sí mismo
             $usuarios = collect([$user->load('roles')]);
