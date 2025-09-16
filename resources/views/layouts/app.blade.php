@@ -171,6 +171,11 @@
 
                 @if(session('current_role') === 'auxiliar')
                 <li class="nav-item">
+                    <a href="{{ route('auxiliar.dashboard') }}" class="nav-link text-white {{ request()->routeIs('auxiliar.*') ? 'active' : '' }}">
+                        <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
                         <i class="bi bi-megaphone me-2"></i> <span>Reportes</span>
                     </a>
@@ -183,12 +188,22 @@
                 @endif
                 @if(session('current_role') === 'apoderado')
                 <li class="nav-item">
+                    <a href="{{ route('apoderado.dashboard') }}" class="nav-link text-white {{ request()->routeIs('apoderado.*') ? 'active' : '' }}">
+                        <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
                         <i class="bi bi-megaphone me-2"></i> <span>Reportes</span>
                     </a>
                 </li>
                 @endif
                 @if(session('current_role') === 'estudiante')
+                <li class="nav-item">
+                    <a href="{{ route('estudiante.dashboard') }}" class="nav-link text-white {{ request()->routeIs('estudiante.*') ? 'active' : '' }}">
+                        <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                    </a>
+                </li>
                 <li class="nav-item">
                     <a href="{{ route('libreta.index', ['anio' => date('Y'), 'bimestre' => 1]) }}"
                     class="nav-link text-white {{ request()->routeIs('libreta.*') ? 'active' : '' }}">
@@ -277,6 +292,10 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/i18n/es.js"></script>
 <script src="https://cdn.datatables.net/2.3.1/js/dataTables.js"></script>
+<script src="path/to/chartjs/dist/chart.umd.min.js"></script>
+<script>
+    const myChart = new Chart(ctx, {...});
+</script>
 @stack('js')
 </body>
 </html>

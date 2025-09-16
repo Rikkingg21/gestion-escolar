@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Rol;
 
 use App\Http\Controllers\Controller;
+use App\Models\Apoderado;
+use App\Models\Docente;
+use App\Models\Estudiante;
+use App\Models\Auxiliar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -12,15 +16,26 @@ class DasboardController extends Controller
 {
     public function admin()
     {
-        // Verifica si el usuario autenticado tiene el rol de admin
         if (!Auth::user()->hasRole('admin')) {
             abort(403, 'Acceso denegado');
         }
 
-        // Obtiene todos los usuarios con sus roles
         $usuarios = User::with('roles')->get();
+        $rolesCount = User::with('roles')->get()->flatMap->roles->groupBy('name')->map->count();
 
-        return view('rol.admin.dashboard', compact('usuarios'));
+        $docentes = Docente::all();
+        $docentesCount = $docentes->count();
+
+        $estudiantes = Estudiante::all();
+        $estudiantesCount = $estudiantes->count();
+
+        $apoderados = Apoderado::all();
+        $apoderadosCount = $apoderados->count();
+
+        $auxiliares = Auxiliar::all();
+        $auxiliaresCount = $auxiliares->count();
+
+        return view('rol.admin.dashboard', compact('usuarios', 'rolesCount', 'docentesCount', 'estudiantesCount', 'apoderadosCount', 'auxiliaresCount'));
     }
     public function director()
     {
@@ -80,5 +95,4 @@ class DasboardController extends Controller
 
         return view('rol.estudiante.dashboard', compact('usuarios'));
     }
-
 }
