@@ -82,7 +82,11 @@
             <ul class="nav nav-pills flex-column"><!--contenido-->
                 @if(session('current_role') === 'admin')
                 {{-- Solo para admin --}}
-
+                <li class="nav-item">
+                    <a href="{{ route('admin.dashboard') }}" class="nav-link text-white {{ request()->routeIs('admin.*') ? 'active' : '' }}">
+                        <i class="bi bi-speedometer2 me-2"></i> <span>Dashboard</span>
+                    </a>
+                </li>
                 <li class="nav-item">
                     <a href="{{ route('maya.index') }}" class="nav-link text-white {{ request()->routeIs('maya.*') ? 'active' : '' }}">
                         <i class="bi bi-clipboard2-check me-2"></i> <span>Mayas</span>
@@ -108,7 +112,7 @@
 
                 @if(session('current_role') === 'director')
                 <li class="nav-item">
-                    <a href="{{ route('director.dashboard') }}" class="nav-link text-white {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                    <a href="{{ route('director.dashboard') }}" class="nav-link text-white {{ request()->routeIs('director.*') ? 'active' : '' }}">
                         <i class="bi bi-speedometer2 me-2"></i> <span>Dashboard</span>
                     </a>
                 </li>
@@ -134,7 +138,7 @@
                 </li>
                 <li class="nav-item">
                     <a href="{{ route('maya.index') }}" class="nav-link text-white {{ request()->routeIs('maya.*') ? 'active' : '' }}">
-                         <i class="bi bi-clipboard2-check me-2"></i> <span>Mayas</span>
+                        <i class="bi bi-clipboard2-check me-2"></i> <span>Mayas</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -153,7 +157,7 @@
 
                 <li class="nav-item">
                     <a href="{{ route('docente.dashboard') }}" class="nav-link text-white {{ request()->routeIs('docente.*') ? 'active' : '' }}">
-                        <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                        <i class="bi bi-speedometer2 me-2"></i> <span>Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -164,7 +168,7 @@
 
                 <li class="nav-item">
                     <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
-                        <i class="bi bi-people me-2"></i> Reportes
+                        <i class="bi bi-people me-2"></i> <span>Reportes</span>
                     </a>
                 </li>
                 @endif
