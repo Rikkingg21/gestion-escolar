@@ -222,77 +222,77 @@ class DasboardController extends Controller
 
         return $colores[$bimestre] ?? '#999999';
     }
-public function auxiliar()
-{
-    if (!Auth::user()->hasRole('auxiliar')) {
-        abort(403, 'Acceso denegado');
-    }
-
-    $usuarios = User::with('roles')->get();
-    $anio = date('Y');
-
-    // Obtener todos los grados activos
-    $grados = \App\Models\Grado::where('estado', 1)->get();
-
-    // Obtener todos los tipos de asistencia
-    $tiposAsistencia = \App\Models\Asistencia\Tipoasistencia::all();
-
-    // Obtener bimestres del año actual
-    $bimestres = \App\Models\Maya\Bimestre::whereHas('cursoGradoSecNivAnio', function($q) use ($anio) {
-        $q->where('anio', $anio);
-    })->get();
-
-    $datosAsistencias = [];
-
-    foreach ($grados as $grado) {
-        // Obtener estudiantes activos del grado, ordenados por apellidos
-        $estudiantes = \App\Models\Estudiante::with(['user', 'asistencias' => function($query) {
-            $query->with('tipoasistencia');
-        }])
-        ->where('grado_id', $grado->id)
-        ->where('estado', 1)
-        ->get()
-        ->sortBy(function($estudiante) {
-            return $estudiante->user->apellido_paterno . ' ' . $estudiante->user->apellido_materno;
-        });
-
-        if ($estudiantes->isEmpty()) {
-            continue;
+    public function auxiliar()
+    {
+        if (!Auth::user()->hasRole('auxiliar')) {
+            abort(403, 'Acceso denegado');
         }
 
-        $datosEstudiantes = [];
+        $usuarios = User::with('roles')->get();
+        $anio = date('Y');
 
-        foreach ($estudiantes as $estudiante) {
-            // Obtener todas las asistencias del estudiante
-            $totalAsistencias = $estudiante->asistencias->count();
+        // Obtener todos los grados activos
+        $grados = \App\Models\Grado::where('estado', 1)->get();
 
-            $porcentajesPorTipo = [];
+        // Obtener todos los tipos de asistencia
+        $tiposAsistencia = \App\Models\Asistencia\Tipoasistencia::all();
 
-            foreach ($tiposAsistencia as $tipo) {
-                $countTipo = $estudiante->asistencias->where('tipo_asistencia_id', $tipo->id)->count();
-                $porcentaje = $totalAsistencias > 0 ? round(($countTipo / $totalAsistencias) * 100, 2) : 0;
+        // Obtener bimestres del año actual
+        $bimestres = \App\Models\Maya\Bimestre::whereHas('cursoGradoSecNivAnio', function($q) use ($anio) {
+            $q->where('anio', $anio);
+        })->get();
 
-                $porcentajesPorTipo[$tipo->nombre] = $porcentaje;
+        $datosAsistencias = [];
+
+        foreach ($grados as $grado) {
+            // Obtener estudiantes activos del grado, ordenados por apellidos
+            $estudiantes = \App\Models\Estudiante::with(['user', 'asistencias' => function($query) {
+                $query->with('tipoasistencia');
+            }])
+            ->where('grado_id', $grado->id)
+            ->where('estado', 1)
+            ->get()
+            ->sortBy(function($estudiante) {
+                return $estudiante->user->apellido_paterno . ' ' . $estudiante->user->apellido_materno;
+            });
+
+            if ($estudiantes->isEmpty()) {
+                continue;
             }
 
-            $datosEstudiantes[] = [
-                'nombre_completo' => $estudiante->user->apellido_paterno . ' ' .
-                                   $estudiante->user->apellido_materno . ' ' .
-                                   $estudiante->user->name,
-                'total_asistencias' => $totalAsistencias,
-                'porcentajes_tipo' => $porcentajesPorTipo
+            $datosEstudiantes = [];
+
+            foreach ($estudiantes as $estudiante) {
+                // Obtener todas las asistencias del estudiante
+                $totalAsistencias = $estudiante->asistencias->count();
+
+                $porcentajesPorTipo = [];
+
+                foreach ($tiposAsistencia as $tipo) {
+                    $countTipo = $estudiante->asistencias->where('tipo_asistencia_id', $tipo->id)->count();
+                    $porcentaje = $totalAsistencias > 0 ? round(($countTipo / $totalAsistencias) * 100, 2) : 0;
+
+                    $porcentajesPorTipo[$tipo->nombre] = $porcentaje;
+                }
+
+                $datosEstudiantes[] = [
+                    'nombre_completo' => $estudiante->user->apellido_paterno . ' ' .
+                                    $estudiante->user->apellido_materno . ' ' .
+                                    $estudiante->user->name,
+                    'total_asistencias' => $totalAsistencias,
+                    'porcentajes_tipo' => $porcentajesPorTipo
+                ];
+            }
+
+            $datosAsistencias[] = [
+                'grado' => $grado->getNombreCompletoAttribute(),
+                'estudiantes' => $datosEstudiantes,
+                'tipos_asistencia' => $tiposAsistencia->pluck('nombre')->toArray()
             ];
         }
 
-        $datosAsistencias[] = [
-            'grado' => $grado->getNombreCompletoAttribute(),
-            'estudiantes' => $datosEstudiantes,
-            'tipos_asistencia' => $tiposAsistencia->pluck('nombre')->toArray()
-        ];
+        return view('rol.auxiliar.dashboard', compact('usuarios', 'datosAsistencias', 'tiposAsistencia'));
     }
-
-    return view('rol.auxiliar.dashboard', compact('usuarios', 'datosAsistencias', 'tiposAsistencia'));
-}
     public function apoderado()
     {
         // Verifica si el usuario autenticado tiene el rol de admin
@@ -307,13 +307,114 @@ public function auxiliar()
 
     public function estudiante()
     {
-        // Verifica si el usuario autenticado tiene el rol de admin
         if (!Auth::user()->hasRole('estudiante')) {
             abort(403, 'Acceso denegado');
         }
-        // Obtiene todos los usuarios con sus roles
+
         $usuarios = User::with('roles')->get();
 
-        return view('rol.estudiante.dashboard', compact('usuarios'));
+        // Obtener el estudiante autenticado
+        $estudiante = \App\Models\Estudiante::where('user_id', Auth::id())->first();
+
+        if (!$estudiante) {
+            abort(403, 'No se encontró el perfil de estudiante');
+        }
+
+        $anio = date('Y');
+
+        // Obtener todas las notas del estudiante con relaciones CORREGIDAS
+        $notas = \App\Models\Nota::with([
+            'bimestre.cursoGradoSecNivAnio.materia',
+            'criterio.materiaCompetencia' // Cambiado de 'competencia' a 'materiaCompetencia'
+        ])
+        ->whereHas('bimestre.cursoGradoSecNivAnio', function($query) use ($anio) {
+            $query->where('anio', $anio);
+        })
+        ->where('estudiante_id', $estudiante->id)
+        ->get();
+
+        // Organizar datos por cursos y bimestres
+        $datosCursos = [];
+        $cursosConNotas = [];
+
+        // Primero, identificar todos los cursos que tienen notas
+        foreach ($notas as $nota) {
+            $curso = $nota->bimestre->cursoGradoSecNivAnio;
+            $materiaNombre = $curso->materia->nombre ?? 'Sin nombre';
+            $cursoId = $curso->id;
+
+            if (!in_array($cursoId, $cursosConNotas)) {
+                $cursosConNotas[] = $cursoId;
+                $datosCursos[$cursoId] = [
+                    'curso_id' => $cursoId,
+                    'materia' => $materiaNombre,
+                    'bimestres' => [
+                        1 => null, // Bimestre 1
+                        2 => null, // Bimestre 2
+                        3 => null, // Bimestre 3
+                        4 => null  // Bimestre 4
+                    ]
+                ];
+            }
+        }
+
+        // Calcular promedios por curso y bimestre
+        foreach ($notas as $nota) {
+            $curso = $nota->bimestre->cursoGradoSecNivAnio;
+            $cursoId = $curso->id;
+            $bimestreNumero = (int)$nota->bimestre->nombre;
+
+            // Solo procesar bimestres del 1 al 4
+            if ($bimestreNumero >= 1 && $bimestreNumero <= 4) {
+                // Inicializar array para este bimestre si no existe
+                if (!isset($datosCursos[$cursoId]['notas_bimestre'][$bimestreNumero])) {
+                    $datosCursos[$cursoId]['notas_bimestre'][$bimestreNumero] = [];
+                }
+
+                // Agregar nota al bimestre correspondiente
+                $datosCursos[$cursoId]['notas_bimestre'][$bimestreNumero][] = $nota->nota;
+            }
+        }
+
+        // Calcular promedios finales por bimestre
+        $progresoFinal = [];
+        foreach ($datosCursos as $cursoId => $cursoData) {
+            $promediosBimestres = [];
+
+            for ($bimestre = 1; $bimestre <= 4; $bimestre++) {
+                if (isset($cursoData['notas_bimestre'][$bimestre]) &&
+                    count($cursoData['notas_bimestre'][$bimestre]) > 0) {
+
+                    $notasBimestre = $cursoData['notas_bimestre'][$bimestre];
+                    $promedio = round(array_sum($notasBimestre) / count($notasBimestre), 2);
+                    $promediosBimestres[] = $promedio;
+                } else {
+                    $promediosBimestres[] = null;
+                }
+            }
+
+            $progresoFinal[] = [
+                'curso' => $cursoData['materia'],
+                'promedios' => $promediosBimestres
+            ];
+        }
+
+        // Obtener información del estudiante para la vista
+        $infoEstudiante = [
+            'nombre_completo' => $estudiante->user->apellido_paterno . ' ' .
+                            $estudiante->user->apellido_materno . ' ' .
+                            $estudiante->user->name,
+            'grado' => $estudiante->grado->getNombreCompletoAttribute() ?? 'Sin grado asignado',
+            'total_cursos' => count($progresoFinal)
+        ];
+
+        $labelsBimestres = ['Bimestre 1', 'Bimestre 2', 'Bimestre 3', 'Bimestre 4'];
+
+        return view('rol.estudiante.dashboard', compact(
+            'usuarios',
+            'progresoFinal',
+            'labelsBimestres',
+            'infoEstudiante'
+        ));
     }
 }
