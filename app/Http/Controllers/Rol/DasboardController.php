@@ -46,65 +46,55 @@ class DasboardController extends Controller
         }
 
         $usuarios = User::with('roles')->get();
-
-        // Año actual
         $anio = date('Y');
-
-        // Obtener todos los grados activos
         $grados = \App\Models\Grado::all();
 
-        // Obtener todos los bimestres del año actual
-        $bimestres = \App\Models\Maya\Bimestre::whereHas('cursoGradoSecNivAnio', function($q) use ($anio) {
-            $q->where('anio', $anio);
-        })->get();
-
-        // Preparar datos: promedio de notas por grado y bimestre
-        $progreso = [];
-        foreach ($grados as $grado) {
-            $progresoGrado = [];
-            foreach ($bimestres as $bimestre) {
-                // Notas de estudiantes de este grado en este bimestre
-                $notas = \App\Models\Nota::whereHas('estudiante', function($q) use ($grado) {
-                    $q->where('grado_id', $grado->id);
-                })->where('bimestre_id', $bimestre->id)->pluck('nota');
-
-                $promedio = $notas->count() ? round($notas->avg(), 2) : null;
-                $progresoGrado[] = $promedio;
-            }
-            $progreso[] = [
-                'grado' => $grado->getNombreCompletoAttribute(),
-                'promedios' => $progresoGrado,
-            ];
-        }
-
-        // Nombres de los bimestres
-        $labelsBimestres = collect([1, 2, 3, 4]);
+        // Obtener todos los cursos del año actual con sus bimestres
+        $cursos = \App\Models\Maya\Cursogradosecnivanio::with(['bimestres', 'grado'])
+            ->where('anio', $anio)
+            ->get();
 
         $progreso = [];
+
         foreach ($grados as $grado) {
             $progresoGrado = [];
-            foreach ($labelsBimestres as $numBimestre) {
-                // Busca el bimestre correspondiente
-                $bimestre = $bimestres->first(function($b) use ($numBimestre) {
-                    return (int)$b->nombre === $numBimestre;
-                });
 
-                if ($bimestre) {
-                    $notas = \App\Models\Nota::whereHas('estudiante', function($q) use ($grado) {
-                        $q->where('grado_id', $grado->id);
-                    })->where('bimestre_id', $bimestre->id)->pluck('nota');
+            // Buscar los cursos de este grado
+            $cursosDelGrado = $cursos->where('grado_id', $grado->id);
 
-                    $promedio = $notas->count() ? round($notas->avg(), 2) : null;
-                } else {
-                    $promedio = null;
+            for ($numBimestre = 1; $numBimestre <= 4; $numBimestre++) {
+                $promediosBimestre = [];
+
+                foreach ($cursosDelGrado as $curso) {
+                    // Buscar el bimestre específico
+                    $bimestre = $curso->bimestres->where('nombre', $numBimestre)->first();
+
+                    if ($bimestre) {
+                        // Obtener notas para este bimestre
+                        $notas = \App\Models\Nota::where('bimestre_id', $bimestre->id)
+                            ->whereHas('estudiante', function($q) use ($grado) {
+                                $q->where('grado_id', $grado->id);
+                            })
+                            ->pluck('nota');
+
+                        if ($notas->count() > 0) {
+                            $promediosBimestre[] = $notas->avg();
+                        }
+                    }
                 }
+
+                // Calcular el promedio general del bimestre para el grado
+                $promedio = count($promediosBimestre) > 0 ? round(array_sum($promediosBimestre) / count($promediosBimestre), 2) : null;
                 $progresoGrado[] = $promedio;
             }
+
             $progreso[] = [
                 'grado' => $grado->getNombreCompletoAttribute(),
                 'promedios' => $progresoGrado,
             ];
         }
+
+        $labelsBimestres = ['Bimestre 1', 'Bimestre 2', 'Bimestre 3', 'Bimestre 4'];
 
         return view('rol.director.dashboard', compact('usuarios', 'progreso', 'labelsBimestres'));
     }
