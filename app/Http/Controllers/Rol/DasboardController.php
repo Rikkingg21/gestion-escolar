@@ -101,17 +101,127 @@ class DasboardController extends Controller
         return view('rol.director.dashboard', compact('usuarios', 'progreso', 'labelsBimestres'));
     }
 
-    public function docente()
-    {
-        // Verifica si el usuario autenticado tiene el rol de admin
-        if (!Auth::user()->hasRole('docente')) {
-            abort(403, 'Acceso denegado');
-        }
-        // Obtiene todos los usuarios con sus roles
-        $usuarios = User::with('roles')->get();
-
-        return view('rol.docente.dashboard', compact('usuarios'));
+public function docente()
+{
+    if (!Auth::user()->hasRole('docente')) {
+        abort(403, 'Acceso denegado');
     }
+
+    $usuarios = User::with('roles')->get();
+    $anio = date('Y');
+
+    // Obtener el docente autenticado
+    $docente = \App\Models\Docente::where('user_id', Auth::id())->first();
+
+    if (!$docente) {
+        abort(403, 'No se encontró el perfil de docente');
+    }
+
+    // Obtener los cursos asignados a este docente para el año actual
+    $cursos = \App\Models\Maya\Cursogradosecnivanio::with([
+        'grado',
+        'bimestres',
+        'materia'
+    ])->where('docente_designado_id', $docente->id)
+    ->where('anio', $anio)
+    ->get();
+
+    // Si no hay cursos, retornar vista con mensaje
+    if ($cursos->isEmpty()) {
+        return view('rol.docente.dashboard', compact('usuarios', 'datosGraficos'))->with('info', 'No tiene cursos asignados para el año actual.');
+    }
+
+    // Agrupar cursos por grado
+    $cursosPorGrado = $cursos->groupBy('grado_id');
+
+    $datosGraficos = [];
+
+    foreach ($cursosPorGrado as $gradoId => $cursosDelGrado) {
+        $grado = $cursosDelGrado->first()->grado;
+
+        // Obtener estudiantes de este grado, ordenados alfabéticamente por apellidos
+        $estudiantes = \App\Models\Estudiante::with(['user', 'notas' => function($query) use ($cursosDelGrado) {
+            // Obtener los bimestres de los cursos del docente
+            $bimestreIds = $cursosDelGrado->flatMap(function($curso) {
+                return $curso->bimestres->pluck('id');
+            })->unique()->toArray();
+
+            $query->whereIn('bimestre_id', $bimestreIds);
+        }])
+        ->where('grado_id', $gradoId)
+        ->where('estado', 1) // Solo estudiantes activos
+        ->get()
+        ->sortBy(function($estudiante) {
+            return $estudiante->user->apellido_paterno . ' ' . $estudiante->user->apellido_materno;
+        });
+
+        // CORRECCIÓN: Cambiar $cursosDelGgado por $cursosDelGrado
+        // Obtener bimestres del año actual para estos cursos
+        $bimestres = $cursosDelGrado->flatMap(function($curso) {
+            return $curso->bimestres;
+        })->unique('id')->sortBy('nombre');
+
+        // Si no hay estudiantes, continuar con el siguiente grado
+        if ($estudiantes->isEmpty()) {
+            continue;
+        }
+
+        // Preparar datos para el gráfico
+        $labelsEstudiantes = [];
+        $datosBimestres = [];
+
+        // Inicializar datos por bimestre
+        foreach ($bimestres as $bimestre) {
+            $datosBimestres[$bimestre->nombre] = [
+                'label' => 'Bimestre ' . $bimestre->nombre,
+                'data' => [],
+                'backgroundColor' => $this->getColorForBimestre($bimestre->nombre)
+            ];
+        }
+
+        // Para cada estudiante, obtener sus promedios por bimestre
+        foreach ($estudiantes as $estudiante) {
+            $nombreCompleto = $estudiante->user->apellido_paterno . ' ' .
+                            $estudiante->user->apellido_materno . ' ' .
+                            $estudiante->user->name;
+            $labelsEstudiantes[] = $nombreCompleto;
+
+            // Calcular promedio por bimestre para este estudiante
+            foreach ($bimestres as $bimestre) {
+                $notasBimestre = $estudiante->notas->where('bimestre_id', $bimestre->id);
+
+                if ($notasBimestre->count() > 0) {
+                    $promedio = $notasBimestre->avg('nota');
+                    $datosBimestres[$bimestre->nombre]['data'][] = round($promedio, 2);
+                } else {
+                    $datosBimestres[$bimestre->nombre]['data'][] = null;
+                }
+            }
+        }
+
+        $datosGraficos[] = [
+            'grado' => $grado->getNombreCompletoAttribute(),
+            'labelsEstudiantes' => $labelsEstudiantes,
+            'datasets' => array_values($datosBimestres),
+            'bimestres' => $bimestres->pluck('nombre')->toArray()
+        ];
+    }
+
+    return view('rol.docente.dashboard', compact('usuarios', 'datosGraficos'));
+}
+
+// Función auxiliar para generar colores por bimestre
+private function getColorForBimestre($bimestre)
+{
+    $colores = [
+        1 => '#FF6384', // Bimestre 1 - Rojo
+        2 => '#36A2EB', // Bimestre 2 - Azul
+        3 => '#FFCE56', // Bimestre 3 - Amarillo
+        4 => '#4BC0C0', // Bimestre 4 - Verde
+    ];
+
+    return $colores[$bimestre] ?? '#999999';
+}
     public function auxiliar()
     {
         // Verifica si el usuario autenticado tiene el rol de admin
@@ -122,7 +232,6 @@ class DasboardController extends Controller
         $usuarios = User::with('roles')->get();
 
         return view('rol.auxiliar.dashboard', compact('usuarios'));
-
     }
     public function apoderado()
     {
