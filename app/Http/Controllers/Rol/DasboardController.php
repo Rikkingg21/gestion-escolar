@@ -47,7 +47,9 @@ class DasboardController extends Controller
 
         $usuarios = User::with('roles')->get();
         $anio = date('Y');
-        $grados = \App\Models\Grado::all();
+
+        // Obtener solo los grados activos (estado = 1)
+        $grados = \App\Models\Grado::where('estado', 1)->get();
 
         // Obtener todos los cursos del año actual con sus bimestres
         $cursos = \App\Models\Maya\Cursogradosecnivanio::with(['bimestres', 'grado'])

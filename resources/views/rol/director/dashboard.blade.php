@@ -38,7 +38,7 @@
 
             return {
                 label: grado.grado || 'Grado sin nombre',
-                data: grado.promedios.map(promedio => promedio !== null ? promedio : 0),
+                data: grado.promedios.map(promedio => promedio !== null ? promedio : null),
                 fill: false,
                 borderColor: color,
                 backgroundColor: color + '80',
@@ -46,7 +46,9 @@
                 pointBackgroundColor: color,
                 pointBorderColor: '#fff',
                 pointRadius: 5,
-                pointHoverRadius: 7
+                pointHoverRadius: 7,
+                // Solo mostrar en legend si tiene datos
+                hidden: grado.promedios.every(p => p === null || p === 0)
             };
         });
 
@@ -74,8 +76,31 @@
                         position: 'top'
                     },
                     tooltip: {
-                        mode: 'index',
-                        intersect: false
+                        mode: 'nearest', // Cambiado a 'nearest'
+                        intersect: false, // Mostrar tooltip cuando el cursor esté cerca de cualquier punto
+                        // Filtro personalizado para mostrar solo datasets con datos en ese punto específico
+                        filter: function(tooltipItem) {
+                            // Solo mostrar tooltip si el valor no es null o 0
+                            return tooltipItem.parsed.y !== null && tooltipItem.parsed.y !== 0;
+                        },
+                        callbacks: {
+                            // Personalizar el contenido del tooltip
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toFixed(2);
+                                }
+                                return label;
+                            },
+                            // Opcional: filtrar qué items aparecen en el tooltip
+                            afterBody: function(tooltipItems) {
+                                // Esta función se ejecuta después de mostrar los labels
+                                // Puedes usarla para lógica adicional
+                            }
+                        }
                     }
                 },
                 scales: {
@@ -102,9 +127,9 @@
                     }
                 },
                 interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
+                    mode: 'nearest', // Interactuar con el punto más cercano
+                    axis: 'x', // Solo considerar la coordenada X para la interacción
+                    intersect: false // No requerir que el cursor intersecte exactamente con el punto
                 }
             }
         });
