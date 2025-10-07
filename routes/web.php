@@ -6,6 +6,8 @@ use App\Http\Controllers\SessionSelectionController;
 
 use App\Http\Controllers\Rol\DasboardController;
 
+use App\Http\Controllers\ModuleController;
+
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ColegioController;
@@ -74,6 +76,8 @@ Route::middleware('auth')->group(function () {
     Route::controller(DasboardController::class)->group(function () {
         Route::get('/director', 'director')->name('director.dashboard');
 
+        Route::get('/modules', [ModuleController::class, 'index'])->name('modules.index');
+
         Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
         Route::get('/maya/create', [MayaController::class, 'create'])->name('maya.create');
         Route::post('/maya', [MayaController::class, 'store'])->name('maya.store');
@@ -100,50 +104,13 @@ Route::middleware('auth')->group(function () {
         Route::post('nota/revertir/{bimestre}', [NotaController::class, 'revertir'])->name('nota.revertir');
 
 
-        /*
-        Route::get('/unidad', [UnidadController::class, 'index'])->name('unidad.index');
-        Route::get('/unidad/create', [UnidadController::class, 'create'])->name('unidad.create');
-        Route::post('/unidad', [UnidadController::class, 'store'])->name('unidad.store');
-        Route::get('/unidad/{id}/edit', [UnidadController::class, 'edit'])->name('unidad.edit');
-        Route::put('/unidad/{unidad}', [UnidadController::class, 'update'])->name('unidad.update');
-        Route::delete('/unidad/{id}', [UnidadController::class, 'destroy'])->name('unidad.destroy');
-
-        Route::get('/semana', [SemanaController::class, 'index'])->name('semana.index');
-        Route::get('/semana/create', [SemanaController::class, 'create'])->name('semana.create');
-        Route::post('/semana', [SemanaController::class, 'store'])->name('semana.store');
-        Route::get('/semana/{id}/edit', [SemanaController::class, 'edit'])->name('semana.edit');
-        Route::put('/semana/{semana}', [SemanaController::class, 'update'])->name('semana.update');
-        Route::delete('/semana/{id}', [SemanaController::class, 'destroy'])->name('semana.destroy');
-
-        Route::get('/clase', [ClaseController::class, 'index'])->name('clase.index');
-        Route::get('/clase/create', [ClaseController::class, 'create'])->name('clase.create');
-        Route::post('/clase', [ClaseController::class, 'store'])->name('clase.store');
-        Route::get('/clase/{id}/edit', [ClaseController::class, 'edit'])->name('clase.edit');
-        Route::put('/clase/{clase}', [ClaseController::class, 'update'])->name('clase.update');
-        Route::delete('/clase/{id}', [ClaseController::class, 'destroy'])->name('clase.destroy');
-
-        Route::get('/tema', [TemaController::class, 'index'])->name('tema.index');
-        Route::get('/tema/create', [TemaController::class, 'create'])->name('tema.create');
-        Route::post('/tema', [TemaController::class, 'store'])->name('tema.store');
-        Route::get('/tema/{id}/edit', [TemaController::class, 'edit'])->name('tema.edit');
-        Route::put('/tema/{tema}', [TemaController::class, 'update'])->name('tema.update');
-        Route::delete('/tema/{id}', [TemaController::class, 'destroy'])->name('tema.destroy');
-
-        Route::get('/criterio', [CriterioController::class, 'index'])->name('criterio.index');
-        Route::get('/criterio/create', [CriterioController::class, 'create'])->name('criterio.create');
-        Route::post('/criterio', [CriterioController::class, 'store'])->name('criterio.store');
-        Route::get('/criterio/{id}/edit', [CriterioController::class, 'edit'])->name('criterio.edit');
-        Route::put('/criterio/{criterio}', [CriterioController::class, 'update'])->name('criterio.update');
-        Route::delete('/criterio/{id}', [CriterioController::class, 'destroy'])->name('criterio.destroy');
-        */
-
         Route::get('/user', [UserController::class, 'index'])->name('user.index');
         Route::get('/user/create', [UserController::class, 'create'])->name('user.create');
 
         Route::post('/user', [UserController::class, 'store'])->name('user.store');
         Route::get('/user/{user}/edit', [UserController::class, 'edit'])->name('user.edit');
         Route::put('/user/{user}', [UserController::class, 'update'])->name('user.update');
-        //Route::delete('/user/{id}', [UserController::class, 'destroy'])->name('user.destroy');
+
         //ruta de usuarios mediante ajax
         Route::get('/usuarios/activos', [UserController::class, 'ajaxUserActivo'])->name('usuarios.activos');
         Route::get('/usuarios/lectores', [UserController::class, 'ajaxUserLector'])->name('usuarios.lectores');
