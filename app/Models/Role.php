@@ -15,6 +15,7 @@ class Role extends Model
         $colors = [
             'admin' => 'danger',
             'director' => 'warning',
+            'coordinador' => 'dark',
             'docente' => 'success',
             'auxiliar' => 'info',
             'estudiante' => 'primary',
