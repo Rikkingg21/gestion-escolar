@@ -7,6 +7,7 @@ use App\Http\Controllers\SessionSelectionController;
 use App\Http\Controllers\Rol\DasboardController;
 
 use App\Http\Controllers\ModuleController;
+use App\Http\Controllers\RoleController;
 
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminController;
@@ -76,7 +77,19 @@ Route::middleware('auth')->group(function () {
     Route::controller(DasboardController::class)->group(function () {
         Route::get('/director', 'director')->name('director.dashboard');
 
+        Route::get('/role', [RoleController::class, 'index'])->name('role.index');
+        Route::get('/role/create', [RoleController::class, 'create'])->name('role.create');
+        Route::post('/role', [RoleController::class, 'store'])->name('role.store');
+        Route::get('/role/{id}/edit', [RoleController::class, 'edit'])->name('role.edit');
+        Route::put('/role/{id}', [RoleController::class, 'update'])->name('role.update');
+        Route::delete('/role/{id}', [RoleController::class, 'destroy'])->name('role.destroy');
+
         Route::get('/modules', [ModuleController::class, 'index'])->name('modules.index');
+        Route::get('/modules/create', [ModuleController::class, 'create'])->name('modules.create');
+        Route::post('/modules', [ModuleController::class, 'store'])->name('modules.store');
+        Route::get('/modules/{id}/edit', [ModuleController::class, 'edit'])->name('modules.edit');
+        Route::put('/modules/{id}', [ModuleController::class, 'update'])->name('modules.update');
+        Route::delete('/modules/{id}', [ModuleController::class, 'destroy'])->name('modules.destroy');
 
         Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
         Route::get('/maya/create', [MayaController::class, 'create'])->name('maya.create');
