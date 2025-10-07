@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Role extends Model
 {
     use HasFactory, SoftDeletes;
+    protected $table = 'roles';
+    public $timestamps = true;
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'nombre',
@@ -20,6 +23,20 @@ class Role extends Model
     {
         return $this->belongsToMany(User::class, 'user_roles');
     }
+
+    public function modules()
+    {
+        return $this->belongsToMany(Module::class, 'role_modules')
+                    ->withPivot('estado')
+                    ->withTimestamps();
+    }
+
+    // Relación con excepciones
+    public function moduleExceptions()
+    {
+        return $this->hasMany(Rolemoduleexception::class, 'role_id');
+    }
+        /*
     public function getColorAttribute()
     {
         $colors = [
@@ -34,27 +51,5 @@ class Role extends Model
 
         return $colors[$this->nombre] ?? 'light';
     }
-    public function modules()
-    {
-        return $this->belongsToMany(Module::class, 'role_modules')
-                    ->withPivot('estado')
-                    ->withTimestamps();
-    }
-
-    // Relación con excepciones
-    public function moduleExceptions()
-    {
-        return $this->hasMany(Rolemoduleexception::class, 'role_id');
-    }
-
-    // Scope para roles activos
-    public function scopeActivos($query)
-    {
-        return $query->where('estado', '1');
-    }
-
-    public function scopeInactivos($query)
-    {
-        return $query->where('estado', '0');
-    }
+    */
 }

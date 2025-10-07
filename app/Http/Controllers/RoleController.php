@@ -12,8 +12,15 @@ class RoleController extends Controller
 {
     public function index()
     {
-        return view('role.index');
+        $rolesActivos = Role::where('estado', '1')->get();
+        $rolesInactivos = Role::where('estado', '0')->get();
+
+        return view('role.index', compact('rolesActivos', 'rolesInactivos'));
     }
+    public function create(){
+        return view('role.create');
+    }
+
     public function selectRole()
     {
         $user = Auth::user();
