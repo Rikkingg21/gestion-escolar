@@ -17,8 +17,101 @@ class RoleController extends Controller
 
         return view('role.index', compact('rolesActivos', 'rolesInactivos'));
     }
-    public function create(){
+
+    public function create()
+    {
         return view('role.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'nombre' => 'required|string|max:100|unique:roles,nombre',
+            'descripcion' => 'nullable|string|max:255',
+            'estado' => 'required|in:1,0'
+        ], [
+            'nombre.required' => 'El nombre del rol es obligatorio',
+            'nombre.unique' => 'Ya existe un rol con este nombre',
+            'estado.required' => 'El estado es obligatorio'
+        ]);
+
+        try {
+            Role::create([
+                'nombre' => $request->nombre,
+                'descripcion' => $request->descripcion,
+                'estado' => $request->estado
+            ]);
+
+            return redirect()->route('role.index')
+                ->with('success', 'Rol creado exitosamente');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al crear el rol: ' . $e->getMessage())
+                ->withInput();
+        }
+    }
+    public function edit($id)
+    {
+        $role = Role::findOrFail($id);
+        return view('role.edit', compact('role'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $role = Role::findOrFail($id);
+
+        $request->validate([
+            'nombre' => 'required|string|max:100|unique:roles,nombre,' . $id,
+            'descripcion' => 'nullable|string|max:255',
+            'estado' => 'required|in:1,0'
+        ], [
+            'nombre.required' => 'El nombre del rol es obligatorio',
+            'nombre.unique' => 'Ya existe un rol con este nombre',
+            'estado.required' => 'El estado es obligatorio'
+        ]);
+
+        try {
+            $role->update([
+                'nombre' => $request->nombre,
+                'descripcion' => $request->descripcion,
+                'estado' => $request->estado
+            ]);
+
+            return redirect()->route('role.index')
+                ->with('success', 'Rol actualizado exitosamente');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al actualizar el rol: ' . $e->getMessage())
+                ->withInput();
+        }
+    }
+    public function destroy($id)
+    {
+        $role = Role::findOrFail($id);
+
+        try {
+            // Verificar si el rol está siendo usado
+            if ($role->users()->count() > 0) {
+                return redirect()->back()
+                    ->with('error', 'No se puede eliminar el rol porque tiene usuarios asignados');
+            }
+
+            if ($role->modules()->count() > 0) {
+                return redirect()->back()
+                    ->with('error', 'No se puede eliminar el rol porque tiene módulos asignados');
+            }
+
+            $role->delete();
+
+            return redirect()->route('role.index')
+                ->with('success', 'Rol eliminado exitosamente');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al eliminar el rol: ' . $e->getMessage());
+        }
     }
 
     public function selectRole()

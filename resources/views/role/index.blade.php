@@ -5,13 +5,20 @@
     <div class="row">
         <div class="col-12">
             <div class="card shadow">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-user-tag me-2"></i>Gestión de Roles
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center p-3">
+                    <h5 class="mb-0 fs-5">
+                        <i class="bi bi-person-badge me-2"></i>Gestión de Roles
                     </h5>
-                    <a href="{{ route('role.create') }}" class="btn btn-light btn-sm">
-                        <i class="fas fa-plus me-1"></i>Nuevo Rol
-                    </a>
+
+                    <div class="btn-group" role="group" aria-label="Acciones de roles">
+                        <a href="{{ route('role.create') }}" class="btn btn-light btn-sm text-primary">
+                            <i class="bi bi-plus-lg me-1"></i>Nuevo Rol
+                        </a>
+
+                        <a href="{{ route('module.index') }}" class="btn btn-light btn-sm text-primary">
+                            <i class="bi bi-grid me-1"></i>Ver Módulos
+                        </a>
+                    </div>
                 </div>
                 <div class="card-body">
                     <!-- Nav Tabs -->
@@ -76,21 +83,23 @@
                                                         <span class="badge bg-success">Activo</span>
                                                     </td>
                                                     <td>
-                                                        <div class="btn-group btn-group-sm">
-                                                            <a href="#" class="btn btn-outline-primary"
-                                                               data-bs-toggle="tooltip" title="Editar">
-                                                                <i class="fas fa-edit"></i>
+                                                        <div class="btn-group btn-group-sm" role="group" aria-label="Acciones de rol">
+                                                            <a href="{{ route('role.edit', $role->id) }}" class="btn btn-outline-primary"
+                                                                data-bs-toggle="tooltip" data-bs-placement="top" title="Editar">
+                                                                <i class="bi bi-pencil-square"></i>
                                                             </a>
+
                                                             <button class="btn btn-outline-warning cambiar-estado"
-                                                                    data-id="{{ $role->id }}"
-                                                                    data-bs-toggle="tooltip" title="Desactivar">
-                                                                <i class="fas fa-ban"></i>
+                                                                data-id="{{ $role->id }}"
+                                                                data-bs-toggle="tooltip" data-bs-placement="top" title="Ver Modulos Asignados">
+                                                                <i class="bi bi-gear-wide-connected"></i>
                                                             </button>
+
                                                             <button class="btn btn-outline-danger eliminar-rol"
-                                                                    data-id="{{ $role->id }}"
-                                                                    data-nombre="{{ $role->nombre }}"
-                                                                    data-bs-toggle="tooltip" title="Eliminar">
-                                                                <i class="fas fa-trash"></i>
+                                                                data-id="{{ $role->id }}"
+                                                                data-nombre="{{ $role->nombre }}"
+                                                                data-bs-toggle="tooltip" data-bs-placement="top" title="Eliminar">
+                                                                <i class="bi bi-trash"></i>
                                                             </button>
                                                         </div>
                                                     </td>
@@ -150,21 +159,23 @@
                                                         <span class="badge bg-danger">Inactivo</span>
                                                     </td>
                                                     <td>
-                                                        <div class="btn-group btn-group-sm">
-                                                            <a href="#" class="btn btn-outline-primary"
-                                                               data-bs-toggle="tooltip" title="Editar">
-                                                                <i class="fas fa-edit"></i>
+                                                        <div class="btn-group btn-group-sm" role="group" aria-label="Acciones de rol">
+                                                            <a href="{{ route('role.edit', $role->id) }}" class="btn btn-outline-primary"
+                                                                data-bs-toggle="tooltip" data-bs-placement="top" title="Editar">
+                                                                <i class="bi bi-pencil-square"></i>
                                                             </a>
-                                                            <button class="btn btn-outline-success cambiar-estado"
-                                                                    data-id="{{ $role->id }}"
-                                                                    data-bs-toggle="tooltip" title="Activar">
-                                                                <i class="fas fa-check"></i>
+
+                                                            <button class="btn btn-outline-warning cambiar-estado"
+                                                                data-id="{{ $role->id }}"
+                                                                data-bs-toggle="tooltip" data-bs-placement="top" title="Ver Modulos Asignados">
+                                                                <i class="bi bi-gear-wide-connected"></i>
                                                             </button>
+
                                                             <button class="btn btn-outline-danger eliminar-rol"
-                                                                    data-id="{{ $role->id }}"
-                                                                    data-nombre="{{ $role->nombre }}"
-                                                                    data-bs-toggle="tooltip" title="Eliminar">
-                                                                <i class="fas fa-trash"></i>
+                                                                data-id="{{ $role->id }}"
+                                                                data-nombre="{{ $role->nombre }}"
+                                                                data-bs-toggle="tooltip" data-bs-placement="top" title="Eliminar">
+                                                                <i class="bi bi-trash"></i>
                                                             </button>
                                                         </div>
                                                     </td>

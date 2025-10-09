@@ -84,12 +84,12 @@ Route::middleware('auth')->group(function () {
         Route::put('/role/{id}', [RoleController::class, 'update'])->name('role.update');
         Route::delete('/role/{id}', [RoleController::class, 'destroy'])->name('role.destroy');
 
-        Route::get('/modules', [ModuleController::class, 'index'])->name('modules.index');
-        Route::get('/modules/create', [ModuleController::class, 'create'])->name('modules.create');
-        Route::post('/modules', [ModuleController::class, 'store'])->name('modules.store');
-        Route::get('/modules/{id}/edit', [ModuleController::class, 'edit'])->name('modules.edit');
-        Route::put('/modules/{id}', [ModuleController::class, 'update'])->name('modules.update');
-        Route::delete('/modules/{id}', [ModuleController::class, 'destroy'])->name('modules.destroy');
+        Route::get('/module', [ModuleController::class, 'index'])->name('module.index');
+        Route::get('/module/create', [ModuleController::class, 'create'])->name('module.create');
+        Route::post('/module', [ModuleController::class, 'store'])->name('module.store');
+        Route::get('/module/{id}/edit', [ModuleController::class, 'edit'])->name('module.edit');
+        Route::put('/module/{id}', [ModuleController::class, 'update'])->name('module.update');
+        Route::delete('/module/{id}', [ModuleController::class, 'destroy'])->name('module.destroy');
 
         Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
         Route::get('/maya/create', [MayaController::class, 'create'])->name('maya.create');

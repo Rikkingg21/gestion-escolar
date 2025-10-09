@@ -40,12 +40,12 @@ class ModuleController extends Controller
         $modulosActivos = Module::activos()->get();
         $modulosInactivos = Module::inactivos()->get();
 
-        return view('modules.index', compact('modulosActivos', 'modulosInactivos'));
+        return view('module.index', compact('modulosActivos', 'modulosInactivos'));
     }
 
     public function create()
     {
-        return view('modules.create');
+        return view('module.create');
     }
 
     public function store(Request $request)
