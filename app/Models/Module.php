@@ -35,29 +35,4 @@ class Module extends Model
     {
         return $this->hasMany(Rolemoduleexception::class, 'module_id');
     }
-
-    // Scopes para estado
-    public function scopeActivos($query)
-    {
-        return $query->where('estado', '1');
-    }
-
-    public function scopeInactivos($query)
-    {
-        return $query->where('estado', '0');
-    }
-
-    // Accesor para estado legible
-    public function getEstadoTextoAttribute()
-    {
-        return $this->estado == '1' ? 'Activo' : 'Inactivo';
-    }
-
-    // Accesor para badge de estado
-    public function getEstadoBadgeAttribute()
-    {
-        return $this->estado == '1'
-            ? '<span class="badge bg-success">Activo</span>'
-            : '<span class="badge bg-danger">Inactivo</span>';
-    }
 }
