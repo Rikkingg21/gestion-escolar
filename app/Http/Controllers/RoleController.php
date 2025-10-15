@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Module;
 
 
 class RoleController extends Controller
@@ -116,10 +117,68 @@ class RoleController extends Controller
 
     public function module($id)
     {
-        $roles = Role::where('estado', '1')->get();
-        return view('role.module', compact('roles'));
+        $role = Role::findOrFail($id);
+
+        // Módulos asignados al rol
+        $modulesAsignados = $role->modules()
+            ->wherePivot('estado', '1')
+            ->get();
+
+        // Módulos disponibles (todos los activos menos los ya asignados)
+        $modulesDisponibles = Module::where('estado', '1')
+            ->whereNotIn('id', $modulesAsignados->pluck('id'))
+            ->get();
+
+        return view('role.module', compact('role', 'modulesAsignados', 'modulesDisponibles'));
+    }
+    public function assignModule(Request $request, $roleId)
+    {
+        $request->validate([
+            'module_id' => 'required|exists:modules,id',
+            'estado' => 'required|in:1,0'
+        ]);
+
+        try {
+            $role = Role::findOrFail($roleId);
+
+            // Verificar si ya existe la relación
+            $existing = $role->modules()->where('module_id', $request->module_id)->first();
+
+            if ($existing) {
+                // Actualizar estado si ya existe
+                $role->modules()->updateExistingPivot($request->module_id, [
+                    'estado' => $request->estado
+                ]);
+            } else {
+                // Crear nueva relación
+                $role->modules()->attach($request->module_id, [
+                    'estado' => $request->estado
+                ]);
+            }
+
+            return redirect()->back()
+                ->with('success', 'Módulo asignado exitosamente');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al asignar módulo: ' . $e->getMessage());
+        }
     }
 
+    public function removeModule($roleId, $moduleId)
+    {
+        try {
+            $role = Role::findOrFail($roleId);
+            $role->modules()->detach($moduleId);
+
+            return redirect()->back()
+                ->with('success', 'Módulo removido exitosamente');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al remover módulo: ' . $e->getMessage());
+        }
+    }
     public function selectRole()
     {
         $user = Auth::user();

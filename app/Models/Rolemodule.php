@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Rolemodule extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected $table = 'role_modules';
     public $timestamps = true;
@@ -30,11 +31,5 @@ class Rolemodule extends Model
     public function module()
     {
         return $this->belongsTo(Module::class, 'module_id');
-    }
-
-    // Scopes
-    public function scopeActivos($query)
-    {
-        return $query->where('estado', '1');
     }
 }
