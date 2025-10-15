@@ -114,6 +114,12 @@ class RoleController extends Controller
         }
     }
 
+    public function module($id)
+    {
+        $roles = Role::where('estado', '1')->get();
+        return view('role.module', compact('roles'));
+    }
+
     public function selectRole()
     {
         $user = Auth::user();

@@ -89,11 +89,10 @@
                                                                 <i class="bi bi-pencil-square"></i>
                                                             </a>
 
-                                                            <button class="btn btn-outline-warning cambiar-estado"
-                                                                data-id="{{ $role->id }}"
+                                                            <a href="{{ route('role.module', $role->id) }}" class="btn btn-outline-warning"
                                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="Ver Modulos Asignados">
                                                                 <i class="bi bi-gear-wide-connected"></i>
-                                                            </button>
+                                                            </a>
 
                                                             <button class="btn btn-outline-danger eliminar-rol"
                                                                 data-id="{{ $role->id }}"
@@ -165,11 +164,10 @@
                                                                 <i class="bi bi-pencil-square"></i>
                                                             </a>
 
-                                                            <button class="btn btn-outline-warning cambiar-estado"
-                                                                data-id="{{ $role->id }}"
+                                                            <a href="{{ route('role.module', $role->id) }}" class="btn btn-outline-warning"
                                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="Ver Modulos Asignados">
                                                                 <i class="bi bi-gear-wide-connected"></i>
-                                                            </button>
+                                                            </a>
 
                                                             <button class="btn btn-outline-danger eliminar-rol"
                                                                 data-id="{{ $role->id }}"
@@ -227,33 +225,10 @@
         </div>
     </div>
 </div>
-@endsection
-
-@section('scripts')
 <script>
 $(document).ready(function() {
     // Tooltips
     $('[data-bs-toggle="tooltip"]').tooltip();
-
-    // Cambiar estado
-    $('.cambiar-estado').on('click', function() {
-        const roleId = $(this).data('id');
-        if (confirm('¿Está seguro de cambiar el estado de este rol?')) {
-            $.ajax({
-                url: "{{ url('roles') }}/" + roleId + "/cambiar-estado",
-                method: "POST",
-                data: {
-                    _token: "{{ csrf_token() }}"
-                },
-                success: function(response) {
-                    location.reload();
-                },
-                error: function(xhr) {
-                    alert('Error al cambiar el estado');
-                }
-            });
-        }
-    });
 
     // Eliminar rol
     $('.eliminar-rol').on('click', function() {
@@ -261,7 +236,7 @@ $(document).ready(function() {
         const roleNombre = $(this).data('nombre');
 
         $('#nombreRolEliminar').text(roleNombre);
-        $('#formEliminar').attr('action', "{{ url('roles') }}/" + roleId);
+        $('#formEliminar').attr('action', "{{ url('role') }}/" + roleId);
         $('#modalEliminar').modal('show');
     });
 });

@@ -84,6 +84,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/role/{id}', [RoleController::class, 'update'])->name('role.update');
         Route::delete('/role/{id}', [RoleController::class, 'destroy'])->name('role.destroy');
 
+        Route::get('/role-module/{id}', [RoleController::class, 'module'])->name('role.module');
+
         Route::get('/module', [ModuleController::class, 'index'])->name('module.index');
         Route::get('/module/create', [ModuleController::class, 'create'])->name('module.create');
         Route::post('/module', [ModuleController::class, 'store'])->name('module.store');
