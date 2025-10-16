@@ -78,180 +78,74 @@
                 </span>
             </div>
 
-            <ul class="nav nav-pills flex-column mb-3">
-                <!-- Dashboard siempre visible -->
-                <li class="nav-item mb-1">
-                    <a href="{{ route(session('current_role') . '.dashboard') }}"
-                       class="nav-link text-white {{ request()->routeIs(session('current_role') . '.dashboard') ? 'active' : '' }}">
-                        <i class="bi bi-speedometer2 me-2"></i>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
+<!-- Contenido - Módulos según el rol -->
+<ul class="nav nav-pills flex-column mb-3">
+    <!-- Dashboard siempre visible (manejado como módulo especial) -->
+    @php
+        $dashboardModule = $sidebarModules->firstWhere('nombre', 'Dashboard');
+    @endphp
 
-                <!-- Módulos dinámicos según el rol -->
-                @if(isset($sidebarModules) && $sidebarModules->count() > 0)
-                    @foreach($sidebarModules as $module)
-                        <li class="nav-item mb-1">
-                            <a class="nav-link text-white d-flex align-items-center"
-                               href="{{ url($module->ruta_base) }}"
-                               data-bs-toggle="tooltip"
-                               data-bs-placement="right"
-                               title="{{ $module->nombre }}"
-                               style="transition: all 0.3s ease;">
-                                <i class="{{ $module->icono }} me-2"></i>
-                                <span>{{ $module->nombre }}</span>
-                            </a>
-                        </li>
-                    @endforeach
-                @else
-                    <!-- Mensaje cuando no hay módulos asignados -->
-                    <li class="nav-item">
-                        <div class="alert alert-warning small mb-0">
-                            <i class="bi bi-exclamation-triangle me-1"></i>
-                            No tienes módulos asignados
-                        </div>
-                    </li>
-                @endif
-            </ul>
-            <ul class="nav nav-pills flex-column"><!--contenido-->
-                @if(session('current_role') === 'admin')
-                {{-- Solo para admin --}}
-                <li class="nav-item">
-                    <a href="{{ route('admin.dashboard') }}" class="nav-link text-white {{ request()->routeIs('admin.*') ? 'active' : '' }}">
-                        <i class="bi bi-speedometer2 me-2"></i> <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('maya.index') }}" class="nav-link text-white {{ request()->routeIs('maya.*') ? 'active' : '' }}">
-                        <i class="bi bi-clipboard2-check me-2"></i> <span>Mayas</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('colegioconfig.edit') }}" class="nav-link text-white {{ request()->routeIs('colegioconfig.*') ? 'active' : '' }}">
-                        <i class="bi bi-building me-2"></i> <span>Colegio</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('user.index') }}" class="nav-link text-white {{ request()->routeIs('users.*') ? 'active' : '' }}">
-                        <i class="bi bi-people me-2"></i> <span>Usuarios</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
-                        <i class="bi bi-megaphone me-2"></i> <span>Reportes</span>
-                    </a>
-                </li>
+    @if($dashboardModule)
+        <li class="nav-item mb-1">
+            <a href="{{ $dashboardModule->custom_route }}"
+               class="nav-link text-white {{ request()->routeIs(session('current_role') . '.dashboard') ? 'active' : '' }}"
+               data-bs-toggle="tooltip"
+               data-bs-placement="right"
+               title="Dashboard">
+                <i class="{{ $dashboardModule->custom_icon }} me-2"></i>
+                <span>{{ $dashboardModule->nombre }}</span>
+            </a>
+        </li>
+    @else
+        <!-- Fallback si no existe el módulo Dashboard -->
+        <li class="nav-item mb-1">
+            <a href="{{ route(session('current_role') . '.dashboard') }}"
+               class="nav-link text-white {{ request()->routeIs(session('current_role') . '.dashboard') ? 'active' : '' }}">
+                <i class="bi bi-speedometer2 me-2"></i>
+                <span>Dashboard</span>
+            </a>
+        </li>
+    @endif
 
-                @endif
+    <!-- Módulos dinámicos según el rol (excluyendo Dashboard) -->
+    @php
+        $filteredModules = $sidebarModules->filter(function($module) {
+            return $module->nombre !== 'Dashboard';
+        });
+    @endphp
 
-                @if(session('current_role') === 'director')
-                <li class="nav-item">
-                    <a href="{{ route('director.dashboard') }}" class="nav-link text-white {{ request()->routeIs('director.*') ? 'active' : '' }}">
-                        <i class="bi bi-speedometer2 me-2"></i> <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('user.index') }}" class="nav-link text-white {{ request()->routeIs('users.*') ? 'active' : '' }}">
-                        <i class="bi bi-people me-2"></i> <span>Usuarios</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('grado.index') }}" class="nav-link text-white {{ request()->routeIs('grado.*') ? 'active' : '' }}">
-                        <i class="bi bi-person-rolodex me-2"></i> <span>Grados</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('materia.index') }}" class="nav-link text-white {{ request()->routeIs('materia.*') ? 'active' : '' }}">
-                        <i class="bi bi-journal-text me-2"></i> <span>Materias</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('conducta.index') }}" class="nav-link text-white {{ request()->routeIs('conducta.*') ? 'active' : '' }}">
-                        <i class="bi bi-people me-2"></i> <span>Conducta</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('maya.index') }}" class="nav-link text-white {{ request()->routeIs('maya.*') ? 'active' : '' }}">
-                        <i class="bi bi-clipboard2-check me-2"></i> <span>Mayas</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
-                        <i class="bi bi-megaphone me-2"></i> <span>Reportes</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('asistencia.index') }}" class="nav-link text-white {{ request()->routeIs('asistencia.*') ? 'active' : '' }}">
-                        <i class="bi bi-journal-check me-2"></i> <span>Asistencia</span>
-                    </a>
-                </li>
-                @endif
-
-                @if(session('current_role') === 'docente')
-
-                <li class="nav-item">
-                    <a href="{{ route('docente.dashboard') }}" class="nav-link text-white {{ request()->routeIs('docente.*') ? 'active' : '' }}">
-                        <i class="bi bi-speedometer2 me-2"></i> <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('maya.index') }}" class="nav-link text-white {{ request()->routeIs('maya.*') ? 'active' : '' }}">
-                         <i class="bi bi-clipboard2-check me-2"></i> <span>Mayas</span>
-                    </a>
-                </li>
-
-                <li class="nav-item">
-                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
-                        <i class="bi bi-people me-2"></i> <span>Reportes</span>
-                    </a>
-                </li>
-                @endif
-
-                @if(session('current_role') === 'auxiliar')
-                <li class="nav-item">
-                    <a href="{{ route('auxiliar.dashboard') }}" class="nav-link text-white {{ request()->routeIs('auxiliar.*') ? 'active' : '' }}">
-                        <i class="bi bi-speedometer2 me-2"></i> Dashboard
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
-                        <i class="bi bi-megaphone me-2"></i> <span>Reportes</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('asistencia.index') }}" class="nav-link text-white {{ request()->routeIs('asistencia.*') ? 'active' : '' }}">
-                        <i class="bi bi-journal-check me-2"></i> <span>Asistencia</span>
-                    </a>
-                </li>
-                @endif
-                @if(session('current_role') === 'apoderado')
-                <li class="nav-item">
-                    <a href="{{ route('apoderado.dashboard') }}" class="nav-link text-white {{ request()->routeIs('apoderado.*') ? 'active' : '' }}">
-                        <i class="bi bi-speedometer2 me-2"></i> Dashboard
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('reporte.index') }}" class="nav-link text-white {{ request()->routeIs('reporte.*') ? 'active' : '' }}">
-                        <i class="bi bi-megaphone me-2"></i> <span>Reportes</span>
-                    </a>
-                </li>
-                @endif
-                @if(session('current_role') === 'estudiante')
-                <li class="nav-item">
-                    <a href="{{ route('estudiante.dashboard') }}" class="nav-link text-white {{ request()->routeIs('estudiante.*') ? 'active' : '' }}">
-                        <i class="bi bi-speedometer2 me-2"></i> Dashboard
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('libreta.index', ['anio' => date('Y'), 'bimestre' => 1]) }}"
-                    class="nav-link text-white {{ request()->routeIs('libreta.*') ? 'active' : '' }}">
-                        <i class="bi bi-journal-bookmark me-2"></i> <span>Libreta</span>
-                    </a>
-                </li>
-                @endif
+    @if($filteredModules->count() > 0)
+        @foreach($filteredModules as $module)
+            <li class="nav-item mb-1">
+                <a class="nav-link text-white d-flex align-items-center"
+                   href="{{ $module->custom_route }}"
+                   data-bs-toggle="tooltip"
+                   data-bs-placement="right"
+                   title="{{ $module->nombre }}"
+                   style="transition: all 0.3s ease;">
+                    <i class="{{ $module->custom_icon }} me-2"></i>
+                    <span>{{ $module->nombre }}</span>
+                    @if($module->has_special_route)
+                        <small class="ms-1 opacity-75">
+                            <i class="bi bi-star-fill"></i>
+                        </small>
+                    @endif
+                </a>
+            </li>
+        @endforeach
+    @else
+        <!-- Mensaje cuando no hay módulos asignados -->
+        <li class="nav-item">
+            <div class="alert alert-warning small mb-0">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                No tienes módulos asignados
+            </div>
+        </li>
+    @endif
+</ul>
+<!--antiguo contenido-->
 
 
-            </ul>
 
             <div class="mt-auto text-center text-white-50 small">
                 <div class="dropdown">
