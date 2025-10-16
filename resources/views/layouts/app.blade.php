@@ -76,9 +76,43 @@
                 <span class="badge bg-primary">
                     Rol: {{ ucfirst(session('current_role')) }}
                 </span>
-
             </div>
 
+            <ul class="nav nav-pills flex-column mb-3">
+                <!-- Dashboard siempre visible -->
+                <li class="nav-item mb-1">
+                    <a href="{{ route(session('current_role') . '.dashboard') }}"
+                       class="nav-link text-white {{ request()->routeIs(session('current_role') . '.dashboard') ? 'active' : '' }}">
+                        <i class="bi bi-speedometer2 me-2"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <!-- Módulos dinámicos según el rol -->
+                @if(isset($sidebarModules) && $sidebarModules->count() > 0)
+                    @foreach($sidebarModules as $module)
+                        <li class="nav-item mb-1">
+                            <a class="nav-link text-white d-flex align-items-center"
+                               href="{{ url($module->ruta_base) }}"
+                               data-bs-toggle="tooltip"
+                               data-bs-placement="right"
+                               title="{{ $module->nombre }}"
+                               style="transition: all 0.3s ease;">
+                                <i class="{{ $module->icono }} me-2"></i>
+                                <span>{{ $module->nombre }}</span>
+                            </a>
+                        </li>
+                    @endforeach
+                @else
+                    <!-- Mensaje cuando no hay módulos asignados -->
+                    <li class="nav-item">
+                        <div class="alert alert-warning small mb-0">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            No tienes módulos asignados
+                        </div>
+                    </li>
+                @endif
+            </ul>
             <ul class="nav nav-pills flex-column"><!--contenido-->
                 @if(session('current_role') === 'admin')
                 {{-- Solo para admin --}}

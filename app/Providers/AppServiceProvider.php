@@ -9,18 +9,10 @@ use Illuminate\Support\Facades\View;
 use App\Models\User;
 use App\Policies\UserPolicy;
 use Illuminate\Support\Facades\Gate;
+use App\Services\ModuleService;
 
 class AppServiceProvider extends ServiceProvider
 {
-    protected $policies = [
-        User::class => UserPolicy::class,
-    ];
-
-    public function register(): void
-    {
-        //
-    }
-
     public function boot()
     {
         // Registrar políticas de acceso
@@ -38,6 +30,12 @@ class AppServiceProvider extends ServiceProvider
         // Compartir datos del colegio con el layout app.blade.php
         View::composer('layouts.app', function ($view) {
             $view->with('colegio', Colegio::configuracion());
+        });
+
+        // Compartir módulos con todas las vistas que usen layouts.app
+        View::composer('layouts.app', function ($view) {
+            $modules = ModuleService::getActiveModules();
+            $view->with('sidebarModules', $modules);
         });
     }
 }
