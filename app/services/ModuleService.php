@@ -39,7 +39,6 @@ class ModuleService
         return $modules->map(function ($module) {
             $module->custom_route = ModuleRouteService::getModuleRoute($module);
             $module->custom_icon = ModuleRouteService::getModuleIcon($module);
-            $module->has_special_route = ModuleRouteService::hasSpecialRoute($module->nombre);
             return $module;
         });
     }
@@ -53,10 +52,6 @@ class ModuleService
                    str_starts_with($moduleRoute, $module->ruta_base);
         });
     }
-
-    /**
-     * Obtiene módulos excluyendo algunos por nombre
-     */
     public static function getFilteredModules($excludeNames = [])
     {
         $modules = self::getActiveModules();

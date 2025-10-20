@@ -78,74 +78,44 @@
                 </span>
             </div>
 
-<!-- Contenido - Módulos según el rol -->
-<ul class="nav nav-pills flex-column mb-3">
-    <!-- Dashboard siempre visible (manejado como módulo especial) -->
-    @php
-        $dashboardModule = $sidebarModules->firstWhere('nombre', 'Dashboard');
-    @endphp
+            <!-- Contenido - Módulos según el rol -->
+            <ul class="nav nav-pills flex-column mb-3">
 
-    @if($dashboardModule)
-        <li class="nav-item mb-1">
-            <a href="{{ $dashboardModule->custom_route }}"
-               class="nav-link text-white {{ request()->routeIs(session('current_role') . '.dashboard') ? 'active' : '' }}"
-               data-bs-toggle="tooltip"
-               data-bs-placement="right"
-               title="Dashboard">
-                <i class="{{ $dashboardModule->custom_icon }} me-2"></i>
-                <span>{{ $dashboardModule->nombre }}</span>
-            </a>
-        </li>
-    @else
-        <!-- Fallback si no existe el módulo Dashboard -->
-        <li class="nav-item mb-1">
-            <a href="{{ route(session('current_role') . '.dashboard') }}"
-               class="nav-link text-white {{ request()->routeIs(session('current_role') . '.dashboard') ? 'active' : '' }}">
-                <i class="bi bi-speedometer2 me-2"></i>
-                <span>Dashboard</span>
-            </a>
-        </li>
-    @endif
+                @php
+                    $filteredModules = $sidebarModules->filter(function($module) {
+                        return $module->nombre;
+                    });
+                @endphp
 
-    <!-- Módulos dinámicos según el rol (excluyendo Dashboard) -->
-    @php
-        $filteredModules = $sidebarModules->filter(function($module) {
-            return $module->nombre !== 'Dashboard';
-        });
-    @endphp
-
-    @if($filteredModules->count() > 0)
-        @foreach($filteredModules as $module)
-            <li class="nav-item mb-1">
-                <a class="nav-link text-white d-flex align-items-center"
-                   href="{{ $module->custom_route }}"
-                   data-bs-toggle="tooltip"
-                   data-bs-placement="right"
-                   title="{{ $module->nombre }}"
-                   style="transition: all 0.3s ease;">
-                    <i class="{{ $module->custom_icon }} me-2"></i>
-                    <span>{{ $module->nombre }}</span>
-                    @if($module->has_special_route)
-                        <small class="ms-1 opacity-75">
-                            <i class="bi bi-star-fill"></i>
-                        </small>
-                    @endif
-                </a>
-            </li>
-        @endforeach
-    @else
-        <!-- Mensaje cuando no hay módulos asignados -->
-        <li class="nav-item">
-            <div class="alert alert-warning small mb-0">
-                <i class="bi bi-exclamation-triangle me-1"></i>
-                No tienes módulos asignados
-            </div>
-        </li>
-    @endif
-</ul>
-<!--antiguo contenido-->
-
-
+                @if($filteredModules->count() > 0)
+                    @foreach($filteredModules as $module)
+                        <li class="nav-item mb-1">
+                            <a class="nav-link text-white d-flex align-items-center"
+                            href="{{ $module->custom_route }}"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="right"
+                            title="{{ $module->nombre }}"
+                            style="transition: all 0.3s ease;">
+                                <i class="{{ $module->custom_icon }} me-2"></i>
+                                <span>{{ $module->nombre }}</span>
+                                @if($module->has_special_route)
+                                    <small class="ms-1 opacity-75">
+                                        <i class="bi bi-star-fill"></i>
+                                    </small>
+                                @endif
+                            </a>
+                        </li>
+                    @endforeach
+                @else
+                    <!-- Mensaje cuando no hay módulos asignados -->
+                    <li class="nav-item">
+                        <div class="alert alert-warning small mb-0">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            No tienes módulos asignados
+                        </div>
+                    </li>
+                @endif
+            </ul>
 
             <div class="mt-auto text-center text-white-50 small">
                 <div class="dropdown">

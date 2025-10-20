@@ -29,20 +29,6 @@ class RoleSelectionController extends Controller
     }
     protected function redirectToRole($role)
     {
-        switch ($role) {
-            case 'admin':
-            case 'director':
-                return redirect()->route('admin.dashboard');
-            case 'docente':
-                return redirect()->route('docente.dashboard');
-            case 'auxiliar':
-                return redirect()->route('auxiliar.dashboard');
-            case 'apoderado':
-                return redirect()->route('apoderado.dashboard');
-            case 'estudiante':
-                return redirect()->route('estudiante.dashboard');
-            default:
-                return redirect('/home');
-        }
+        return redirect()->route('dashboard.index');
     }
 }

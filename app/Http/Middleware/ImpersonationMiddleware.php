@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use App\Services\ModuleService;
 use Symfony\Component\HttpFoundation\Response;
 use App\Models\User;
 
@@ -22,3 +23,20 @@ class ImpersonationMiddleware
         return $next($request);
     }
 }
+/*
+class CheckModuleAccess
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        // Obtener la ruta actual
+        $currentRoute = $request->route()->getName() ?? $request->path();
+
+        // Verificar si el usuario tiene acceso al módulo
+        if (!ModuleService::hasAccessToModule($currentRoute)) {
+            abort(403, 'No tienes permisos para acceder a este módulo');
+        }
+
+        return $next($request);
+    }
+}
+    */

@@ -15,8 +15,7 @@ class ModuleRouteService
 
         // Reglas especiales por nombre de módulo
         switch ($module->nombre) {
-            case 'Dashboard':
-                return route($currentRole . '.dashboard');
+
 
             case 'Libreta':
                 return route('libreta.index', [
@@ -43,14 +42,7 @@ class ModuleRouteService
         return 4; // Octubre - Diciembre
     }
 
-    /**
-     * Verifica si un módulo necesita parámetros especiales
-     */
-    public static function hasSpecialRoute($moduleName)
-    {
-        $specialModules = ['Dashboard', 'Libreta'];
-        return in_array($moduleName, $specialModules);
-    }
+
 
     /**
      * Obtiene el icono personalizado si existe

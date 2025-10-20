@@ -79,18 +79,6 @@ class SessionSelectionController extends Controller
         session(['current_role' => $request->role]);
 
         // Redirige a la vista principal con la sub-sesión activa a admin.dashboard si el rol es admin, rol director a director.dashboard, etc.
-        if ($user->hasRole('admin')) {
-            return redirect()->route('admin.dashboard');
-        } elseif ($user->hasRole('director')) {
-            return redirect()->route('director.dashboard');
-        } elseif ($user->hasRole('docente')) {
-            return redirect()->route('docente.dashboard');
-        } elseif ($user->hasRole('auxiliar')) {
-            return redirect()->route('auxiliar.dashboard');
-        } elseif ($user->hasRole('estudiante')) {
-            return redirect()->route('estudiante.dashboard');
-        } elseif ($user->hasRole('apoderado')) {
-            return redirect()->route('apoderado.dashboard');
-        }
+        return redirect()->route('dashboard.index');
     }
 }

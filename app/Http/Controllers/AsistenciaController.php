@@ -20,14 +20,9 @@ class AsistenciaController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(function ($request, $next) {
-            $user = auth()->user();
-            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('auxiliar')) {
-                abort(403, 'Acceso no autorizado.');
-            }
-            return $next($request);
-        });
+        $this->middleware(CheckModuleAccess::class);
     }
+
     public function index(Request $request)
     {
         // Obtener el año seleccionado (o el actual por defecto)

@@ -63,157 +63,130 @@ Route::middleware('auth')->group(function () {
 
     });
 
+    Route::get('/dashboard', [DasboardController::class, 'index'])->name('dashboard.index');
+    Route::get('/colegioconfig/edit', [ColegioController::class, 'edit'])->name('colegioconfig.edit');
+    Route::put('/colegioconfig/{colegio}', [ColegioController::class, 'update'])->name('colegioconfig.update');
 
-    //rutas para admin
-    Route::controller(DasboardController::class)->group(function () {
-        Route::get('/admin', 'admin')->name('admin.dashboard');
-        Route::get('/colegioconfig/edit', [ColegioController::class, 'edit'])->name('colegioconfig.edit');
-        Route::put('/colegioconfig/{colegio}', [ColegioController::class, 'update'])->name('colegioconfig.update');
-    });
+    Route::get('/role', [RoleController::class, 'index'])->name('role.index');
+    Route::get('/role/create', [RoleController::class, 'create'])->name('role.create');
+    Route::post('/role', [RoleController::class, 'store'])->name('role.store');
+    Route::get('/role/{id}/edit', [RoleController::class, 'edit'])->name('role.edit');
+    Route::put('/role/{id}', [RoleController::class, 'update'])->name('role.update');
+    Route::delete('/role/{id}', [RoleController::class, 'destroy'])->name('role.destroy');
 
+    Route::get('/role-module/{id}', [RoleController::class, 'module'])->name('role.module');
+    Route::post('/role-module/{id}/assign-module', [RoleController::class, 'assignModule'])->name('role.assign-module');
+    Route::delete('/role-module/{roleId}/remove-module/{moduleId}', [RoleController::class, 'removeModule'])->name('role.remove-module');
 
+    Route::get('/module', [ModuleController::class, 'index'])->name('module.index');
+    Route::get('/module/create', [ModuleController::class, 'create'])->name('module.create');
+    Route::post('/module', [ModuleController::class, 'store'])->name('module.store');
+    Route::get('/module/{id}/edit', [ModuleController::class, 'edit'])->name('module.edit');
+    Route::put('/module/{id}', [ModuleController::class, 'update'])->name('module.update');
+    Route::delete('/module/{id}', [ModuleController::class, 'destroy'])->name('module.destroy');
 
-    //rutas para director
-    Route::controller(DasboardController::class)->group(function () {
-        Route::get('/director', 'director')->name('director.dashboard');
+    Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
+    Route::get('/maya/create', [MayaController::class, 'create'])->name('maya.create');
+    Route::post('/maya', [MayaController::class, 'store'])->name('maya.store');
+    Route::get('/maya/{id}/edit', [MayaController::class, 'edit'])->name('maya.edit');
+    Route::put('/maya/{id}', [MayaController::class, 'update'])->name('maya.update');
+    Route::delete('/maya/{id}', [MayaController::class, 'destroy'])->name('maya.destroy');
+    Route::get('/maya/dashboard', [MayaController::class, 'dashboard'])->name('maya.dashboard');
 
-        Route::get('/role', [RoleController::class, 'index'])->name('role.index');
-        Route::get('/role/create', [RoleController::class, 'create'])->name('role.create');
-        Route::post('/role', [RoleController::class, 'store'])->name('role.store');
-        Route::get('/role/{id}/edit', [RoleController::class, 'edit'])->name('role.edit');
-        Route::put('/role/{id}', [RoleController::class, 'update'])->name('role.update');
-        Route::delete('/role/{id}', [RoleController::class, 'destroy'])->name('role.destroy');
+    Route::get('/bimestre', [BimestreController::class, 'index'])->name('bimestre.index');
+    Route::get('/bimestre/create', [BimestreController::class, 'create'])->name('bimestre.create');
+    Route::post('/bimestre', [BimestreController::class, 'store'])->name('bimestre.store');
+    Route::get('/bimestre/{id}/edit', [BimestreController::class, 'edit'])->name('bimestre.edit');
+    Route::put('/bimestre/{id}', [BimestreController::class, 'update'])->name('bimestre.update');
+    Route::delete('/bimestre/{id}', [BimestreController::class, 'destroy'])->name('bimestre.destroy');
 
-        Route::get('/role-module/{id}', [RoleController::class, 'module'])->name('role.module');
-        Route::post('/role-module/{id}/assign-module', [RoleController::class, 'assignModule'])->name('role.assign-module');
-        Route::delete('/role-module/{roleId}/remove-module/{moduleId}', [RoleController::class, 'removeModule'])->name('role.remove-module');
+    Route::get('/nota/{bimestre}', [NotaController::class, 'index'])->name('nota.index');
+    Route::get('/nota/create', [NotaController::class, 'create'])->name('nota.create');
+    Route::post('/nota', [NotaController::class, 'store'])->name('nota.store');
+    Route::post('/nota-conducta', [NotaController::class, 'storeConductaNotas'])->name('nota.storeConductaNotas');
+    Route::get('/nota/{id}/edit', [NotaController::class, 'edit'])->name('nota.edit');
+    Route::put('/nota/{id}', [NotaController::class, 'update'])->name('nota.update');
+    Route::delete('/nota/{id}', [NotaController::class, 'destroy'])->name('nota.destroy');
+    Route::post('nota/publicar/{bimestre}', [NotaController::class, 'publicar'])->name('nota.publicar');
+    Route::post('nota/revertir/{bimestre}', [NotaController::class, 'revertir'])->name('nota.revertir');
 
-        Route::get('/module', [ModuleController::class, 'index'])->name('module.index');
-        Route::get('/module/create', [ModuleController::class, 'create'])->name('module.create');
-        Route::post('/module', [ModuleController::class, 'store'])->name('module.store');
-        Route::get('/module/{id}/edit', [ModuleController::class, 'edit'])->name('module.edit');
-        Route::put('/module/{id}', [ModuleController::class, 'update'])->name('module.update');
-        Route::delete('/module/{id}', [ModuleController::class, 'destroy'])->name('module.destroy');
+    Route::get('/user', [UserController::class, 'index'])->name('user.index');
+    Route::get('/user/create', [UserController::class, 'create'])->name('user.create');
 
-        Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
-        Route::get('/maya/create', [MayaController::class, 'create'])->name('maya.create');
-        Route::post('/maya', [MayaController::class, 'store'])->name('maya.store');
-        Route::get('/maya/{id}/edit', [MayaController::class, 'edit'])->name('maya.edit');
-        Route::put('/maya/{id}', [MayaController::class, 'update'])->name('maya.update');
-        Route::delete('/maya/{id}', [MayaController::class, 'destroy'])->name('maya.destroy');
-        Route::get('/maya/dashboard', [MayaController::class, 'dashboard'])->name('maya.dashboard');
+    Route::post('/user', [UserController::class, 'store'])->name('user.store');
+    Route::get('/user/{user}/edit', [UserController::class, 'edit'])->name('user.edit');
+    Route::put('/user/{user}', [UserController::class, 'update'])->name('user.update');
 
-        Route::get('/bimestre', [BimestreController::class, 'index'])->name('bimestre.index');
-        Route::get('/bimestre/create', [BimestreController::class, 'create'])->name('bimestre.create');
-        Route::post('/bimestre', [BimestreController::class, 'store'])->name('bimestre.store');
-        Route::get('/bimestre/{id}/edit', [BimestreController::class, 'edit'])->name('bimestre.edit');
-        Route::put('/bimestre/{id}', [BimestreController::class, 'update'])->name('bimestre.update');
-        Route::delete('/bimestre/{id}', [BimestreController::class, 'destroy'])->name('bimestre.destroy');
+    //ruta de usuarios mediante ajax
+    Route::get('/usuarios/activos', [UserController::class, 'ajaxUserActivo'])->name('usuarios.activos');
+    Route::get('/usuarios/lectores', [UserController::class, 'ajaxUserLector'])->name('usuarios.lectores');
+    Route::get('/usuarios/inactivos', [UserController::class, 'ajaxUserInactivo'])->name('usuarios.inactivos');
+    Route::delete('/usuarios/{user}', [UserController::class, 'destroy'])->name('usuarios.destroy');
 
-        Route::get('/nota/{bimestre}', [NotaController::class, 'index'])->name('nota.index');
-        Route::get('/nota/create', [NotaController::class, 'create'])->name('nota.create');
-        Route::post('/nota', [NotaController::class, 'store'])->name('nota.store');
-        Route::post('/nota-conducta', [NotaController::class, 'storeConductaNotas'])->name('nota.storeConductaNotas');
-        Route::get('/nota/{id}/edit', [NotaController::class, 'edit'])->name('nota.edit');
-        Route::put('/nota/{id}', [NotaController::class, 'update'])->name('nota.update');
-        Route::delete('/nota/{id}', [NotaController::class, 'destroy'])->name('nota.destroy');
-        Route::post('nota/publicar/{bimestre}', [NotaController::class, 'publicar'])->name('nota.publicar');
-        Route::post('nota/revertir/{bimestre}', [NotaController::class, 'revertir'])->name('nota.revertir');
+    Route::get('/apoderados/search', [ApoderadoController::class, 'search'])->name('apoderados.search');
 
+    Route::get('/user/importar', [UserController::class, 'importar'])->name('user.importar');
+    Route::post('/importar/apoderados', [UserController::class, 'importarApoderados'])->name('importar.apoderados');
+    Route::post('/importar/estudiantes', [UserController::class, 'importarEstudiantes'])->name('importar.estudiantes');
 
-        Route::get('/user', [UserController::class, 'index'])->name('user.index');
-        Route::get('/user/create', [UserController::class, 'create'])->name('user.create');
+    Route::get('/grado', [GradoController::class, 'index'])->name('grado.index');
 
-        Route::post('/user', [UserController::class, 'store'])->name('user.store');
-        Route::get('/user/{user}/edit', [UserController::class, 'edit'])->name('user.edit');
-        Route::put('/user/{user}', [UserController::class, 'update'])->name('user.update');
+    Route::get('/grado/estudiantes/{id}', [GradoController::class, 'estudiantes'])->name('grado.estudiantes');
+    Route::put('/grado/estudiantes/{grado}', [GradoController::class, 'estudiantesUpdateGrado'])->name('grado.estudiantesupdategrado');
 
-        //ruta de usuarios mediante ajax
-        Route::get('/usuarios/activos', [UserController::class, 'ajaxUserActivo'])->name('usuarios.activos');
-        Route::get('/usuarios/lectores', [UserController::class, 'ajaxUserLector'])->name('usuarios.lectores');
-        Route::get('/usuarios/inactivos', [UserController::class, 'ajaxUserInactivo'])->name('usuarios.inactivos');
-        Route::delete('/usuarios/{user}', [UserController::class, 'destroy'])->name('usuarios.destroy');
+    Route::get('/grado/create', [GradoController::class, 'create'])->name('grado.create');
+    Route::post('/grado', [GradoController::class, 'store'])->name('grado.store');
+    Route::get('/grado/{id}/edit', [GradoController::class, 'edit'])->name('grado.edit');
+    Route::put('/grado/{grado}', [GradoController::class, 'update'])->name('grado.update');
+    Route::delete('/grado/{id}', [GradoController::class, 'destroy'])->name('grado.destroy');
 
-        Route::get('/apoderados/search', [ApoderadoController::class, 'search'])->name('apoderados.search');
+    Route::get('/materia', [MateriaController::class, 'index'])->name('materia.index');
+    Route::get('/materia/create', [MateriaController::class, 'create'])->name('materia.create');
+    Route::post('/materia', [MateriaController::class, 'store'])->name('materia.store');
+    Route::get('/materia/{id}/edit', [MateriaController::class, 'edit'])->name('materia.edit');
+    Route::put('/materia/{materia}', [MateriaController::class, 'update'])->name('materia.update');
+    Route::delete('/materia/{id}', [MateriaController::class, 'destroy'])->name('materia.destroy');
 
-        Route::get('/user/importar', [UserController::class, 'importar'])->name('user.importar');
-        Route::post('/importar/apoderados', [UserController::class, 'importarApoderados'])->name('importar.apoderados');
-        Route::post('/importar/estudiantes', [UserController::class, 'importarEstudiantes'])->name('importar.estudiantes');
+    Route::get('/materia-competencia/{id}', [MateriaCompetenciaController::class, 'index'])->name('materiacompetencia.index');
+    Route::get('/materia-competencia/{id}/create', [MateriaCompetenciaController::class, 'create'])->name('materiacompetencia.create');
+    Route::post('/materia-competencia', [MateriaCompetenciaController::class, 'store'])->name('materiacompetencia.store');
+    Route::get('/materia-competencia/{materiacompetencia}/edit', [MateriaCompetenciaController::class, 'edit'])->name('materiacompetencia.edit');
+    Route::put('/materia-competencia/{materiacompetencia}', [MateriaCompetenciaController::class, 'update'])->name('materiacompetencia.update');
+    Route::delete('/materia-competencia/{id}', [MateriaCompetenciaController::class, 'destroy'])->name('materiacompetencia.destroy');
 
+    Route::get('/materia-criterio/{id}', [MateriaCriterioController::class, 'index'])->name('materiacriterio.index');
+    Route::get('/materia-criterio/{id}/create', [MateriaCriterioController::class, 'create'])->name('materiacriterio.create');
+    Route::post('/materia-criterio', [MateriaCriterioController::class, 'store'])->name('materiacriterio.store');
+    Route::get('/materia-criterio/{materiacriterio}/edit', [MateriaCriterioController::class, 'edit'])->name('materiacriterio.edit');
+    Route::put('/materia-criterio/{materiacriterio}', [MateriaCriterioController::class, 'update'])->name('materiacriterio.update');
+    Route::delete('/materia-criterio/{id}', [MateriaCriterioController::class, 'destroy'])->name('materiacriterio.destroy');
 
-        Route::get('/grado', [GradoController::class, 'index'])->name('grado.index');
+    Route::get('/conducta', [ConductaController::class, 'index'])->name('conducta.index');
+    Route::get('/conducta/create', [ConductaController::class, 'create'])->name('conducta.create');
+    Route::post('/conducta', [ConductaController::class, 'store'])->name('conducta.store');
+    Route::get('/conducta/{conducta}/edit', [ConductaController::class, 'edit'])->name('conducta.edit');
+    Route::put('/conducta/{conducta}', [ConductaController::class, 'update'])->name('conducta.update');
+    Route::delete('/conducta/{conducta}', [ConductaController::class, 'destroy'])->name('conducta.destroy');
 
-        Route::get('/grado/estudiantes/{id}', [GradoController::class, 'estudiantes'])->name('grado.estudiantes');
-        Route::put('/grado/estudiantes/{grado}', [GradoController::class, 'estudiantesUpdateGrado'])->name('grado.estudiantesupdategrado');
+    Route::get('/reporte', [ReporteController::class, 'index'])->name('reporte.index');
+    Route::get('/reporte/create', [ReporteController::class, 'create'])->name('reporte.create');
+    Route::get('/reporte/{id}', [ReporteController::class, 'show'])->name('reporte.show');
+    Route::post('/reporte', [ReporteController::class, 'store'])->name('reporte.store');
+    Route::get('/reporte/{id}/edit', [ReporteController::class, 'edit'])->name('reporte.edit');
+    Route::put('/reporte/{reporte}', [ReporteController::class, 'update'])->name('reporte.update');
+    Route::delete('/reporte/{id}', [ReporteController::class, 'destroy'])->name('reporte.destroy');
 
-        Route::get('/grado/create', [GradoController::class, 'create'])->name('grado.create');
-        Route::post('/grado', [GradoController::class, 'store'])->name('grado.store');
-        Route::get('/grado/{id}/edit', [GradoController::class, 'edit'])->name('grado.edit');
-        Route::put('/grado/{grado}', [GradoController::class, 'update'])->name('grado.update');
-        Route::delete('/grado/{id}', [GradoController::class, 'destroy'])->name('grado.destroy');
+    Route::get('/libreta/{anio}/{bimestre}', [LibretaController::class, 'index'])->name('libreta.index');
+    Route::post('/libreta/{anio}/{bimestre}/pdf', [LibretaController::class, 'pdf'])->name('libreta.pdf');
 
-
-
-
-        Route::get('/materia', [MateriaController::class, 'index'])->name('materia.index');
-        Route::get('/materia/create', [MateriaController::class, 'create'])->name('materia.create');
-        Route::post('/materia', [MateriaController::class, 'store'])->name('materia.store');
-        Route::get('/materia/{id}/edit', [MateriaController::class, 'edit'])->name('materia.edit');
-        Route::put('/materia/{materia}', [MateriaController::class, 'update'])->name('materia.update');
-        Route::delete('/materia/{id}', [MateriaController::class, 'destroy'])->name('materia.destroy');
-
-        Route::get('/materia-competencia/{id}', [MateriaCompetenciaController::class, 'index'])->name('materiacompetencia.index');
-        Route::get('/materia-competencia/{id}/create', [MateriaCompetenciaController::class, 'create'])->name('materiacompetencia.create');
-        Route::post('/materia-competencia', [MateriaCompetenciaController::class, 'store'])->name('materiacompetencia.store');
-        Route::get('/materia-competencia/{materiacompetencia}/edit', [MateriaCompetenciaController::class, 'edit'])->name('materiacompetencia.edit');
-        Route::put('/materia-competencia/{materiacompetencia}', [MateriaCompetenciaController::class, 'update'])->name('materiacompetencia.update');
-        Route::delete('/materia-competencia/{id}', [MateriaCompetenciaController::class, 'destroy'])->name('materiacompetencia.destroy');
-
-        Route::get('/materia-criterio/{id}', [MateriaCriterioController::class, 'index'])->name('materiacriterio.index');
-        Route::get('/materia-criterio/{id}/create', [MateriaCriterioController::class, 'create'])->name('materiacriterio.create');
-        Route::post('/materia-criterio', [MateriaCriterioController::class, 'store'])->name('materiacriterio.store');
-        Route::get('/materia-criterio/{materiacriterio}/edit', [MateriaCriterioController::class, 'edit'])->name('materiacriterio.edit');
-        Route::put('/materia-criterio/{materiacriterio}', [MateriaCriterioController::class, 'update'])->name('materiacriterio.update');
-        Route::delete('/materia-criterio/{id}', [MateriaCriterioController::class, 'destroy'])->name('materiacriterio.destroy');
-
-        Route::get('/conducta', [ConductaController::class, 'index'])->name('conducta.index');
-        Route::get('/conducta/create', [ConductaController::class, 'create'])->name('conducta.create');
-        Route::post('/conducta', [ConductaController::class, 'store'])->name('conducta.store');
-        Route::get('/conducta/{conducta}/edit', [ConductaController::class, 'edit'])->name('conducta.edit');
-        Route::put('/conducta/{conducta}', [ConductaController::class, 'update'])->name('conducta.update');
-        Route::delete('/conducta/{conducta}', [ConductaController::class, 'destroy'])->name('conducta.destroy');
-
-        Route::get('/reporte', [ReporteController::class, 'index'])->name('reporte.index');
-        Route::get('/reporte/create', [ReporteController::class, 'create'])->name('reporte.create');
-        Route::get('/reporte/{id}', [ReporteController::class, 'show'])->name('reporte.show');
-        Route::post('/reporte', [ReporteController::class, 'store'])->name('reporte.store');
-        Route::get('/reporte/{id}/edit', [ReporteController::class, 'edit'])->name('reporte.edit');
-        Route::put('/reporte/{reporte}', [ReporteController::class, 'update'])->name('reporte.update');
-        Route::delete('/reporte/{id}', [ReporteController::class, 'destroy'])->name('reporte.destroy');
-
-        Route::get('/libreta/{anio}/{bimestre}', [LibretaController::class, 'index'])->name('libreta.index');
-        Route::post('/libreta/{anio}/{bimestre}/pdf', [LibretaController::class, 'pdf'])->name('libreta.pdf');
-
-        Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asistencia.index');
-        Route::get('/asistencia/{grado_grado_seccion}/{grado_nivel}/{date}', [AsistenciaController::class, 'showDate'])
-            ->name('asistencia.grado')
-            ->where([
-                'grado_grado_seccion' => '[0-9]+[a-zA-Z]+', // Números y letras para grado y sección (ej: 1a, 2b)
-                'grado_nivel' => '[a-zA-Z]+', // Solo letras para el nivel
-                'date' => '\d{2}-\d{2}-\d{4}' // Formato dd-mm-yyyy
-            ]);
-        Route::post('/asistencia', [AsistenciaController::class, 'store'])->name('asistencia.store');
-        Route::put('/asistencia', [AsistenciaController::class, 'update'])->name('asistencia.update');
-
-
-    });
-
-    //rutas para docente
-    Route::controller(DasboardController::class)->group(function () {
-        Route::get('/docente', 'docente')->name('docente.dashboard');
-        Route::get('/auxiliar', 'auxiliar')->name('auxiliar.dashboard');
-        Route::get('/apoderado', 'apoderado')->name('apoderado.dashboard');
-        Route::get('/estudiante', 'estudiante')->name('estudiante.dashboard');
-    });
-
+    Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asistencia.index');
+    Route::get('/asistencia/{grado_grado_seccion}/{grado_nivel}/{date}', [AsistenciaController::class, 'showDate'])
+        ->name('asistencia.grado')
+        ->where([
+            'grado_grado_seccion' => '[0-9]+[a-zA-Z]+', // Números y letras para grado y sección (ej: 1a, 2b)
+            'grado_nivel' => '[a-zA-Z]+', // Solo letras para el nivel
+            'date' => '\d{2}-\d{2}-\d{4}' // Formato dd-mm-yyyy
+        ]);
+    Route::post('/asistencia', [AsistenciaController::class, 'store'])->name('asistencia.store');
+    Route::put('/asistencia', [AsistenciaController::class, 'update'])->name('asistencia.update');
 });
