@@ -11,6 +11,39 @@ use App\Models\Module;
 
 class RoleController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            $currentRole = session('current_role');
+
+            // Validar que el rol existe
+            $role = \App\Models\Role::where('nombre', $currentRole)->first();
+            if (!$role || $role->estado != '1') {
+                abort(403, 'Rol no válido o inactivo');
+            }
+
+            // Para role controller, el módulo base es 'role'
+            $module = \App\Models\Module::where('ruta_base', 'role')->first();
+            if (!$module || $module->estado != '1') {
+                abort(403, 'Módulo no encontrado o inactivo');
+            }
+
+            // Verificar si el rol tiene acceso al módulo
+            $hasAccess = \App\Models\Rolemodule::where('role_id', $role->id)
+                ->where('module_id', $module->id)
+                ->where('estado', '1')
+                ->exists();
+
+            if (!$hasAccess) {
+                abort(403, 'No tienes permisos para acceder a este módulo');
+            }
+
+            return $next($request);
+        });
+    }
+
+
+
     public function index()
     {
         $rolesActivos = Role::where('estado', '1')->get();

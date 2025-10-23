@@ -18,10 +18,7 @@ use Illuminate\Support\Facades\DB;
 
 class AsistenciaController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(CheckModuleAccess::class);
-    }
+
 
     public function index(Request $request)
     {

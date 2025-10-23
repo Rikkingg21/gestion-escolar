@@ -6,24 +6,52 @@ use App\Models\Colegio;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+
 
 class ColegioController extends Controller
 {
+public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            $currentRole = session('current_role');
+
+            // Validar que el rol existe
+            $role = \App\Models\Role::where('nombre', $currentRole)->first();
+            if (!$role || $role->estado != '1') {
+                abort(403, 'Rol no válido o inactivo');
+            }
+
+            // Buscar el módulo actual
+            $module = \App\Models\Module::where('ruta_base', 'colegioconfig/edit')->first();
+            if (!$module || $module->estado != '1') {
+                abort(403, 'Módulo no encontrado o inactivo');
+            }
+
+            // Verificar si el rol tiene acceso al módulo
+            $hasAccess = \App\Models\Rolemodule::where('role_id', $role->id)
+                ->where('module_id', $module->id)
+                ->where('estado', '1')
+                ->exists();
+
+            if (!$hasAccess) {
+                abort(403, 'No tienes permisos para acceder a este módulo');
+            }
+
+            return $next($request);
+        });
+    }
 
     public function edit(Colegio $colegio)
     {
-        if (!Auth::user()->hasRole('admin')) {
-            abort(403, 'Acceso denegado');
-        }
+
         $colegio = Colegio::configuracion();
         return view('rol.admin.colegioconfig.edit', compact('colegio'));
     }
 
     public function update(Request $request, Colegio $colegio)
     {
-        if (!Auth::user()->hasRole('admin')) {
-            abort(403, 'Acceso denegado');
-        }
+
         //dd($request->all());
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
