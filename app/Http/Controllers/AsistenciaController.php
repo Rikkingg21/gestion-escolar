@@ -18,6 +18,15 @@ use Illuminate\Support\Facades\DB;
 
 class AsistenciaController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if (!auth()->user()->canAccessModule('asistencia')) {
+                abort(403, 'No tienes permiso para acceder a este módulo.');
+            }
+            return $next($request);
+        });
+    }
 
 
     public function index(Request $request)
