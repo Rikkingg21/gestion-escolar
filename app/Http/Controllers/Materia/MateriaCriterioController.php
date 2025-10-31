@@ -14,13 +14,13 @@ class MateriaCriterioController extends Controller
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            $user = auth()->user();
-            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
-                abort(403, 'Acceso no autorizado.');
+            if (!auth()->user()->canAccessModule('Materias')) {
+                abort(403, 'No tienes permiso para acceder a este módulo.');
             }
             return $next($request);
         });
     }
+
 
     public function index($id, Request $request)
     {
