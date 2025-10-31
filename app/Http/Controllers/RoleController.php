@@ -11,10 +11,11 @@ use App\Models\Module;
 
 class RoleController extends Controller
 {
+    //moduleID 3 = Roles
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('role')) {
+            if (!auth()->user()->canAccessModule('3')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
             return $next($request);
