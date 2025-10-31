@@ -11,10 +11,11 @@ use App\Models\Materia;
 
 class MateriaCompetenciaController extends Controller
 {
+    //moduleID 11 = Materias
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('Materias')) {
+            if (!auth()->user()->canAccessModule('11')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
             return $next($request);
