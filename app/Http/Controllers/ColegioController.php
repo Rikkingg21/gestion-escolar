@@ -11,10 +11,11 @@ use Illuminate\Support\Facades\Gate;
 
 class ColegioController extends Controller
 {
+    //moduleID 6 = colegio
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('colegio')) {
+            if (!auth()->user()->canAccessModule('6')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
             return $next($request);
