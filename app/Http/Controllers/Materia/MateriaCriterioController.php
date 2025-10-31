@@ -21,7 +21,6 @@ class MateriaCriterioController extends Controller
         });
     }
 
-
     public function index($id, Request $request)
     {
         $currentYear = date('Y');

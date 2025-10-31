@@ -71,20 +71,21 @@ class User extends Authenticatable
     {
         return $query->where('estado', '0');
     }
-    public function canAccessModule($moduleName)
-    {
-        $currentRole = session('current_role');
 
-        if (!$currentRole) {
-            return false;
-        }
+    public function canAccessModule($moduleId)
+{
+    $currentRole = session('current_role');
 
-        return \App\Models\Role::where('nombre', $currentRole)
-            ->where('estado', '1')
-            ->whereHas('modules', function ($query) use ($moduleName) {
-                $query->where('modules.nombre', $moduleName)
-                      ->where('modules.estado', '1')
-                      ->where('role_modules.estado', '1');
-            })->exists();
+    if (!$currentRole) {
+        return false;
     }
+
+    return \App\Models\Role::where('nombre', $currentRole)
+        ->where('estado', '1')
+        ->whereHas('modules', function ($query) use ($moduleId) {
+            $query->where('modules.id', $moduleId)
+                  ->where('modules.estado', '1')
+                  ->where('role_modules.estado', '1');
+        })->exists();
+}
 }

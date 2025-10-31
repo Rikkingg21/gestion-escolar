@@ -11,7 +11,7 @@ class MateriaController extends Controller
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('Materias')) {
+            if (!auth()->user()->canAccessModule('11')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
             return $next($request);
