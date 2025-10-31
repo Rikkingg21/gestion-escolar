@@ -14,12 +14,12 @@ use Illuminate\Support\Facades\Auth;
 
 class ReporteController extends Controller
 {
+    //moduleID 8 = Roles
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            $user = auth()->user();
-            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente') && !$user->hasRole('auxiliar') && !$user->hasRole('apoderado')) {
-                abort(403, 'Acceso no autorizado.');
+            if (!auth()->user()->canAccessModule('8')) {
+                abort(403, 'No tienes permiso para acceder a este módulo.');
             }
             return $next($request);
         });
