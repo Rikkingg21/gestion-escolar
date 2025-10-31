@@ -12,12 +12,12 @@ use App\Models\User;
 
 class MayaController extends Controller
 {
+    //moduleID 13 = Roles
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            $user = auth()->user();
-            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
-                abort(403, 'Acceso no autorizado.');
+            if (!auth()->user()->canAccessModule('13')) {
+                abort(403, 'No tienes permiso para acceder a este módulo.');
             }
             return $next($request);
         });
