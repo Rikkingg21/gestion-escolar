@@ -8,27 +8,15 @@ use Illuminate\Support\Facades\Auth;
 
 class MateriaController extends Controller
 {
-public function __construct()
-{
-    $this->middleware(function ($request, $next) {
-        $user = auth()->user();
-        $currentRole = session('current_role');
-        $moduleName = 'Materias';
-
-        $hasAccess = $user && $user->roles()
-            ->where('nombre', $currentRole)
-            ->whereHas('modules', function($query) use ($moduleName) {
-                $query->where('nombre', $moduleName);
-            })
-            ->exists();
-
-        if (!$hasAccess) {
-            abort(403, 'Acceso denegado al módulo.');
-        }
-
-        return $next($request);
-    });
-}
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if (!auth()->user()->canAccessModule('Materias')) {
+                abort(403, 'No tienes permiso para acceder a este módulo.');
+            }
+            return $next($request);
+        });
+    }
     public function index()
     {
         $materiasActivas = Materia::where('estado', 1)

@@ -14,7 +14,7 @@ class MateriaCompetenciaController extends Controller
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('materia')) {
+            if (!auth()->user()->canAccessModule('Materias')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
             return $next($request);
