@@ -23,12 +23,12 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class UserController extends Controller
 {
+    //moduleID 7 = User
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            $user = auth()->user();
-            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
-                abort(403, 'Acceso no autorizado.');
+            if (!auth()->user()->canAccessModule('7')) {
+                abort(403, 'No tienes permiso para acceder a este módulo.');
             }
             return $next($request);
         });
