@@ -18,10 +18,11 @@ use Illuminate\Support\Facades\DB;
 
 class AsistenciaController extends Controller
 {
+    //moduleID 14 = Asistencia
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('asistencia')) {
+            if (!auth()->user()->canAccessModule('14')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
             return $next($request);
