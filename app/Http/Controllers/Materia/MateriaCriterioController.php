@@ -78,9 +78,35 @@ class MateriaCriterioController extends Controller
                 seccion ASC
             ")
             ->get();
+        $criteriosAgrupados = $materiaCriterios->groupBy(function ($criterio) {
+            return $criterio->materiaCompetencia->nombre ?? 'Sin competencia';
+        });
+
+        $colors = [
+            '#f8d7da', // rojo pastel
+            '#d1ecf1', // celeste pastel
+            '#d4edda', // verde pastel
+            '#fff3cd', // amarillo pastel
+            '#e2e3e5', // gris claro
+            '#fbe7c6', // durazno claro
+            '#e0bbf4', // violeta pastel
+            '#c3e6cb'  // verde menta
+        ];
+
+        $competenciaColor = [];
+        $colorIndex = 0;
+
+        foreach ($criteriosAgrupados as $nombreComp => $criterios) {
+            $competenciaColor[$nombreComp] = $colors[$colorIndex % count($colors)];
+            foreach ($criterios as $criterio) {
+                $criterio->rowColor = $competenciaColor[$nombreComp];
+            }
+            $colorIndex++;
+        }
+
 
         return view('materia.materiacriterio.index', [
-            'materiaCriterios' => $materiaCriterios,
+            'criteriosAgrupados' => $criteriosAgrupados,
             'materia' => $materia,
             'id' => $id,
             'anios' => $anios,
