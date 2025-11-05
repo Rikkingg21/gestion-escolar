@@ -340,4 +340,78 @@ class AsistenciaController extends Controller
             'detalles' => $detalles
         ];
     }
+    public function marcarTodosPuntualidad(Request $request)
+    {
+        $fecha_seleccionada = $request->input('fecha'); // Formato esperado: 'Y-m-d'
+        $bimestre_seleccionado = $request->input('bimestre');
+
+        // Obtener grados activos
+        $gradosActivos = Grado::where('estado', '1')->pluck('id')->toArray();
+
+        // Obtener estudiantes activos
+        $estudiantesActivos = Estudiante::whereIn('grado_id', $gradosActivos)
+            ->where('estado', '1')
+            ->get();
+
+        DB::beginTransaction();
+        try {
+            $registrosCreados = 0;
+            $registrosActualizados = 0;
+
+            foreach ($estudiantesActivos as $estudiante) {
+                // Verificar si ya existe un registro para este estudiante en esta fecha
+                $asistenciaExistente = Asistencia::where('estudiante_id', $estudiante->id)
+                    ->where('grado_id', $estudiante->grado_id)
+                    ->whereDate('fecha', $fecha_seleccionada)
+                    ->first();
+
+                if ($asistenciaExistente) {
+                    // Si existe, actualizar el tipo de asistencia a 5 (Puntualidad)
+                    $asistenciaExistente->update([
+                        'tipo_asistencia_id' => 5,
+                        'bimestre' => $bimestre_seleccionado,
+                        'registrador_id' => auth()->id(),
+                        'descripcion' => 'Actualizado a Puntualidad automáticamente'
+                    ]);
+                    $registrosActualizados++;
+                } else {
+                    // Si no existe, crear nuevo registro
+                    Asistencia::create([
+                        'estudiante_id' => $estudiante->id,
+                        'grado_id' => $estudiante->grado_id,
+                        'bimestre' => $bimestre_seleccionado,
+                        'tipo_asistencia_id' => 5, // Puntualidad
+                        'fecha' => $fecha_seleccionada,
+                        'hora' => now()->format('H:i:s'),
+                        'registrador_id' => auth()->id(),
+                        'descripcion' => 'Registro automático de Puntualidad'
+                    ]);
+                    $registrosCreados++;
+                }
+            }
+
+            DB::commit();
+
+            // Devolver datos en formato json con resultados
+            return response()->json([
+                'success' => true,
+                'fecha' => $fecha_seleccionada,
+                'bimestre' => $bimestre_seleccionado,
+                'total_estudiantes' => $estudiantesActivos->count(),
+                'registros_creados' => $registrosCreados,
+                'registros_actualizados' => $registrosActualizados,
+                'total_afectados' => $registrosCreados + $registrosActualizados
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al guardar las asistencias: ' . $e->getMessage(),
+                'fecha' => $fecha_seleccionada,
+                'bimestre' => $bimestre_seleccionado
+            ], 500);
+        }
+    }
 }
