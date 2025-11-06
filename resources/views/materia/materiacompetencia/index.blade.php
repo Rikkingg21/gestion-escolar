@@ -9,6 +9,9 @@
         <a href="{{ route('materiacompetencia.create', $materia->id) }}" class="btn btn-primary shadow-sm">
             <i class="bi bi-plus-lg me-2"></i> Nueva Competencia
         </a>
+        <a href="{{ route('materiacompetencia.importar') }}" class="btn btn-info shadow-sm">
+            <i class="bi bi-download me-2"></i> Importar Excel
+        </a>
         <a href="{{ route('materiacriterio.index', $materia->id) }}"
             class="btn btn-primary shadow-sm">
             <i class="bi bi-list-check"></i> Ver Criterios
