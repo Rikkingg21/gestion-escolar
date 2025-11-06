@@ -22,11 +22,11 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class LibretaController extends Controller
 {
-    //moduleID 14 = Roles
+    //moduleID 15 = Libreta
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('14')) {
+            if (!auth()->user()->canAccessModule('15')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
             return $next($request);
