@@ -8,6 +8,7 @@ use App\Models\Materia\Materiacriterio;
 use Illuminate\Http\Request;
 use App\Models\Materia;
 use App\Models\Grado;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class MateriaCriterioController extends Controller
 {
@@ -293,6 +294,145 @@ class MateriaCriterioController extends Controller
         } catch (\Exception $e) {
             return redirect()->route('materiacriterio.index', $competenciaId ?? 0)
                 ->with('error', 'Error al eliminar el criterio: ' . $e->getMessage());
+        }
+    }
+    public function importar()
+    {
+        $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
+        return view('materia.materiacriterio.importar', compact('materias'));
+    }
+    public function importarCriterio(Request $request)
+    {
+        $request->validate([
+            'archivo_excel' => 'required|file|mimes:xlsx,xls|max:2048',
+        ]);
+
+        try {
+            $spreadsheet = IOFactory::load($request->file('archivo_excel'));
+            $sheet = $spreadsheet->getActiveSheet();
+            $rows = $sheet->toArray();
+
+            $exitosos = 0;
+            $errores = [];
+            $duplicados = [];
+            $criteriosProcesados = [];
+
+            // Saltar la primera fila (encabezados)
+            for ($i = 1; $i < count($rows); $i++) {
+                $row = $rows[$i];
+                $numeroFila = $i + 1;
+
+                try {
+                    // Validar que todos los campos necesarios estén presentes
+                    if (empty($row[0]) || empty($row[1]) || empty($row[2]) || empty($row[4]) || empty($row[7])) {
+                        $errores[] = "Fila $numeroFila: Faltan campos obligatorios (Materia, Competencia, Nombre, Grado y Año son requeridos)";
+                        continue;
+                    }
+
+                    $materiaNombre = trim($row[0]);
+                    $competenciaNombre = trim($row[1]);
+                    $criterioNombre = trim($row[2]);
+                    $criterioDescripcion = trim($row[3] ?? '');
+                    $gradoNombre = trim($row[4]);
+                    $seccion = trim($row[5] ?? '');
+                    $nivel = trim($row[6] ?? '');
+                    $anio = trim($row[7]);
+
+                    // Validar formato del año
+                    if (!is_numeric($anio) || strlen($anio) != 4) {
+                        $errores[] = "Fila $numeroFila: El año '$anio' no tiene un formato válido (debe ser 4 dígitos)";
+                        continue;
+                    }
+
+                    // Buscar la materia por nombre
+                    $materia = Materia::where('nombre', $materiaNombre)
+                        ->where('estado', 1)
+                        ->first();
+
+                    if (!$materia) {
+                        $errores[] = "Fila $numeroFila: La materia '$materiaNombre' no existe o no está activa";
+                        continue;
+                    }
+
+                    // Buscar la competencia por nombre y materia
+                    $competencia = Materiacompetencia::where('nombre', $competenciaNombre)
+                        ->where('materia_id', $materia->id)
+                        ->where('estado', 1)
+                        ->first();
+
+                    if (!$competencia) {
+                        $errores[] = "Fila $numeroFila: La competencia '$competenciaNombre' no existe en la materia '$materiaNombre' o no está activa";
+                        continue;
+                    }
+
+                    // Buscar el grado por nombre
+                    $grado = Grado::where('nombre', $gradoNombre)
+                        ->first();
+
+                    if (!$grado) {
+                        $errores[] = "Fila $numeroFila: El grado '$gradoNombre' no existe en el sistema";
+                        continue;
+                    }
+
+                    // Verificar si ya existe este criterio en la misma competencia, grado y año
+                    $criterioExistente = Materiacriterio::where('materia_competencia_id', $competencia->id)
+                        ->where('grado_id', $grado->id)
+                        ->where('anio', $anio)
+                        ->where('nombre', $criterioNombre)
+                        ->first();
+
+                    if ($criterioExistente) {
+                        $duplicados[] = "Fila $numeroFila: El criterio '$criterioNombre' ya existe para la competencia '$competenciaNombre', grado '$gradoNombre' y año '$anio'";
+                        continue;
+                    }
+
+                    // Verificar duplicados dentro del mismo archivo
+                    $claveCriterio = $competencia->id . '-' . $grado->id . '-' . $anio . '-' . $criterioNombre;
+                    if (in_array($claveCriterio, $criteriosProcesados)) {
+                        $duplicados[] = "Fila $numeroFila: Criterio duplicado en el archivo - '$criterioNombre' para competencia '$competenciaNombre', grado '$gradoNombre' y año '$anio'";
+                        continue;
+                    }
+
+                    // Crear el criterio
+                    Materiacriterio::create([
+                        'materia_competencia_id' => $competencia->id,
+                        'materia_id' => $materia->id,
+                        'grado_id' => $grado->id,
+                        'anio' => $anio,
+                        'nombre' => $criterioNombre,
+                        'descripcion' => $criterioDescripcion,
+                    ]);
+
+                    $criteriosProcesados[] = $claveCriterio;
+                    $exitosos++;
+
+                } catch (\Exception $e) {
+                    $errores[] = "Fila $numeroFila: " . $e->getMessage();
+                }
+            }
+
+            // Preparar mensajes para el usuario
+            $mensaje = "Importación completada: $exitosos criterios importados exitosamente.";
+
+            if (count($duplicados) > 0) {
+                $mensaje .= " Se encontraron " . count($duplicados) . " criterios duplicados.";
+            }
+
+            if (count($errores) > 0) {
+                $mensaje .= " Se produjeron " . count($errores) . " errores.";
+            }
+
+            $tipoMensaje = (count($errores) > 0) ? 'warning' : 'success';
+
+            return redirect()->route('materiacriterio.importar')
+                ->with($tipoMensaje, $mensaje)
+                ->with('duplicados', $duplicados)
+                ->with('errores', $errores);
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al procesar el archivo: ' . $e->getMessage())
+                ->withInput();
         }
     }
 }

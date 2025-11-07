@@ -104,7 +104,7 @@ class MateriaCompetenciaController extends Controller
     }
     public function importar()
     {
-        $materias = Materia::where('estado', 1)->orderBy('nombre')->get();
+        $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
         return view('materia.materiacompetencia.importar', compact('materias'));
     }
     public function importarCompetencia(Request $request)
