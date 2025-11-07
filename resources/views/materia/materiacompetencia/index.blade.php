@@ -2,22 +2,30 @@
 
 @section('content')
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-list-check me-2"></i> Competencias de la Materia: {{ $materia->nombre }}
-        </h1>
-        <a href="{{ route('materiacompetencia.create', $materia->id) }}" class="btn btn-primary shadow-sm">
-            <i class="bi bi-plus-lg me-2"></i> Nueva Competencia
-        </a>
-        <a href="{{ route('materiacompetencia.importar') }}" class="btn btn-info shadow-sm">
-            <i class="bi bi-download me-2"></i> Importar Excel
-        </a>
-        <a href="{{ route('materiacriterio.index', $materia->id) }}"
-            class="btn btn-primary shadow-sm">
-            <i class="bi bi-list-check"></i> Ver Criterios
+    <div class="mb-3">
+        <a href="{{ route('materia.index') }}" class="text-muted text-decoration-none small fw-semibold">
+            <i class="bi bi-arrow-left me-1"></i> Volver a Materias
         </a>
     </div>
 
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 border-bottom pb-3">
+        <h1 class="h2 mb-3 mb-md-0 text-primary fw-bold">
+            <i class="bi bi-list-check me-3"></i> Competencias de la Materia: <span class="text-secondary">{{ $materia->nombre }}</span>
+        </h1>
+
+        <div class="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end">
+            <a href="{{ route('materiacriterio.index', $materia->id) }}"
+                class="btn btn-outline-secondary shadow-sm rounded-3">
+                <i class="bi bi-card-checklist me-2"></i> Ver Criterios
+            </a>
+            <a href="{{ route('materiacompetencia.importar') }}" class="btn btn-info shadow-sm text-white rounded-3">
+                <i class="bi bi-file-earmark-excel me-2"></i> Importar
+            </a>
+            <a href="{{ route('materiacompetencia.create', $materia->id) }}" class="btn btn-success shadow-lg rounded-3 fw-bold">
+                <i class="bi bi-plus-lg me-2"></i> Nueva Competencia
+            </a>
+        </div>
+    </div>
     @if ($errors->any())
         <div class="alert alert-danger">
             <ul>

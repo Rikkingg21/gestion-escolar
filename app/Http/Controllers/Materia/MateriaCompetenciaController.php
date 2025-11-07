@@ -141,7 +141,7 @@ class MateriaCompetenciaController extends Controller
 
                     // Buscar la materia por nombre
                     $materia = Materia::where('nombre', $materiaNombre)
-                        ->where('estado', 1)
+                        ->where('estado', '1')
                         ->first();
 
                     if (!$materia) {
@@ -171,7 +171,7 @@ class MateriaCompetenciaController extends Controller
                         'materia_id' => $materia->id,
                         'nombre' => $competenciaNombre,
                         'descripcion' => $competenciaDescripcion,
-                        'estado' => 1,
+                        'estado' => '1',
                     ]);
 
                     $competenciasProcesadas[] = $claveCompetencia;
