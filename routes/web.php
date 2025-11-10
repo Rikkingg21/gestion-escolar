@@ -150,9 +150,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/materia-competencia/importar', [MateriaCompetenciaController::class, 'importar'])->name('materiacompetencia.importar');
     Route::post('/materia-competencia/importar/competencia', [MateriaCompetenciaController::class, 'importarCompetencia'])->name('importar.competencia');
 
-    Route::get('/materia-competencia/{id}', [MateriaCompetenciaController::class, 'index'])->name('materiacompetencia.index');
+    Route::get('/materia-competencia', [MateriaCompetenciaController::class, 'index'])->name('materiacompetencia.index');
     Route::get('/materia-competencia/{id}/create', [MateriaCompetenciaController::class, 'create'])->name('materiacompetencia.create');
-    Route::post('/materia-competencia', [MateriaCompetenciaController::class, 'store'])->name('materiacompetencia.store');
+    Route::post('/materia-competencia/crear', [MateriaCompetenciaController::class, 'store'])->name('materiacompetencia.store');
     Route::get('/materia-competencia/{materiacompetencia}/edit', [MateriaCompetenciaController::class, 'edit'])->name('materiacompetencia.edit');
     Route::put('/materia-competencia/{materiacompetencia}', [MateriaCompetenciaController::class, 'update'])->name('materiacompetencia.update');
     Route::delete('/materia-competencia/{id}', [MateriaCompetenciaController::class, 'destroy'])->name('materiacompetencia.destroy');
@@ -160,9 +160,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/materia-criterio/importar', [MateriaCriterioController::class, 'importar'])->name('materiacriterio.importar');
     Route::post('/materia-criterio/importar/criterio', [MateriaCriterioController::class, 'importarCriterio'])->name('importar.criterio');
 
-    Route::get('/materia-criterio/{id}', [MateriaCriterioController::class, 'index'])->name('materiacriterio.index');
+    Route::get('/materia-criterio', [MateriaCriterioController::class, 'index'])->name('materiacriterio.index');
     Route::get('/materia-criterio/{id}/create', [MateriaCriterioController::class, 'create'])->name('materiacriterio.create');
-    Route::post('/materia-criterio', [MateriaCriterioController::class, 'store'])->name('materiacriterio.store');
+    Route::post('/materia-criterio/crear', [MateriaCriterioController::class, 'store'])->name('materiacriterio.store');
     Route::get('/materia-criterio/{materiacriterio}/edit', [MateriaCriterioController::class, 'edit'])->name('materiacriterio.edit');
     Route::put('/materia-criterio/{materiacriterio}', [MateriaCriterioController::class, 'update'])->name('materiacriterio.update');
     Route::delete('/materia-criterio/{id}', [MateriaCriterioController::class, 'destroy'])->name('materiacriterio.destroy');

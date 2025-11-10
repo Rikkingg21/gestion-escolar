@@ -23,6 +23,7 @@ class Materiacriterio extends Model
         'materia_id',
         'grado_id',
         'anio',
+        'bimestre',
         'nombre',
         'descripcion'
     ];

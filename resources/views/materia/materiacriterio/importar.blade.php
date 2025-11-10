@@ -91,6 +91,7 @@
                                 <li><strong>Columna F:</strong> Sección (debe existir en el sistema)</li>
                                 <li><strong>Columna G:</strong> Nivel (debe existir en el sistema)</li>
                                 <li><strong>Columna H:</strong> Año (obligatorio)</li>
+                                <li><strong>Columna I:</strong> Bimestre (obligatorio)</li>
                             </ul>
                         </div>
 

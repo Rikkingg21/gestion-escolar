@@ -23,14 +23,30 @@ class MateriaCompetenciaController extends Controller
         });
     }
 
-    public function index($id)
+    public function index(Request $request)
     {
-        $materia = Materia::findOrFail($id);
-        $competencias = Materiacompetencia::where('materia_id', $id)
-            ->orderBy('nombre')
-            ->paginate(5);
+        $materias = Materia::where('estado', 1)->orderBy('nombre')->get();
 
-        return view('materia.materiacompetencia.index', compact('materia', 'competencias'));
+        $competenciasQuery = Materiacompetencia::with('materia')
+            ->orderBy('materia_id')
+            ->orderBy('nombre');
+
+        // Filtro por materia
+        if ($request->has('materia_id') && $request->materia_id) {
+            $competenciasQuery->where('materia_id', $request->materia_id);
+        }
+
+        // Filtro por estado
+        $estado = $request->get('estado', 'activas');
+        if ($estado === 'activas') {
+            $competenciasQuery->where('estado', '1');
+        } elseif ($estado === 'inactivas') {
+            $competenciasQuery->where('estado', '0');
+        }
+
+        $competencias = $competenciasQuery->paginate(10);
+
+        return view('materia.materiacompetencia.index', compact('competencias', 'materias'));
     }
 
     public function create($id)

@@ -301,7 +301,7 @@ class MateriaCriterioController extends Controller
         $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
         return view('materia.materiacriterio.importar', compact('materias'));
     }
-    public function importarCriterio(Request $request)
+public function importarCriterio(Request $request)
 {
     $request->validate([
         'archivo_excel' => 'required|file|mimes:xlsx,xls|max:2048',
@@ -324,8 +324,8 @@ class MateriaCriterioController extends Controller
 
             try {
                 // Validar que todos los campos necesarios estén presentes
-                if (empty($row[0]) || empty($row[1]) || empty($row[2]) || empty($row[4]) || empty($row[5]) || empty($row[6]) || empty($row[7])) {
-                    $errores[] = "Fila $numeroFila: Faltan campos obligatorios (Materia, Competencia, Nombre, Grado, Sección, Nivel y Año son requeridos)";
+                if (empty($row[0]) || empty($row[1]) || empty($row[2]) || empty($row[4]) || empty($row[5]) || empty($row[6]) || empty($row[7]) || empty($row[8])) {
+                    $errores[] = "Fila $numeroFila: Faltan campos obligatorios (Materia, Competencia, Nombre, Grado, Sección, Nivel, Año y Bimestre son requeridos)";
                     continue;
                 }
 
@@ -337,6 +337,7 @@ class MateriaCriterioController extends Controller
                 $seccion = trim($row[5]);
                 $nivel = trim($row[6]);
                 $anio = trim($row[7]);
+                $bimestre = trim($row[8]);
 
                 // Validar formato del año
                 if (!is_numeric($anio) || strlen($anio) != 4) {
@@ -347,6 +348,13 @@ class MateriaCriterioController extends Controller
                 // Validar formato del grado
                 if (!is_numeric($gradoNumero)) {
                     $errores[] = "Fila $numeroFila: El grado '$gradoNumero' debe ser un número";
+                    continue;
+                }
+
+                // Validar bimestre (1, 2, 3, 4)
+                $bimestresValidos = ['1', '2', '3', '4'];
+                if (!in_array($bimestre, $bimestresValidos)) {
+                    $errores[] = "Fila $numeroFila: El bimestre '$bimestre' no es válido. Debe ser: 1, 2, 3 o 4";
                     continue;
                 }
 
@@ -379,26 +387,27 @@ class MateriaCriterioController extends Controller
                     ->first();
 
                 if (!$grado) {
-                    $errores[] = "Fila $numeroFila: El grado $gradoNumero '$seccion' - $nivel no existe o no está activo";
+                    $errores[] = "Fila $numeroFila: El grado " . $gradoNumero . "° '" . $seccion . "' - " . $nivel . " no existe o no está activo";
                     continue;
                 }
 
-                // Verificar si ya existe este criterio en la misma competencia, grado y año
+                // Verificar si ya existe este criterio en la misma competencia, grado, año y bimestre
                 $criterioExistente = Materiacriterio::where('materia_competencia_id', $competencia->id)
                     ->where('grado_id', $grado->id)
                     ->where('anio', $anio)
+                    ->where('bimestre', $bimestre)
                     ->where('nombre', $criterioNombre)
                     ->first();
 
                 if ($criterioExistente) {
-                    $duplicados[] = "Fila $numeroFila: El criterio '$criterioNombre' ya existe para la competencia '$competenciaNombre', grado {$grado->nombreCompleto} y año '$anio'";
+                    $duplicados[] = "Fila $numeroFila: El criterio '$criterioNombre' ya existe para la competencia '$competenciaNombre', grado " . $grado->nombreCompleto . ", año '$anio' y bimestre '$bimestre'";
                     continue;
                 }
 
                 // Verificar duplicados dentro del mismo archivo
-                $claveCriterio = $competencia->id . '-' . $grado->id . '-' . $anio . '-' . $criterioNombre;
+                $claveCriterio = $competencia->id . '-' . $grado->id . '-' . $anio . '-' . $bimestre . '-' . $criterioNombre;
                 if (in_array($claveCriterio, $criteriosProcesados)) {
-                    $duplicados[] = "Fila $numeroFila: Criterio duplicado en el archivo - '$criterioNombre' para competencia '$competenciaNombre', grado {$grado->nombreCompleto} y año '$anio'";
+                    $duplicados[] = "Fila $numeroFila: Criterio duplicado en el archivo - '$criterioNombre' para competencia '$competenciaNombre', grado " . $grado->nombreCompleto . ", año '$anio' y bimestre '$bimestre'";
                     continue;
                 }
 
@@ -408,6 +417,7 @@ class MateriaCriterioController extends Controller
                     'materia_id' => $materia->id,
                     'grado_id' => $grado->id,
                     'anio' => $anio,
+                    'bimestre' => $bimestre,
                     'nombre' => $criterioNombre,
                     'descripcion' => $criterioDescripcion,
                 ]);
