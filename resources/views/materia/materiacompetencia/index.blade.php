@@ -18,10 +18,10 @@
                 class="btn btn-outline-secondary shadow-sm rounded-3">
                 <i class="bi bi-card-checklist me-2"></i> Ver Criterios
             </a>
-            <a href="{{ route('materiacompetencia.importar') }}" class="btn btn-info shadow-sm text-white rounded-3">
+            <a href="{{ route('materiacompetencia.importar') }}" class="btn btn-success shadow-sm text-white rounded-3">
                 <i class="bi bi-file-earmark-excel me-2"></i> Importar
             </a>
-            <a href="{{ route('materiacompetencia.create', $materia->id) }}" class="btn btn-success shadow-lg rounded-3 fw-bold">
+            <a href="{{ route('materiacompetencia.create', $materia->id) }}" class="btn btn-primary rounded-3 fw-bold">
                 <i class="bi bi-plus-lg me-2"></i> Nueva Competencia
             </a>
         </div>

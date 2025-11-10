@@ -82,62 +82,156 @@
         </div>
     @endif
 
-    {{-- TABLA --}}
+    {{-- TABLA ORGANIZADA POR COMPETENCIAS Y GRADOS --}}
     <div class="card border-0 shadow-sm">
-        <div class="table-responsive">
+        <div class="card-body p-0">
             @forelse($criteriosAgrupados as $competencia => $criterios)
-                <table class="table align-middle mb-4 border">
-                    <thead style="background-color: {{ $criterios->first()->rowColor }};">
-                        <tr>
-                            <th colspan="6" class="text-center fw-bold">
-                                <i class="bi bi-star-fill me-2"></i>{{ $competencia }}
-                            </th>
-                        </tr>
-                        <tr class="table-light">
-                            <th>Nombre</th>
-                            <th>Materia</th>
-                            <th>Grado / Sección / Nivel</th>
-                            <th>Año</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($criterios as $criterio)
-                            <tr style="background-color: {{ $criterio->rowColor }}33;"> {{-- mismo color pero más suave --}}
-                                <td>{{ $criterio->nombre }}</td>
-                                <td>{{ $criterio->materia->nombre ?? 'N/A' }}</td>
-                                <td>{{ $criterio->grado->nombreCompleto ?? 'N/A' }}</td>
-                                <td>{{ $criterio->anio }}</td>
-                                <td class="text-center">
-                                    <div class="btn-group btn-group-sm" role="group" aria-label="Acciones de criterio">
-                                        <a href="{{ route('materiacriterio.edit', $criterio->id) }}"
-                                        class="btn btn-outline-primary" title="Editar">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </a>
-                                        <button type="submit" class="btn btn-outline-danger eliminar-criterio" title="Eliminar" onclick="return confirm('¿Estás seguro de eliminar este criterio?')">
-                                            <form action="{{ route('materiacriterio.destroy', $criterio->id) }}"
-                                            method="POST" class="d-inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <div>
-                                                <i class="bi bi-trash"></i>
-                                            </div>
-                                        </button>
-                                        </div>
+                {{-- TARJETA DE COMPETENCIA --}}
+                <div class="competencia-card border-bottom">
+                    <div class="competencia-header px-4 py-3" style="background-color: {{ $criterios->first()->rowColor }}22; border-left: 4px solid {{ $criterios->first()->rowColor }};">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="fw-bold mb-1 text-dark">
+                                    <i class="bi bi-star-fill me-2" style="color: {{ $criterios->first()->rowColor }};"></i>
+                                    {{ $competencia }}
+                                </h5>
+                                <small class="text-muted">
+                                    {{ $criterios->count() }} criterio(s) asociado(s)
+                                </small>
+                            </div>
+                            <span class="badge bg-primary">{{ $criterios->first()->materia->nombre ?? 'N/A' }}</span>
+                        </div>
+                    </div>
 
+                    {{-- AGRUPAR CRITERIOS POR GRADO --}}
+                    @php
+                        $criteriosPorGrado = $criterios->groupBy(function($criterio) {
+                            return $criterio->grado->nombreCompleto ?? 'Sin Grado';
+                        });
+                    @endphp
+
+                    @foreach($criteriosPorGrado as $gradoNombre => $criteriosGrado)
+                        <div class="grado-section">
+                            <div class="grado-header px-4 py-2 bg-light">
+                                <h6 class="mb-0 fw-semibold text-secondary">
+                                    <i class="bi bi-mortarboard me-2"></i>
+                                    Grado: {{ $gradoNombre }}
+                                </h6>
+                            </div>
+
+                            <div class="criterios-list">
+                                @foreach($criteriosGrado as $criterio)
+                                    <div class="criterio-item px-4 py-3 border-bottom">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-6">
+                                                <h6 class="fw-semibold mb-1 text-dark">{{ $criterio->nombre }}</h6>
+                                                @if($criterio->descripcion)
+                                                    <p class="text-muted small mb-0">{{ $criterio->descripcion }}</p>
+                                                @endif
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="d-flex gap-2">
+                                                    <span class="badge bg-info bg-opacity-10 text-info border border-info">
+                                                        <i class="bi bi-calendar me-1"></i>Año {{ $criterio->anio }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 text-end">
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{{ route('materiacriterio.edit', $criterio->id) }}"
+                                                       class="btn btn-outline-primary rounded-2"
+                                                       title="Editar">
+                                                        <i class="bi bi-pencil-square"></i> Editar
+                                                    </a>
+                                                    <form action="{{ route('materiacriterio.destroy', $criterio->id) }}"
+                                                          method="POST" class="d-inline">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit"
+                                                                class="btn btn-outline-danger rounded-2"
+                                                                title="Eliminar"
+                                                                onclick="return confirm('¿Estás seguro de eliminar este criterio?')">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
             @empty
-                <div class="text-center text-muted py-4">
-                    <i class="bi bi-info-circle me-2"></i>No hay criterios registrados
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-list-check display-4 d-block mb-3"></i>
+                    <h5>No hay criterios registrados</h5>
+                    <p class="mb-0">Comienza agregando nuevos criterios o importa desde Excel.</p>
                 </div>
             @endforelse
         </div>
     </div>
 </div>
 
+<style>
+.competencia-card {
+    background: white;
+}
+
+.competencia-card:last-child {
+    border-bottom: none !important;
+}
+
+.competencia-header {
+    border-bottom: 1px solid #e9ecef;
+}
+
+.grado-section {
+    border-left: 3px solid #dee2e6;
+    margin-left: 1rem;
+}
+
+.grado-header {
+    border-bottom: 1px solid #f8f9fa;
+    font-size: 0.9rem;
+}
+
+.criterio-item {
+    transition: background-color 0.2s ease;
+}
+
+.criterio-item:hover {
+    background-color: #f8f9fa;
+}
+
+.criterio-item:last-child {
+    border-bottom: none !important;
+}
+
+.badge {
+    font-size: 0.75em;
+    padding: 0.5em 0.75em;
+}
+
+.btn-group .btn {
+    border-radius: 6px !important;
+    margin: 0 2px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .grado-section {
+        margin-left: 0.5rem;
+    }
+
+    .criterio-item .row > div {
+        margin-bottom: 0.5rem;
+    }
+
+    .criterio-item .text-end {
+        text-align: left !important;
+    }
+}
+</style>
 @endsection
