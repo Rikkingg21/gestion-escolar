@@ -90,7 +90,7 @@
                                 <li><strong>Columna E:</strong> Grado (debe existir en el sistema)</li>
                                 <li><strong>Columna F:</strong> Sección (debe existir en el sistema)</li>
                                 <li><strong>Columna G:</strong> Nivel (debe existir en el sistema)</li>
-                                <li><strong>Columna H:</strong> AÑo (obligatorio)</li>
+                                <li><strong>Columna H:</strong> Año (obligatorio)</li>
                             </ul>
                         </div>
 
