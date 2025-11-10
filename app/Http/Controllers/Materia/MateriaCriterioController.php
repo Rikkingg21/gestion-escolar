@@ -23,100 +23,72 @@ class MateriaCriterioController extends Controller
         });
     }
 
-    public function index($id, Request $request)
-    {
-        $currentYear = date('Y');
-        $selectedYear = $request->input('anio', $currentYear);
+public function index(Request $request)
+{
+    $materias = Materia::where('estado', 1)->orderBy('nombre')->get();
+    $grados = Grado::where('estado', 1)->orderBy('grado')->orderBy('seccion')->get();
 
-        // Determinar el tipo de ID recibido (materia, grado o competencia)
-        $tipoFiltro = $this->determinarTipoFiltro($id); // Nueva función helper
+    // Obtener años únicos de los criterios
+    $anios = Materiacriterio::select('anio')
+        ->distinct()
+        ->orderBy('anio', 'desc')
+        ->pluck('anio');
 
-        // Consulta base con eager loading
-        $query = MateriaCriterio::with(['materia', 'grado', 'materiaCompetencia'])
-            ->where($tipoFiltro['campo'], $id)
-            ->where('anio', $selectedYear);
+    // Obtener bimestres únicos
+    $bimestres = Materiacriterio::select('bimestre')
+        ->distinct()
+        ->orderBy('bimestre')
+        ->pluck('bimestre');
 
-        // Aplicar filtro de grado si existe
-        if ($request->has('grado_id') && $request->grado_id != '') {
-            $query->where('grado_id', $request->grado_id);
-        }
+    $criteriosQuery = Materiacriterio::with(['materia', 'grado', 'materiaCompetencia'])
+        ->orderBy('materia_id')
+        ->orderBy('anio', 'desc')
+        ->orderBy('bimestre')
+        ->orderBy('grado_id');
 
-        // Ordenar usando joins en lugar de subconsultas
-        $query->join('grados', 'grados.id', '=', 'materia_criterios.grado_id')
-            ->orderByRaw("
-                CASE grados.nivel
-                    WHEN 'Primaria' THEN 1
-                    WHEN 'Secundaria' THEN 2
-                    ELSE 3
-                END,
-                grados.grado ASC,
-                grados.seccion ASC
-            ")
-            ->select('materia_criterios.*'); // Para evitar ambigüedad
-
-        $materiaCriterios = $query->get();
-        $materia = Materia::find($tipoFiltro['campo'] == 'materia_id' ? $id : null);
-
-        // Obtener años disponibles para el filtro
-        $anios = MateriaCriterio::where($tipoFiltro['campo'], $id)
-                    ->distinct()
-                    ->pluck('anio')
-                    ->sort();
-
-        // Obtener grados disponibles para el filtro
-        $gradosDisponibles = Grado::whereIn('id', function($query) use ($id, $tipoFiltro) {
-                $query->select('grado_id')
-                    ->from('materia_criterios')
-                    ->where($tipoFiltro['campo'], $id);
-            })
-            ->orderByRaw("
-                CASE nivel
-                    WHEN 'Primaria' THEN 1
-                    WHEN 'Secundaria' THEN 2
-                    ELSE 3
-                END,
-                grado ASC,
-                seccion ASC
-            ")
-            ->get();
-        $criteriosAgrupados = $materiaCriterios->groupBy(function ($criterio) {
-            return $criterio->materiaCompetencia->nombre ?? 'Sin competencia';
-        });
-
-        $colors = [
-            '#f8d7da', // rojo pastel
-            '#d1ecf1', // celeste pastel
-            '#d4edda', // verde pastel
-            '#fff3cd', // amarillo pastel
-            '#e2e3e5', // gris claro
-            '#fbe7c6', // durazno claro
-            '#e0bbf4', // violeta pastel
-            '#c3e6cb'  // verde menta
-        ];
-
-        $competenciaColor = [];
-        $colorIndex = 0;
-
-        foreach ($criteriosAgrupados as $nombreComp => $criterios) {
-            $competenciaColor[$nombreComp] = $colors[$colorIndex % count($colors)];
-            foreach ($criterios as $criterio) {
-                $criterio->rowColor = $competenciaColor[$nombreComp];
-            }
-            $colorIndex++;
-        }
-
-
-        return view('materia.materiacriterio.index', [
-            'criteriosAgrupados' => $criteriosAgrupados,
-            'materia' => $materia,
-            'id' => $id,
-            'anios' => $anios,
-            'gradosDisponibles' => $gradosDisponibles,
-            'selectedYear' => $selectedYear,
-            'tipoFiltro' => $tipoFiltro['tipo'] // Para usar en la vista si es necesario
-        ]);
+    // Aplicar filtros
+    if ($request->has('materia_id') && $request->materia_id) {
+        $criteriosQuery->where('materia_id', $request->materia_id);
     }
 
+    if ($request->has('grado_id') && $request->grado_id) {
+        $criteriosQuery->where('grado_id', $request->grado_id);
+    }
+
+    if ($request->has('anio') && $request->anio) {
+        $criteriosQuery->where('anio', $request->anio);
+    }
+
+    if ($request->has('bimestre') && $request->bimestre) {
+        $criteriosQuery->where('bimestre', $request->bimestre);
+    }
+
+    $criterios = $criteriosQuery->get();
+
+    // Agrupar por competencia (manteniendo tu lógica actual)
+    $criteriosAgrupados = $criterios->groupBy(function($criterio) {
+        return $criterio->materiaCompetencia->nombre ?? 'Sin Competencia';
+    });
+
+    // Asignar colores (manteniendo tu lógica actual)
+    $colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#5a5c69'];
+    $colorIndex = 0;
+
+    foreach ($criteriosAgrupados as $competencia => $criteriosGrupo) {
+        foreach ($criteriosGrupo as $criterio) {
+            $criterio->rowColor = $colors[$colorIndex % count($colors)];
+        }
+        $colorIndex++;
+    }
+
+    return view('materia.materiacriterio.index', compact(
+        'criteriosAgrupados',
+        'materias',
+        'grados',
+        'anios',
+        'bimestres'
+    ));
+}
     // Función helper para determinar el tipo de filtro
     protected function determinarTipoFiltro($id)
     {

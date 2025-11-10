@@ -9,24 +9,19 @@
             <h2 class="fw-bold mb-1">
                 <i class="bi bi-list-check me-2 text-primary"></i>Listado de Criterios de Evaluación
             </h2>
-            @if(isset($materia))
-                <h5 class="text-muted mb-0">
-                    <i class="bi bi-book me-1 text-secondary"></i>
-                    Materia: <span class="text-primary">{{ $materia->nombre }}</span>
-                </h5>
-            @endif
+            <p class="text-muted mb-0">Gestión global de todos los criterios</p>
         </div>
         <div class="d-flex gap-2">
             <a href="{{ route('materiacriterio.importar') }}" class="btn btn-success shadow-sm">
                 <i class="bi bi-file-earmark-excel me-1"></i> Importar Excel
             </a>
-            <a href="{{ route('materiacriterio.create', ['id' => $id]) }}" class="btn btn-primary shadow-sm">
+            <a href="" class="btn btn-primary shadow-sm">
                 <i class="bi bi-plus-circle me-1"></i> Nuevo Criterio
             </a>
         </div>
     </div>
 
-    {{-- FILTROS --}}
+    {{-- FILTROS AVANZADOS --}}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white border-bottom-0">
             <h5 class="mb-0 fw-semibold text-secondary">
@@ -34,24 +29,25 @@
             </h5>
         </div>
         <div class="card-body pt-0">
-            <form method="GET" action="{{ route('materiacriterio.index', $id) }}">
+            <form method="GET" action="{{ route('materiacriterio.index') }}">
                 <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                        <label for="anio" class="form-label fw-semibold">Año</label>
-                        <select id="anio" name="anio" class="form-select shadow-sm">
-                            @foreach($anios as $anio)
-                                <option value="{{ $anio }}" {{ $selectedYear == $anio ? 'selected' : '' }}>
-                                    {{ $anio }}
+                    <div class="col-md-3">
+                        <label for="materia_id" class="form-label fw-semibold">Materia</label>
+                        <select id="materia_id" name="materia_id" class="form-select shadow-sm">
+                            <option value="">Todas las materias</option>
+                            @foreach($materias as $materia)
+                                <option value="{{ $materia->id }}" {{ request('materia_id') == $materia->id ? 'selected' : '' }}>
+                                    {{ $materia->nombre }}
                                 </option>
                             @endforeach
                         </select>
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-md-2">
                         <label for="grado_id" class="form-label fw-semibold">Grado</label>
                         <select id="grado_id" name="grado_id" class="form-select shadow-sm">
                             <option value="">Todos los grados</option>
-                            @foreach($gradosDisponibles as $grado)
+                            @foreach($grados as $grado)
                                 <option value="{{ $grado->id }}" {{ request('grado_id') == $grado->id ? 'selected' : '' }}>
                                     {{ $grado->nombreCompleto }}
                                 </option>
@@ -59,12 +55,36 @@
                         </select>
                     </div>
 
-                    <div class="col-md-4 d-flex gap-2">
+                    <div class="col-md-2">
+                        <label for="anio" class="form-label fw-semibold">Año</label>
+                        <select id="anio" name="anio" class="form-select shadow-sm">
+                            <option value="">Todos los años</option>
+                            @foreach($anios as $anio)
+                                <option value="{{ $anio }}" {{ request('anio') == $anio ? 'selected' : '' }}>
+                                    {{ $anio }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="bimestre" class="form-label fw-semibold">Bimestre</label>
+                        <select id="bimestre" name="bimestre" class="form-select shadow-sm">
+                            <option value="">Todos</option>
+                            @foreach($bimestres as $bimestre)
+                                <option value="{{ $bimestre }}" {{ request('bimestre') == $bimestre ? 'selected' : '' }}>
+                                    Bimestre {{ $bimestre }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 d-flex gap-2">
                         <button type="submit" class="btn btn-success shadow-sm flex-fill">
                             <i class="bi bi-funnel-fill me-1"></i> Filtrar
                         </button>
-                        @if(request('anio') != date('Y') || request('grado_id'))
-                            <a href="{{ route('materiacriterio.index', $id) }}" class="btn btn-outline-secondary flex-fill shadow-sm">
+                        @if(request()->anyFilled(['materia_id', 'grado_id', 'anio', 'bimestre']))
+                            <a href="{{ route('materiacriterio.index') }}" class="btn btn-outline-secondary flex-fill shadow-sm">
                                 <i class="bi bi-arrow-counterclockwise me-1"></i> Limpiar
                             </a>
                         @endif
@@ -82,6 +102,36 @@
         </div>
     @endif
 
+    {{-- ESTADÍSTICAS --}}
+    @if(request()->anyFilled(['materia_id', 'grado_id', 'anio', 'bimestre']))
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Filtros aplicados:</strong>
+                        @if(request('materia_id'))
+                            <span class="badge bg-primary ms-2">Materia: {{ $materias->where('id', request('materia_id'))->first()->nombre ?? 'N/A' }}</span>
+                        @endif
+                        @if(request('grado_id'))
+                            <span class="badge bg-secondary ms-2">Grado: {{ $grados->where('id', request('grado_id'))->first()->nombreCompleto ?? 'N/A' }}</span>
+                        @endif
+                        @if(request('anio'))
+                            <span class="badge bg-info ms-2">Año: {{ request('anio') }}</span>
+                        @endif
+                        @if(request('bimestre'))
+                            <span class="badge bg-warning ms-2">Bimestre: {{ request('bimestre') }}</span>
+                        @endif
+                    </div>
+                    <small class="text-muted">
+                        {{ $criteriosAgrupados->flatten()->count() }} criterio(s) encontrado(s)
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- TABLA ORGANIZADA POR COMPETENCIAS Y GRADOS --}}
     <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
@@ -96,10 +146,13 @@
                                     {{ $competencia }}
                                 </h5>
                                 <small class="text-muted">
-                                    {{ $criterios->count() }} criterio(s) asociado(s)
+                                    {{ $criterios->count() }} criterio(s) -
+                                    Materia: <strong>{{ $criterios->first()->materia->nombre ?? 'N/A' }}</strong>
                                 </small>
                             </div>
-                            <span class="badge bg-primary">{{ $criterios->first()->materia->nombre ?? 'N/A' }}</span>
+                            <div class="d-flex gap-2">
+                                <span class="badge bg-primary">{{ $criterios->first()->materia->nombre ?? 'N/A' }}</span>
+                            </div>
                         </div>
                     </div>
 
@@ -123,16 +176,19 @@
                                 @foreach($criteriosGrado as $criterio)
                                     <div class="criterio-item px-4 py-3 border-bottom">
                                         <div class="row align-items-center">
-                                            <div class="col-md-6">
+                                            <div class="col-md-5">
                                                 <h6 class="fw-semibold mb-1 text-dark">{{ $criterio->nombre }}</h6>
                                                 @if($criterio->descripcion)
                                                     <p class="text-muted small mb-0">{{ $criterio->descripcion }}</p>
                                                 @endif
                                             </div>
-                                            <div class="col-md-3">
-                                                <div class="d-flex gap-2">
+                                            <div class="col-md-4">
+                                                <div class="d-flex gap-2 flex-wrap">
                                                     <span class="badge bg-info bg-opacity-10 text-info border border-info">
                                                         <i class="bi bi-calendar me-1"></i>Año {{ $criterio->anio }}
+                                                    </span>
+                                                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">
+                                                        <i class="bi bi-collection me-1"></i>Bimestre {{ $criterio->bimestre }}
                                                     </span>
                                                 </div>
                                             </div>
@@ -167,7 +223,13 @@
                 <div class="text-center text-muted py-5">
                     <i class="bi bi-list-check display-4 d-block mb-3"></i>
                     <h5>No hay criterios registrados</h5>
-                    <p class="mb-0">Comienza agregando nuevos criterios o importa desde Excel.</p>
+                    <p class="mb-0">
+                        @if(request()->anyFilled(['materia_id', 'grado_id', 'anio', 'bimestre']))
+                            No se encontraron criterios con los filtros aplicados.
+                        @else
+                            Comienza agregando nuevos criterios o importa desde Excel.
+                        @endif
+                    </p>
                 </div>
             @endforelse
         </div>
