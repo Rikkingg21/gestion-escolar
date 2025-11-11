@@ -151,7 +151,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/materia-competencia/importar/competencia', [MateriaCompetenciaController::class, 'importarCompetencia'])->name('importar.competencia');
 
     Route::get('/materia-competencia', [MateriaCompetenciaController::class, 'index'])->name('materiacompetencia.index');
-    Route::get('/materia-competencia/{id}/create', [MateriaCompetenciaController::class, 'create'])->name('materiacompetencia.create');
+    Route::get('/materia-competencia/create', [MateriaCompetenciaController::class, 'create'])->name('materiacompetencia.create');
     Route::post('/materia-competencia/crear', [MateriaCompetenciaController::class, 'store'])->name('materiacompetencia.store');
     Route::get('/materia-competencia/{materiacompetencia}/edit', [MateriaCompetenciaController::class, 'edit'])->name('materiacompetencia.edit');
     Route::put('/materia-competencia/{materiacompetencia}', [MateriaCompetenciaController::class, 'update'])->name('materiacompetencia.update');

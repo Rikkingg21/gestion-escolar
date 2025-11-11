@@ -14,15 +14,16 @@
         </h1>
 
         <div class="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end">
-            <a href="{{ route('materiacompetencia.importar') }}" class="btn btn-success shadow-sm text-white rounded-3">
+            <a href="{{ route('materiacompetencia.importar') }}" class="btn btn-success flex-fill text-white rounded-3">
                 <i class="bi bi-file-earmark-excel me-2"></i> Importar Excel
             </a>
-            <a href="" class="btn btn-primary rounded-3 fw-bold">
+            <a href="{{ route('materiacriterio.index') }}" class="btn btn-outline-secondary flex-fill  rounded-3">
+                <i class="bi bi-list-check me-2"></i> Ver Criterios
+            </a>
+            <a href="{{ route('materiacompetencia.create') }}" class="btn btn-primary flex-fill rounded-3 fw-bold">
                 <i class="bi bi-plus-lg me-2"></i> Nueva Competencia
             </a>
-            <a href="{{ route('materiacriterio.index') }}" class="btn btn-primary rounded-3 fw-bold">
-                <i class="bi bi-plus-lg me-2"></i> Ver Criterios
-            </a>
+
         </div>
     </div>
 

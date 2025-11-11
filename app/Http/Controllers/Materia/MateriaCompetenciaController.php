@@ -25,7 +25,7 @@ class MateriaCompetenciaController extends Controller
 
     public function index(Request $request)
     {
-        $materias = Materia::where('estado', 1)->orderBy('nombre')->get();
+        $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
 
         $competenciasQuery = Materiacompetencia::with('materia')
             ->orderBy('materia_id')
@@ -49,33 +49,56 @@ class MateriaCompetenciaController extends Controller
         return view('materia.materiacompetencia.index', compact('competencias', 'materias'));
     }
 
-    public function create($id)
+    public function create()
     {
-        $materia = Materia::findOrFail($id);
-        return view('materia.materiacompetencia.create', compact('materia'));
+        $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
+        return view('materia.materiacompetencia.create', compact('materias'));
     }
-
     public function store(Request $request)
     {
         $request->validate([
             'materia_id' => 'required|exists:materias,id',
-            'nombre' => 'required|string|max:255',
-            'descripcion' => 'nullable|string',
-            'estado' => 'required|in:0,1',
+            'competencias' => 'required|array|min:1',
+            'competencias.*.nombre' => 'required|string|max:255',
+            'competencias.*.descripcion' => 'nullable|string',
+            'competencias.*.estado' => 'required|in:0,1',
         ]);
 
         try {
-            Materiacompetencia::create($request->all());
+            $competenciasCreadas = 0;
 
-            return redirect()->route('materiacompetencia.index', $request->materia_id)
-                ->with('success', 'Competencia creada exitosamente.');
+            foreach ($request->competencias as $competenciaData) {
+                // Verificar si la competencia ya existe en esta materia
+                $existe = Materiacompetencia::where('materia_id', $request->materia_id)
+                    ->where('nombre', $competenciaData['nombre'])
+                    ->exists();
+
+                if (!$existe) {
+                    Materiacompetencia::create([
+                        'materia_id' => $request->materia_id,
+                        'nombre' => $competenciaData['nombre'],
+                        'descripcion' => $competenciaData['descripcion'] ?? null,
+                        'estado' => $competenciaData['estado'],
+                    ]);
+                    $competenciasCreadas++;
+                }
+            }
+
+            if ($competenciasCreadas > 0) {
+                return redirect()->route('materiacompetencia.index')
+                    ->with('success', "{$competenciasCreadas} competencia(s) creada(s) exitosamente.");
+            } else {
+                return redirect()->back()
+                    ->with('warning', 'No se crearon competencias nuevas. Puede que ya existan con los mismos nombres.')
+                    ->withInput();
+            }
+
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al crear la competencia: ' . $e->getMessage())
+                ->with('error', 'Error al crear las competencias: ' . $e->getMessage())
                 ->withInput();
         }
     }
-
     public function edit($id)
     {
         $competencia = Materiacompetencia::with('materia')->findOrFail($id);
