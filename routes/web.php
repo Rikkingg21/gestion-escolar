@@ -42,6 +42,7 @@ use App\Http\Controllers\EstudianteController;
 use App\Http\Controllers\ApoderadoController;
 use App\Models\Apoderado;
 use App\Models\Estudiante;
+use App\Models\Materia\Materiacompetencia;
 
 // Rutas públicas
 Route::redirect('/', '/login');
@@ -161,11 +162,19 @@ Route::middleware('auth')->group(function () {
     Route::post('/materia-criterio/importar/criterio', [MateriaCriterioController::class, 'importarCriterio'])->name('importar.criterio');
 
     Route::get('/materia-criterio', [MateriaCriterioController::class, 'index'])->name('materiacriterio.index');
-    Route::get('/materia-criterio/{id}/create', [MateriaCriterioController::class, 'create'])->name('materiacriterio.create');
+    Route::get('/materia-criterio/create', [MateriaCriterioController::class, 'create'])->name('materiacriterio.create');
     Route::post('/materia-criterio/crear', [MateriaCriterioController::class, 'store'])->name('materiacriterio.store');
     Route::get('/materia-criterio/{materiacriterio}/edit', [MateriaCriterioController::class, 'edit'])->name('materiacriterio.edit');
     Route::put('/materia-criterio/{materiacriterio}', [MateriaCriterioController::class, 'update'])->name('materiacriterio.update');
     Route::delete('/materia-criterio/{id}', [MateriaCriterioController::class, 'destroy'])->name('materiacriterio.destroy');
+    Route::get('/api/competencias-por-materia/{materiaId}', function($materiaId) {
+    $competencias = Materiacompetencia::where('materia_id', $materiaId)
+        ->where('estado', '1')
+        ->orderBy('nombre')
+        ->get(['id', 'nombre']);
+
+    return response()->json($competencias);
+});
 
     Route::get('/conducta', [ConductaController::class, 'index'])->name('conducta.index');
     Route::get('/conducta/create', [ConductaController::class, 'create'])->name('conducta.create');
