@@ -94,13 +94,6 @@ Route::middleware('auth')->group(function () {
     Route::delete('/maya/{id}', [MayaController::class, 'destroy'])->name('maya.destroy');
     Route::get('/maya/dashboard', [MayaController::class, 'dashboard'])->name('maya.dashboard');
 
-    Route::get('/bimestre', [BimestreController::class, 'index'])->name('bimestre.index');
-    Route::get('/bimestre/create', [BimestreController::class, 'create'])->name('bimestre.create');
-    Route::post('/bimestre', [BimestreController::class, 'store'])->name('bimestre.store');
-    Route::get('/bimestre/{id}/edit', [BimestreController::class, 'edit'])->name('bimestre.edit');
-    Route::put('/bimestre/{id}', [BimestreController::class, 'update'])->name('bimestre.update');
-    Route::delete('/bimestre/{id}', [BimestreController::class, 'destroy'])->name('bimestre.destroy');
-
     Route::get('/nota/{bimestre}', [NotaController::class, 'index'])->name('nota.index');
     Route::get('/nota/create', [NotaController::class, 'create'])->name('nota.create');
     Route::post('/nota', [NotaController::class, 'store'])->name('nota.store');

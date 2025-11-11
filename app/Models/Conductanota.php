@@ -19,7 +19,7 @@ class Conductanota extends Model
     protected $fillable = [
         'estudiante_id',
         'conducta_id',
-        'bimestre_id',
+        'bimestre',
         'publico',
         'nota',
     ];
@@ -34,9 +34,5 @@ class Conductanota extends Model
     public function conducta()
     {
         return $this->belongsTo(Conducta::class, 'conducta_id');
-    }
-    public function bimestre()
-    {
-        return $this->belongsTo(Bimestre::class, 'bimestre_id');
     }
 }

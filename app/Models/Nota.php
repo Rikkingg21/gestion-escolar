@@ -19,7 +19,7 @@ class Nota extends Model
     protected $fillable = [
         'estudiante_id',
         'materia_criterio_id',
-        'bimestre_id',
+        'bimestre',
         'publico',
         'nota',
     ];
@@ -34,10 +34,6 @@ class Nota extends Model
     public function criterio()
     {
         return $this->belongsTo(Materiacriterio::class, 'materia_criterio_id');
-    }
-    public function bimestre()
-    {
-        return $this->belongsTo(Bimestre::class, 'bimestre_id');
     }
     public function competencia()
     {

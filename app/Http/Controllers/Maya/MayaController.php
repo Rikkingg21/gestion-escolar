@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\Materia;
 use App\Models\Grado;
 use App\Models\Docente;
+use App\Models\Materia\Materiacriterio;
 use App\Models\User;
 
 class MayaController extends Controller
@@ -22,89 +23,97 @@ class MayaController extends Controller
             return $next($request);
         });
     }
-    public function index(Request $request)
-    {
-        $user = auth()->user();
+public function index(Request $request)
+{
+    $user = auth()->user();
 
-        // Obtener años disponibles con conteo de mayas
-        $anios = Cursogradosecnivanio::select('anio')
-                    ->selectRaw('COUNT(*) as count')
-                    ->groupBy('anio')
-                    ->orderBy('anio', 'desc')
-                    ->get()
-                    ->pluck('anio');
+    // Obtener años disponibles desde Materiacriterio
+    $anios = Materiacriterio::select('anio')
+                ->selectRaw('COUNT(DISTINCT materia_id) as count')
+                ->groupBy('anio')
+                ->orderBy('anio', 'desc')
+                ->get()
+                ->pluck('anio');
 
-        $anioSeleccionado = $request->get('anio', date('Y'));
+    $anioSeleccionado = $request->get('anio', date('Y'));
 
-        // Obtener datos para los filtros con caché
-        $grados = cache()->remember('grados_filter', 3600, function() {
-            return Grado::orderBy('grado')->orderBy('seccion')->get();
-        });
+    // Obtener datos para los filtros con caché
+    $grados = cache()->remember('grados_filter', 3600, function() {
+        return Grado::orderBy('grado')->orderBy('seccion')->get();
+    });
 
-        $materias = cache()->remember('materias_filter', 3600, function() {
-            return Materia::orderBy('nombre')->get();
-        });
+    $materias = cache()->remember('materias_filter', 3600, function() {
+        return Materia::orderBy('nombre')->get();
+    });
 
-        // Solo cargar docentes si es admin/director
-        $docentes = null;
-        if ($user->hasRole('admin') || $user->hasRole('director')) {
-            $docentes = Docente::with(['user' => function($query) {
-                $query->select('id', 'nombre', 'apellido_paterno', 'apellido_materno');
-            }])->get(['id', 'user_id']);
-        }
-
-        // Construir consulta base optimizada
-        $query = Cursogradosecnivanio::with([
-                'grado' => function($q) {
-                    $q->select('id', 'grado', 'seccion', 'nivel');
-                },
-                'materia' => function($q) {
-                    $q->select('id', 'nombre');
-                },
-                'docente.user' => function($q) {
-                    $q->select('id', 'nombre', 'apellido_paterno', 'apellido_materno');
-                },
-                'bimestres' => function($q) {
-                    $q->select('id', 'curso_grado_sec_niv_anio_id', 'nombre');
-                }
-            ])
-            ->where('anio', $anioSeleccionado);
-
-        // Aplicar filtros dinámicos
-        $filters = $request->only(['grado_id', 'materia_id', 'docente_id']);
-
-        if (!empty($filters['grado_id'])) {
-            $query->where('grado_id', $filters['grado_id']);
-        }
-
-        if (!empty($filters['materia_id'])) {
-            $query->where('materia_id', $filters['materia_id']);
-        }
-
-        if (($user->hasRole('admin') || $user->hasRole('director')) && !empty($filters['docente_id'])) {
-            $query->where('docente_designado_id', $filters['docente_id']);
-        }
-
-        // Filtro para docentes
-        if ($user->hasRole('docente')) {
-            $query->where('docente_designado_id', $user->docente->id ?? 0);
-        }
-
-        // Ordenar resultados
-        $mayas = $query->orderBy('materia_id')
-                    ->orderBy('grado_id')
-                    ->get();
-
-        return view('modulos.maya.index', [
-            'mayas' => $mayas,
-            'anios' => $anios,
-            'anioSeleccionado' => $anioSeleccionado,
-            'grados' => $grados,
-            'materias' => $materias,
-            'docentes' => $docentes,
-            'filters' => $filters // Para mantener los filtros en la vista
-        ]);
+    // Solo cargar docentes si es admin/director
+    $docentes = null;
+    if ($user->hasRole('admin') || $user->hasRole('director')) {
+        $docentes = Docente::with(['user' => function($query) {
+            $query->select('id', 'nombre', 'apellido_paterno', 'apellido_materno');
+        }])->get(['id', 'user_id']);
     }
+
+    // Construir consulta base optimizada
+    $query = Cursogradosecnivanio::with([
+            'grado' => function($q) {
+                $q->select('id', 'grado', 'seccion', 'nivel');
+            },
+            'materia' => function($q) {
+                $q->select('id', 'nombre');
+            },
+            'docente.user' => function($q) {
+                $q->select('id', 'nombre', 'apellido_paterno', 'apellido_materno');
+            }
+        ])
+        ->where('anio', $anioSeleccionado);
+
+    // Aplicar filtros dinámicos
+    $filters = $request->only(['grado_id', 'materia_id', 'docente_id']);
+
+    if (!empty($filters['grado_id'])) {
+        $query->where('grado_id', $filters['grado_id']);
+    }
+
+    if (!empty($filters['materia_id'])) {
+        $query->where('materia_id', $filters['materia_id']);
+    }
+
+    if (($user->hasRole('admin') || $user->hasRole('director')) && !empty($filters['docente_id'])) {
+        $query->where('docente_designado_id', $filters['docente_id']);
+    }
+
+    // Filtro para docentes
+    if ($user->hasRole('docente')) {
+        $query->where('docente_designado_id', $user->docente->id ?? 0);
+    }
+
+    // Ordenar resultados
+    $mayas = $query->orderBy('materia_id')
+                ->orderBy('grado_id')
+                ->get();
+
+    // Obtener bimestres disponibles para cada maya
+    foreach ($mayas as $maya) {
+        $maya->bimestres_disponibles = Materiacriterio::where('materia_id', $maya->materia_id)
+            ->where('grado_id', $maya->grado_id)
+            ->where('anio', $anioSeleccionado)
+            ->select('bimestre')
+            ->distinct()
+            ->orderBy('bimestre')
+            ->pluck('bimestre');
+    }
+
+    return view('modulos.maya.index', [
+        'mayas' => $mayas,
+        'anios' => $anios,
+        'anioSeleccionado' => $anioSeleccionado,
+        'grados' => $grados,
+        'materias' => $materias,
+        'docentes' => $docentes,
+        'filters' => $filters
+    ]);
+}
     public function create()
     {
         $materias = Materia::where('estado', 1)->orderBy('nombre')->get();

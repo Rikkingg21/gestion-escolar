@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'Mayas')
 @section('content')
 
 @if ($errors->any())
@@ -23,7 +23,8 @@
             </a>
         @endif
     </div>
-<div class="card mb-4">
+
+    <div class="card mb-4">
         <div class="card-body">
             <form method="GET" action="{{ route('maya.index') }}">
                 <div class="row">
@@ -105,7 +106,7 @@
                                         {{ $maya->grado->grado }}° {{ $maya->grado->seccion }} ({{ $maya->anio }})
                                     </div>
                                     <span class="badge bg-primary">
-                                        {{ $maya->bimestres->count() }} Bimestre(s)
+                                        {{ $maya->bimestres_disponibles->count() }} Bimestre(s)
                                     </span>
                                 </div>
                                 <div class="text-muted mt-1">
@@ -128,7 +129,7 @@
                             <div class="mb-3">
                                 @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
                                     <a href="{{ route('maya.edit', $maya->id) }}" class="btn btn-warning btn-sm">
-                                        <i class="bi bi-pencil"></i> Editar
+                                        <i class="bi bi-pencil"></i> Editar Maya
                                     </a>
                                     <form action="{{ route('maya.destroy', $maya->id) }}" method="POST" class="d-inline">
                                         @csrf @method('DELETE')
@@ -138,52 +139,60 @@
                                         </button>
                                     </form>
                                 @endif
-                                <a href="{{ route('bimestre.create', ['curso_grado_sec_niv_anio_id' => $maya->id]) }}"
-                                   class="btn btn-primary btn-sm crear-bimestre-btn"
-                                   data-bimestres="{{ $maya->bimestres->count() }}">
-                                    <i class="bi bi-plus-circle"></i> Crear Bimestre
-                                </a>
                             </div>
 
-                            <!-- Lista de Bimestres -->
-                            @if($maya->bimestres->isNotEmpty())
+                            <!-- Lista de Bimestres Disponibles -->
+                            @if($maya->bimestres_disponibles->isNotEmpty())
                             <div class="accordion" id="bimestresAccordion{{ $maya->id }}">
-                                @foreach ($maya->bimestres as $bimestre)
+                                @foreach ($maya->bimestres_disponibles as $bimestre)
                                 <div class="accordion-item">
-                                    <h2 class="accordion-header" id="headingBimestre{{ $bimestre->id }}">
+                                    <h2 class="accordion-header" id="headingBimestre{{ $maya->id }}_{{ $bimestre }}">
                                         <button class="accordion-button collapsed" type="button"
                                                 data-bs-toggle="collapse"
-                                                data-bs-target="#collapseBimestre{{ $bimestre->id }}"
+                                                data-bs-target="#collapseBimestre{{ $maya->id }}_{{ $bimestre }}"
                                                 aria-expanded="false"
-                                                aria-controls="collapseBimestre{{ $bimestre->id }}">
+                                                aria-controls="collapseBimestre{{ $maya->id }}_{{ $bimestre }}">
                                             <i class="bi bi-calendar-week me-2"></i>
-                                            {{ $bimestre->nombre }} Bimestre
+                                            Bimestre {{ $bimestre }}
                                         </button>
                                     </h2>
-                                    <div id="collapseBimestre{{ $bimestre->id }}"
+                                    <div id="collapseBimestre{{ $maya->id }}_{{ $bimestre }}"
                                          class="accordion-collapse collapse"
-                                         aria-labelledby="headingBimestre{{ $bimestre->id }}"
+                                         aria-labelledby="headingBimestre{{ $maya->id }}_{{ $bimestre }}"
                                          data-bs-parent="#bimestresAccordion{{ $maya->id }}">
                                         <div class="accordion-body">
-                                            <div class="d-flex flex-wrap gap-2">
-                                                @if (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
-                                                    <a href="{{ route('bimestre.edit', $bimestre->id) }}"
-                                                       class="btn btn-warning btn-sm">
-                                                        <i class="bi bi-pencil"></i> Editar
-                                                    </a>
-                                                    <form action="{{ route('bimestre.destroy', $bimestre->id) }}"
-                                                          method="POST" class="d-inline">
-                                                        @csrf @method('DELETE')
-                                                        <button type="submit" class="btn btn-danger btn-sm"
-                                                                onclick="return confirm('¿Eliminar este bimestre?')">
-                                                            <i class="bi bi-trash"></i> Eliminar
-                                                        </button>
-                                                    </form>
-                                                @endif
-                                                <a href="{{ route('nota.index', $bimestre->id) }}"
-                                                   class="btn btn-primary btn-sm">
-                                                   <i class="bi bi-journal-check"></i> Calificar
+                                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                                <a href="{{ route('nota.index', [
+                                                    'curso_grado_sec_niv_anio_id' => $maya->id,
+                                                    'bimestre' => $bimestre
+                                                ]) }}" class="btn btn-primary btn-sm">
+                                                   <i class="bi bi-journal-check"></i> Calificar Bimestre {{ $bimestre }}
                                                 </a>
+
+                                                @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+                                                    <a href="{{ route('materiacriterio.index', [
+                                                        'materia_id' => $maya->materia_id,
+                                                        'grado_id' => $maya->grado_id,
+                                                        'anio' => $maya->anio,
+                                                        'bimestre' => $bimestre
+                                                    ]) }}" class="btn btn-info btn-sm">
+                                                        <i class="bi bi-list-check"></i> Ver Criterios
+                                                    </a>
+                                                @endif
+                                            </div>
+
+                                            <!-- Información de criterios disponibles -->
+                                            @php
+                                                $criteriosCount = App\Models\Materia\Materiacriterio::where('materia_id', $maya->materia_id)
+                                                    ->where('grado_id', $maya->grado_id)
+                                                    ->where('anio', $maya->anio)
+                                                    ->where('bimestre', $bimestre)
+                                                    ->count();
+                                            @endphp
+
+                                            <div class="alert alert-info">
+                                                <i class="bi bi-info-circle me-2"></i>
+                                                <strong>{{ $criteriosCount }} criterio(s)</strong> disponibles para calificación en este bimestre.
                                             </div>
                                         </div>
                                     </div>
@@ -191,8 +200,15 @@
                                 @endforeach
                             </div>
                             @else
-                            <div class="alert alert-info">
-                                No hay bimestres registrados para esta maya curricular.
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                No hay criterios definidos para esta combinación de materia, grado y año.
+                                @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+                                    <br>
+                                    <a href="{{ route('materiacriterio.create') }}" class="btn btn-sm btn-primary mt-2">
+                                        <i class="bi bi-plus-circle"></i> Crear Criterios
+                                    </a>
+                                @endif
                             </div>
                             @endif
                         </div>
@@ -214,25 +230,10 @@
         window.location.href = '?anio=' + this.value;
     });
 
-    // Deshabilitar botón "Crear bimestre" si hay 4 o más bimestres
-    document.querySelectorAll('.crear-bimestre-btn').forEach(function(btn) {
-        if (parseInt(btn.dataset.bimestres) >= 4) {
-            btn.classList.add('disabled');
-            btn.setAttribute('aria-disabled', 'true');
-            btn.setAttribute('tabindex', '-1');
-            btn.onclick = function(e) { e.preventDefault(); };
-        }
-    });
-
     // Función para guardar el estado de los acordeones
     function saveAccordionState(targetId) {
-        // Guardar en localStorage
         localStorage.setItem('maya_last_open', targetId);
-
-        // Guardar también en sessionStorage para navegación inmediata
         sessionStorage.setItem('maya_last_open', targetId);
-
-        // Actualizar la URL con hash
         history.replaceState(null, null, window.location.pathname + window.location.search + targetId);
     }
 
@@ -267,15 +268,11 @@
 
     // Al cargar la página
     document.addEventListener('DOMContentLoaded', function() {
-        // Verificar si hay un hash en la URL
         const urlHash = window.location.hash;
         const storageTarget = sessionStorage.getItem('maya_last_open') || localStorage.getItem('maya_last_open');
-
-        // Prioridad: 1. Hash URL, 2. sessionStorage, 3. localStorage
         const targetToOpen = urlHash ? `#${urlHash.replace('#', '')}` : (storageTarget || null);
 
         if (targetToOpen) {
-            // Esperar a que se renderice todo el contenido
             setTimeout(() => {
                 openAccordion(targetToOpen);
             }, 100);
