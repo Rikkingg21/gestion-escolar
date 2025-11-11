@@ -151,53 +151,48 @@
         </div>
     </div>
     <style>
-    .sidebar {
-        transition: width 0.3s ease;
-    }
+        .sidebar {
+            transition: width 0.3s ease;
+        }
 
-    .sidebar.collapsed {
-        width: 70px !important;
-    }
+        .sidebar.collapsed {
+            width: 70px !important;
+        }
 
-    .sidebar.collapsed .nav-link span,
-    .sidebar.collapsed h4,
-    .sidebar.collapsed .accordion,
-    .sidebar.collapsed p,
-    .sidebar.collapsed .badge,
-    .sidebar.collapsed .text-muted,
-    .sidebar.collapsed .dropdown {
-        display: none !important;
-    }
+        .sidebar.collapsed .nav-link span,
+        .sidebar.collapsed h4,
+        .sidebar.collapsed .accordion,
+        .sidebar.collapsed p,
+        .sidebar.collapsed .badge,
+        .sidebar.collapsed .text-muted,
+        .sidebar.collapsed .dropdown {
+            display: none !important;
+        }
 
-    .toggle-btn {
-        background: none;
-        border: none;
-        color: white;
-        font-size: 20px;
-    }
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+        }
 
-    .nav-link.active {
-        background-color: rgba(255, 255, 255, 0.2);
-        border-radius: 5px;
-    }
-</style>
-<script>
-    function toggleSidebar() {
-        const sidebar = document.querySelector('.sidebar');
-        sidebar.classList.toggle('collapsed');
-    }
-</script>
+        .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+        }
+    </style>
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/i18n/es.js"></script>
+    <script src="https://cdn.datatables.net/2.3.1/js/dataTables.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/i18n/es.js"></script>
-<script src="https://cdn.datatables.net/2.3.1/js/dataTables.js"></script>
-<script src="path/to/chartjs/dist/chart.umd.min.js"></script>
-<script>
-    const myChart = new Chart(ctx, {...});
-</script>
-@stack('js')
 </body>
 </html>
