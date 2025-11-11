@@ -15,7 +15,7 @@
             <a href="{{ route('materiacriterio.importar') }}" class="btn btn-success shadow-sm">
                 <i class="bi bi-file-earmark-excel me-1"></i> Importar Excel
             </a>
-            <a href="" class="btn btn-primary shadow-sm">
+            <a href="{{ route('materiacriterio.create') }}" class="btn btn-primary shadow-sm">
                 <i class="bi bi-plus-circle me-1"></i> Nuevo Criterio
             </a>
         </div>
