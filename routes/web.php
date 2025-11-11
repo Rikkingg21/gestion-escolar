@@ -94,15 +94,15 @@ Route::middleware('auth')->group(function () {
     Route::delete('/maya/{id}', [MayaController::class, 'destroy'])->name('maya.destroy');
     Route::get('/maya/dashboard', [MayaController::class, 'dashboard'])->name('maya.dashboard');
 
-    Route::get('/nota/{bimestre}', [NotaController::class, 'index'])->name('nota.index');
+    Route::get('/nota/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'index'])->name('nota.index');
     Route::get('/nota/create', [NotaController::class, 'create'])->name('nota.create');
     Route::post('/nota', [NotaController::class, 'store'])->name('nota.store');
     Route::post('/nota-conducta', [NotaController::class, 'storeConductaNotas'])->name('nota.storeConductaNotas');
     Route::get('/nota/{id}/edit', [NotaController::class, 'edit'])->name('nota.edit');
     Route::put('/nota/{id}', [NotaController::class, 'update'])->name('nota.update');
     Route::delete('/nota/{id}', [NotaController::class, 'destroy'])->name('nota.destroy');
-    Route::post('nota/publicar/{bimestre}', [NotaController::class, 'publicar'])->name('nota.publicar');
-    Route::post('nota/revertir/{bimestre}', [NotaController::class, 'revertir'])->name('nota.revertir');
+    Route::post('nota/publicar/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'publicar'])->name('nota.publicar');
+    Route::post('nota/revertir/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'revertir'])->name('nota.revertir');
 
     Route::get('/user', [UserController::class, 'index'])->name('user.index');
     Route::get('/user/create', [UserController::class, 'create'])->name('user.create');
