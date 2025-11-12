@@ -15,44 +15,57 @@
                 '2' => ['Oficial', 'success'],
                 '3' => ['Extra Oficial', 'warning']
             ];
+
+            // Determinar si el usuario actual puede editar
+            $puedeEditar = auth()->user()->hasRole('admin') ||
+                           auth()->user()->hasRole('director') ||
+                           (auth()->user()->hasRole('docente') && in_array($estadoActual, ['0', '1']));
         @endphp
         <span class="badge bg-{{ $estados[$estadoActual][1] }} badge-lg">
             Estado: {{ $estados[$estadoActual][0] }}
         </span>
     </div>
 
+    <!-- Botones de publicación/reversión -->
     <div class="mt-3">
-    @php
-        $user = auth()->user();
-        $esDocenteDelCurso = $user->hasRole('docente') && $docente && $docente->id == ($user->docente->id ?? 0);
-        $puedePublicar = $user->hasRole('admin') || $user->hasRole('director') || $esDocenteDelCurso;
-    @endphp
+        @php
+            $user = auth()->user();
+            $esDocenteDelCurso = $user->hasRole('docente') && $docente && $docente->id == ($user->docente->id ?? 0);
 
-    @if($puedePublicar && in_array($estadoActual, ['0', '1', '2']))
-    <form action="{{ route('nota.publicar', ['curso_grado_sec_niv_anio_id' => $curso_id, 'bimestre' => $bimestre]) }}" method="POST" class="d-inline">
-        @csrf
-        <button type="submit" class="btn btn-warning" onclick="return confirm('¿Está seguro de cambiar el estado de las notas?')">
-            <i class="fas fa-share-square"></i>
-            @if($estadoActual == '0')
-                Publicar Notas
-            @elseif($estadoActual == '1')
-                Marcar como Oficial
-            @elseif($estadoActual == '2')
-                Marcar como Extra Oficial
-            @endif
-        </button>
-    </form>
-    @endif
+            // Lógica para botón de publicación
+            $puedePublicar = false;
+            $textoBotonPublicar = '';
 
-    @if(($user->hasRole('admin') || $user->hasRole('director')) && in_array($estadoActual, ['1', '2', '3']))
-    <form action="{{ route('nota.revertir', ['curso_grado_sec_niv_anio_id' => $curso_id, 'bimestre' => $bimestre]) }}" method="POST" class="d-inline">
-        @csrf
-        <button type="submit" class="btn btn-info ms-2" onclick="return confirm('¿Está seguro de revertir el estado de las notas?')">
+            if ($user->hasRole('admin') && in_array($estadoActual, ['0', '1', '2'])) {
+                $puedePublicar = true;
+                if ($estadoActual == '0') $textoBotonPublicar = 'Publicar Notas';
+                elseif ($estadoActual == '1') $textoBotonPublicar = 'Marcar como Oficial';
+                elseif ($estadoActual == '2') $textoBotonPublicar = 'Marcar como Extra Oficial';
+            } elseif ($user->hasRole('director') && in_array($estadoActual, ['0', '1'])) {
+                $puedePublicar = true;
+                if ($estadoActual == '0') $textoBotonPublicar = 'Publicar Notas';
+                elseif ($estadoActual == '1') $textoBotonPublicar = 'Marcar como Oficial';
+            } elseif ($esDocenteDelCurso && $estadoActual == '0') {
+                $puedePublicar = true;
+                $textoBotonPublicar = 'Publicar Notas';
+            }
+        @endphp
+
+        @if($puedePublicar)
+        <form action="{{ route('nota.publicar', ['curso_grado_sec_niv_anio_id' => $curso_id, 'bimestre' => $bimestre]) }}" method="POST" class="d-inline">
+            @csrf
+            <button type="submit" class="btn btn-warning" onclick="return confirm('¿Está seguro de cambiar el estado de las notas?')">
+                <i class="fas fa-share-square"></i> {{ $textoBotonPublicar }}
+            </button>
+        </form>
+        @endif
+
+        @if(($user->hasRole('admin') || $user->hasRole('director')) && in_array($estadoActual, ['1', '2', '3']))
+        <button type="button" class="btn btn-info ms-2" data-bs-toggle="modal" data-bs-target="#revertirModal">
             <i class="fas fa-undo"></i> Revertir Estado
         </button>
-    </form>
-    @endif
-</div>
+        @endif
+    </div><br>
 
     <div class="card shadow mb-4">
         <div class="card-header py-3">
@@ -74,16 +87,15 @@
 
         <div class="card-body">
             <!-- Mensajes de advertencia según el estado -->
-            @if($estadoActual == '1')
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i>
-                Las notas están publicadas. Solo administradores y directores pueden editarlas.
-            </div>
-            @elseif($estadoActual == '2' || $estadoActual == '3')
+            @if(!$puedeEditar)
             <div class="alert alert-warning">
                 <i class="fas fa-exclamation-triangle"></i>
                 Las notas están en estado <strong>{{ $estados[$estadoActual][0] }}</strong>.
-                Solo administradores y directores pueden editarlas.
+                @if(auth()->user()->hasRole('docente'))
+                    Solo puede editar en estados Privado y Publicado.
+                @else
+                    No tiene permisos para editar en este estado.
+                @endif
             </div>
             @endif
 
@@ -154,15 +166,6 @@
                                                             $key = $estudiante->id.'-'.$criterio->id;
                                                             $notaData = $notasExistentes[$key] ?? null;
                                                             $nota = $notaData['nota'] ?? null;
-                                                            $publico = $notaData['publico'] ?? '0';
-
-                                                            // Determinar si el campo es editable
-                                                            $readonly = false;
-                                                            $background = '';
-                                                            if ($estadoActual == '1' && !auth()->user()->hasRole('admin')) {
-                                                                $readonly = true;
-                                                                $background = 'background-color: #f8f9fa;';
-                                                            }
                                                         @endphp
                                                         <input type="number"
                                                             name="notas[{{ $estudiante->id }}][{{ $criterio->id }}]"
@@ -171,8 +174,8 @@
                                                             max="4"
                                                             step="1"
                                                             class="form-control form-control-sm nota-input"
-                                                            {{ $readonly ? 'readonly' : '' }}
-                                                            style="{{ $background }}"
+                                                            {{ !$puedeEditar ? 'readonly' : '' }}
+                                                            style="{{ !$puedeEditar ? 'background-color: #f8f9fa;' : '' }}"
                                                             oninput="this.value = this.value.replace(/[^0-4]/g, '').replace(/(\..*)\./g, '$1');">
                                                     </td>
                                                 @endforeach
@@ -249,8 +252,7 @@
                         @endif
 
                         <div class="form-group mt-4">
-                            <button type="submit" class="btn btn-primary"
-                                {{ ($estadoActual == '1' && !auth()->user()->hasRole('admin')) ? 'disabled' : '' }}>
+                            <button type="submit" class="btn btn-primary" {{ !$puedeEditar ? 'disabled' : '' }}>
                                 <i class="fas fa-save"></i> Guardar Calificaciones
                             </button>
                             <a href="{{ route('maya.index') }}" class="btn btn-secondary">
@@ -299,14 +301,6 @@
                                                         $key = $estudiante->id.'-'.$conducta->id;
                                                         $notaData = $conductaNotas[$key] ?? null;
                                                         $notaConducta = $notaData['nota'] ?? null;
-                                                        $publico = $notaData['publico'] ?? '0';
-
-                                                        $readonly = false;
-                                                        $background = '';
-                                                        if ($estadoActual == '1' && !auth()->user()->hasRole('admin')) {
-                                                            $readonly = true;
-                                                            $background = 'background-color: #f8f9fa;';
-                                                        }
                                                     @endphp
                                                     <input type="number"
                                                         name="notas_conducta[{{ $estudiante->id }}][{{ $conducta->id }}]"
@@ -315,8 +309,8 @@
                                                         max="4"
                                                         step="1"
                                                         class="form-control form-control-sm nota-input"
-                                                        {{ $readonly ? 'readonly' : '' }}
-                                                        style="{{ $background }}"
+                                                        {{ !$puedeEditar ? 'readonly' : '' }}
+                                                        style="{{ !$puedeEditar ? 'background-color: #f8f9fa;' : '' }}"
                                                         oninput="this.value = this.value.replace(/[^0-4]/g, '').replace(/(\..*)\./g, '$1');">
                                                 </td>
                                             @endforeach
@@ -380,8 +374,7 @@
 
                         @if($conductas->count() > 0)
                         <div class="form-group mt-4">
-                            <button type="submit" class="btn btn-primary"
-                                {{ ($estadoActual == '1' && !auth()->user()->hasRole('admin')) ? 'disabled' : '' }}>
+                            <button type="submit" class="btn btn-primary" {{ !$puedeEditar ? 'disabled' : '' }}>
                                 <i class="fas fa-save"></i> Guardar Notas de Conducta
                             </button>
                         </div>
@@ -394,26 +387,72 @@
                     </form>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="revertirModal" tabindex="-1" aria-labelledby="revertirModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="revertirModalLabel">
+                    <i class="fas fa-undo"></i> Revertir Estado de Notas
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Advertencia:</strong> Esta acción requiere autenticación con la sesión.
+                </div>
 
-            <!-- Botones de publicación según permisos y estado actual -->
-            <div class="mt-3">
-                @if(in_array($estadoActual, ['0', '1']) && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director') || (auth()->user()->hasRole('docente') && $docente && $docente->id == auth()->user()->docente->id ?? 0)))
-                <form action="{{ route('nota.publicar', ['curso_grado_sec_niv_anio_id' => $curso_id, 'bimestre' => $bimestre]) }}" method="POST" class="d-inline">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Estado Actual:</strong>
+                        <span class="badge bg-secondary">{{ $estados[$estadoActual][0] }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Nuevo Estado:</strong>
+                        <span class="badge bg-info">
+                            @if($estadoActual == '3') Oficial
+                            @elseif($estadoActual == '2') Publicado
+                            @elseif($estadoActual == '1') Privado
+                            @else No aplica
+                            @endif
+                        </span>
+                    </div>
+                </div>
+
+                @if(session('sessionmain'))
+                <form id="revertirForm" action="{{ route('nota.revertir', ['curso_grado_sec_niv_anio_id' => $curso_id, 'bimestre' => $bimestre]) }}" method="POST">
                     @csrf
-                    <button type="submit" class="btn btn-warning">
-                        <i class="fas fa-share-square"></i>
-                        {{ $estadoActual == '0' ? 'Publicar Notas' : 'Marcar como Oficial' }}
-                    </button>
+
+                    <div class="form-group">
+                        <label for="password" class="form-label"><strong>Contraseña *</strong></label>
+                        <input type="password" class="form-control @error('password') is-invalid @enderror"
+                               id="password" name="password" required
+                               placeholder="Ingrese la contraseña de {{ session('sessionmain')->nombre_usuario }}">
+                        @error('password')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <small class="form-text text-muted">
+                            Contraseña de la sesión principal para autorizar la reversión.
+                        </small>
+                    </div>
                 </form>
+                @else
+                <div class="alert alert-danger">
+                    No se puede proceder sin una sesión principal activa.
+                </div>
                 @endif
-
-                @if(in_array($estadoActual, ['2', '3']) && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director')))
-                <form action="{{ route('nota.revertir', ['curso_grado_sec_niv_anio_id' => $curso_id, 'bimestre' => $bimestre]) }}" method="POST" class="d-inline">
-                    @csrf
-                    <button type="submit" class="btn btn-info ms-2">
-                        <i class="fas fa-undo"></i> Revertir Estado
-                    </button>
-                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                @if(session('sessionmain'))
+                <button type="submit" form="revertirForm" class="btn btn-danger">
+                    <i class="fas fa-undo"></i> Confirmar Reversión
+                </button>
                 @endif
             </div>
         </div>
@@ -523,15 +562,43 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         return valid;
     }
+});
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    const revertirModal = document.getElementById('revertirModal');
 
-    // Opcional: Permitir guardar incluso con campos vacíos pero mostrar advertencia
-    function permitirGuardadoParcial() {
-        // Esta función es opcional - solo remueve la validación estricta
-        console.log('Guardado parcial permitido - los campos vacíos se guardarán como null');
+    if (revertirModal) {
+        // Limpiar el formulario cuando se cierra el modal
+        revertirModal.addEventListener('hidden.bs.modal', function () {
+            const passwordInput = document.getElementById('password');
+            if (passwordInput) {
+                passwordInput.value = '';
+                passwordInput.classList.remove('is-invalid');
+            }
+        });
+
+        // Validación del formulario de reversión
+        const revertirForm = document.getElementById('revertirForm');
+        if (revertirForm) {
+            revertirForm.addEventListener('submit', function(e) {
+                const passwordInput = document.getElementById('password');
+                if (!passwordInput.value.trim()) {
+                    e.preventDefault();
+                    passwordInput.classList.add('is-invalid');
+                    passwordInput.focus();
+                }
+            });
+        }
+
+        // Remover validación cuando el usuario escribe
+        const passwordInput = document.getElementById('password');
+        if (passwordInput) {
+            passwordInput.addEventListener('input', function() {
+                this.classList.remove('is-invalid');
+            });
+        }
     }
-
-    // Ejecutar al cargar
-    permitirGuardadoParcial();
 });
 </script>
 @endsection

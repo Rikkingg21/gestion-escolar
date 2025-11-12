@@ -103,6 +103,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/nota/{id}', [NotaController::class, 'destroy'])->name('nota.destroy');
     Route::post('nota/publicar/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'publicar'])->name('nota.publicar');
     Route::post('nota/revertir/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'revertir'])->name('nota.revertir');
+    Route::get('nota/revertir-form/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'showRevertirForm'])->name('nota.revertir.form');
 
     Route::get('/user', [UserController::class, 'index'])->name('user.index');
     Route::get('/user/create', [UserController::class, 'create'])->name('user.create');

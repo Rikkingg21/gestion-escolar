@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
 
 class NotaController extends Controller
 {
@@ -217,6 +218,22 @@ class NotaController extends Controller
      */
     private function obtenerEstadoActual($curso_id, $bimestre)
     {
+        // Primero verificar si existen notas para este curso y bimestre
+        $existenNotas = Nota::whereHas('criterio', function($query) use ($curso_id) {
+                $query->whereHas('materiaCompetencia.materia', function($q) use ($curso_id) {
+                    $q->whereHas('cursoGradoSecNivAnio', function($cq) use ($curso_id) {
+                        $cq->where('id', $curso_id);
+                    });
+                });
+            })
+            ->where('bimestre', $bimestre)
+            ->exists();
+
+        if (!$existenNotas) {
+            \Log::info("OBTENER ESTADO - No existen notas, retornando '0'");
+            return '0';
+        }
+
         // Obtener el estado más alto de las notas para este curso y bimestre
         $notaEstado = Nota::whereHas('criterio', function($query) use ($curso_id) {
                 $query->whereHas('materiaCompetencia.materia', function($q) use ($curso_id) {
@@ -228,8 +245,8 @@ class NotaController extends Controller
             ->where('bimestre', $bimestre)
             ->max('publico');
 
-        // Convertir a string y manejar null
         $estado = $notaEstado ? (string)$notaEstado : '0';
+        \Log::info("OBTENER ESTADO - Estado encontrado: {$estado}");
 
         return $estado;
     }
@@ -401,10 +418,112 @@ class NotaController extends Controller
     }
     public function publicar(Request $request, $curso_grado_sec_niv_anio_id, $bimestre)
     {
+        try {
+            DB::beginTransaction();
 
+            $user = auth()->user();
+            $estadoActual = $this->obtenerEstadoActual($curso_grado_sec_niv_anio_id, $bimestre);
+
+            // Determinar el nuevo estado según el rol y estado actual
+            if ($user->hasRole('admin')) {
+                // Admin puede avanzar a cualquier estado
+                if ($estadoActual == '0') {
+                    $nuevoEstado = '1';
+                } elseif ($estadoActual == '1') {
+                    $nuevoEstado = '2';
+                } elseif ($estadoActual == '2') {
+                    $nuevoEstado = '3';
+                } else {
+                    throw new \Exception('Estado actual no válido para publicación.');
+                }
+            } elseif ($user->hasRole('director')) {
+                // Director puede avanzar hasta estado '2'
+                if ($estadoActual == '0') {
+                    $nuevoEstado = '1';
+                } elseif ($estadoActual == '1') {
+                    $nuevoEstado = '2';
+                } else {
+                    throw new \Exception('Director solo puede publicar hasta estado Oficial.');
+                }
+            } elseif ($user->hasRole('docente')) {
+                // Docente puede avanzar hasta estado '1'
+                if ($estadoActual == '0') {
+                    $nuevoEstado = '1';
+                } else {
+                    throw new \Exception('Docente solo puede publicar hasta estado Publicado.');
+                }
+            } else {
+                throw new \Exception('No tiene permisos para publicar notas.');
+            }
+
+            // Verificar si existen notas antes de actualizar - CORREGIDO
+            $notasCount = Nota::whereHas('criterio', function($query) use ($curso_grado_sec_niv_anio_id) {
+                $query->whereHas('materiaCompetencia.materia', function($q) use ($curso_grado_sec_niv_anio_id) {
+                    $q->whereHas('cursoGradoSecNivAnio', function($cq) use ($curso_grado_sec_niv_anio_id) {
+                        $cq->where('id', $curso_grado_sec_niv_anio_id);
+                    });
+                });
+            })
+            ->where('bimestre', $bimestre)
+            ->count();
+
+            // CORREGIDO: Usar el nombre correcto de la tabla
+            $conductaCount = Conductanota::whereIn('estudiante_id', function($query) use ($curso_grado_sec_niv_anio_id) {
+                $query->select('estudiantes.id')
+                    ->from('estudiantes')
+                    ->join('maya_curso_grado_sec_niv_anios', 'estudiantes.grado_id', '=', 'maya_curso_grado_sec_niv_anios.grado_id')
+                    ->where('maya_curso_grado_sec_niv_anios.id', $curso_grado_sec_niv_anio_id);
+            })
+            ->where('bimestre', $bimestre)
+            ->count();
+
+            // Actualizar notas de materia
+            $updatedNotas = Nota::whereHas('criterio', function($query) use ($curso_grado_sec_niv_anio_id) {
+                $query->whereHas('materiaCompetencia.materia', function($q) use ($curso_grado_sec_niv_anio_id) {
+                    $q->whereHas('cursoGradoSecNivAnio', function($cq) use ($curso_grado_sec_niv_anio_id) {
+                        $cq->where('id', $curso_grado_sec_niv_anio_id);
+                    });
+                });
+            })
+            ->where('bimestre', $bimestre)
+            ->update(['publico' => $nuevoEstado]);
+
+            // Actualizar notas de conducta - CORREGIDO
+            $updatedConducta = Conductanota::whereIn('estudiante_id', function($query) use ($curso_grado_sec_niv_anio_id) {
+                $query->select('estudiantes.id')
+                    ->from('estudiantes')
+                    ->join('maya_curso_grado_sec_niv_anios', 'estudiantes.grado_id', '=', 'maya_curso_grado_sec_niv_anios.grado_id')
+                    ->where('maya_curso_grado_sec_niv_anios.id', $curso_grado_sec_niv_anio_id);
+            })
+            ->where('bimestre', $bimestre)
+            ->update(['publico' => $nuevoEstado]);
+
+            DB::commit();
+
+            $estados = ['0' => 'Privado', '1' => 'Publicado', '2' => 'Oficial', '3' => 'Extra Oficial'];
+
+            if ($updatedNotas == 0 && $updatedConducta == 0) {
+                throw new \Exception('No se encontraron notas para actualizar. Primero debe guardar algunas calificaciones.');
+            }
+
+            return redirect()
+                ->route('nota.index', [
+                    'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
+                    'bimestre' => $bimestre
+                ])
+                ->with('success', "Notas cambiadas a estado: {$estados[$nuevoEstado]}");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()
+                ->route('nota.index', [
+                    'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
+                    'bimestre' => $bimestre
+                ])
+                ->with('error', 'Error al publicar notas: ' . $e->getMessage());
+        }
     }
-
-
     public function revertir(Request $request, $curso_grado_sec_niv_anio_id, $bimestre)
     {
         try {
@@ -427,7 +546,7 @@ class NotaController extends Controller
             } elseif ($estadoActual == '1') {
                 $nuevoEstado = '0';
             } else {
-                throw new \Exception('No se puede revertir desde el estado actual.');
+                throw new \Exception('No se puede revertir desde el estado actual: ' . $estadoActual);
             }
 
             // Actualizar notas de materia
@@ -441,12 +560,12 @@ class NotaController extends Controller
             ->where('bimestre', $bimestre)
             ->update(['publico' => $nuevoEstado]);
 
-            // Actualizar notas de conducta
+            // Actualizar notas de conducta - CORREGIDO
             Conductanota::whereIn('estudiante_id', function($query) use ($curso_grado_sec_niv_anio_id) {
                 $query->select('estudiantes.id')
                     ->from('estudiantes')
-                    ->join('cursogradosecnivanios', 'estudiantes.grado_id', '=', 'cursogradosecnivanios.grado_id')
-                    ->where('cursogradosecnivanios.id', $curso_grado_sec_niv_anio_id);
+                    ->join('maya_curso_grado_sec_niv_anios', 'estudiantes.grado_id', '=', 'maya_curso_grado_sec_niv_anios.grado_id')
+                    ->where('maya_curso_grado_sec_niv_anios.id', $curso_grado_sec_niv_anio_id);
             })
             ->where('bimestre', $bimestre)
             ->update(['publico' => $nuevoEstado]);
@@ -477,7 +596,7 @@ class NotaController extends Controller
         $user = auth()->user();
 
         // Admin y Director pueden editar en cualquier estado
-        if ($user->hasRole('admin') || $user->hasRole('director')) {
+        if ($user->current_role('admin') || $user->hasRole('director')) {
             return true;
         }
 
@@ -487,5 +606,15 @@ class NotaController extends Controller
         }
 
         return false;
+    }
+    public function showRevertirForm($curso_grado_sec_niv_anio_id, $bimestre)
+    {
+        $estadoActual = $this->obtenerEstadoActual($curso_grado_sec_niv_anio_id, $bimestre);
+
+        return view('nota.revertir-form', [
+            'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
+            'bimestre' => $bimestre,
+            'estadoActual' => $estadoActual
+        ]);
     }
 }
