@@ -230,7 +230,6 @@ class NotaController extends Controller
             ->exists();
 
         if (!$existenNotas) {
-            \Log::info("OBTENER ESTADO - No existen notas, retornando '0'");
             return '0';
         }
 
@@ -246,7 +245,6 @@ class NotaController extends Controller
             ->max('publico');
 
         $estado = $notaEstado ? (string)$notaEstado : '0';
-        \Log::info("OBTENER ESTADO - Estado encontrado: {$estado}");
 
         return $estado;
     }
@@ -596,7 +594,7 @@ class NotaController extends Controller
         $user = auth()->user();
 
         // Admin y Director pueden editar en cualquier estado
-        if ($user->current_role('admin') || $user->hasRole('director')) {
+        if ($user->hasRole('admin') || $user->hasRole('director')) {
             return true;
         }
 
