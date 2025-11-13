@@ -45,38 +45,24 @@ class LibretaController extends Controller
         $bimestres = $this->obtenerBimestresUnicos($grado_id, $anio);
         $anios = $this->obtenerAniosConNotas($estudiante);
 
-        // Obtener cursos, materias y notas
+        // Obtener cursos y materias - SIN FILTRAR POR NOTAS
         $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
-        //$materias = $this->obtenerMateriasEstudiante($cursos);
+        $materias = $this->obtenerMateriasEstudiante($cursos);
+
+        // Obtener notas para el bimestre seleccionado
         $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_nombre, $anio);
         $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
 
-        $materiaIdsConNotas = $notas
-            ->map(fn($n) => optional($n->criterio->materia)->id)
-            ->filter()
-            ->unique()
-            ->values();
-        if ($materiaIdsConNotas->isNotEmpty()) {
-            $materias = $this->obtenerMateriasEstudiante($cursos)
-                        ->filter(fn($m) => $materiaIdsConNotas->contains($m->id))
-                        ->values();
-        } else {
-            // Si no hay notas, devolvemos una colección vacía para evitar mostrar todas las materias del grado
-            $materias = collect();
-        }
-        $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio);
+        // Cargar competencias con TODAS las materias, no solo las que tienen notas
+        $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio, $bimestre_nombre);
 
         // Bimestre y colegio seleccionados
-        $bimestre_selected = $bimestre_nombre
-            ? Bimestre::where('nombre', $bimestre_nombre)
-                ->whereHas('cursoGradoSecNivAnio', function($q) use ($anio, $grado_id) {
-                    $q->where('anio', $anio)->where('grado_id', $grado_id);
-                })
-                ->with('cursoGradoSecNivAnio.grado')
-                ->first()
-            : null;
+        $bimestre_selected = $bimestre_nombre ? (object)[
+            'nombre' => $bimestre_nombre
+        ] : null;
+
         $colegio = $this->cargarColegio();
-        $grado_selected = $bimestre_selected?->cursoGradoSecNivAnio->grado;
+        $grado_selected = $estudiante->grado;
         $nivel_selected = $grado_selected?->nivel;
         $seccion_selected = $grado_selected?->seccion;
 
@@ -84,28 +70,18 @@ class LibretaController extends Controller
         $conductaNotas = Conductanota::selectRaw('conducta_id, AVG(nota) as promedio')
         ->where('estudiante_id', $estudiante->id)
         ->whereIn('publico', [1, 2])
-        ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio, $grado_id) {
-            $q->where('nombre', $bimestre_nombre)
-            ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio, $grado_id) {
-                $q2->where('anio', $anio)->where('grado_id', $grado_id);
-            });
-        })
+        ->where('bimestre', $bimestre_nombre)
         ->groupBy('conducta_id')
-        ->with('conducta') // para que traiga el nombre de la conducta
+        ->with('conducta')
         ->get();
 
         // --- Asistencias ---
         $asistencias = Asistencia::with('tipoasistencia')
         ->where('estudiante_id', $estudiante->id)
         ->where('grado_id', $grado_id)
-        ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio, $grado_id) {
-            $q->where('nombre', $bimestre_nombre)
-              ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio, $grado_id) {
-                  $q2->where('anio', $anio)->where('grado_id', $grado_id);
-              });
-        })
         ->whereYear('fecha', $anio)
         ->get();
+
         $resumenAsistencias = [
             'Puntualidad' => 0,
             'Tardanza' => 0,
@@ -113,6 +89,7 @@ class LibretaController extends Controller
             'Falta Justificada' => 0,
             'Tardanza Injustificada' => 0,
         ];
+
         foreach ($asistencias as $asistencia) {
             $tipo = strtolower($asistencia->tipoasistencia->nombre ?? '');
             if (str_contains($tipo, 'puntual')) $resumenAsistencias['Puntualidad']++;
@@ -121,7 +98,7 @@ class LibretaController extends Controller
             elseif (str_contains($tipo, 'falta justificada')) $resumenAsistencias['Falta Justificada']++;
             elseif (str_contains($tipo, 'falta')) $resumenAsistencias['Falta']++;
         }
-        //dd($anios);
+
         return view('libreta.index', [
             'estudiante' => $estudiante,
             'detalle' => $detalle,
@@ -139,7 +116,6 @@ class LibretaController extends Controller
             'resumenAsistencias' => $resumenAsistencias,
         ]);
     }
-
     protected function validarAccesoEstudiante($user)
     {
         if (!$user || !$user->hasRole('estudiante')) {
@@ -155,44 +131,38 @@ class LibretaController extends Controller
         }
         return $estudiante;
     }
+
     protected function obtenerBimestresUnicos($grado_id, $anio)
     {
-        return Bimestre::with('cursoGradoSecNivAnio')
-            ->whereHas('cursoGradoSecNivAnio', function($q) use ($grado_id, $anio) {
-                $q->where('grado_id', $grado_id)
-                ->where('anio', $anio);
-            })
-            ->orderBy('nombre')
+        // Obtener bimestres únicos desde Materiacriterio
+        return Materiacriterio::where('grado_id', $grado_id)
+            ->when($anio, fn($q) => $q->where('anio', $anio))
+            ->select('bimestre')
+            ->distinct()
+            ->orderBy('bimestre')
             ->get()
-            ->unique('nombre')
-            ->values();
-    }
-
-    protected function obtenerBimestresConNotas($estudiante)
-    {
-        return Nota::where('estudiante_id', $estudiante->id)
-            ->where('publico', '1')
-            ->with('bimestre')
-            ->get()
-            ->pluck('bimestre')
-            ->unique('id')
-            ->filter();
+            ->map(function($item) {
+                return (object)[
+                    'nombre' => $item->bimestre
+                ];
+            });
     }
 
     protected function obtenerAniosConNotas($estudiante)
     {
         $notas = Nota::where('estudiante_id', $estudiante->id)
             ->whereIn('publico', ['1', '2'])
-            ->with('bimestre.cursoGradoSecNivAnio')
+            ->with('criterio')
             ->get();
 
         return $notas
-            ->map(fn($nota) => $nota->bimestre?->cursoGradoSecNivAnio?->anio)
+            ->map(fn($nota) => $nota->criterio?->anio)
             ->filter()
             ->unique()
             ->sortDesc()
             ->values();
     }
+
 
     protected function obtenerCursosEstudiante($grado_id, $anio)
     {
@@ -210,17 +180,15 @@ class LibretaController extends Controller
     protected function obtenerNotasEstudiante($estudiante, $bimestre_nombre, $anio)
     {
         $notasQuery = Nota::where('estudiante_id', $estudiante->id)
-            ->whereIn('publico', ["1", "2"])
-            ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio) {
-                $q->where('nombre', $bimestre_nombre)
-                ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio) {
-                    $q2->where('anio', $anio);
-                });
+            ->whereIn('publico', ["1", "2", "3"])
+            ->whereHas('criterio', function($q) use ($bimestre_nombre, $anio) {
+                $q->where('bimestre', $bimestre_nombre)
+                ->where('anio', $anio);
             })
             ->with([
                 'criterio.materiaCompetencia',
                 'criterio.materia',
-                'bimestre.cursoGradoSecNivAnio'
+                'criterio.grado'
             ]);
 
         $notas = $notasQuery->get();
@@ -228,7 +196,7 @@ class LibretaController extends Controller
         return $notas;
     }
 
-    protected function cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio)
+    protected function cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio, $bimestre_nombre = null)
     {
         $detalle = [];
         $competenciaGlobalCounter = 1;
@@ -242,15 +210,21 @@ class LibretaController extends Controller
             } else {
                 foreach ($competencias as $competencia) {
                     $competenciaData = $this->prepararDatosCompetencia($competencia, $competenciaGlobalCounter++);
-                    $competenciaData = $this->cargarCriterios($competencia, $competenciaData, $grado_id, $anio, $notasPorCriterio);
+                    $competenciaData = $this->cargarCriterios($competencia, $competenciaData, $grado_id, $anio, $notasPorCriterio, $bimestre_nombre);
                     $competenciaData = $this->calcularPromedios($competenciaData);
 
-                    $materiaData['competencias'][] = $competenciaData;
-                    $materiaData['total_criterios'] += max($competenciaData['total_criterios'], 1) + 1;
+                    // Solo agregar la competencia si tiene criterios con notas en este bimestre
+                    if ($competenciaData['total_criterios'] > 0 || !empty($competenciaData['criterios'])) {
+                        $materiaData['competencias'][] = $competenciaData;
+                        $materiaData['total_criterios'] += max($competenciaData['total_criterios'], 1) + 1;
+                    }
                 }
             }
 
-            $detalle[] = $materiaData;
+            // Solo agregar la materia si tiene competencias con criterios
+            if (!empty($materiaData['competencias'])) {
+                $detalle[] = $materiaData;
+            }
         }
 
         return $detalle;
@@ -303,10 +277,18 @@ class LibretaController extends Controller
         ];
     }
 
-    protected function cargarCriterios($competencia, $competenciaData, $grado_id, $anio, $notasPorCriterio)
+    protected function cargarCriterios($competencia, $competenciaData, $grado_id, $anio, $notasPorCriterio, $bimestre_nombre = null)
     {
         $criterios = $competencia->materiaCriterio->where('grado_id', $grado_id);
-        if ($anio) $criterios = $criterios->where('anio', $anio);
+
+        if ($anio) {
+            $criterios = $criterios->where('anio', $anio);
+        }
+
+        // FILTRO CRUCIAL: Filtrar por bimestre
+        if ($bimestre_nombre) {
+            $criterios = $criterios->where('bimestre', $bimestre_nombre);
+        }
 
         if ($criterios->isEmpty()) {
             $competenciaData['criterios'][] = [
@@ -375,6 +357,7 @@ class LibretaController extends Controller
         if ($promedio >= 3) return 'A';
         if ($promedio >= 2) return 'B';
         if ($promedio >= 1) return 'C';
+        return 'D';
     }
 
     protected function getValorClass($valor)
@@ -396,12 +379,12 @@ class LibretaController extends Controller
         $pdf->setOption('isRemoteEnabled', true);
 
         // Descargar el PDF
-        $filename = "libreta_{$data['estudiante']->user->apellido_paterno}_{$anio}_{$data['bimestre_selected']->nombre}.pdf";
+        $filename = "libreta_{$data['estudiante']->user->apellido_paterno}_{$data['estudiante']->user->apellido_materno}_{$data['estudiante']->user->nombre}_{$anio}_{$data['bimestre_selected']->nombre}.pdf";
 
         return $pdf->download($filename);
     }
 
-    // Método auxiliar para obtener los datos (si no existe)
+    // Método auxiliar para obtener los datos (actualizado)
     private function getLibretaData($anio, $bimestre_nombre)
     {
         $user = auth()->user();
@@ -414,39 +397,24 @@ class LibretaController extends Controller
         $bimestres = $this->obtenerBimestresUnicos($grado_id, $anio);
         $anios = $this->obtenerAniosConNotas($estudiante);
 
-        // Obtener cursos, materias y notas
+        // Obtener cursos y materias - SIN FILTRAR POR NOTAS
         $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
+        $materias = $this->obtenerMateriasEstudiante($cursos);
+
+        // Obtener notas para el bimestre seleccionado
         $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_nombre, $anio);
         $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
 
-        $materiaIdsConNotas = $notas
-            ->map(fn($n) => optional($n->criterio->materia)->id)
-            ->filter()
-            ->unique()
-            ->values();
-
-        if ($materiaIdsConNotas->isNotEmpty()) {
-            $materias = $this->obtenerMateriasEstudiante($cursos)
-                ->filter(fn($m) => $materiaIdsConNotas->contains($m->id))
-                ->values();
-        } else {
-            $materias = collect();
-        }
-
-        $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio);
+        // Cargar competencias con TODAS las materias
+        $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio, $bimestre_nombre);
 
         // Bimestre seleccionado
-        $bimestre_selected = $bimestre_nombre
-            ? Bimestre::where('nombre', $bimestre_nombre)
-                ->whereHas('cursoGradoSecNivAnio', function($q) use ($anio, $grado_id) {
-                    $q->where('anio', $anio)->where('grado_id', $grado_id);
-                })
-                ->with('cursoGradoSecNivAnio.grado')
-                ->first()
-            : null;
+        $bimestre_selected = $bimestre_nombre ? (object)[
+            'nombre' => $bimestre_nombre
+        ] : null;
 
         $colegio = $this->cargarColegio();
-        $grado_selected = $bimestre_selected?->cursoGradoSecNivAnio->grado;
+        $grado_selected = $estudiante->grado;
         $nivel_selected = $grado_selected?->nivel;
         $seccion_selected = $grado_selected?->seccion;
 
@@ -454,12 +422,7 @@ class LibretaController extends Controller
         $conductaNotas = Conductanota::selectRaw('conducta_id, AVG(nota) as promedio')
             ->where('estudiante_id', $estudiante->id)
             ->whereIn('publico', [1, 2])
-            ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio, $grado_id) {
-                $q->where('nombre', $bimestre_nombre)
-                ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio, $grado_id) {
-                    $q2->where('anio', $anio)->where('grado_id', $grado_id);
-                });
-            })
+            ->where('bimestre', $bimestre_nombre)
             ->groupBy('conducta_id')
             ->with('conducta')
             ->get();
@@ -468,12 +431,6 @@ class LibretaController extends Controller
         $asistencias = Asistencia::with('tipoasistencia')
             ->where('estudiante_id', $estudiante->id)
             ->where('grado_id', $grado_id)
-            ->whereHas('bimestre', function($q) use ($bimestre_nombre, $anio, $grado_id) {
-                $q->where('nombre', $bimestre_nombre)
-                ->whereHas('cursoGradoSecNivAnio', function($q2) use ($anio, $grado_id) {
-                    $q2->where('anio', $anio)->where('grado_id', $grado_id);
-                });
-            })
             ->whereYear('fecha', $anio)
             ->get();
 
