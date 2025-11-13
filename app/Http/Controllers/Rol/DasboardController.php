@@ -578,71 +578,72 @@ class DasboardController extends Controller
         $datosEstudiantes = [];
 
         foreach ($estudiantes as $estudiante) {
-            // Obtener todas las notas del estudiante
+            // Obtener todas las notas del estudiante organizadas por materia y bimestre
             $notas = \App\Models\Nota::with([
-                'bimestre.cursoGradoSecNivAnio.materia',
+                'criterio.materia',
+                'criterio.grado',
                 'criterio.materiaCompetencia'
             ])
-            ->whereHas('bimestre.cursoGradoSecNivAnio', function($query) use ($anio) {
+            ->where('estudiante_id', $estudiante->id)
+            ->whereHas('criterio', function($query) use ($anio) {
                 $query->where('anio', $anio);
             })
-            ->where('estudiante_id', $estudiante->id)
             ->get();
 
-            // Organizar datos por cursos y bimestres para este estudiante
-            $datosCursos = [];
-            $cursosConNotas = [];
+            // Organizar datos por materias y bimestres
+            $materiasData = [];
 
-            // Identificar todos los cursos que tienen notas
             foreach ($notas as $nota) {
-                $curso = $nota->bimestre->cursoGradoSecNivAnio;
-                $materiaNombre = $curso->materia->nombre ?? 'Sin nombre';
-                $cursoId = $curso->id;
+                $criterio = $nota->criterio;
+                $materiaId = $criterio->materia_id;
+                $materiaNombre = $criterio->materia->nombre ?? 'Sin nombre';
+                $bimestre = $criterio->bimestre;
 
-                if (!in_array($cursoId, $cursosConNotas)) {
-                    $cursosConNotas[] = $cursoId;
-                    $datosCursos[$cursoId] = [
-                        'curso_id' => $cursoId,
-                        'materia' => $materiaNombre,
-                        'bimestres' => [1 => null, 2 => null, 3 => null, 4 => null]
+                // Validar que el bimestre esté entre 1 y 4
+                if ($bimestre < 1 || $bimestre > 4) {
+                    continue;
+                }
+
+                if (!isset($materiasData[$materiaId])) {
+                    $materiasData[$materiaId] = [
+                        'materia_id' => $materiaId,
+                        'materia_nombre' => $materiaNombre,
+                        'bimestres' => [
+                            1 => ['notas' => [], 'promedio' => null],
+                            2 => ['notas' => [], 'promedio' => null],
+                            3 => ['notas' => [], 'promedio' => null],
+                            4 => ['notas' => [], 'promedio' => null]
+                        ]
                     ];
                 }
+
+                // Agregar nota al bimestre correspondiente
+                $materiasData[$materiaId]['bimestres'][$bimestre]['notas'][] = $nota->nota;
             }
 
-            // Calcular promedios por curso y bimestre
-            foreach ($notas as $nota) {
-                $curso = $nota->bimestre->cursoGradoSecNivAnio;
-                $cursoId = $curso->id;
-                $bimestreNumero = (int)$nota->bimestre->nombre;
-
-                if ($bimestreNumero >= 1 && $bimestreNumero <= 4) {
-                    if (!isset($datosCursos[$cursoId]['notas_bimestre'][$bimestreNumero])) {
-                        $datosCursos[$cursoId]['notas_bimestre'][$bimestreNumero] = [];
-                    }
-                    $datosCursos[$cursoId]['notas_bimestre'][$bimestreNumero][] = $nota->nota;
-                }
-            }
-
-            // Calcular promedios finales por bimestre
+            // Calcular promedios por bimestre para cada materia
             $progresoFinal = [];
-            foreach ($datosCursos as $cursoId => $cursoData) {
+            foreach ($materiasData as $materiaId => $materiaData) {
                 $promediosBimestres = [];
 
                 for ($bimestre = 1; $bimestre <= 4; $bimestre++) {
-                    if (isset($cursoData['notas_bimestre'][$bimestre]) &&
-                        count($cursoData['notas_bimestre'][$bimestre]) > 0) {
+                    $notasBimestre = $materiaData['bimestres'][$bimestre]['notas'];
 
-                        $notasBimestre = $cursoData['notas_bimestre'][$bimestre];
+                    if (count($notasBimestre) > 0) {
                         $promedio = round(array_sum($notasBimestre) / count($notasBimestre), 2);
                         $promediosBimestres[] = $promedio;
+
+                        // Guardar el promedio en la estructura original también
+                        $materiasData[$materiaId]['bimestres'][$bimestre]['promedio'] = $promedio;
                     } else {
                         $promediosBimestres[] = null;
                     }
                 }
 
                 $progresoFinal[] = [
-                    'curso' => $cursoData['materia'],
-                    'promedios' => $promediosBimestres
+                    'curso' => $materiaData['materia_nombre'],
+                    'promedios' => $promediosBimestres,
+                    'materia_data' => $materiasData[$materiaId] // Para información adicional si se necesita
                 ];
             }
 
