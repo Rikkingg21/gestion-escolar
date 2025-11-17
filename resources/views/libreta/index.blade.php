@@ -28,8 +28,11 @@
                         <label for="bimestre_nombre" class="form-label fw-semibold">Bimestre</label>
                         <select name="bimestre_nombre" id="bimestre_nombre" class="form-select">
                             <option value="">-- Seleccione Bimestre --</option>
+                            <option value="anual" {{ $bimestre_nombre == 'anual' ? 'selected' : '' }}>
+                                📅 Año Completo
+                            </option>
                             @foreach($bimestres as $bim)
-                                <option value="{{ $bim->nombre }}" {{ $bimestre_selected && $bimestre_selected->nombre == $bim->nombre ? 'selected' : '' }}>
+                                <option value="{{ $bim->nombre }}" {{ $bimestre_nombre == $bim->nombre ? 'selected' : '' }}>
                                     {{ $bim->nombre }}
                                 </option>
                             @endforeach

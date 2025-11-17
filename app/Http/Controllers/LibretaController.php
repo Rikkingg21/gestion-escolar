@@ -34,88 +34,95 @@ class LibretaController extends Controller
     }
 
     public function index(Request $request, $anio, $bimestre_nombre)
-    {
-        $user = auth()->user();
-        $this->validarAccesoEstudiante($user);
+{
+    $user = auth()->user();
+    $this->validarAccesoEstudiante($user);
 
-        $estudiante = $this->obtenerEstudiante($user);
-        $grado_id = $estudiante->grado_id;
+    $estudiante = $this->obtenerEstudiante($user);
+    $grado_id = $estudiante->grado_id;
 
-        // Obtener bimestres y años disponibles
-        $bimestres = $this->obtenerBimestresUnicos($grado_id, $anio);
-        $anios = $this->obtenerAniosConNotas($estudiante);
+    // Obtener bimestres y años disponibles
+    $bimestres = $this->obtenerBimestresUnicos($grado_id, $anio);
+    $anios = $this->obtenerAniosConNotas($estudiante);
 
-        // Obtener cursos y materias - SIN FILTRAR POR NOTAS
-        $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
-        $materias = $this->obtenerMateriasEstudiante($cursos);
+    // Si es anual, mostrar datos del primer bimestre como referencia
+    $bimestre_para_datos = ($bimestre_nombre === 'anual' && $bimestres->isNotEmpty())
+        ? $bimestres->first()->nombre
+        : $bimestre_nombre;
 
-        // Obtener notas para el bimestre seleccionado
-        $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_nombre, $anio);
-        $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
+    // Obtener cursos y materias
+    $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
+    $materias = $this->obtenerMateriasEstudiante($cursos);
 
-        // Cargar competencias con TODAS las materias, no solo las que tienen notas
-        $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio, $bimestre_nombre);
+    // Obtener notas para el bimestre seleccionado (o primer bimestre si es anual)
+    $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_para_datos, $anio);
+    $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
 
-        // Bimestre y colegio seleccionados
-        $bimestre_selected = $bimestre_nombre ? (object)[
-            'nombre' => $bimestre_nombre
-        ] : null;
+    // Cargar competencias
+    $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio, $bimestre_para_datos);
 
-        $colegio = $this->cargarColegio();
-        $grado_selected = $estudiante->grado;
-        $nivel_selected = $grado_selected?->nivel;
-        $seccion_selected = $grado_selected?->seccion;
+    // Bimestre seleccionado
+    $bimestre_selected = $bimestre_nombre ? (object)[
+        'nombre' => $bimestre_nombre
+    ] : null;
 
-        // --- Notas de Conducta ---
-        $conductaNotas = Conductanota::selectRaw('conducta_id, AVG(nota) as promedio')
+    $colegio = $this->cargarColegio();
+    $grado_selected = $estudiante->grado;
+    $nivel_selected = $grado_selected?->nivel;
+    $seccion_selected = $grado_selected?->seccion;
+
+    // --- Notas de Conducta ---
+    $conductaNotas = Conductanota::selectRaw('conducta_id, AVG(nota) as promedio')
         ->where('estudiante_id', $estudiante->id)
         ->whereIn('publico', [1, 2])
-        ->where('bimestre', $bimestre_nombre)
+        ->when($bimestre_nombre !== 'anual', function($query) use ($bimestre_nombre) {
+            return $query->where('bimestre', $bimestre_nombre);
+        })
         ->groupBy('conducta_id')
         ->with('conducta')
         ->get();
 
-        // --- Asistencias ---
-        $asistencias = Asistencia::with('tipoasistencia')
+    // --- Asistencias ---
+    $asistencias = Asistencia::with('tipoasistencia')
         ->where('estudiante_id', $estudiante->id)
         ->where('grado_id', $grado_id)
         ->whereYear('fecha', $anio)
         ->get();
 
-        $resumenAsistencias = [
-            'Puntualidad' => 0,
-            'Tardanza' => 0,
-            'Falta' => 0,
-            'Falta Justificada' => 0,
-            'Tardanza Injustificada' => 0,
-        ];
+    $resumenAsistencias = [
+        'Puntualidad' => 0,
+        'Tardanza' => 0,
+        'Falta' => 0,
+        'Falta Justificada' => 0,
+        'Tardanza Injustificada' => 0,
+    ];
 
-        foreach ($asistencias as $asistencia) {
-            $tipo = strtolower($asistencia->tipoasistencia->nombre ?? '');
-            if (str_contains($tipo, 'puntual')) $resumenAsistencias['Puntualidad']++;
-            elseif (str_contains($tipo, 'tardanza injustificada')) $resumenAsistencias['Tardanza Injustificada']++;
-            elseif (str_contains($tipo, 'tardanza')) $resumenAsistencias['Tardanza']++;
-            elseif (str_contains($tipo, 'falta justificada')) $resumenAsistencias['Falta Justificada']++;
-            elseif (str_contains($tipo, 'falta')) $resumenAsistencias['Falta']++;
-        }
-
-        return view('libreta.index', [
-            'estudiante' => $estudiante,
-            'detalle' => $detalle,
-            'bimestres' => $bimestres,
-            'anios' => $anios,
-            'bimestre_nombre' => $bimestre_nombre,
-            'anio' => $anio,
-            'bimestre_selected' => $bimestre_selected,
-            'nivel_selected' => $nivel_selected,
-            'seccion_selected' => $seccion_selected,
-            'colegio' => $colegio,
-            'grado_selected' => $grado_selected,
-            'conductaNotas' => $conductaNotas,
-            'asistencias' => $asistencias,
-            'resumenAsistencias' => $resumenAsistencias,
-        ]);
+    foreach ($asistencias as $asistencia) {
+        $tipo = strtolower($asistencia->tipoasistencia->nombre ?? '');
+        if (str_contains($tipo, 'puntual')) $resumenAsistencias['Puntualidad']++;
+        elseif (str_contains($tipo, 'tardanza injustificada')) $resumenAsistencias['Tardanza Injustificada']++;
+        elseif (str_contains($tipo, 'tardanza')) $resumenAsistencias['Tardanza']++;
+        elseif (str_contains($tipo, 'falta justificada')) $resumenAsistencias['Falta Justificada']++;
+        elseif (str_contains($tipo, 'falta')) $resumenAsistencias['Falta']++;
     }
+
+    return view('libreta.index', [
+        'estudiante' => $estudiante,
+        'detalle' => $detalle,
+        'bimestres' => $bimestres,
+        'anios' => $anios,
+        'bimestre_nombre' => $bimestre_nombre,
+        'anio' => $anio,
+        'bimestre_selected' => $bimestre_selected,
+        'nivel_selected' => $nivel_selected,
+        'seccion_selected' => $seccion_selected,
+        'colegio' => $colegio,
+        'grado_selected' => $grado_selected,
+        'conductaNotas' => $conductaNotas,
+        'asistencias' => $asistencias,
+        'resumenAsistencias' => $resumenAsistencias,
+    ]);
+}
     protected function validarAccesoEstudiante($user)
     {
         if (!$user || !$user->hasRole('estudiante')) {
@@ -365,24 +372,60 @@ class LibretaController extends Controller
         return 'valor-'.strtolower($valor);
     }
 
-    public function pdf(Request $request, $anio, $bimestre)
-    {
-        // Obtener los mismos datos que en el método index
-        $data = $this->getLibretaData($anio, $bimestre);
-
-        // Cargar la vista PDF
-        $pdf = PDF::loadView('libreta.pdf', $data);
-
-        // Configurar el PDF
-        $pdf->setPaper('A4', 'portrait');
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('isRemoteEnabled', true);
-
-        // Descargar el PDF
-        $filename = "libreta_{$data['estudiante']->user->apellido_paterno}_{$data['estudiante']->user->apellido_materno}_{$data['estudiante']->user->nombre}_{$anio}_{$data['bimestre_selected']->nombre}.pdf";
-
-        return $pdf->download($filename);
+public function pdf(Request $request, $anio, $bimestre)
+{
+    // Verificar si es anual
+    if ($bimestre === 'anual') {
+        return $this->generateAnnualPDF($anio);
     }
+
+    // Lógica existente para PDF de bimestre individual
+    $data = $this->getLibretaData($anio, $bimestre);
+
+    $pdf = PDF::loadView('libreta.pdf', $data);
+    $pdf->setPaper('A4', 'portrait');
+    $pdf->setOption('isHtml5ParserEnabled', true);
+    $pdf->setOption('isRemoteEnabled', true);
+
+    $filename = "libreta_{$data['estudiante']->user->apellido_paterno}_{$data['estudiante']->user->apellido_materno}_{$data['estudiante']->user->nombre}_{$anio}_{$data['bimestre_selected']->nombre}.pdf";
+
+    return $pdf->download($filename);
+}
+private function generateAnnualPDF($anio)
+{
+    $user = auth()->user();
+    $this->validarAccesoEstudiante($user);
+    $estudiante = $this->obtenerEstudiante($user);
+
+    // Obtener todos los bimestres disponibles para ese año
+    $bimestres = $this->obtenerBimestresUnicos($estudiante->grado_id, $anio);
+
+    $allBimestresData = [];
+
+    foreach ($bimestres as $bimestre) {
+        $allBimestresData[$bimestre->nombre] = $this->getLibretaData($anio, $bimestre->nombre);
+    }
+
+    $data = [
+        'anio' => $anio,
+        'bimestre_selected' => (object)['nombre' => 'AÑO COMPLETO'],
+        'allBimestresData' => $allBimestresData,
+        'colegio' => $this->cargarColegio(),
+        'estudiante' => $estudiante,
+        'grado_selected' => $estudiante->grado,
+        'nivel_selected' => $estudiante->grado?->nivel,
+        'seccion_selected' => $estudiante->grado?->seccion,
+    ];
+
+    $pdf = PDF::loadView('libreta.pdf_anual', $data);
+    $pdf->setPaper('A4', 'portrait');
+    $pdf->setOption('isHtml5ParserEnabled', true);
+    $pdf->setOption('isRemoteEnabled', true);
+
+    $filename = "libreta_anual_{$estudiante->user->apellido_paterno}_{$estudiante->user->apellido_materno}_{$estudiante->user->nombre}_{$anio}.pdf";
+
+    return $pdf->download($filename);
+}
 
     // Método auxiliar para obtener los datos (actualizado)
     private function getLibretaData($anio, $bimestre_nombre)
