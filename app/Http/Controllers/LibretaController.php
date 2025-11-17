@@ -33,96 +33,109 @@ class LibretaController extends Controller
         });
     }
 
-    public function index(Request $request, $anio, $bimestre_nombre)
-    {
-        $user = auth()->user();
-        $this->validarAccesoEstudiante($user);
+   public function index(Request $request, $anio, $bimestre_nombre)
+{
+    $user = auth()->user();
+    $this->validarAccesoEstudiante($user);
 
-        $estudiante = $this->obtenerEstudiante($user);
-        $grado_id = $estudiante->grado_id;
+    $estudiante = $this->obtenerEstudiante($user);
+    $grado_id = $estudiante->grado_id;
 
-        // Obtener bimestres y años disponibles
-        $bimestres = $this->obtenerBimestresUnicos($grado_id, $anio);
-        $anios = $this->obtenerAniosConNotas($estudiante);
+    // Obtener bimestres y años disponibles
+    $bimestres = $this->obtenerBimestresUnicos($grado_id, $anio);
+    $anios = $this->obtenerAniosConNotas($estudiante);
 
-        // Si es anual, mostrar datos del primer bimestre como referencia
-        $bimestre_para_datos = ($bimestre_nombre === 'anual' && $bimestres->isNotEmpty())
-            ? $bimestres->first()->nombre
-            : $bimestre_nombre;
+    // Si es anual, obtener datos de todos los bimestres
+    if ($bimestre_nombre === 'anual') {
+        $allBimestresData = [];
+        foreach ($bimestres as $bimestre) {
+            $allBimestresData[$bimestre->nombre] = $this->getLibretaData($anio, $bimestre->nombre);
+        }
+
+        // Calcular promedios anuales consolidados
+        $detalleAnual = $this->calcularPromediosAnuales($allBimestresData);
+        $detalle = $detalleAnual;
+
+        $bimestre_para_datos = $bimestres->isNotEmpty() ? $bimestres->first()->nombre : null;
+    } else {
+        // Lógica normal para bimestre individual
+        $bimestre_para_datos = $bimestre_nombre;
 
         // Obtener cursos y materias
         $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
         $materias = $this->obtenerMateriasEstudiante($cursos);
 
-        // Obtener notas para el bimestre seleccionado (o primer bimestre si es anual)
+        // Obtener notas para el bimestre seleccionado
         $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_para_datos, $anio);
         $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
 
         // Cargar competencias
         $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio, $bimestre_para_datos);
-
-        // Bimestre seleccionado
-        $bimestre_selected = $bimestre_nombre ? (object)[
-            'nombre' => $bimestre_nombre
-        ] : null;
-
-        $colegio = $this->cargarColegio();
-        $grado_selected = $estudiante->grado;
-        $nivel_selected = $grado_selected?->nivel;
-        $seccion_selected = $grado_selected?->seccion;
-
-        // --- Notas de Conducta ---
-        $conductaNotas = Conductanota::selectRaw('conducta_id, AVG(nota) as promedio')
-            ->where('estudiante_id', $estudiante->id)
-            ->whereIn('publico', [1, 2])
-            ->when($bimestre_nombre !== 'anual', function($query) use ($bimestre_nombre) {
-                return $query->where('bimestre', $bimestre_nombre);
-            })
-            ->groupBy('conducta_id')
-            ->with('conducta')
-            ->get();
-
-        // --- Asistencias ---
-        $asistencias = Asistencia::with('tipoasistencia')
-            ->where('estudiante_id', $estudiante->id)
-            ->where('grado_id', $grado_id)
-            ->whereYear('fecha', $anio)
-            ->get();
-
-        $resumenAsistencias = [
-            'Puntualidad' => 0,
-            'Tardanza' => 0,
-            'Falta' => 0,
-            'Falta Justificada' => 0,
-            'Tardanza Injustificada' => 0,
-        ];
-
-        foreach ($asistencias as $asistencia) {
-            $tipo = strtolower($asistencia->tipoasistencia->nombre ?? '');
-            if (str_contains($tipo, 'puntual')) $resumenAsistencias['Puntualidad']++;
-            elseif (str_contains($tipo, 'tardanza injustificada')) $resumenAsistencias['Tardanza Injustificada']++;
-            elseif (str_contains($tipo, 'tardanza')) $resumenAsistencias['Tardanza']++;
-            elseif (str_contains($tipo, 'falta justificada')) $resumenAsistencias['Falta Justificada']++;
-            elseif (str_contains($tipo, 'falta')) $resumenAsistencias['Falta']++;
-        }
-
-        return view('libreta.index', [
-            'estudiante' => $estudiante,
-            'detalle' => $detalle,
-            'bimestres' => $bimestres,
-            'anios' => $anios,
-            'bimestre_nombre' => $bimestre_nombre,
-            'anio' => $anio,
-            'bimestre_selected' => $bimestre_selected,
-            'nivel_selected' => $nivel_selected,
-            'seccion_selected' => $seccion_selected,
-            'colegio' => $colegio,
-            'grado_selected' => $grado_selected,
-            'conductaNotas' => $conductaNotas,
-            'asistencias' => $asistencias,
-            'resumenAsistencias' => $resumenAsistencias,
-        ]);
     }
+
+    // Bimestre seleccionado
+    $bimestre_selected = $bimestre_nombre ? (object)[
+        'nombre' => $bimestre_nombre
+    ] : null;
+
+    $colegio = $this->cargarColegio();
+    $grado_selected = $estudiante->grado;
+    $nivel_selected = $grado_selected?->nivel;
+    $seccion_selected = $grado_selected?->seccion;
+
+    // --- Notas de Conducta ---
+    $conductaNotas = Conductanota::selectRaw('conducta_id, AVG(nota) as promedio')
+        ->where('estudiante_id', $estudiante->id)
+        ->whereIn('publico', [1, 2])
+        ->when($bimestre_nombre !== 'anual', function($query) use ($bimestre_nombre) {
+            return $query->where('bimestre', $bimestre_nombre);
+        })
+        ->groupBy('conducta_id')
+        ->with('conducta')
+        ->get();
+
+    // --- Asistencias ---
+    $asistencias = Asistencia::with('tipoasistencia')
+        ->where('estudiante_id', $estudiante->id)
+        ->where('grado_id', $grado_id)
+        ->whereYear('fecha', $anio)
+        ->get();
+
+    $resumenAsistencias = [
+        'Puntualidad' => 0,
+        'Tardanza' => 0,
+        'Falta' => 0,
+        'Falta Justificada' => 0,
+        'Tardanza Injustificada' => 0,
+    ];
+
+    foreach ($asistencias as $asistencia) {
+        $tipo = strtolower($asistencia->tipoasistencia->nombre ?? '');
+        if (str_contains($tipo, 'puntual')) $resumenAsistencias['Puntualidad']++;
+        elseif (str_contains($tipo, 'tardanza injustificada')) $resumenAsistencias['Tardanza Injustificada']++;
+        elseif (str_contains($tipo, 'tardanza')) $resumenAsistencias['Tardanza']++;
+        elseif (str_contains($tipo, 'falta justificada')) $resumenAsistencias['Falta Justificada']++;
+        elseif (str_contains($tipo, 'falta')) $resumenAsistencias['Falta']++;
+    }
+
+    return view('libreta.index', [
+        'estudiante' => $estudiante,
+        'detalle' => $detalle,
+        'bimestres' => $bimestres,
+        'anios' => $anios,
+        'bimestre_nombre' => $bimestre_nombre,
+        'anio' => $anio,
+        'bimestre_selected' => $bimestre_selected,
+        'nivel_selected' => $nivel_selected,
+        'seccion_selected' => $seccion_selected,
+        'colegio' => $colegio,
+        'grado_selected' => $grado_selected,
+        'conductaNotas' => $conductaNotas,
+        'asistencias' => $asistencias,
+        'resumenAsistencias' => $resumenAsistencias,
+        'es_anual' => $bimestre_nombre === 'anual', // Nueva variable para la vista
+    ]);
+}
     protected function validarAccesoEstudiante($user)
     {
         if (!$user || !$user->hasRole('estudiante')) {
@@ -352,6 +365,96 @@ class LibretaController extends Controller
 
         return $competenciaData;
     }
+    private function calcularPromediosAnuales($allBimestresData)
+{
+    $materiasAnuales = [];
+    $totalBimestres = count($allBimestresData);
+    $nombresBimestres = array_keys($allBimestresData);
+
+    foreach($allBimestresData as $bimestreNombre => $bimestreData) {
+        foreach($bimestreData['detalle'] as $materiaData) {
+            $materiaNombre = $materiaData['nombre'];
+            if (!isset($materiasAnuales[$materiaNombre])) {
+                $materiasAnuales[$materiaNombre] = [
+                    'nombre' => $materiaNombre,
+                    'competencias' => [],
+                    'total_criterios' => 0
+                ];
+            }
+
+            foreach($materiaData['competencias'] as $competencia) {
+                $competenciaNombre = $competencia['nombre'];
+                if (!isset($materiasAnuales[$materiaNombre]['competencias'][$competenciaNombre])) {
+                    $materiasAnuales[$materiaNombre]['competencias'][$competenciaNombre] = [
+                        'nombre' => $competenciaNombre,
+                        'promedios_por_bimestre' => array_fill_keys($nombresBimestres, 0),
+                        'total_evaluaciones' => 0
+                    ];
+                }
+
+                // Asignar el promedio del bimestre actual
+                if ($competencia['promedio_competencia'] > 0) {
+                    $materiasAnuales[$materiaNombre]['competencias'][$competenciaNombre]['promedios_por_bimestre'][$bimestreNombre] = $competencia['promedio_competencia'];
+                    $materiasAnuales[$materiaNombre]['competencias'][$competenciaNombre]['total_evaluaciones']++;
+                }
+            }
+        }
+    }
+
+    // Convertir a formato compatible con la vista
+    $detalleAnual = [];
+    $competenciaCounter = 1;
+
+    foreach($materiasAnuales as $materiaNombre => $materiaData) {
+        $materiaFormateada = [
+            'nombre' => $materiaNombre,
+            'competencias' => [],
+            'total_criterios' => 0
+        ];
+
+        foreach($materiaData['competencias'] as $competenciaNombre => $competenciaData) {
+            // Calcular promedio anual considerando TODOS los bimestres
+            $sumaTotal = array_sum($competenciaData['promedios_por_bimestre']);
+            $promedioAnual = $totalBimestres > 0 ? round($sumaTotal / $totalBimestres, 2) : 0;
+
+            // Calcular valor basado en el promedio
+            $valorAnual = 'N/E';
+            if ($promedioAnual >= 4) $valorAnual = 'AD';
+            elseif ($promedioAnual >= 3) $valorAnual = 'A';
+            elseif ($promedioAnual >= 2) $valorAnual = 'B';
+            elseif ($promedioAnual >= 1) $valorAnual = 'C';
+
+            $valorClass = $valorAnual != 'N/E' ? 'valor-' . strtolower($valorAnual) : 'text-muted';
+
+            $competenciaFormateada = [
+                'nombre' => $competenciaNombre,
+                'criterios' => [
+                    [
+                        'nombre' => "Promedio anual (" . $competenciaData['total_evaluaciones'] . "/" . $totalBimestres . " bimestres)",
+                        'promedio' => $promedioAnual,
+                        'valor' => $valorAnual,
+                        'valor_class' => $valorClass
+                    ]
+                ],
+                'total_criterios' => 1,
+                'codigo_valoracion' => 'N' . $competenciaCounter++,
+                'total_puntos' => $promedioAnual,
+                'promedio_competencia' => $promedioAnual,
+                'valor_competencia' => $valorAnual,
+                'valor_competencia_class' => $valorClass
+            ];
+
+            $materiaFormateada['competencias'][] = $competenciaFormateada;
+            $materiaFormateada['total_criterios'] += 2; // +1 para criterio y +1 para valoración
+        }
+
+        if (!empty($materiaFormateada['competencias'])) {
+            $detalleAnual[] = $materiaFormateada;
+        }
+    }
+
+    return $detalleAnual;
+}
 
     protected function cargarColegio()
     {
@@ -428,87 +531,78 @@ class LibretaController extends Controller
     }
 
     // Método auxiliar para obtener los datos (actualizado)
-    private function getLibretaData($anio, $bimestre_nombre)
-    {
-        $user = auth()->user();
-        $this->validarAccesoEstudiante($user);
+private function getLibretaData($anio, $bimestre_nombre)
+{
+    $user = auth()->user();
+    $this->validarAccesoEstudiante($user);
 
-        $estudiante = $this->obtenerEstudiante($user);
-        $grado_id = $estudiante->grado_id;
+    $estudiante = $this->obtenerEstudiante($user);
+    $grado_id = $estudiante->grado_id;
 
-        // Obtener bimestres y años disponibles
-        $bimestres = $this->obtenerBimestresUnicos($grado_id, $anio);
-        $anios = $this->obtenerAniosConNotas($estudiante);
+    // Obtener cursos y materias
+    $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
+    $materias = $this->obtenerMateriasEstudiante($cursos);
 
-        // Obtener cursos y materias - SIN FILTRAR POR NOTAS
-        $cursos = $this->obtenerCursosEstudiante($grado_id, $anio);
-        $materias = $this->obtenerMateriasEstudiante($cursos);
+    // Obtener notas para el bimestre seleccionado
+    $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_nombre, $anio);
+    $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
 
-        // Obtener notas para el bimestre seleccionado
-        $notas = $this->obtenerNotasEstudiante($estudiante, $bimestre_nombre, $anio);
-        $notasPorCriterio = $notas->keyBy(fn($n) => $n->criterio->id);
+    // Cargar competencias
+    $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio, $bimestre_nombre);
 
-        // Cargar competencias con TODAS las materias
-        $detalle = $this->cargarCompetencias($materias, $grado_id, $anio, $notasPorCriterio, $bimestre_nombre);
+    // Bimestre seleccionado
+    $bimestre_selected = $bimestre_nombre ? (object)[
+        'nombre' => $bimestre_nombre
+    ] : null;
 
-        // Bimestre seleccionado
-        $bimestre_selected = $bimestre_nombre ? (object)[
-            'nombre' => $bimestre_nombre
-        ] : null;
+    $colegio = $this->cargarColegio();
+    $grado_selected = $estudiante->grado;
+    $nivel_selected = $grado_selected?->nivel;
+    $seccion_selected = $grado_selected?->seccion;
 
-        $colegio = $this->cargarColegio();
-        $grado_selected = $estudiante->grado;
-        $nivel_selected = $grado_selected?->nivel;
-        $seccion_selected = $grado_selected?->seccion;
+    // --- Notas de Conducta ---
+    $conductaNotas = Conductanota::selectRaw('conducta_id, AVG(nota) as promedio')
+        ->where('estudiante_id', $estudiante->id)
+        ->whereIn('publico', [1, 2])
+        ->where('bimestre', $bimestre_nombre)
+        ->groupBy('conducta_id')
+        ->with('conducta')
+        ->get();
 
-        // --- Notas de Conducta ---
-        $conductaNotas = Conductanota::selectRaw('conducta_id, AVG(nota) as promedio')
-            ->where('estudiante_id', $estudiante->id)
-            ->whereIn('publico', [1, 2])
-            ->where('bimestre', $bimestre_nombre)
-            ->groupBy('conducta_id')
-            ->with('conducta')
-            ->get();
+    // --- Asistencias ---
+    $asistencias = Asistencia::with('tipoasistencia')
+        ->where('estudiante_id', $estudiante->id)
+        ->where('grado_id', $grado_id)
+        ->whereYear('fecha', $anio)
+        ->get();
 
-        // --- Asistencias ---
-        $asistencias = Asistencia::with('tipoasistencia')
-            ->where('estudiante_id', $estudiante->id)
-            ->where('grado_id', $grado_id)
-            ->whereYear('fecha', $anio)
-            ->get();
+    $resumenAsistencias = [
+        'Puntualidad' => 0,
+        'Tardanza' => 0,
+        'Falta' => 0,
+        'Falta Justificada' => 0,
+        'Tardanza Injustificada' => 0,
+    ];
 
-        $resumenAsistencias = [
-            'Puntualidad' => 0,
-            'Tardanza' => 0,
-            'Falta' => 0,
-            'Falta Justificada' => 0,
-            'Tardanza Injustificada' => 0,
-        ];
-
-        foreach ($asistencias as $asistencia) {
-            $tipo = strtolower($asistencia->tipoasistencia->nombre ?? '');
-            if (str_contains($tipo, 'puntual')) $resumenAsistencias['Puntualidad']++;
-            elseif (str_contains($tipo, 'tardanza injustificada')) $resumenAsistencias['Tardanza Injustificada']++;
-            elseif (str_contains($tipo, 'tardanza')) $resumenAsistencias['Tardanza']++;
-            elseif (str_contains($tipo, 'falta justificada')) $resumenAsistencias['Falta Justificada']++;
-            elseif (str_contains($tipo, 'falta')) $resumenAsistencias['Falta']++;
-        }
-
-        return [
-            'estudiante' => $estudiante,
-            'detalle' => $detalle,
-            'bimestres' => $bimestres,
-            'anios' => $anios,
-            'bimestre_nombre' => $bimestre_nombre,
-            'anio' => $anio,
-            'bimestre_selected' => $bimestre_selected,
-            'nivel_selected' => $nivel_selected,
-            'seccion_selected' => $seccion_selected,
-            'colegio' => $colegio,
-            'grado_selected' => $grado_selected,
-            'conductaNotas' => $conductaNotas,
-            'asistencias' => $asistencias,
-            'resumenAsistencias' => $resumenAsistencias,
-        ];
+    foreach ($asistencias as $asistencia) {
+        $tipo = strtolower($asistencia->tipoasistencia->nombre ?? '');
+        if (str_contains($tipo, 'puntual')) $resumenAsistencias['Puntualidad']++;
+        elseif (str_contains($tipo, 'tardanza injustificada')) $resumenAsistencias['Tardanza Injustificada']++;
+        elseif (str_contains($tipo, 'tardanza')) $resumenAsistencias['Tardanza']++;
+        elseif (str_contains($tipo, 'falta justificada')) $resumenAsistencias['Falta Justificada']++;
+        elseif (str_contains($tipo, 'falta')) $resumenAsistencias['Falta']++;
     }
+
+    return [
+        'estudiante' => $estudiante,
+        'detalle' => $detalle,
+        'bimestre_selected' => $bimestre_selected,
+        'nivel_selected' => $nivel_selected,
+        'seccion_selected' => $seccion_selected,
+        'colegio' => $colegio,
+        'grado_selected' => $grado_selected,
+        'conductaNotas' => $conductaNotas,
+        'resumenAsistencias' => $resumenAsistencias,
+    ];
+}
 }
