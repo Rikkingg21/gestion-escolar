@@ -414,4 +414,77 @@ class AsistenciaController extends Controller
             ], 500);
         }
     }
+public function reporteAsistencia(Request $request)
+{
+    $grados = Grado::where('estado', 1)
+        ->orderBy('nivel')
+        ->orderBy('grado')
+        ->orderBy('seccion')
+        ->get();
+
+    // Cargar tipos de asistencia sin el filtro de estado
+    $tiposAsistencia = Tipoasistencia::all();
+
+    // Si se envió el formulario, procesar los resultados
+    if ($request->has('grado_id')) {
+        $request->validate([
+            'grado_id' => 'required|exists:grados,id',
+            'fecha_inicio' => 'required|date',
+            'fecha_fin' => 'required|date|after_or_equal:fecha_inicio'
+        ]);
+
+        $query = Asistencia::with(['estudiante.user', 'grado', 'tipoasistencia', 'bimestre'])
+            ->whereBetween('fecha', [$request->fecha_inicio, $request->fecha_fin]);
+
+        if ($request->filled('grado_id')) {
+            $query->where('grado_id', $request->grado_id);
+        }
+
+        if ($request->filled('estudiante_id')) {
+            $query->where('estudiante_id', $request->estudiante_id);
+        }
+
+        if ($request->filled('bimestre')) {
+            $query->where('bimestre', $request->bimestre);
+        }
+
+        if ($request->filled('tipo_asistencia_id')) {
+            $query->where('tipo_asistencia_id', $request->tipo_asistencia_id);
+        }
+
+        $asistencias = $query->orderBy('fecha', 'desc')
+                            ->orderBy('estudiante_id')
+                            ->get();
+
+        return view('asistencia.reporte', compact('grados', 'tiposAsistencia', 'asistencias'));
+    }
+
+    return view('asistencia.reporte', [
+        'grados' => $grados,
+        'tiposAsistencia' => $tiposAsistencia,
+        'asistencias' => collect() // Colección vacía para evitar errores
+    ]);
+}
+
+public function estudiantesPorGrado(Request $request)
+{
+    $gradoId = $request->get('grado_id');
+
+    $estudiantes = Estudiante::where('grado_id', $gradoId)
+        ->where('estado', 1)
+        ->with('user')
+        ->get()
+        ->map(function($estudiante) {
+            // Formato: Apellidos, Nombres
+            $apellidos = trim($estudiante->user->apellido_paterno . ' ' . $estudiante->user->apellido_materno);
+            $nombres = $estudiante->user->nombre;
+
+            return [
+                'id' => $estudiante->id,
+                'nombres_completos' => $apellidos . ', ' . $nombres
+            ];
+        });
+
+    return response()->json($estudiantes);
+}
 }

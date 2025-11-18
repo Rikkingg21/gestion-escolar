@@ -87,6 +87,9 @@
                         <i class="bi bi-check-lg me-2"></i> Marcar con Puntualidad
                     </button>
                 </div>
+                <a class="btn btn-danger btn-lg rounded-3 shadow" href="{{ route('asistencia.reporte') }}">
+                    <i class="bi bi-box-arrow-in-right"></i> IR A IMPRIMIR REPORTES
+                </a>
             </div>
         </div>
     </div>

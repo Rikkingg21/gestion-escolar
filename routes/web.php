@@ -199,4 +199,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/asistencia', [AsistenciaController::class, 'store'])->name('asistencia.store');
     Route::put('/asistencia', [AsistenciaController::class, 'update'])->name('asistencia.update');
     Route::post('/asistencia/marcar-todos-puntualidad', [AsistenciaController::class, 'marcarTodosPuntualidad'])->name('asistencia.marcar-todos-puntualidad');
+    Route::get('/asistencia/reporte', [AsistenciaController::class, 'reporteAsistencia'])->name('asistencia.reporte');
+    Route::get('/asistencia/estudiantes-por-grado', [AsistenciaController::class, 'estudiantesPorGrado'])->name('asistencia.estudiantes-por-grado');
 });
