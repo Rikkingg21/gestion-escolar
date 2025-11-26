@@ -12,6 +12,32 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/2.3.2/js/dataTables.js"></script>
     <style>
+    /* Estilos adicionales para mejorar la visibilidad de las pestañas */
+    .nav-tabs .nav-link {
+        color: #495057;
+        font-weight: 500;
+        border: 1px solid transparent;
+        border-bottom: none;
+    }
+
+    .nav-tabs .nav-link:hover {
+        border-color: #e9ecef #e9ecef #dee2e6;
+        color: #0056b3;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #495057;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+        font-weight: 600;
+    }
+
+    .tab-content {
+        background-color: #fff;
+        border-radius: 0 0 0.375rem 0.375rem;
+    }
+    </style>
+    <style>
         :root {
             --sidebar-width: 250px;
             --sidebar-collapsed-width: 70px;
