@@ -67,6 +67,36 @@
         @endif
     </div><br>
 
+    <!-- Mensajes de éxito/error globales -->
+    @if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle me-2"></i>
+        <strong>¡Éxito!</strong> {{ session('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
+
+    @if(session('error'))
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <strong>¡Error!</strong> {{ session('error') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
+
+    @if($errors->any())
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Por favor corrige los siguientes errores:</strong>
+        <ul class="mb-0 mt-2">
+            @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
+
     <div class="card shadow mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">
@@ -99,6 +129,27 @@
             </div>
             @endif
 
+            <!-- Mensajes específicos para falta de datos -->
+            @if($competencias->count() == 0)
+            <div class="alert alert-warning">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>No hay criterios configurados</strong> para esta materia en el bimestre {{ $bimestre }}.
+                @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+                    <a href="{{ route('materiacriterio.create') }}?materia_id={{ $materia->id }}&grado_id={{ $grado->id }}&anio={{ $curso->anio }}&bimestre={{ $bimestre }}"
+                       class="btn btn-sm btn-primary ms-2">
+                        <i class="fas fa-plus me-1"></i> Configurar Criterios
+                    </a>
+                @endif
+            </div>
+            @endif
+
+            @if($estudiantesActivos->count() == 0)
+            <div class="alert alert-info">
+                <i class="fas fa-users me-2"></i>
+                <strong>No hay estudiantes activos</strong> en este grado para el año {{ $curso->anio }}.
+            </div>
+            @endif
+
             <!-- Pestañas -->
             <ul class="nav nav-tabs" id="notasTabs" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -122,8 +173,24 @@
                         <input type="hidden" name="curso_id" value="{{ $curso_id }}">
                         <input type="hidden" name="bimestre" value="{{ $bimestre }}">
 
+                        <!-- Mensaje específico para esta pestaña -->
+                        @if($competencias->count() == 0 || $estudiantesActivos->count() == 0)
+                        <div class="alert alert-warning mb-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Información importante:</strong>
+                            <ul class="mb-0 mt-2">
+                                @if($competencias->count() == 0)
+                                    <li>No hay criterios de evaluación configurados para este bimestre</li>
+                                @endif
+                                @if($estudiantesActivos->count() == 0)
+                                    <li>No hay estudiantes activos matriculados en este grado</li>
+                                @endif
+                            </ul>
+                        </div>
+                        @endif
+
                         <!-- Tabla para Estudiantes Activos -->
-                        @if($estudiantesActivos->count() > 0)
+                        @if($estudiantesActivos->count() > 0 && $competencias->count() > 0)
                         <h5 class="mb-3 mt-3 text-success">
                             <i class="fas fa-user-check"></i> Estudiantes Activos
                         </h5>
@@ -188,7 +255,7 @@
                         @endif
 
                         <!-- Tabla para Estudiantes Inactivos (solo lectura) -->
-                        @if($estudiantesInactivos->count() > 0)
+                        @if($estudiantesInactivos->count() > 0 && $competencias->count() > 0)
                         <h5 class="mb-3 mt-4 text-secondary">
                             <i class="fas fa-user-times"></i> Estudiantes Inactivos (Solo Lectura)
                         </h5>
@@ -268,6 +335,27 @@
                         @csrf
                         <input type="hidden" name="curso_id" value="{{ $curso_id }}">
                         <input type="hidden" name="bimestre" value="{{ $bimestre }}">
+
+                        <!-- Mensaje específico para esta pestaña -->
+                        @if($conductas->count() == 0 || $estudiantesActivos->count() == 0)
+                        <div class="alert alert-warning mb-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Información importante:</strong>
+                            <ul class="mb-0 mt-2">
+                                @if($conductas->count() == 0)
+                                    <li>No hay conductas configuradas en el sistema</li>
+                                @endif
+                                @if($estudiantesActivos->count() == 0)
+                                    <li>No hay estudiantes activos matriculados en este grado</li>
+                                @endif
+                            </ul>
+                            @if($conductas->count() == 0 && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('director')))
+                                <a href="{{ route('conducta.create') }}" class="btn btn-sm btn-primary mt-2">
+                                    <i class="fas fa-plus me-1"></i> Configurar Conductas
+                                </a>
+                            @endif
+                        </div>
+                        @endif
 
                         <!-- Tabla para Estudiantes Activos - Conducta -->
                         @if($estudiantesActivos->count() > 0 && $conductas->count() > 0)
@@ -372,16 +460,11 @@
                         </div>
                         @endif
 
-                        @if($conductas->count() > 0)
+                        @if($conductas->count() > 0 && $estudiantesActivos->count() > 0)
                         <div class="form-group mt-4">
                             <button type="submit" class="btn btn-primary" {{ !$puedeEditar ? 'disabled' : '' }}>
                                 <i class="fas fa-save"></i> Guardar Notas de Conducta
                             </button>
-                        </div>
-                        @else
-                        <div class="alert alert-warning mt-3">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            No hay conductas configuradas. Contacte al administrador.
                         </div>
                         @endif
                     </form>
@@ -390,6 +473,8 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de Reversión -->
 <div class="modal fade" id="revertirModal" tabindex="-1" aria-labelledby="revertirModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -441,6 +526,7 @@
                 </form>
                 @else
                 <div class="alert alert-danger">
+                    <i class="fas fa-times-circle me-2"></i>
                     No se puede proceder sin una sesión principal activa.
                 </div>
                 @endif
@@ -485,8 +571,10 @@ document.addEventListener('DOMContentLoaded', function() {
             let value = parseInt(this.value);
             if (!isNaN(value) && (value < 1 || value > 4)) {
                 this.style.borderColor = 'red';
+                this.title = 'La nota debe estar entre 1 y 4';
             } else {
                 this.style.borderColor = '';
+                this.title = '';
             }
         });
     });
@@ -501,13 +589,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Validación suave para formularios - solo verifica formato, no obligatoriedad
+    // Validación mejorada para formularios
     document.getElementById('formNotas')?.addEventListener('submit', function(e) {
-        if (!validarFormatoNotas()) {
+        const errores = validarFormularioNotas();
+        if (errores.length > 0) {
             e.preventDefault();
-            alert('Algunas notas tienen valores fuera del rango permitido (1-4). Por favor, corríjalas antes de guardar.');
+            mostrarErrores(errores, 'formNotas');
         } else {
-            // Opcional: Mostrar mensaje de confirmación
             if(confirm('¿Está seguro de guardar las calificaciones?')) {
                 return true;
             } else {
@@ -517,11 +605,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('formConductaNotas')?.addEventListener('submit', function(e) {
-        if (!validarFormatoNotasConducta()) {
+        const errores = validarFormularioConducta();
+        if (errores.length > 0) {
             e.preventDefault();
-            alert('Algunas notas de conducta tienen valores fuera del rango permitido (1-4). Por favor, corríjalas antes de guardar.');
+            mostrarErrores(errores, 'formConductaNotas');
         } else {
-            // Opcional: Mostrar mensaje de confirmación
             if(confirm('¿Está seguro de guardar las notas de conducta?')) {
                 return true;
             } else {
@@ -530,46 +618,92 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Solo valida que las notas que SÍ tienen valor estén en el rango correcto
-    function validarFormatoNotas() {
-        let valid = true;
-        document.querySelectorAll('#formNotas .nota-input:not([readonly])').forEach(input => {
+    function validarFormularioNotas() {
+        const errores = [];
+        const inputs = document.querySelectorAll('#formNotas .nota-input:not([readonly])');
+        let tieneNotas = false;
+
+        inputs.forEach(input => {
             if (input.value !== '') {
+                tieneNotas = true;
                 let value = parseInt(input.value);
                 if (isNaN(value) || value < 1 || value > 4) {
-                    valid = false;
                     input.style.borderColor = 'red';
+                    input.title = 'La nota debe estar entre 1 y 4';
+                    errores.push('Algunas notas tienen valores fuera del rango permitido (1-4)');
                 } else {
                     input.style.borderColor = '';
+                    input.title = '';
                 }
             }
         });
-        return valid;
+
+        if (!tieneNotas) {
+            errores.push('Debe ingresar al menos una nota para guardar');
+        }
+
+        return [...new Set(errores)]; // Eliminar duplicados
     }
 
-    function validarFormatoNotasConducta() {
-        let valid = true;
-        document.querySelectorAll('#formConductaNotas .nota-input:not([readonly])').forEach(input => {
+    function validarFormularioConducta() {
+        const errores = [];
+        const inputs = document.querySelectorAll('#formConductaNotas .nota-input:not([readonly])');
+        let tieneNotas = false;
+
+        inputs.forEach(input => {
             if (input.value !== '') {
+                tieneNotas = true;
                 let value = parseInt(input.value);
                 if (isNaN(value) || value < 1 || value > 4) {
-                    valid = false;
                     input.style.borderColor = 'red';
+                    input.title = 'La nota debe estar entre 1 y 4';
+                    errores.push('Algunas notas de conducta tienen valores fuera del rango permitido (1-4)');
                 } else {
                     input.style.borderColor = '';
+                    input.title = '';
                 }
             }
         });
-        return valid;
+
+        if (!tieneNotas) {
+            errores.push('Debe ingresar al menos una nota de conducta para guardar');
+        }
+
+        return [...new Set(errores)];
     }
+
+    function mostrarErrores(errores, formId) {
+        // Remover mensajes de error existentes
+        const existingAlerts = document.querySelectorAll(`#${formId} .alert-danger`);
+        existingAlerts.forEach(alert => alert.remove());
+
+        // Crear nuevo mensaje de error
+        const errorAlert = document.createElement('div');
+        errorAlert.className = 'alert alert-danger alert-dismissible fade show mt-3';
+        errorAlert.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Errores encontrados:</strong>
+            <ul class="mb-0 mt-2">
+                ${errores.map(error => `<li>${error}</li>`).join('')}
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+
+        // Insertar antes del botón de guardar
+        const submitButton = document.querySelector(`#${formId} button[type="submit"]`);
+        submitButton.parentNode.insertBefore(errorAlert, submitButton);
+
+        // Hacer scroll al mensaje de error
+        errorAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+
 });
-</script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-    const revertirModal = document.getElementById('revertirModal');
 
+// Manejo del modal de reversión
+document.addEventListener('DOMContentLoaded', function() {
+    const revertirModal = document.getElementById('revertirModal');
     if (revertirModal) {
-        // Limpiar el formulario cuando se cierra el modal
         revertirModal.addEventListener('hidden.bs.modal', function () {
             const passwordInput = document.getElementById('password');
             if (passwordInput) {
@@ -578,7 +712,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Validación del formulario de reversión
         const revertirForm = document.getElementById('revertirForm');
         if (revertirForm) {
             revertirForm.addEventListener('submit', function(e) {
@@ -587,18 +720,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     e.preventDefault();
                     passwordInput.classList.add('is-invalid');
                     passwordInput.focus();
+
+                    // Mostrar mensaje de error
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'alert alert-danger mt-2';
+                    errorDiv.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>La contraseña es obligatoria';
+
+                    const existingError = passwordInput.parentNode.querySelector('.alert');
+                    if (existingError) {
+                        existingError.remove();
+                    }
+                    passwordInput.parentNode.appendChild(errorDiv);
                 }
             });
         }
 
-        // Remover validación cuando el usuario escribe
         const passwordInput = document.getElementById('password');
         if (passwordInput) {
             passwordInput.addEventListener('input', function() {
                 this.classList.remove('is-invalid');
+                const errorAlert = this.parentNode.querySelector('.alert');
+                if (errorAlert) {
+                    errorAlert.remove();
+                }
             });
         }
     }
 });
 </script>
+
 @endsection
