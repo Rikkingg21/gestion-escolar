@@ -19,6 +19,7 @@ use App\Models\Materia;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use Illuminate\Support\Facades\Validator;
 
 
 class UserController extends Controller
@@ -381,46 +382,162 @@ class UserController extends Controller
     {
         return view('user.importar');
     }
-    public function importarApoderados(Request $request)
+    public function validarApoderados(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls'
+            'file' => 'required|mimes:xlsx,xls|max:10240' // 10MB máximo
         ]);
 
-        $spreadsheet = IOFactory::load($request->file('file'));
-        $sheet = $spreadsheet->getActiveSheet();
-        $rows = $sheet->toArray();
+        try {
+            $spreadsheet = IOFactory::load($request->file('file'));
+            $sheet = $spreadsheet->getActiveSheet();
+            $rows = $sheet->toArray();
 
-        $exitosos = 0;
-        $errores = [];
+            $registrosValidos = [];
+            $errores = [];
+            $totalRegistros = 0;
 
-        // Saltar la primera fila (encabezados)
-        for ($i = 1; $i < count($rows); $i++) {
-            $row = $rows[$i];
+            // Saltar la primera fila (encabezados)
+            for ($i = 1; $i < count($rows); $i++) {
+                $row = $rows[$i];
+                $totalRegistros++;
 
-            try {
-                // Validar que todos los campos necesarios estén presentes
+                // Validar que la fila no esté vacía
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+
+                // Validar campos obligatorios
                 if (empty($row[0]) || empty($row[1]) || empty($row[2]) || empty($row[3]) || empty($row[5])) {
-                    $errores[] = "Fila $i: Faltan campos obligatorios";
+                    $errores[] = [
+                        'fila' => $i + 1,
+                        'dni' => $row[0] ?? 'N/A',
+                        'error' => 'Faltan campos obligatorios'
+                    ];
+                    continue;
+                }
+
+                $dni = $row[0];
+
+                // Validar formato de DNI
+                if (!preg_match('/^[0-9]{8}$/', $dni)) {
+                    $errores[] = [
+                        'fila' => $i + 1,
+                        'dni' => $dni,
+                        'error' => 'Formato de DNI inválido (debe tener 8 dígitos)'
+                    ];
                     continue;
                 }
 
                 // Verificar si el usuario ya existe
-                if (User::where('dni', $row[0])->exists()) {
-                    $errores[] = "Fila $i: El DNI {$row[0]} ya existe";
+                if (User::where('dni', $dni)->exists()) {
+                    $errores[] = [
+                        'fila' => $i + 1,
+                        'dni' => $dni,
+                        'error' => 'El DNI ya existe en el sistema'
+                    ];
+                    continue;
+                }
+
+                // Validar parentesco
+                $parentescoValido = ['padre', 'madre', 'tutor'];
+                $parentesco = strtolower(trim($row[5]));
+                if (!in_array($parentesco, $parentescoValido)) {
+                    $errores[] = [
+                        'fila' => $i + 1,
+                        'dni' => $dni,
+                        'error' => 'Parentesco inválido. Debe ser: padre, madre o tutor'
+                    ];
+                    continue;
+                }
+
+                // Registro válido
+                $registrosValidos[] = [
+                    'fila' => $i + 1,
+                    'dni' => $dni,
+                    'apellido_paterno' => mb_strtoupper($row[1], 'UTF-8'),
+                    'apellido_materno' => mb_strtoupper($row[2], 'UTF-8'),
+                    'nombre' => mb_strtoupper($row[3], 'UTF-8'),
+                    'telefono' => $row[4] ?? null,
+                    'parentesco' => $parentesco,
+                    'email' => $dni . '@ietere.com'
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'total_registros' => $totalRegistros,
+                'registros_validos' => $registrosValidos,
+                'total_validos' => count($registrosValidos),
+                'errores' => $errores,
+                'total_errores' => count($errores),
+                'session_key' => 'apoderados_pendientes_' . uniqid()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al procesar el archivo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Función original con el nombre que quieres mantener
+    public function importarApoderados(Request $request)
+    {
+        // Aumentar el tiempo de ejecución a 2 minutos
+        set_time_limit(120);
+
+        // Decodificar los registros que vienen como JSON string
+        $registros = json_decode($request->registros, true);
+
+        // Validar que se pudieron decodificar correctamente
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Formato de datos inválido'
+            ], 400);
+        }
+
+        $validator = Validator::make(['registros' => $registros], [
+            'registros' => 'required|array',
+            'registros.*.dni' => 'required|string',
+            'registros.*.nombre' => 'required|string',
+            'registros.*.apellido_paterno' => 'required|string',
+            'registros.*.apellido_materno' => 'required|string',
+            'registros.*.parentesco' => 'required|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Datos de validación incorrectos',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $exitosos = 0;
+        $errores = [];
+        $totalRegistros = count($registros);
+
+        foreach ($registros as $index => $registro) {
+            try {
+                // Verificar nuevamente que no exista (por si acaso)
+                if (User::where('dni', $registro['dni'])->exists()) {
+                    $errores[] = "DNI {$registro['dni']} ya existe en el sistema";
                     continue;
                 }
 
                 // Crear el usuario apoderado
                 $user = User::create([
-                    'dni' => $row[0],
-                    'nombre_usuario' => $row[0],
-                    'nombre' => mb_strtoupper($row[3], 'UTF-8'),
-                    'apellido_paterno' => mb_strtoupper($row[1], 'UTF-8'),
-                    'apellido_materno' => mb_strtoupper($row[2], 'UTF-8'),
-                    'email' => $row[0] . '@ietere.com',
-                    'password' => Hash::make($row[0]),
-                    'telefono' => $row[4] ?? null,
+                    'dni' => $registro['dni'],
+                    'nombre_usuario' => $registro['dni'],
+                    'nombre' => $registro['nombre'],
+                    'apellido_paterno' => $registro['apellido_paterno'],
+                    'apellido_materno' => $registro['apellido_materno'],
+                    'email' => $registro['dni'] . '@ietere.com',
+                    'password' => Hash::make($registro['dni']),
+                    'telefono' => $registro['telefono'] ?? null,
                     'estado' => '1',
                 ]);
 
@@ -430,17 +547,19 @@ class UserController extends Controller
                 // Crear registro de apoderado
                 Apoderado::create([
                     'user_id' => $user->id,
-                    'parentesco' => $row[5],
+                    'parentesco' => $registro['parentesco'],
                     'estado' => '1',
                 ]);
 
                 $exitosos++;
+
             } catch (\Exception $e) {
-                $errores[] = "Fila $i: " . $e->getMessage();
+                $errores[] = "DNI {$registro['dni']}: " . $e->getMessage();
             }
         }
 
         return response()->json([
+            'success' => true,
             'exitosos' => $exitosos,
             'errores' => $errores
         ]);
