@@ -71,7 +71,7 @@
                                         <input class="form-control" type="file" id="estudiantesFile" name="file" accept=".xlsx,.xls" required>
                                     </div>
                                     <button type="button" class="btn btn-success" id="importEstudiantesBtn">
-                                        <i class="bi bi-upload me-1"></i> Importar Estudiantes
+                                        <i class="bi bi-upload me-1"></i> Validar y Importar Estudiantes
                                     </button>
                                 </form>
                             </div>
@@ -126,7 +126,9 @@
 <script>
 $(document).ready(function() {
     let registrosPendientes = [];
+    let registrosEstudiantesPendientes = [];
     let sessionKey = '';
+    let sessionKeyEstudiantes = '';
     let importInProgress = false;
 
     // Importar Apoderados - Primera fase: Validación
@@ -153,7 +155,7 @@ $(document).ready(function() {
             contentType: false,
             success: function(response) {
                 if (response.success) {
-                    mostrarResultadosValidacion(response);
+                    mostrarResultadosValidacionApoderados(response);
                     registrosPendientes = response.registros_validos;
                     sessionKey = response.session_key;
                 } else {
@@ -178,13 +180,62 @@ $(document).ready(function() {
         });
     });
 
-    // Función para mostrar resultados de validación
-    function mostrarResultadosValidacion(data) {
+    // Importar Estudiantes - Primera fase: Validación
+    $('#importEstudiantesBtn').click(function() {
+        var fileInput = $('#estudiantesFile')[0];
+        if (fileInput.files.length === 0) {
+            alert('Por favor, seleccione un archivo Excel');
+            return;
+        }
+
+        var formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('_token', '{{ csrf_token() }}');
+
+        // Mostrar carga
+        $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Validando...');
+        $(this).prop('disabled', true);
+
+        $.ajax({
+            url: '{{ route("importar.validar-estudiantes") }}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    mostrarResultadosValidacionEstudiantes(response);
+                    registrosEstudiantesPendientes = response.registros_validos;
+                    sessionKeyEstudiantes = response.session_key;
+                } else {
+                    alert('Error: ' + response.error);
+                }
+                $('#importEstudiantesBtn').html('<i class="bi bi-upload me-1"></i> Validar y Importar Estudiantes');
+                $('#importEstudiantesBtn').prop('disabled', false);
+            },
+            error: function(xhr) {
+                let errorMessage = 'Error al validar el archivo';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMessage += ': ' + xhr.responseJSON.error;
+                } else if (xhr.status === 413) {
+                    errorMessage = 'El archivo es demasiado grande. El tamaño máximo permitido es 10MB.';
+                } else if (xhr.responseText) {
+                    errorMessage += ': ' + xhr.responseText;
+                }
+                alert(errorMessage);
+                $('#importEstudiantesBtn').html('<i class="bi bi-upload me-1"></i> Validar y Importar Estudiantes');
+                $('#importEstudiantesBtn').prop('disabled', false);
+            }
+        });
+    });
+
+    // Función para mostrar resultados de validación de apoderados
+    function mostrarResultadosValidacionApoderados(data) {
         let html = '<div class="validation-results">';
 
         // Resumen
         html += '<div class="alert alert-info">';
-        html += '<h6>Resultados de la Validación</h6>';
+        html += '<h6>Resultados de la Validación - Apoderados</h6>';
         html += '<p><strong>Total de registros procesados:</strong> ' + data.total_registros + '</p>';
         html += '<p><strong>Registros válidos:</strong> <span class="text-success">' + data.total_validos + '</span></p>';
         html += '<p><strong>Errores encontrados:</strong> <span class="text-danger">' + data.total_errores + '</span></p>';
@@ -231,10 +282,10 @@ $(document).ready(function() {
 
             // Botón de confirmación
             html += '<div class="mt-3">';
-            html += '<button type="button" class="btn btn-success" id="confirmImportBtn">';
-            html += '<i class="bi bi-check-circle me-1"></i> Confirmar e Importar ' + data.total_validos + ' Registros';
+            html += '<button type="button" class="btn btn-success" id="confirmImportApoderadosBtn">';
+            html += '<i class="bi bi-check-circle me-1"></i> Confirmar e Importar ' + data.total_validos + ' Apoderados';
             html += '</button>';
-            html += '<button type="button" class="btn btn-secondary ms-2" id="cancelImportBtn">';
+            html += '<button type="button" class="btn btn-secondary ms-2" id="cancelImportApoderadosBtn">';
             html += '<i class="bi bi-x-circle me-1"></i> Cancelar';
             html += '</button>';
             html += '</div>';
@@ -256,15 +307,103 @@ $(document).ready(function() {
         }, 1000);
 
         // Evento para el botón de confirmación
-        $('#confirmImportBtn').click(confirmarImportacion);
-        $('#cancelImportBtn').click(function() {
+        $('#confirmImportApoderadosBtn').click(confirmarImportacionApoderados);
+        $('#cancelImportApoderadosBtn').click(function() {
             $('#resultCard').addClass('d-none');
             registrosPendientes = [];
-            $('#apoderadosFile').val(''); // Limpiar el file input
+            $('#apoderadosFile').val('');
         });
     }
-    // Función para confirmar la importación
-    function confirmarImportacion() {
+
+    // Función para mostrar resultados de validación de estudiantes
+    function mostrarResultadosValidacionEstudiantes(data) {
+        let html = '<div class="validation-results">';
+
+        // Resumen
+        html += '<div class="alert alert-info">';
+        html += '<h6>Resultados de la Validación - Estudiantes</h6>';
+        html += '<p><strong>Total de registros procesados:</strong> ' + data.total_registros + '</p>';
+        html += '<p><strong>Registros válidos:</strong> <span class="text-success">' + data.total_validos + '</span></p>';
+        html += '<p><strong>Errores encontrados:</strong> <span class="text-danger">' + data.total_errores + '</span></p>';
+        html += '</div>';
+
+        // Mostrar errores si existen
+        if (data.errores && data.errores.length > 0) {
+            html += '<div class="alert alert-warning">';
+            html += '<h6>Errores encontrados:</h6>';
+            html += '<div style="max-height: 200px; overflow-y: auto;">';
+            html += '<table class="table table-sm table-bordered">';
+            html += '<thead><tr><th>Fila</th><th>DNI Estudiante</th><th>Error</th></tr></thead>';
+            html += '<tbody>';
+            data.errores.forEach(function(error) {
+                html += '<tr>';
+                html += '<td>' + error.fila + '</td>';
+                html += '<td>' + error.dni_estudiante + '</td>';
+                html += '<td class="text-danger">' + error.error + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            html += '</div></div>';
+        }
+
+        // Mostrar registros válidos
+        if (data.registros_validos && data.registros_validos.length > 0) {
+            html += '<div class="alert alert-success">';
+            html += '<h6>Registros listos para importar (' + data.total_validos + '):</h6>';
+            html += '<div style="max-height: 300px; overflow-y: auto;">';
+            html += '<table class="table table-sm table-bordered">';
+            html += '<thead><tr><th>Fila</th><th>DNI Estudiante</th><th>Estudiante</th><th>Grado/Sección</th><th>Apoderado</th><th>DNI Apoderado</th></tr></thead>';
+            html += '<tbody>';
+            data.registros_validos.forEach(function(registro) {
+                html += '<tr>';
+                html += '<td>' + registro.fila + '</td>';
+                html += '<td>' + registro.dni_estudiante + '</td>';
+                html += '<td>' + registro.apellido_paterno + ' ' + (registro.apellido_materno || '') + ', ' + registro.nombre + '</td>';
+                html += '<td>' + registro.grado + ' ' + registro.seccion + ' - ' + registro.nivel + '</td>';
+                html += '<td>' + registro.apoderado_nombre + '</td>';
+                html += '<td>' + registro.dni_apoderado + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            html += '</div>';
+
+            // Botón de confirmación
+            html += '<div class="mt-3">';
+            html += '<button type="button" class="btn btn-success" id="confirmImportEstudiantesBtn">';
+            html += '<i class="bi bi-check-circle me-1"></i> Confirmar e Importar ' + data.total_validos + ' Estudiantes';
+            html += '</button>';
+            html += '<button type="button" class="btn btn-secondary ms-2" id="cancelImportEstudiantesBtn">';
+            html += '<i class="bi bi-x-circle me-1"></i> Cancelar';
+            html += '</button>';
+            html += '</div>';
+            html += '</div>';
+        } else {
+            html += '<div class="alert alert-warning">';
+            html += '<p>No hay registros válidos para importar.</p>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+
+        $('#importResults').html(html);
+        $('#resultCard').removeClass('d-none');
+
+        // Scroll to results
+        $('html, body').animate({
+            scrollTop: $('#resultCard').offset().top
+        }, 1000);
+
+        // Evento para el botón de confirmación
+        $('#confirmImportEstudiantesBtn').click(confirmarImportacionEstudiantes);
+        $('#cancelImportEstudiantesBtn').click(function() {
+            $('#resultCard').addClass('d-none');
+            registrosEstudiantesPendientes = [];
+            $('#estudiantesFile').val('');
+        });
+    }
+
+    // Función para confirmar la importación de apoderados
+    function confirmarImportacionApoderados() {
         if (registrosPendientes.length === 0) {
             alert('No hay registros para importar');
             return;
@@ -283,9 +422,9 @@ $(document).ready(function() {
         $('#progressCard').removeClass('d-none');
 
         // Actualizar barra de progreso con la cantidad real de registros
-        actualizarProgreso(0, totalRegistros, 'Iniciando importación...');
+        actualizarProgreso(0, totalRegistros, 'Iniciando importación de apoderados...');
 
-        // SOLUCIÓN: Usar FormData para enviar los datos
+        // Usar FormData para enviar los datos
         const formData = new FormData();
         formData.append('_token', '{{ csrf_token() }}');
         formData.append('registros', JSON.stringify(registrosPendientes));
@@ -294,13 +433,13 @@ $(document).ready(function() {
             url: '{{ route("importar.apoderados") }}',
             type: 'POST',
             data: formData,
-            processData: false, // Importante: no procesar los datos
-            contentType: false, // Importante: no establecer contentType
+            processData: false,
+            contentType: false,
             xhr: function() {
                 var xhr = new window.XMLHttpRequest();
                 // Simular progreso basado en la cantidad real de registros
                 var progress = 0;
-                var totalSteps = Math.min(totalRegistros, 100); // Máximo 100 pasos para la simulación
+                var totalSteps = Math.min(totalRegistros, 100);
                 var progressIncrement = totalSteps > 0 ? Math.floor(totalRegistros / totalSteps) : 1;
                 var currentStep = 0;
 
@@ -309,9 +448,9 @@ $(document).ready(function() {
                         currentStep++;
                         progress = Math.min((currentStep / totalSteps) * 100, 90);
                         var registrosSimulados = Math.min(Math.floor((currentStep / totalSteps) * totalRegistros), totalRegistros);
-                        actualizarProgreso(registrosSimulados, totalRegistros, 'Procesando registros...');
+                        actualizarProgreso(registrosSimulados, totalRegistros, 'Procesando apoderados...');
                     }
-                }, 300); // Actualizar cada 300ms
+                }, 300);
 
                 xhr.addEventListener('loadend', function() {
                     clearInterval(interval);
@@ -323,9 +462,9 @@ $(document).ready(function() {
                 // Mostrar 100% de progreso con la cantidad real
                 actualizarProgreso(totalRegistros, totalRegistros, 'Importación completada!');
                 setTimeout(function() {
-                    mostrarResultadosFinales(response);
+                    mostrarResultadosFinales(response, 'apoderados');
                     registrosPendientes = [];
-                    $('#apoderadosFile').val(''); // Limpiar el file input
+                    $('#apoderadosFile').val('');
                     importInProgress = false;
                     $('#progressCard').addClass('d-none');
                 }, 1000);
@@ -346,9 +485,93 @@ $(document).ready(function() {
                     $('#progressCard').addClass('d-none');
                     $('#resultCard').removeClass('d-none');
                     importInProgress = false;
-                    $('#confirmImportBtn').html('<i class="bi bi-check-circle me-1"></i> Confirmar Importación');
-                    $('#confirmImportBtn').prop('disabled', false);
-                    $('#cancelImportBtn').prop('disabled', false);
+                }, 1000);
+            }
+        });
+    }
+
+    // Función para confirmar la importación de estudiantes
+    function confirmarImportacionEstudiantes() {
+        if (registrosEstudiantesPendientes.length === 0) {
+            alert('No hay registros para importar');
+            return;
+        }
+
+        if (importInProgress) {
+            alert('Ya hay una importación en progreso');
+            return;
+        }
+
+        importInProgress = true;
+        const totalRegistros = registrosEstudiantesPendientes.length;
+
+        // Ocultar resultados de validación y mostrar barra de progreso
+        $('#resultCard').addClass('d-none');
+        $('#progressCard').removeClass('d-none');
+
+        // Actualizar barra de progreso con la cantidad real de registros
+        actualizarProgreso(0, totalRegistros, 'Iniciando importación de estudiantes...');
+
+        // Usar FormData para enviar los datos
+        const formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('registros', JSON.stringify(registrosEstudiantesPendientes));
+
+        $.ajax({
+            url: '{{ route("importar.estudiantes") }}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            xhr: function() {
+                var xhr = new window.XMLHttpRequest();
+                // Simular progreso basado en la cantidad real de registros
+                var progress = 0;
+                var totalSteps = Math.min(totalRegistros, 100);
+                var progressIncrement = totalSteps > 0 ? Math.floor(totalRegistros / totalSteps) : 1;
+                var currentStep = 0;
+
+                var interval = setInterval(function() {
+                    if (currentStep < totalSteps) {
+                        currentStep++;
+                        progress = Math.min((currentStep / totalSteps) * 100, 90);
+                        var registrosSimulados = Math.min(Math.floor((currentStep / totalSteps) * totalRegistros), totalRegistros);
+                        actualizarProgreso(registrosSimulados, totalRegistros, 'Procesando estudiantes...');
+                    }
+                }, 300);
+
+                xhr.addEventListener('loadend', function() {
+                    clearInterval(interval);
+                });
+
+                return xhr;
+            },
+            success: function(response) {
+                actualizarProgreso(totalRegistros, totalRegistros, 'Importación completada!');
+                setTimeout(function() {
+                    mostrarResultadosFinales(response, 'estudiantes');
+                    registrosEstudiantesPendientes = [];
+                    $('#estudiantesFile').val('');
+                    importInProgress = false;
+                    $('#progressCard').addClass('d-none');
+                }, 1000);
+            },
+            error: function(xhr) {
+                let errorMessage = 'Error al importar los estudiantes';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMessage += ': ' + xhr.responseJSON.error;
+                } else if (xhr.status === 419) {
+                    errorMessage = 'Error de autenticación CSRF. Por favor, recarga la página e intenta nuevamente.';
+                } else if (xhr.responseText) {
+                    errorMessage += ': ' + xhr.responseText;
+                }
+
+                actualizarProgreso(0, totalRegistros, 'Error en la importación');
+                setTimeout(function() {
+                    alert(errorMessage);
+                    $('#progressCard').addClass('d-none');
+                    $('#resultCard').removeClass('d-none');
+                    importInProgress = false;
                 }, 1000);
             }
         });
@@ -378,9 +601,9 @@ $(document).ready(function() {
     }
 
     // Función para mostrar resultados finales
-    function mostrarResultadosFinales(data) {
+    function mostrarResultadosFinales(data, tipo) {
         let html = '<div class="alert ' + (data.errores.length > 0 ? 'alert-warning' : 'alert-success') + '">';
-        html += '<h6>Importación Completada</h6>';
+        html += '<h6>Importación Completada - ' + (tipo === 'apoderados' ? 'Apoderados' : 'Estudiantes') + '</h6>';
         html += '<p><strong>Registros exitosos:</strong> ' + data.exitosos + '</p>';
 
         if (data.errores && data.errores.length > 0) {
@@ -417,68 +640,8 @@ $(document).ready(function() {
         $('#closeResultsBtn').click(function() {
             $('#resultCard').addClass('d-none');
             $('#importApoderadosBtn').html('<i class="bi bi-upload me-1"></i> Validar y Importar Apoderados');
+            $('#importEstudiantesBtn').html('<i class="bi bi-upload me-1"></i> Validar y Importar Estudiantes');
         });
-    }
-
-    // Importar Estudiantes (mantener funcionalidad original)
-    $('#importEstudiantesBtn').click(function() {
-        var fileInput = $('#estudiantesFile')[0];
-        if (fileInput.files.length === 0) {
-            alert('Por favor, seleccione un archivo Excel');
-            return;
-        }
-
-        var formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        formData.append('_token', '{{ csrf_token() }}');
-
-        // Mostrar carga
-        $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importando...');
-        $(this).prop('disabled', true);
-
-        $.ajax({
-            url: '{{ route("importar.estudiantes") }}',
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(response) {
-                mostrarResultadosSimple(response, 'Estudiantes');
-                $('#importEstudiantesBtn').html('<i class="bi bi-upload me-1"></i> Importar Estudiantes');
-                $('#importEstudiantesBtn').prop('disabled', false);
-            },
-            error: function(xhr) {
-                alert('Error al importar: ' + xhr.responseText);
-                $('#importEstudiantesBtn').html('<i class="bi bi-upload me-1"></i> Importar Estudiantes');
-                $('#importEstudiantesBtn').prop('disabled', false);
-            }
-        });
-    });
-
-    // Función simple para mostrar resultados de estudiantes
-    function mostrarResultadosSimple(data, tipo) {
-        var html = '<div class="alert alert-success">';
-        html += '<h6>Importación de ' + tipo + ' completada</h6>';
-        html += '<p>Registros exitosos: ' + data.exitosos + '</p>';
-
-        if (data.errores && data.errores.length > 0) {
-            html += '<p>Errores encontrados:</p>';
-            html += '<ul>';
-            data.errores.forEach(function(error) {
-                html += '<li class="text-danger">' + error + '</li>';
-            });
-            html += '</ul>';
-        }
-
-        html += '</div>';
-
-        $('#importResults').html(html);
-        $('#resultCard').removeClass('d-none');
-
-        // Scroll to results
-        $('html, body').animate({
-            scrollTop: $('#resultCard').offset().top
-        }, 1000);
     }
 });
 </script>
