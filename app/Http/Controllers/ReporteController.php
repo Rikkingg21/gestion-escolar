@@ -92,18 +92,29 @@ class ReporteController extends Controller
             abort(403, 'No tienes permiso para crear reportes.');
         }
 
-        // ...existing code...
+        // Obtener materias según el rol, filtrando por estado 1
         if ($user->hasRole('docente')) {
             $cursos = Cursogradosecnivanio::with('materia')
                 ->where('docente_designado_id', $user->docente->id)
                 ->get();
-            $materias = $cursos->pluck('materia')->unique('id');
+            $materias = $cursos->pluck('materia')
+                ->unique('id')
+                ->where('estado', 1); // Filtro por estado activo
         } else {
-            $materias = Materia::all();
+            $materias = Materia::where('estado', 1)->get(); // Solo materias activas
         }
 
+        // Obtener grados con estado 1 (activos)
+        $grados = \App\Models\Grado::where('estado', 1)
+        ->orderBy('nivel')
+        ->orderBy('grado')
+        ->orderBy('seccion')
+        ->get();
+
+        $estudiantes = \App\Models\Estudiante::with('user', 'apoderado.user')->get();
         $apoderados = Apoderado::with('user')->get();
-        return view('reporte.create', compact('materias', 'apoderados'));
+
+        return view('reporte.create', compact('materias', 'apoderados', 'grados', 'estudiantes'));
     }
 
     public function store(Request $request)
