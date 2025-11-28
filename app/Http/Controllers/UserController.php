@@ -34,63 +34,142 @@ class UserController extends Controller
             return $next($request);
         });
     }
-    public function ajaxUserActivo()
+    public function ajaxUserActivo(Request $request)
     {
-        $users = User::activos()
-            ->with('roles')
-            ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado')
-            ->get()
+        $query = User::activos()
+            ->with([
+                'roles',
+                'estudiante.grado', // Solo estudiantes tienen grado
+                'docente' // Docentes sin relación con grado
+            ])
+            ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado');
+
+        // Aplicar filtros
+        $query = $this->aplicarFiltros($query, $request);
+
+        $users = $query->get()
             ->map(function($user) {
                 return [
                     'dni' => $user->dni,
                     'nombre_usuario' => $user->nombre_usuario,
                     'nombre_completo' => $user->nombre . ' ' . $user->apellido_paterno . ' ' . $user->apellido_materno,
                     'roles' => $user->roles->pluck('nombre')->implode(', '),
-                    'estado' => $this->getEstadoTexto($user->estado), // Cambio aquí
+                    'grado' => $this->getGradoUsuario($user),
+                    'estado' => $this->getEstadoTexto($user->estado),
                     'acciones' => $this->getActionButtons($user)
                 ];
             });
 
         return response()->json(['data' => $users]);
     }
-    public function ajaxUserLector()
+
+    public function ajaxUserLector(Request $request)
     {
-        $users = User::lectores()
-            ->with('roles')
-            ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado')
-            ->get()
+        $query = User::lectores()
+            ->with([
+                'roles',
+                'estudiante.grado',
+                'docente'
+            ])
+            ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado');
+
+        // Aplicar filtros
+        $query = $this->aplicarFiltros($query, $request);
+
+        $users = $query->get()
             ->map(function($user) {
                 return [
                     'dni' => $user->dni,
                     'nombre_usuario' => $user->nombre_usuario,
                     'nombre_completo' => $user->nombre . ' ' . $user->apellido_paterno . ' ' . $user->apellido_materno,
                     'roles' => $user->roles->pluck('nombre')->implode(', '),
-                    'estado' => $this->getEstadoTexto($user->estado), // Cambio aquí
+                    'grado' => $this->getGradoUsuario($user),
+                    'estado' => $this->getEstadoTexto($user->estado),
                     'acciones' => $this->getActionButtons($user)
                 ];
             });
 
         return response()->json(['data' => $users]);
     }
-    public function ajaxUserInactivo()
+
+    public function ajaxUserInactivo(Request $request)
     {
-        $users = User::inactivos()
-            ->with('roles')
-            ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado')
-            ->get()
+        $query = User::inactivos()
+            ->with([
+                'roles',
+                'estudiante.grado',
+                'docente'
+            ])
+            ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado');
+
+        // Aplicar filtros
+        $query = $this->aplicarFiltros($query, $request);
+
+        $users = $query->get()
             ->map(function($user) {
                 return [
                     'dni' => $user->dni,
                     'nombre_usuario' => $user->nombre_usuario,
                     'nombre_completo' => $user->nombre . ' ' . $user->apellido_paterno . ' ' . $user->apellido_materno,
                     'roles' => $user->roles->pluck('nombre')->implode(', '),
-                    'estado' => $this->getEstadoTexto($user->estado), // Cambio aquí
+                    'grado' => $this->getGradoUsuario($user),
+                    'estado' => $this->getEstadoTexto($user->estado),
                     'acciones' => $this->getActionButtons($user)
                 ];
             });
 
         return response()->json(['data' => $users]);
     }
+
+    /**
+     * Método para aplicar filtros comunes
+     */
+    private function aplicarFiltros($query, Request $request)
+    {
+        // Filtro por rol
+        if ($request->has('rol') && !empty($request->rol)) {
+            $query->whereHas('roles', function($q) use ($request) {
+                $q->where('nombre', $request->rol);
+            });
+        }
+
+        // Filtro por grado (SOLO para estudiantes)
+        if ($request->has('grado') && !empty($request->grado)) {
+            $query->whereHas('estudiante', function($q) use ($request) {
+                $q->where('grado_id', $request->grado);
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Obtener el grado del usuario formateado (SOLO estudiantes)
+     */
+    private function getGradoUsuario($user)
+    {
+        // Verificar si es estudiante y tiene grado
+        if ($user->estudiante && $user->estudiante->grado) {
+            $grado = $user->estudiante->grado;
+            return "{$grado->grado}° '{$grado->seccion}' - {$grado->nivel}";
+        }
+
+        // Para otros roles, mostrar el rol principal
+        $roles = $user->roles->pluck('nombre')->implode(', ');
+
+        // Si es docente
+        if ($user->docente) {
+            return 'Docente';
+        }
+
+        // Para otros roles
+        if (!empty($roles)) {
+            return $roles;
+        }
+
+        return 'Sin información';
+    }
+
     private function getActionButtons($user)
     {
         $buttons = '';
@@ -99,6 +178,7 @@ class UserController extends Controller
         }
         return $buttons;
     }
+
     private function getEstadoTexto($estado)
     {
         switch ((int)$estado) {
@@ -111,7 +191,10 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
-        return view('user.index');
+        $roles = Role::where('estado', '1')->get(['id', 'nombre']);
+        $grados = Grado::where('estado', '1')->get(['id', 'grado', 'seccion', 'nivel']);
+
+        return view('user.index', compact('roles', 'grados'));
     }
 
     public function create()

@@ -23,37 +23,63 @@
                 </div>
 
                 <div class="card-body">
-                    <!-- Filtro de estado -->
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Filtrar por estado:</label>
-                            <select class="form-select w-auto" id="estadoSelect">
-                                <option value="activos" selected>Activos</option>
-                                <option value="lectores">Lectores</option>
-                                <option value="inactivos">Inactivos</option>
-                            </select>
-                        </div>
-                    </div>
+    <!-- Filtros Mejorados -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Estado:</label>
+            <select class="form-select" id="estadoSelect">
+                <option value="activos" selected>Activos</option>
+                <option value="lectores">Lectores</option>
+                <option value="inactivos">Inactivos</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Rol:</label>
+            <select class="form-select" id="rolSelect">
+                <option value="">Todos los roles</option>
+                @foreach($roles as $rol)
+                    <option value="{{ $rol->nombre }}">{{ $rol->nombre }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Grado:</label>
+            <select class="form-select" id="gradoSelect">
+                <option value="">Todos los grados</option>
+                @foreach($grados as $grado)
+                    <option value="{{ $grado->id }}">
+                        {{ $grado->grado }}° '{{ $grado->seccion }}' - {{ $grado->nivel }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="button" id="btnLimpiarFiltros" class="btn btn-outline-secondary w-100">
+                <i class="bi bi-arrow-clockwise me-1"></i>Limpiar Filtros
+            </button>
+        </div>
+    </div>
 
-                    <!-- Tabla de usuarios -->
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover" id="usersTable" width="100%" cellspacing="0">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>DNI</th>
-                                    <th>Usuario</th>
-                                    <th>Nombre Completo</th>
-                                    <th>Roles</th>
-                                    <th>Estado</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Los datos se cargarán mediante JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+    <!-- Tabla de usuarios -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="usersTable" width="100%" cellspacing="0">
+            <thead class="table-dark">
+                <tr>
+                    <th>DNI</th>
+                    <th>Usuario</th>
+                    <th>Nombre Completo</th>
+                    <th>Roles</th>
+                    <th>Grado</th> <!-- COLUMNA AGREGADA -->
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Los datos se cargarán mediante JavaScript -->
+            </tbody>
+        </table>
+    </div>
+</div>
             </div>
         </div>
     </div>
@@ -91,11 +117,23 @@
         </div>
     </div>
 </div>
-
 <script>
 $(document).ready(function() {
     // Variable para almacenar la tabla
     var table;
+
+    // Función para construir la URL con filtros
+    function construirUrl(baseRoute) {
+        let url = new URL(baseRoute, window.location.origin);
+
+        const rol = $('#rolSelect').val();
+        const grado = $('#gradoSelect').val();
+
+        if (rol) url.searchParams.append('rol', rol);
+        if (grado) url.searchParams.append('grado', grado);
+
+        return url.toString();
+    }
 
     // Función para inicializar DataTable con una URL específica
     function initDataTable(url) {
@@ -113,7 +151,7 @@ $(document).ready(function() {
                     console.log('Error:', xhr.responseText);
                     // Mostrar mensaje de error
                     $('#usersTable tbody').html(
-                        '<tr><td colspan="6" class="text-center text-danger">Error al cargar los datos</td></tr>'
+                        '<tr><td colspan="7" class="text-center text-danger">Error al cargar los datos</td></tr>'
                     );
                 }
             },
@@ -139,6 +177,15 @@ $(document).ready(function() {
                         return data.split(', ').map(rol =>
                             `<span class="badge bg-secondary me-1">${rol}</span>`
                         ).join('');
+                    }
+                },
+                {
+                    data: 'grado',
+                    render: function(data, type, row) {
+                        if (!data || data === 'Sin grado') {
+                            return '<span class="text-muted fst-italic">Sin grado</span>';
+                        }
+                        return `<span class="badge bg-info">${data}</span>`;
                     }
                 },
                 {
@@ -212,33 +259,62 @@ $(document).ready(function() {
                         $(this).prepend('<i class="bi bi-pencil-square me-1"></i>');
                     }
                 });
+
+                // Agregar eventos a botones de eliminar si existen
+                $('.btn-eliminar').off('click').on('click', function() {
+                    const userId = $(this).data('user-id');
+                    const userName = $(this).data('user-name');
+
+                    $('#nombreUsuarioEliminar').text(userName);
+                    $('#formEliminar').attr('action', '/usuarios/' + userId);
+                    $('#modalEliminar').modal('show');
+                });
             }
         });
     }
 
-    // Inicializar con usuarios activos por defecto
-    initDataTable('{{ route("usuarios.activos") }}');
-
-    // Manejar cambios en el select
-    $('#estadoSelect').change(function() {
-        var route;
-        switch($(this).val()) {
-            case 'activos':
-                route = '{{ route("usuarios.activos") }}';
-                break;
-            case 'lectores':
-                route = '{{ route("usuarios.lectores") }}';
-                break;
-            case 'inactivos':
-                route = '{{ route("usuarios.inactivos") }}';
-                break;
+    // Función para obtener la ruta base según el estado
+    function obtenerRutaBase(estado) {
+        switch(estado) {
+            case 'activos': return '{{ route("usuarios.activos") }}';
+            case 'lectores': return '{{ route("usuarios.lectores") }}';
+            case 'inactivos': return '{{ route("usuarios.inactivos") }}';
+            default: return '{{ route("usuarios.activos") }}';
         }
+    }
 
-        initDataTable(route);
+    // Función para actualizar la tabla con todos los filtros
+    function actualizarTabla() {
+        const estado = $('#estadoSelect').val();
+        const rutaBase = obtenerRutaBase(estado);
+        const urlFinal = construirUrl(rutaBase);
+
+        initDataTable(urlFinal);
+    }
+
+    // Inicializar con usuarios activos por defecto
+    actualizarTabla();
+
+    // Manejar cambios en los filtros
+    $('#estadoSelect').change(actualizarTabla);
+    $('#rolSelect').change(actualizarTabla);
+    $('#gradoSelect').change(actualizarTabla);
+
+    // Limpiar filtros
+    $('#btnLimpiarFiltros').click(function() {
+        $('#rolSelect').val('');
+        $('#gradoSelect').val('');
+        $('#estadoSelect').val('activos');
+        actualizarTabla();
     });
 
     // Tooltips
     $('[data-bs-toggle="tooltip"]').tooltip();
+
+    // Cerrar modal al hacer click en cancelar
+    $('#modalEliminar .btn-secondary').click(function() {
+        $('#modalEliminar').modal('hide');
+    });
 });
 </script>
 @endsection
