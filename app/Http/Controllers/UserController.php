@@ -358,86 +358,128 @@ class UserController extends Controller
     {
         $roles = Role::all();
         $grados = Grado::where('estado', 1)->get();
-        $materias = Materia::all();
 
         // Cargar relaciones según el rol del usuario
-        if($user->hasRole('estudiante')) {
+        if($user->hasRole('Estudiante')) { // Nota: 'Estudiante' con mayúscula si tu rol se llama así
             $user->load('estudiante.grado', 'estudiante.apoderado.user');
-        } elseif($user->hasRole('docente')) {
-            $user->load('docente.materia', 'docente.grado');
-        } elseif($user->hasRole('apoderado')) {
+        } elseif($user->hasRole('Docente')) {
+            $user->load('docente');
+        } elseif($user->hasRole('Apoderado')) {
             $user->load('apoderado');
-        } elseif($user->hasRole('auxiliar')) {
+        } elseif($user->hasRole('Auxiliar')) {
             $user->load('auxiliar');
         }
 
-        return view('user.edit', compact('user', 'roles', 'grados', 'materias'));
+        return view('user.edit', compact('user', 'roles', 'grados'));
     }
 
     public function update(Request $request, User $user)
     {
-        // Validación básica del usuario
-        $request->validate([
-            'dni' => 'required|max:8|unique:users,dni,'.$user->id,
-            'nombre_usuario' => 'required|unique:users,nombre_usuario,'.$user->id,
-            'nombre' => 'required',
-            'apellido_paterno' => 'required',
-            'email' => 'required|email|unique:users,email,'.$user->id,
-            'password' => 'nullable|confirmed|min:8', // Hacer la contraseña opcional
-            'rol' => 'required|exists:roles,id',
-            'foto_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'estado' => 'required|in:0,1,2',
-        ]);
+        try {
+            // Mensajes personalizados
+            $messages = [
+                'dni.required' => 'El DNI es obligatorio.',
+                'dni.unique' => 'Este DNI ya está registrado por otro usuario.',
+                'dni.max' => 'El DNI debe tener máximo 8 dígitos.',
+                'nombre_usuario.required' => 'El nombre de usuario es obligatorio.',
+                'nombre_usuario.unique' => 'Este nombre de usuario ya está en uso.',
+                'nombre.required' => 'El nombre es obligatorio.',
+                'apellido_paterno.required' => 'El apellido paterno es obligatorio.',
+                'email.required' => 'El correo electrónico es obligatorio.',
+                'email.email' => 'Ingrese un correo electrónico válido.',
+                'email.unique' => 'Este correo electrónico ya está registrado.',
+                'password.confirmed' => 'Las contraseñas no coinciden.',
+                'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
+                'rol.required' => 'Debe seleccionar un rol.',
+                'rol.exists' => 'El rol seleccionado no es válido.',
+                'estado.required' => 'El estado es obligatorio.',
+                'estado.in' => 'El estado seleccionado no es válido.',
+                'telefono.max' => 'El teléfono debe tener máximo 9 dígitos.',
+                'grado_id.required' => 'El grado es obligatorio para estudiantes.',
+                'grado_id.exists' => 'El grado seleccionado no es válido.',
+                'fecha_nacimiento.date' => 'Ingrese una fecha de nacimiento válida.',
+                'apoderado_id.required_if' => 'Debe seleccionar un apoderado.',
+                'apoderado_id.exists' => 'El apoderado seleccionado no es válido.',
+                'parentesco.required' => 'El parentesco es obligatorio.',
+                'parentesco.in' => 'Seleccione un parentesco válido.',
+                'especialidad.max' => 'La especialidad no debe exceder 100 caracteres.',
+                'materia_id.exists' => 'La materia seleccionada no es válida.',
+                'turno.in' => 'Seleccione un turno válido.',
+                'funciones.max' => 'Las funciones no deben exceder 50 caracteres.',
+            ];
 
-        // Procesar la imagen si se subió
-        $fotoPath = $user->foto_path;
-        if ($request->hasFile('foto_path')) {
-            // Eliminar la foto anterior si existe
-            if ($fotoPath && Storage::disk('public')->exists($fotoPath)) {
-                Storage::disk('public')->delete($fotoPath);
+            // Validación básica del usuario
+            $request->validate([
+                'dni' => 'required|max:8|unique:users,dni,'.$user->id,
+                'nombre_usuario' => 'required|unique:users,nombre_usuario,'.$user->id,
+                'nombre' => 'required',
+                'apellido_paterno' => 'required',
+                'email' => 'required|email|unique:users,email,'.$user->id,
+                'password' => 'nullable|confirmed|min:8',
+                'rol' => 'required|exists:roles,id',
+                'estado' => 'required|in:0,1,2',
+                'telefono' => 'nullable|max:9',
+            ], $messages);
+
+            // Actualizar el usuario
+            $userData = [
+                'dni' => $request->dni,
+                'nombre_usuario' => $request->nombre_usuario,
+                'nombre' => mb_strtoupper($request->nombre, 'UTF-8'),
+                'apellido_paterno' => mb_strtoupper($request->apellido_paterno, 'UTF-8'),
+                'apellido_materno' => $request->apellido_materno ? mb_strtoupper($request->apellido_materno, 'UTF-8') : null,
+                'email' => $request->email,
+                'estado' => $request->estado,
+                'telefono' => $request->telefono ?? null,
+                'foto_path' => null, // Siempre null, sin foto
+            ];
+
+            // Solo actualizar la contraseña si se proporcionó
+            if ($request->filled('password')) {
+                $userData['password'] = Hash::make($request->password);
             }
-            $fotoPath = $request->file('foto_path')->store('profile-photos', 'public');
+
+            $user->update($userData);
+
+            // Actualizar el rol del usuario
+            $user->roles()->sync([$request->rol]);
+
+            // Actualizar o crear el registro específico según el rol
+            $this->actualizarRegistroPorRol($user, $request);
+
+            return redirect()->route('user.index')
+                ->with('success', 'Usuario actualizado exitosamente.');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->validator)
+                ->withInput();
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al actualizar usuario: ' . $e->getMessage())
+                ->withInput();
         }
+    }
 
-        // Actualizar el usuario
-        $userData = [
-            'dni' => $request->dni,
-            'nombre_usuario' => $request->nombre_usuario,
-            'nombre' => mb_strtoupper($request->nombre, 'UTF-8'),
-            'apellido_paterno' => mb_strtoupper($request->apellido_paterno, 'UTF-8'),
-            'apellido_materno' => $request->apellido_materno ? mb_strtoupper($request->apellido_materno, 'UTF-8') : null,
-            'email' => $request->email,
-            'estado' => $request->estado,
-            'telefono' => $request->telefono,
-            'foto_path' => $fotoPath,
-        ];
-
-        // Solo actualizar la contraseña si se proporcionó
-        if ($request->filled('password')) {
-            $userData['password'] = Hash::make($request->password);
-        }
-
-        $user->update($userData);
-
-        // Actualizar el rol del usuario (sincronizar para evitar duplicados)
-        $user->roles()->sync([$request->rol]);
-
-        // Actualizar el registro específico según el rol
+    private function actualizarRegistroPorRol(User $user, Request $request)
+    {
+        // Validar campos específicos según rol
         switch ($request->rol) {
-            case 6: // Estudiante (ID 6)
+            case 6: // Estudiante
                 $request->validate([
                     'grado_id' => 'required|exists:grados,id',
-                    'parentesco' => 'required_if:sin_apoderado,false',
-                    'apoderado_id' => 'required_if:sin_apoderado,false|exists:apoderados,id',
                     'fecha_nacimiento' => 'nullable|date',
+                    'apoderado_id' => 'nullable|exists:apoderados,id',
+                    'parentesco' => 'nullable|in:padre,madre,tutor,otro',
+                    'estado_estudiante' => 'nullable|in:0,1',
                 ]);
 
                 $estudianteData = [
                     'grado_id' => $request->grado_id,
-                    'apoderado_id' => $request->sin_apoderado ? null : $request->apoderado_id,
-                    'fecha_nacimiento' => $request->fecha_nacimiento,
-                    'parentesco' => $request->parentesco,
-                    'estado' => $request->estado_estudiante ?? 1,
+                    'apoderado_id' => $request->sin_apoderado ? null : ($request->apoderado_id ?? null),
+                    'fecha_nacimiento' => $request->fecha_nacimiento ?? null,
+                    'parentesco' => $request->sin_apoderado ? null : ($request->parentesco ?? null),
+                    'estado' => $request->estado_estudiante ?? '1',
                 ];
 
                 if ($user->estudiante) {
@@ -448,10 +490,13 @@ class UserController extends Controller
                 }
                 break;
 
-            case 3: // Docente (ID 3)
+            case 3: // Docente
+                $request->validate([
+
+                    'estado_docente' => 'nullable|in:0,1',
+                ]);
+
                 $docenteData = [
-                    'especialidad' => $request->especialidad,
-                    'materia_id' => $request->materia_id,
                     'estado' => $request->estado_docente ?? 1,
                 ];
 
@@ -463,14 +508,15 @@ class UserController extends Controller
                 }
                 break;
 
-            case 5: // Apoderado (ID 5)
+            case 5: // Apoderado
                 $request->validate([
-                    'parentesco' => 'required',
+                    'parentesco' => 'required|in:padre,madre,tutor,otro',
+                    'estado_apoderado' => 'nullable|in:0,1',
                 ]);
 
                 $apoderadoData = [
                     'parentesco' => $request->parentesco,
-                    'estado' => $request->estado_apoderado ?? 1,
+                    'estado' => $request->estado_apoderado ?? '1',
                 ];
 
                 if ($user->apoderado) {
@@ -481,11 +527,17 @@ class UserController extends Controller
                 }
                 break;
 
-            case 4: // Auxiliar (ID 4)
+            case 4: // Auxiliar
+                $request->validate([
+                    'turno' => 'nullable|in:mañana,tarde,completo',
+                    'funciones' => 'nullable|string|max:50',
+                    'estado_auxiliar' => 'nullable|in:0,1',
+                ]);
+
                 $auxiliarData = [
-                    'turno' => $request->turno,
-                    'funciones' => $request->funciones,
-                    'estado' => $request->estado_auxiliar ?? 1,
+                    'turno' => $request->turno ?? null,
+                    'funciones' => $request->funciones ?? null,
+                    'estado' => $request->estado_auxiliar ?? '1',
                 ];
 
                 if ($user->auxiliar) {
@@ -495,9 +547,15 @@ class UserController extends Controller
                     Auxiliar::create($auxiliarData);
                 }
                 break;
-        }
 
-        return redirect()->route('user.index')->with('success', 'Usuario actualizado exitosamente.');
+            case 2: // Director
+                if ($user->director) {
+                    $user->director->update(['estado' => 1]);
+                } else {
+                    Director::create(['user_id' => $user->id, 'estado' => 1]);
+                }
+                break;
+        }
     }
     public function importar()
     {
