@@ -170,13 +170,27 @@ $(document).ready(function() {
                 {
                     data: 'roles',
                     render: function(data, type, row) {
-                        if (!data) {
-                            return '<span class="text-muted fst-italic">Sin roles</span>';
+                        if (!data || data.trim() === '') {
+                            return '<span class="text-muted fst-italic">Sin roles asignados</span>';
                         }
-                        // Convertir los roles en badges
-                        return data.split(', ').map(rol =>
-                            `<span class="badge bg-secondary me-1">${rol}</span>`
-                        ).join('');
+
+                        // Dividir los roles y crear badges con colores diferentes
+                        const roles = data.split(', ');
+
+                        // Colores según tipo de rol
+                        const colorMap = {
+                            'Admin': 'danger',
+                            'Docente': 'primary',
+                            'Estudiante': 'success',
+                            'Apoderado': 'warning',
+                            'Director': 'info',
+                            'Auxiliar': 'secondary'
+                        };
+
+                        return roles.map(rol => {
+                            const color = colorMap[rol] || 'secondary';
+                            return `<span class="badge bg-${color} me-1 mb-1">${rol}</span>`;
+                        }).join('');
                     }
                 },
                 {

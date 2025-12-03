@@ -159,35 +159,91 @@
                         <div class="row mb-4">
                             <div class="col-12">
                                 <h6 class="border-bottom pb-2 mb-3">
-                                    <i class="bi bi-person-gear me-2"></i>Rol y Configuración
+                                    <i class="bi bi-person-gear me-2"></i>Roles del Usuario <span class="text-danger">*</span>
                                 </h6>
                             </div>
 
-                            <div class="col-md-6">
-                                <div class="mb-4">
-                                    <label for="rol" class="form-label fw-bold">Rol del Usuario <span class="text-danger">*</span></label>
-                                    <select class="form-select @error('rol') is-invalid @enderror"
-                                            id="rol" name="rol" required>
-                                        <option value="">Seleccione un rol</option>
-                                        @php
-                                            $currentSessionRole = session('sessionmain') && session('sessionmain')->roles->isNotEmpty()
-                                                ? session('sessionmain')->roles->first()->nombre
-                                                : null;
-                                        @endphp
+                            <div class="col-md-12">
+                                <!-- Contenedor de roles dinámicos -->
+                                <div id="rolesContainer">
+                                    <!-- Primer rol (obligatorio) -->
+                                    <div class="rol-item mb-3">
+                                        <div class="row">
+                                            <div class="col-md-8">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Rol Principal <span class="text-danger">*</span></label>
+                                                    <select class="form-select rol-select @error('roles.0') is-invalid @enderror"
+                                                            name="roles[]" required>
+                                                        <option value="">Seleccione un rol</option>
+                                                        @php
+                                                            $currentSessionRole = session('sessionmain') && session('sessionmain')->roles->isNotEmpty()
+                                                                ? session('sessionmain')->roles->first()->nombre
+                                                                : null;
+                                                        @endphp
 
-                                        @foreach($roles as $role)
-                                            @if ($currentSessionRole === 'admin' || $role->id !== 1)
-                                                <option value="{{ $role->id }}"
-                                                        {{ old('rol') == $role->id ? 'selected' : '' }}
-                                                        data-role-name="{{ strtolower($role->nombre) }}">
-                                                    {{ $role->nombre }}
-                                                </option>
-                                            @endif
-                                        @endforeach
-                                    </select>
-                                    @error('rol')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
+                                                        @foreach($roles as $role)
+                                                            @if ($currentSessionRole === 'admin' || $role->id !== 1)
+                                                                <option value="{{ $role->id }}"
+                                                                        {{ old('roles.0') == $role->id ? 'selected' : '' }}
+                                                                        data-role-name="{{ strtolower($role->nombre) }}">
+                                                                    {{ $role->nombre }}
+                                                                </option>
+                                                            @endif
+                                                        @endforeach
+                                                    </select>
+                                                    @error('roles.0')
+                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4 d-flex align-items-end">
+                                                <button type="button" id="btnAgregarRol" class="btn btn-outline-primary w-100">
+                                                    <i class="bi bi-plus-circle me-1"></i>Agregar otro rol
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Roles adicionales (se agregan dinámicamente) -->
+                                    @if(old('roles') && count(old('roles')) > 1)
+                                        @for($i = 1; $i < count(old('roles')); $i++)
+                                            <div class="rol-item mb-3">
+                                                <div class="row">
+                                                    <div class="col-md-8">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Rol Adicional {{ $i + 1 }}</label>
+                                                            <select class="form-select rol-select @error('roles.' . $i) is-invalid @enderror"
+                                                                    name="roles[]">
+                                                                <option value="">Seleccione un rol</option>
+                                                                @foreach($roles as $role)
+                                                                    @if ($currentSessionRole === 'admin' || $role->id !== 1)
+                                                                        <option value="{{ $role->id }}"
+                                                                            {{ old('roles.' . $i) == $role->id ? 'selected' : '' }}
+                                                                            data-role-name="{{ strtolower($role->nombre) }}">
+                                                                            {{ $role->nombre }}
+                                                                        </option>
+                                                                    @endif
+                                                                @endforeach
+                                                            </select>
+                                                            @error('roles.' . $i)
+                                                                <div class="invalid-feedback">{{ $message }}</div>
+                                                            @enderror
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4 d-flex align-items-end">
+                                                        <button type="button" class="btn btn-outline-danger btn-eliminar-rol w-100">
+                                                            <i class="bi bi-trash me-1"></i>Eliminar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endfor
+                                    @endif
+                                </div>
+
+                                <div class="form-text text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>El primer rol será considerado como principal.
+                                    Puede agregar múltiples roles según sea necesario.
                                 </div>
                             </div>
                         </div>
@@ -520,4 +576,179 @@ $(document).ready(function() {
     @endif
 });
 </script>
+<script>
+$(document).ready(function() {
+    let rolCounter = {{ old('roles') ? count(old('roles')) : 1 }};
+
+    // Función para crear un nuevo campo de rol
+    function crearNuevoRol() {
+        const newRolHtml = `
+            <div class="rol-item mb-3">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label class="form-label">Rol Adicional ${rolCounter + 1}</label>
+                            <select class="form-select rol-select"
+                                    name="roles[]">
+                                <option value="">Seleccione un rol</option>
+                                @foreach($roles as $role)
+                                    @if ($currentSessionRole === 'admin' || $role->id !== 1)
+                                        <option value="{{ $role->id }}"
+                                                data-role-name="{{ strtolower($role->nombre) }}">
+                                            {{ $role->nombre }}
+                                        </option>
+                                    @endif
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-outline-danger btn-eliminar-rol w-100">
+                            <i class="bi bi-trash me-1"></i>Eliminar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $('#rolesContainer').append(newRolHtml);
+        rolCounter++;
+
+        // Reasignar eventos al nuevo select
+        const newSelect = $('#rolesContainer .rol-item:last-child .rol-select');
+        newSelect.change(function() {
+            mostrarCamposPorRolSeleccionado();
+        });
+
+        // Reasignar eventos al botón eliminar
+        $('.btn-eliminar-rol').off('click').on('click', eliminarRol);
+    }
+
+    // Función para eliminar un rol
+    function eliminarRol() {
+        if ($('#rolesContainer .rol-item').length > 1) {
+            $(this).closest('.rol-item').remove();
+            rolCounter--;
+            reenumerarRoles();
+            mostrarCamposPorRolSeleccionado();
+        }
+    }
+
+    // Función para reenumerar los roles
+    function reenumerarRoles() {
+        $('#rolesContainer .rol-item').each(function(index) {
+            const label = $(this).find('.form-label');
+            if (index === 0) {
+                label.text('Rol Principal');
+                label.append(' <span class="text-danger">*</span>');
+                $(this).find('select').prop('required', true);
+            } else {
+                label.text(`Rol Adicional ${index + 1}`);
+                $(this).find('select').prop('required', false);
+            }
+        });
+    }
+
+    // Función para mostrar campos según los roles seleccionados
+    function mostrarCamposPorRolSeleccionado() {
+        // Ocultar todos los campos específicos primero
+        $('.campos-rol').hide();
+
+        // Remover atributo required de todos los campos
+        $('.campos-rol').find('select, input').removeAttr('required');
+
+        // Obtener todos los roles seleccionados
+        const rolesSeleccionados = [];
+        $('.rol-select').each(function() {
+            if ($(this).val()) {
+                rolesSeleccionados.push(parseInt($(this).val()));
+            }
+        });
+
+        // Mostrar campos según los roles seleccionados
+        if (rolesSeleccionados.length === 0) return;
+
+        // Si hay estudiante (rol 6)
+        if (rolesSeleccionados.includes(6)) {
+            $('#campos-estudiante').show();
+            $('#grado_id').attr('required', true);
+        }
+
+        // Si hay apoderado (rol 5)
+        if (rolesSeleccionados.includes(5)) {
+            $('#campos-apoderado').show();
+            $('#campos-apoderado select[name="parentesco"]').attr('required', true);
+        }
+
+        // Si hay auxiliar (rol 4)
+        if (rolesSeleccionados.includes(4)) {
+            $('#campos-auxiliar').show();
+        }
+
+        // Si hay docente (rol 3)
+        if (rolesSeleccionados.includes(3)) {
+            $('#campos-docente').show();
+        }
+
+        // Si hay director (rol 2)
+        if (rolesSeleccionados.includes(2)) {
+            $('#campos-director').show();
+        }
+    }
+
+    // Evento para agregar nuevo rol
+    $('#btnAgregarRol').click(crearNuevoRol);
+
+    // Evento para eliminar rol
+    $(document).on('click', '.btn-eliminar-rol', eliminarRol);
+
+    // Evento para detectar cambios en los selects de rol
+    $(document).on('change', '.rol-select', mostrarCamposPorRolSeleccionado);
+
+    // Si hay errores de validación, configurar los eventos
+    @if(old('roles') && count(old('roles')) > 0)
+        mostrarCamposPorRolSeleccionado();
+    @endif
+
+    // Inicializar eventos para los selects existentes
+    $('.rol-select').each(function() {
+        $(this).change(mostrarCamposPorRolSeleccionado);
+    });
+});
+</script>
+<style>
+    .rol-item {
+        padding: 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+
+    .rol-item:hover {
+        background-color: #f0f2f5;
+        border-color: #adb5bd;
+    }
+
+    .rol-item:not(:first-child) {
+        margin-top: 10px;
+    }
+
+    .rol-select {
+        border: 2px solid #e9ecef;
+    }
+
+    .rol-select:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .btn-eliminar-rol {
+        transition: all 0.2s ease;
+    }
+
+    .btn-eliminar-rol:hover {
+        transform: scale(1.05);
+    }
+</style>
 @endsection
