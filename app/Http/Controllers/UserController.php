@@ -206,153 +206,153 @@ class UserController extends Controller
         return view('user.create', compact('roles', 'grados', 'materias'));
     }
 
-public function store(Request $request)
-{
-    // Mensajes personalizados en español
-    $messages = [
-        'dni.required' => 'El DNI es obligatorio.',
-        'dni.unique' => 'Este DNI ya está registrado en el sistema.',
-        'dni.max' => 'El DNI debe tener máximo 8 dígitos.',
-        'nombre_usuario.required' => 'El nombre de usuario es obligatorio.',
-        'nombre_usuario.unique' => 'Este nombre de usuario ya está en uso.',
-        'nombre.required' => 'El nombre es obligatorio.',
-        'apellido_paterno.required' => 'El apellido paterno es obligatorio.',
-        'email.required' => 'El correo electrónico es obligatorio.',
-        'email.email' => 'Ingrese un correo electrónico válido.',
-        'email.unique' => 'Este correo electrónico ya está registrado.',
-        'password.required' => 'La contraseña es obligatoria.',
-        'password.confirmed' => 'Las contraseñas no coinciden.',
-        'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
-        'rol.required' => 'Debe seleccionar un rol.',
-        'rol.exists' => 'El rol seleccionado no es válido.',
-        'telefono.max' => 'El teléfono debe tener máximo 9 dígitos.',
-    ];
+    public function store(Request $request)
+    {
+        // Mensajes personalizados en español
+        $messages = [
+            'dni.required' => 'El DNI es obligatorio.',
+            'dni.unique' => 'Este DNI ya está registrado en el sistema.',
+            'dni.max' => 'El DNI debe tener máximo 8 dígitos.',
+            'nombre_usuario.required' => 'El nombre de usuario es obligatorio.',
+            'nombre_usuario.unique' => 'Este nombre de usuario ya está en uso.',
+            'nombre.required' => 'El nombre es obligatorio.',
+            'apellido_paterno.required' => 'El apellido paterno es obligatorio.',
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.email' => 'Ingrese un correo electrónico válido.',
+            'email.unique' => 'Este correo electrónico ya está registrado.',
+            'password.required' => 'La contraseña es obligatoria.',
+            'password.confirmed' => 'Las contraseñas no coinciden.',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
+            'rol.required' => 'Debe seleccionar un rol.',
+            'rol.exists' => 'El rol seleccionado no es válido.',
+            'telefono.max' => 'El teléfono debe tener máximo 9 dígitos.',
+        ];
 
-    // Validación básica del usuario
-    $request->validate([
-        'dni' => 'required|unique:users,dni|max:8',
-        'nombre_usuario' => 'required|unique:users,nombre_usuario',
-        'nombre' => 'required',
-        'apellido_paterno' => 'required',
-        'email' => 'required|email|unique:users,email',
-        'password' => 'required|confirmed|min:8',
-        'rol' => 'required|exists:roles,id',
-        'telefono' => 'nullable|max:9',
-    ], $messages);
+        // Validación básica del usuario
+        $request->validate([
+            'dni' => 'required|unique:users,dni|max:8',
+            'nombre_usuario' => 'required|unique:users,nombre_usuario',
+            'nombre' => 'required',
+            'apellido_paterno' => 'required',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|confirmed|min:8',
+            'rol' => 'required|exists:roles,id',
+            'telefono' => 'nullable|max:9',
+        ], $messages);
 
-    // Crear el usuario
-    $user = User::create([
-        'dni' => $request->dni,
-        'nombre_usuario' => $request->nombre_usuario,
-        'nombre' => mb_strtoupper($request->nombre, 'UTF-8'),
-        'apellido_paterno' => mb_strtoupper($request->apellido_paterno, 'UTF-8'),
-        'apellido_materno' => $request->apellido_materno ? mb_strtoupper($request->apellido_materno, 'UTF-8') : null,
-        'email' => $request->email,
-        'password' => Hash::make($request->password),
-        'foto_path' => null,
-        'estado' => '1',
-        'telefono' => $request->telefono ?? null,
-    ]);
+        // Crear el usuario
+        $user = User::create([
+            'dni' => $request->dni,
+            'nombre_usuario' => $request->nombre_usuario,
+            'nombre' => mb_strtoupper($request->nombre, 'UTF-8'),
+            'apellido_paterno' => mb_strtoupper($request->apellido_paterno, 'UTF-8'),
+            'apellido_materno' => $request->apellido_materno ? mb_strtoupper($request->apellido_materno, 'UTF-8') : null,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'foto_path' => null,
+            'estado' => '1',
+            'telefono' => $request->telefono ?? null,
+        ]);
 
-    // Asignar el rol al usuario
-    $user->roles()->attach($request->rol);
+        // Asignar el rol al usuario
+        $user->roles()->attach($request->rol);
 
-    // Crear el registro específico según el rol
-    $this->crearRegistroPorRol($user, $request);
+        // Crear el registro específico según el rol
+        $this->crearRegistroPorRol($user, $request);
 
-    return redirect()->route('user.index')->with('success', 'Usuario creado exitosamente.');
-}
-
-private function crearRegistroPorRol(User $user, Request $request)
-{
-    // Mensajes personalizados por rol
-    $messages = [
-        'grado_id.required' => 'El grado es obligatorio para estudiantes.',
-        'grado_id.exists' => 'El grado seleccionado no es válido.',
-        'fecha_nacimiento.date' => 'Ingrese una fecha de nacimiento válida.',
-        'apoderado_id.required_if' => 'Debe seleccionar un apoderado.',
-        'apoderado_id.exists' => 'El apoderado seleccionado no es válido.',
-        'parentesco.required' => 'El parentesco es obligatorio.',
-        'parentesco.in' => 'Seleccione un parentesco válido.',
-        'especialidad.max' => 'La especialidad no debe exceder 100 caracteres.',
-        'materia_id.exists' => 'La materia seleccionada no es válida.',
-        'turno.in' => 'Seleccione un turno válido.',
-        'funciones.max' => 'Las funciones no deben exceder 50 caracteres.',
-    ];
-
-    switch ($request->rol) {
-        case 6: // Estudiante
-            $request->validate([
-                'grado_id' => 'required|exists:grados,id',
-                'fecha_nacimiento' => 'nullable|date',
-                'apoderado_id' => 'required_if:sin_apoderado,false|nullable|exists:apoderados,id',
-                'parentesco' => 'required_if:sin_apoderado,false|nullable|in:padre,madre,tutor,otro',
-            ], $messages);
-
-            Estudiante::create([
-                'user_id' => $user->id,
-                'grado_id' => $request->grado_id,
-                'apoderado_id' => $request->sin_apoderado ? null : $request->apoderado_id,
-                'fecha_nacimiento' => $request->fecha_nacimiento ?? null,
-                'parentesco' => $request->sin_apoderado ? null : $request->parentesco,
-                'estado' => '1',
-            ]);
-            break;
-
-        case 3: // Docente
-            $request->validate([
-                'especialidad' => 'nullable|string|max:100',
-                'materia_id' => 'nullable|exists:materias,id',
-            ], $messages);
-
-            Docente::create([
-                'user_id' => $user->id,
-                'especialidad' => $request->especialidad ?? null,
-                'materia_id' => $request->materia_id ?? null,
-                'estado' => '1',
-            ]);
-            break;
-
-        case 5: // Apoderado
-            $request->validate([
-                'parentesco' => 'required|in:padre,madre,tutor,otro',
-            ], $messages);
-
-            Apoderado::create([
-                'user_id' => $user->id,
-                'parentesco' => $request->parentesco,
-                'estado' => '1',
-            ]);
-            break;
-
-        case 4: // Auxiliar
-            $request->validate([
-                'turno' => 'nullable|in:mañana,tarde,completo',
-                'funciones' => 'nullable|string|max:50',
-            ], $messages);
-
-            Auxiliar::create([
-                'user_id' => $user->id,
-                'turno' => $request->turno ?? null,
-                'funciones' => $request->funciones ?? null,
-                'estado' => '1',
-            ]);
-            break;
-
-        case 2: // Director
-            Director::create([
-                'user_id' => $user->id,
-                'estado' => 1,
-            ]);
-            break;
-
-        case 1: // Admin
-            break;
-
-        default:
-            throw new \Exception("Rol no válido");
+        return redirect()->route('user.index')->with('success', 'Usuario creado exitosamente.');
     }
-}
+
+    private function crearRegistroPorRol(User $user, Request $request)
+    {
+        // Mensajes personalizados por rol
+        $messages = [
+            'grado_id.required' => 'El grado es obligatorio para estudiantes.',
+            'grado_id.exists' => 'El grado seleccionado no es válido.',
+            'fecha_nacimiento.date' => 'Ingrese una fecha de nacimiento válida.',
+            'apoderado_id.required_if' => 'Debe seleccionar un apoderado.',
+            'apoderado_id.exists' => 'El apoderado seleccionado no es válido.',
+            'parentesco.required' => 'El parentesco es obligatorio.',
+            'parentesco.in' => 'Seleccione un parentesco válido.',
+            'especialidad.max' => 'La especialidad no debe exceder 100 caracteres.',
+            'materia_id.exists' => 'La materia seleccionada no es válida.',
+            'turno.in' => 'Seleccione un turno válido.',
+            'funciones.max' => 'Las funciones no deben exceder 50 caracteres.',
+        ];
+
+        switch ($request->rol) {
+            case 6: // Estudiante
+                $request->validate([
+                    'grado_id' => 'required|exists:grados,id',
+                    'fecha_nacimiento' => 'nullable|date',
+                    'apoderado_id' => 'required_if:sin_apoderado,false|nullable|exists:apoderados,id',
+                    'parentesco' => 'required_if:sin_apoderado,false|nullable|in:padre,madre,tutor,otro',
+                ], $messages);
+
+                Estudiante::create([
+                    'user_id' => $user->id,
+                    'grado_id' => $request->grado_id,
+                    'apoderado_id' => $request->sin_apoderado ? null : $request->apoderado_id,
+                    'fecha_nacimiento' => $request->fecha_nacimiento ?? null,
+                    'parentesco' => $request->sin_apoderado ? null : $request->parentesco,
+                    'estado' => '1',
+                ]);
+                break;
+
+            case 3: // Docente
+                $request->validate([
+                    'especialidad' => 'nullable|string|max:100',
+                    'materia_id' => 'nullable|exists:materias,id',
+                ], $messages);
+
+                Docente::create([
+                    'user_id' => $user->id,
+                    'especialidad' => $request->especialidad ?? null,
+                    'materia_id' => $request->materia_id ?? null,
+                    'estado' => '1',
+                ]);
+                break;
+
+            case 5: // Apoderado
+                $request->validate([
+                    'parentesco' => 'required|in:padre,madre,tutor,otro',
+                ], $messages);
+
+                Apoderado::create([
+                    'user_id' => $user->id,
+                    'parentesco' => $request->parentesco,
+                    'estado' => '1',
+                ]);
+                break;
+
+            case 4: // Auxiliar
+                $request->validate([
+                    'turno' => 'nullable|in:mañana,tarde,completo',
+                    'funciones' => 'nullable|string|max:50',
+                ], $messages);
+
+                Auxiliar::create([
+                    'user_id' => $user->id,
+                    'turno' => $request->turno ?? null,
+                    'funciones' => $request->funciones ?? null,
+                    'estado' => '1',
+                ]);
+                break;
+
+            case 2: // Director
+                Director::create([
+                    'user_id' => $user->id,
+                    'estado' => 1,
+                ]);
+                break;
+
+            case 1: // Admin
+                break;
+
+            default:
+                throw new \Exception("Rol no válido");
+        }
+    }
 
     public function edit(User $user)
     {
