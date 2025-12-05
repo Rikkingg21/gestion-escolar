@@ -367,209 +367,222 @@ class UserController extends Controller
         }
     }
 
-    public function edit(User $user)
-    {
-        $roles = Role::all();
-        $grados = Grado::where('estado', 1)->get();
+public function edit(User $user)
+{
+    $roles = Role::all();
+    $grados = Grado::where('estado', 1)->get();
 
-        // Cargar relaciones según el rol del usuario
-        if($user->hasRole('Estudiante')) { // Nota: 'Estudiante' con mayúscula si tu rol se llama así
-            $user->load('estudiante.grado', 'estudiante.apoderado.user');
-        } elseif($user->hasRole('Docente')) {
-            $user->load('docente');
-        } elseif($user->hasRole('Apoderado')) {
-            $user->load('apoderado');
-        } elseif($user->hasRole('Auxiliar')) {
-            $user->load('auxiliar');
+    // Cargar todas las relaciones del usuario
+    $user->load([
+        'roles',
+        'estudiante.grado',
+        'estudiante.apoderado.user',
+        'docente',
+        'apoderado',
+        'auxiliar',
+        'director'
+    ]);
+
+    return view('user.edit', compact('user', 'roles', 'grados'));
+}
+public function update(Request $request, User $user)
+{
+    // Validar datos básicos del usuario
+    $userData = $request->validate([
+        'dni' => 'required|string|max:8|unique:users,dni,' . $user->id,
+        'nombre_usuario' => 'required|string|max:50|unique:users,nombre_usuario,' . $user->id,
+        'nombre' => 'required|string|max:50',
+        'apellido_paterno' => 'required|string|max:50',
+        'apellido_materno' => 'nullable|string|max:50',
+        'email' => 'required|email|unique:users,email,' . $user->id,
+        'telefono' => 'nullable|string|max:9',
+        'estado' => 'required|in:0,1,2',
+        'password' => 'nullable|string|min:8|confirmed',
+    ]);
+
+    // Validar que existan roles
+    $request->validate([
+        'roles' => 'required|array|min:1',
+        'roles.*' => 'exists:roles,id',
+    ]);
+
+    // Procesar los datos específicos por rol
+    $roles = $request->input('roles', []);
+    $rolesNombres = Role::whereIn('id', $roles)->pluck('nombre')->map(fn($name) => strtolower($name))->toArray();
+
+    // Validar campos específicos según roles
+    foreach ($rolesNombres as $index => $rolNombre) {
+        switch ($rolNombre) {
+            case 'estudiante':
+                $request->validate([
+                    'estudiante_grado.' . $index => 'required|exists:grados,id',
+                    'estudiante_fecha_nacimiento.' . $index => 'required|date',
+                ]);
+                break;
+
+            case 'docente':
+                $request->validate([
+                    'docente_estado.' . $index => 'required|in:0,1',
+                ]);
+                break;
+
+            case 'apoderado':
+                $request->validate([
+                    'apoderado_parentesco.' . $index => 'required|string|max:50',
+                    'apoderado_estado.' . $index => 'required|in:0,1',
+                ]);
+                break;
+
+            case 'auxiliar':
+                $request->validate([
+                    'auxiliar_turno.' . $index => 'required|in:mañana,tarde,noche',
+                    'auxiliar_estado.' . $index => 'required|in:0,1',
+                    'auxiliar_funciones.' . $index => 'nullable|string',
+                ]);
+                break;
+
+            case 'director':
+                $request->validate([
+                    'director_estado.' . $index => 'required|in:0,1',
+                ]);
+                break;
         }
-
-        return view('user.edit', compact('user', 'roles', 'grados'));
     }
 
-    public function update(Request $request, User $user)
-    {
-        try {
-            // Mensajes personalizados
-            $messages = [
-                'dni.required' => 'El DNI es obligatorio.',
-                'dni.unique' => 'Este DNI ya está registrado por otro usuario.',
-                'dni.max' => 'El DNI debe tener máximo 8 dígitos.',
-                'nombre_usuario.required' => 'El nombre de usuario es obligatorio.',
-                'nombre_usuario.unique' => 'Este nombre de usuario ya está en uso.',
-                'nombre.required' => 'El nombre es obligatorio.',
-                'apellido_paterno.required' => 'El apellido paterno es obligatorio.',
-                'email.required' => 'El correo electrónico es obligatorio.',
-                'email.email' => 'Ingrese un correo electrónico válido.',
-                'email.unique' => 'Este correo electrónico ya está registrado.',
-                'password.confirmed' => 'Las contraseñas no coinciden.',
-                'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
-                'rol.required' => 'Debe seleccionar un rol.',
-                'rol.exists' => 'El rol seleccionado no es válido.',
-                'estado.required' => 'El estado es obligatorio.',
-                'estado.in' => 'El estado seleccionado no es válido.',
-                'telefono.max' => 'El teléfono debe tener máximo 9 dígitos.',
-                'grado_id.required' => 'El grado es obligatorio para estudiantes.',
-                'grado_id.exists' => 'El grado seleccionado no es válido.',
-                'fecha_nacimiento.date' => 'Ingrese una fecha de nacimiento válida.',
-                'apoderado_id.required_if' => 'Debe seleccionar un apoderado.',
-                'apoderado_id.exists' => 'El apoderado seleccionado no es válido.',
-                'parentesco.required' => 'El parentesco es obligatorio.',
-                'parentesco.in' => 'Seleccione un parentesco válido.',
-                'especialidad.max' => 'La especialidad no debe exceder 100 caracteres.',
-                'materia_id.exists' => 'La materia seleccionada no es válida.',
-                'turno.in' => 'Seleccione un turno válido.',
-                'funciones.max' => 'Las funciones no deben exceder 50 caracteres.',
-            ];
+    // Iniciar transacción para asegurar consistencia
+    DB::beginTransaction();
 
-            // Validación básica del usuario
-            $request->validate([
-                'dni' => 'required|max:8|unique:users,dni,'.$user->id,
-                'nombre_usuario' => 'required|unique:users,nombre_usuario,'.$user->id,
-                'nombre' => 'required',
-                'apellido_paterno' => 'required',
-                'email' => 'required|email|unique:users,email,'.$user->id,
-                'password' => 'nullable|confirmed|min:8',
-                'rol' => 'required|exists:roles,id',
-                'estado' => 'required|in:0,1,2',
-                'telefono' => 'nullable|max:9',
-            ], $messages);
+    try {
+        // Preparar datos del usuario - NO incluir password si está vacío
+        $userUpdateData = [
+            'dni' => $userData['dni'],
+            'nombre_usuario' => $userData['nombre_usuario'],
+            'nombre' => $userData['nombre'],
+            'apellido_paterno' => $userData['apellido_paterno'],
+            'apellido_materno' => $userData['apellido_materno'],
+            'email' => $userData['email'],
+            'telefono' => $userData['telefono'],
+            'estado' => $userData['estado'],
+        ];
 
-            // Actualizar el usuario
-            $userData = [
-                'dni' => $request->dni,
-                'nombre_usuario' => $request->nombre_usuario,
-                'nombre' => mb_strtoupper($request->nombre, 'UTF-8'),
-                'apellido_paterno' => mb_strtoupper($request->apellido_paterno, 'UTF-8'),
-                'apellido_materno' => $request->apellido_materno ? mb_strtoupper($request->apellido_materno, 'UTF-8') : null,
-                'email' => $request->email,
-                'estado' => $request->estado,
-                'telefono' => $request->telefono ?? null,
-                'foto_path' => null, // Siempre null, sin foto
-            ];
+        // Solo actualizar password si se proporcionó una nueva
+        if ($request->filled('password')) {
+            $userUpdateData['password'] = Hash::make($request->password);
+        }
 
-            // Solo actualizar la contraseña si se proporcionó
-            if ($request->filled('password')) {
-                $userData['password'] = Hash::make($request->password);
+        $user->update($userUpdateData);
+
+        // Sincronizar roles (elimina los antiguos y agrega los nuevos)
+        $user->roles()->sync($request->roles);
+
+        // Actualizar o crear modelos específicos según roles
+        foreach ($rolesNombres as $index => $rolNombre) {
+            switch ($rolNombre) {
+                case 'estudiante':
+                    $estudianteData = [
+                        'grado_id' => $request->input("estudiante_grado.$index"),
+                        'fecha_nacimiento' => $request->input("estudiante_fecha_nacimiento.$index"),
+                        'estado' => '1', // Estado por defecto para estudiante
+                    ];
+
+                    if ($user->estudiante) {
+                        $user->estudiante->update($estudianteData);
+                    } else {
+                        Estudiante::create(array_merge($estudianteData, ['user_id' => $user->id]));
+                    }
+                    break;
+
+                case 'docente':
+                    $docenteData = [
+                        'estado' => $request->input("docente_estado.$index", '1'),
+                    ];
+
+                    if ($user->docente) {
+                        $user->docente->update($docenteData);
+                    } else {
+                        Docente::create(array_merge($docenteData, ['user_id' => $user->id]));
+                    }
+                    break;
+
+                case 'apoderado':
+                    $apoderadoData = [
+                        'parentesco' => $request->input("apoderado_parentesco.$index"),
+                        'estado' => $request->input("apoderado_estado.$index", '1'),
+                    ];
+
+                    if ($user->apoderado) {
+                        $user->apoderado->update($apoderadoData);
+                    } else {
+                        Apoderado::create(array_merge($apoderadoData, ['user_id' => $user->id]));
+                    }
+                    break;
+
+                case 'auxiliar':
+                    $auxiliarData = [
+                        'turno' => $request->input("auxiliar_turno.$index"),
+                        'funciones' => $request->input("auxiliar_funciones.$index"),
+                        'estado' => $request->input("auxiliar_estado.$index", '1'),
+                    ];
+
+                    if ($user->auxiliar) {
+                        $user->auxiliar->update($auxiliarData);
+                    } else {
+                        Auxiliar::create(array_merge($auxiliarData, ['user_id' => $user->id]));
+                    }
+                    break;
+
+                case 'director':
+                    $directorData = [
+                        'estado' => $request->input("director_estado.$index", '1'),
+                    ];
+
+                    if ($user->director) {
+                        $user->director->update($directorData);
+                    } else {
+                        Director::create(array_merge($directorData, ['user_id' => $user->id]));
+                    }
+                    break;
             }
-
-            $user->update($userData);
-
-            // Actualizar el rol del usuario
-            $user->roles()->sync([$request->rol]);
-
-            // Actualizar o crear el registro específico según el rol
-            $this->actualizarRegistroPorRol($user, $request);
-
-            return redirect()->route('user.index')
-                ->with('success', 'Usuario actualizado exitosamente.');
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return redirect()->back()
-                ->withErrors($e->validator)
-                ->withInput();
-        } catch (\Exception $e) {
-            return redirect()->back()
-                ->with('error', 'Error al actualizar usuario: ' . $e->getMessage())
-                ->withInput();
         }
-    }
 
-    private function actualizarRegistroPorRol(User $user, Request $request)
-    {
-        // Validar campos específicos según rol
-        switch ($request->rol) {
-            case 6: // Estudiante
-                $request->validate([
-                    'grado_id' => 'required|exists:grados,id',
-                    'fecha_nacimiento' => 'nullable|date',
-                    'apoderado_id' => 'nullable|exists:apoderados,id',
-                    'parentesco' => 'nullable|in:padre,madre,tutor,otro',
-                    'estado_estudiante' => 'nullable|in:0,1',
-                ]);
+        // Eliminar modelos específicos para roles que ya no tiene
+        $rolesAEliminar = array_diff(['estudiante', 'docente', 'apoderado', 'auxiliar', 'director'], $rolesNombres);
 
-                $estudianteData = [
-                    'grado_id' => $request->grado_id,
-                    'apoderado_id' => $request->sin_apoderado ? null : ($request->apoderado_id ?? null),
-                    'fecha_nacimiento' => $request->fecha_nacimiento ?? null,
-                    'parentesco' => $request->sin_apoderado ? null : ($request->parentesco ?? null),
-                    'estado' => $request->estado_estudiante ?? '1',
-                ];
-
-                if ($user->estudiante) {
-                    $user->estudiante->update($estudianteData);
-                } else {
-                    $estudianteData['user_id'] = $user->id;
-                    Estudiante::create($estudianteData);
-                }
-                break;
-
-            case 3: // Docente
-                $request->validate([
-
-                    'estado_docente' => 'nullable|in:0,1',
-                ]);
-
-                $docenteData = [
-                    'estado' => $request->estado_docente ?? 1,
-                ];
-
-                if ($user->docente) {
-                    $user->docente->update($docenteData);
-                } else {
-                    $docenteData['user_id'] = $user->id;
-                    Docente::create($docenteData);
-                }
-                break;
-
-            case 5: // Apoderado
-                $request->validate([
-                    'parentesco' => 'required|in:padre,madre,tutor,otro',
-                    'estado_apoderado' => 'nullable|in:0,1',
-                ]);
-
-                $apoderadoData = [
-                    'parentesco' => $request->parentesco,
-                    'estado' => $request->estado_apoderado ?? '1',
-                ];
-
-                if ($user->apoderado) {
-                    $user->apoderado->update($apoderadoData);
-                } else {
-                    $apoderadoData['user_id'] = $user->id;
-                    Apoderado::create($apoderadoData);
-                }
-                break;
-
-            case 4: // Auxiliar
-                $request->validate([
-                    'turno' => 'nullable|in:mañana,tarde,completo',
-                    'funciones' => 'nullable|string|max:50',
-                    'estado_auxiliar' => 'nullable|in:0,1',
-                ]);
-
-                $auxiliarData = [
-                    'turno' => $request->turno ?? null,
-                    'funciones' => $request->funciones ?? null,
-                    'estado' => $request->estado_auxiliar ?? '1',
-                ];
-
-                if ($user->auxiliar) {
-                    $user->auxiliar->update($auxiliarData);
-                } else {
-                    $auxiliarData['user_id'] = $user->id;
-                    Auxiliar::create($auxiliarData);
-                }
-                break;
-
-            case 2: // Director
-                if ($user->director) {
-                    $user->director->update(['estado' => 1]);
-                } else {
-                    Director::create(['user_id' => $user->id, 'estado' => 1]);
-                }
-                break;
+        foreach ($rolesAEliminar as $rolAEliminar) {
+            switch ($rolAEliminar) {
+                case 'estudiante':
+                    $user->estudiante?->delete();
+                    break;
+                case 'docente':
+                    $user->docente?->delete();
+                    break;
+                case 'apoderado':
+                    $user->apoderado?->delete();
+                    break;
+                case 'auxiliar':
+                    $user->auxiliar?->delete();
+                    break;
+                case 'director':
+                    $user->director?->delete();
+                    break;
+            }
         }
+
+        DB::commit();
+
+        return redirect()->route('user.index')
+            ->with('success', 'Usuario actualizado correctamente.');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        // Log del error para debugging
+        \Log::error('Error al actualizar usuario: ' . $e->getMessage());
+        \Log::error('Trace: ' . $e->getTraceAsString());
+
+        return back()->with('error', 'Error al actualizar el usuario: ' . $e->getMessage());
     }
+}
     public function importar()
     {
         return view('user.importar');

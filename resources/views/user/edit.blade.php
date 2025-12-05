@@ -8,7 +8,7 @@
             <div class="card shadow">
                 <div class="card-header bg-warning text-dark">
                     <h5 class="mb-0">
-                        <i class="bi bi-pencil-square me-2"></i>Editar Usuario
+                        <i class="bi bi-pencil-square me-2"></i>Editar Usuario: {{ $user->nombre }} {{ $user->apellido_paterno }}
                     </h5>
                 </div>
 
@@ -35,11 +35,11 @@
                         </div>
                     @endif
 
-                    <form method="POST" action="{{ route('user.update', $user->id) }}">
+                    <form method="POST" action="{{ route('user.update', $user->id) }}" id="form-editar-usuario">
                         @csrf
                         @method('PUT')
 
-                        <!-- Datos básicos del usuario -->
+                        <!-- Datos básicos -->
                         <div class="row mb-4">
                             <div class="col-12">
                                 <h6 class="border-bottom pb-2 mb-3">
@@ -124,8 +124,7 @@
                                     <label for="telefono" class="form-label">Teléfono</label>
                                     <input type="text" class="form-control @error('telefono') is-invalid @enderror"
                                            id="telefono" name="telefono"
-                                           value="{{ old('telefono', $user->telefono) }}"
-                                           maxlength="9">
+                                           value="{{ old('telefono', $user->telefono) }}" maxlength="9">
                                     @error('telefono')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -139,32 +138,36 @@
                                 <h6 class="border-bottom pb-2 mb-3">
                                     <i class="bi bi-shield-lock me-2"></i>Credenciales de Acceso
                                 </h6>
+                                <div class="alert alert-info mb-3">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Deje estos campos en blanco si no desea cambiar la contraseña.
+                                </div>
                             </div>
 
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="password" class="form-label">Contraseña</label>
+                                    <label for="password" class="form-label">Nueva Contraseña</label>
                                     <input type="password" class="form-control @error('password') is-invalid @enderror"
                                            id="password" name="password"
-                                           placeholder="Dejar en blanco para no cambiar">
+                                           placeholder="Dejar en blanco para no cambiar"
+                                           minlength="8">
                                     @error('password')
                                         <div class="invalid-feedback">{{ $message }}</div>
-                                    @else
-                                        <div class="form-text">Mínimo 8 caracteres. Déjelo vacío si no desea cambiarla.</div>
                                     @enderror
                                 </div>
                             </div>
 
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="password_confirmation" class="form-label">Confirmar Contraseña</label>
+                                    <label for="password_confirmation" class="form-label">Confirmar Nueva Contraseña</label>
                                     <input type="password" class="form-control"
-                                           id="password_confirmation" name="password_confirmation">
+                                           id="password_confirmation" name="password_confirmation"
+                                           placeholder="Confirmar nueva contraseña">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Rol y Estado -->
+                        <!-- Estado -->
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="mb-3">
@@ -180,294 +183,228 @@
                                     @enderror
                                 </div>
                             </div>
-
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="rol" class="form-label fw-bold">Rol <span class="text-danger">*</span></label>
-                                    <select class="form-select @error('rol') is-invalid @enderror"
-                                            id="rol" name="rol" required>
-                                        <option value="">Seleccione un rol</option>
-                                        @php
-                                            $currentSessionRole = session('sessionmain') && session('sessionmain')->roles->isNotEmpty()
-                                                ? session('sessionmain')->roles->first()->nombre
-                                                : null;
-                                        @endphp
-
-                                        @foreach($roles as $role)
-                                            @if ($currentSessionRole === 'admin' || $role->id !== 1)
-                                                <option value="{{ $role->id }}"
-                                                    {{ old('rol', $user->roles->first()->id ?? '') == $role->id ? 'selected' : '' }}
-                                                    data-role-name="{{ strtolower($role->nombre) }}">
-                                                    {{ $role->nombre }}
-                                                </option>
-                                            @endif
-                                        @endforeach
-                                    </select>
-                                    @error('rol')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
                         </div>
 
-                        <!-- Campos dinámicos según rol actual -->
-                        <!-- Se muestran según el rol actual del usuario -->
+                        <!-- Roles -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h6 class="border-bottom pb-2 mb-3">
+                                    <i class="bi bi-person-badge me-2"></i>Roles y Campos Específicos
+                                </h6>
 
-                        <!-- Estudiante -->
-                        @if($user->estudiante)
-                        <div id="campos-estudiante" class="campos-rol mb-4">
-                            <div class="card border-primary">
-                                <div class="card-header bg-primary bg-opacity-10 text-primary">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-mortarboard me-2"></i>Datos del Estudiante
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="estado_estudiante" class="form-label">Estado del Estudiante</label>
-                                                <select class="form-select @error('estado_estudiante') is-invalid @enderror"
-                                                        id="estado_estudiante" name="estado_estudiante">
-                                                    <option value="1" {{ old('estado_estudiante', $user->estudiante->estado ?? '') == '1' ? 'selected' : '' }}>Activo</option>
-                                                    <option value="0" {{ old('estado_estudiante', $user->estudiante->estado ?? '') == '0' ? 'selected' : '' }}>Inactivo</option>
-                                                </select>
-                                                @error('estado_estudiante')
-                                                    <div class="invalid-feedback">{{ $message }}</div>
-                                                @enderror
+                                <div id="rolesContainer">
+                                    @php
+                                        $userRoles = $user->roles->pluck('id')->toArray();
+                                        $oldRoles = old('roles', $userRoles);
+                                        $currentSessionRole = session('sessionmain')->roles->first()->nombre ?? null;
+                                        $rolesDisponibles = $roles->whereNotIn('id', $userRoles);
+
+                                        if ($currentSessionRole !== 'admin') {
+                                            $rolesDisponibles = $rolesDisponibles->where('id', '!=', 1);
+                                        }
+
+                                        $datosEspecificos = [
+                                            'estudiante' => $user->estudiante,
+                                            'docente' => $user->docente,
+                                            'apoderado' => $user->apoderado,
+                                            'auxiliar' => $user->auxiliar,
+                                            'director' => $user->director
+                                        ];
+                                    @endphp
+
+                                    @foreach($oldRoles as $index => $roleId)
+                                        @php
+                                            $rol = $roles->where('id', $roleId)->first();
+                                            $rolNombre = strtolower($rol->nombre ?? '');
+                                            $datosRol = $datosEspecificos[$rolNombre] ?? null;
+                                        @endphp
+                                        <div class="rol-item mb-4 p-3 border rounded-3 bg-light border-2 {{ $index === 0 ? 'border-primary' : 'border-secondary' }}"
+                                             data-role-id="{{ $roleId }}" data-role-name="{{ $rolNombre }}">
+                                            <div class="row align-items-center mb-3">
+                                                <div class="col-md-12">
+                                                    <label class="form-label {{ $index === 0 ? 'fw-bold text-dark' : 'text-muted' }} d-block">
+                                                        {{ $index === 0 ? 'Rol Principal' : 'Rol Adicional ' . ($index + 1) }}
+                                                    </label>
+                                                    <input type="hidden" name="roles[]" value="{{ $roleId }}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="badge bg-primary me-2">{{ $rol->nombre ?? 'Rol' }}</span>
+                                                        @if($index === 0)
+                                                            <span class="badge bg-success">Principal</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Campos específicos -->
+                                            <div class="campos-especificos">
+                                                @switch($rolNombre)
+                                                    @case('estudiante')
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Grado</label>
+                                                                    <select name="estudiante_grado[{{ $index }}]" class="form-select @error('estudiante_grado.' . $index) is-invalid @enderror">
+                                                                        <option value="">Seleccionar grado</option>
+                                                                        @foreach($grados as $grado)
+                                                                            <option value="{{ $grado->id }}" {{ old('estudiante_grado.' . $index, $datosRol->grado_id ?? '') == $grado->id ? 'selected' : '' }}>
+                                                                                {{ $grado->nombre }}
+                                                                            </option>
+                                                                        @endforeach
+                                                                    </select>
+                                                                    @error('estudiante_grado.' . $index)
+                                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                                    @enderror
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Fecha de Nacimiento</label>
+                                                                    <input type="date" name="estudiante_fecha_nacimiento[{{ $index }}]"
+                                                                           class="form-control @error('estudiante_fecha_nacimiento.' . $index) is-invalid @enderror"
+                                                                           value="{{ old('estudiante_fecha_nacimiento.' . $index, $datosRol->fecha_nacimiento ?? '') }}">
+                                                                    @error('estudiante_fecha_nacimiento.' . $index)
+                                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                                    @enderror
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        @break
+
+                                                    @case('docente')
+                                                        <div class="row">
+                                                            <div class="col-md-12">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Estado del Docente</label>
+                                                                    <select name="docente_estado[{{ $index }}]" class="form-select @error('docente_estado.' . $index) is-invalid @enderror">
+                                                                        <option value="1" {{ old('docente_estado.' . $index, $datosRol->estado ?? '1') == '1' ? 'selected' : '' }}>Activo</option>
+                                                                        <option value="0" {{ old('docente_estado.' . $index, $datosRol->estado ?? '') == '0' ? 'selected' : '' }}>Inactivo</option>
+                                                                    </select>
+                                                                    @error('docente_estado.' . $index)
+                                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                                    @enderror
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        @break
+
+                                                    @case('apoderado')
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Parentesco</label>
+                                                                    <input type="text" name="apoderado_parentesco[{{ $index }}]"
+                                                                           class="form-control @error('apoderado_parentesco.' . $index) is-invalid @enderror"
+                                                                           value="{{ old('apoderado_parentesco.' . $index, $datosRol->parentesco ?? '') }}"
+                                                                           placeholder="Ej: Padre, Madre, Tutor">
+                                                                    @error('apoderado_parentesco.' . $index)
+                                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                                    @enderror
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Estado del Apoderado</label>
+                                                                    <select name="apoderado_estado[{{ $index }}]" class="form-select @error('apoderado_estado.' . $index) is-invalid @enderror">
+                                                                        <option value="1" {{ old('apoderado_estado.' . $index, $datosRol->estado ?? '1') == '1' ? 'selected' : '' }}>Activo</option>
+                                                                        <option value="0" {{ old('apoderado_estado.' . $index, $datosRol->estado ?? '') == '0' ? 'selected' : '' }}>Inactivo</option>
+                                                                    </select>
+                                                                    @error('apoderado_estado.' . $index)
+                                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                                    @enderror
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        @break
+
+                                                    @case('auxiliar')
+                                                        <div class="row">
+                                                            <div class="col-md-4">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Turno</label>
+                                                                    <select name="auxiliar_turno[{{ $index }}]" class="form-select @error('auxiliar_turno.' . $index) is-invalid @enderror">
+                                                                        <option value="mañana" {{ old('auxiliar_turno.' . $index, $datosRol->turno ?? '') == 'mañana' ? 'selected' : '' }}>Mañana</option>
+                                                                        <option value="tarde" {{ old('auxiliar_turno.' . $index, $datosRol->turno ?? '') == 'tarde' ? 'selected' : '' }}>Tarde</option>
+                                                                        <option value="noche" {{ old('auxiliar_turno.' . $index, $datosRol->turno ?? '') == 'noche' ? 'selected' : '' }}>Noche</option>
+                                                                    </select>
+                                                                    @error('auxiliar_turno.' . $index)
+                                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                                    @enderror
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Estado del Auxiliar</label>
+                                                                    <select name="auxiliar_estado[{{ $index }}]" class="form-select @error('auxiliar_estado.' . $index) is-invalid @enderror">
+                                                                        <option value="1" {{ old('auxiliar_estado.' . $index, $datosRol->estado ?? '1') == '1' ? 'selected' : '' }}>Activo</option>
+                                                                        <option value="0" {{ old('auxiliar_estado.' . $index, $datosRol->estado ?? '') == '0' ? 'selected' : '' }}>Inactivo</option>
+                                                                    </select>
+                                                                    @error('auxiliar_estado.' . $index)
+                                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                                    @enderror
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Funciones</label>
+                                                                    <textarea name="auxiliar_funciones[{{ $index }}]"
+                                                                              class="form-control @error('auxiliar_funciones.' . $index) is-invalid @enderror"
+                                                                              rows="2">{{ old('auxiliar_funciones.' . $index, $datosRol->funciones ?? '') }}</textarea>
+                                                                    @error('auxiliar_funciones.' . $index)
+                                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                                    @enderror
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        @break
+
+                                                    @case('director')
+                                                        <div class="row">
+                                                            <div class="col-md-12">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Estado del Director</label>
+                                                                    <select name="director_estado[{{ $index }}]" class="form-select @error('director_estado.' . $index) is-invalid @enderror">
+                                                                        <option value="1" {{ old('director_estado.' . $index, $datosRol->estado ?? '1') == '1' ? 'selected' : '' }}>Activo</option>
+                                                                        <option value="0" {{ old('director_estado.' . $index, $datosRol->estado ?? '') == '0' ? 'selected' : '' }}>Inactivo</option>
+                                                                    </select>
+                                                                    @error('director_estado.' . $index)
+                                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                                    @enderror
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        @break
+                                                @endswitch
                                             </div>
                                         </div>
+                                    @endforeach
 
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="grado_id" class="form-label fw-bold">Grado <span class="text-danger">*</span></label>
-                                                <select class="form-select @error('grado_id') is-invalid @enderror"
-                                                        id="grado_id" name="grado_id">
-                                                    <option value="">Seleccione un grado</option>
-                                                    @foreach($grados as $grado)
-                                                        <option value="{{ $grado->id }}"
-                                                            {{ old('grado_id', $user->estudiante->grado_id ?? '') == $grado->id ? 'selected' : '' }}>
-                                                            {{ $grado->nombre_completo }}
+                                    <!-- Nuevos roles -->
+                                    <div id="nuevosRolesContainer"></div>
+
+                                    <!-- Agregar nuevo rol -->
+                                    @if($rolesDisponibles->count() > 0)
+                                        <div class="row">
+                                            <div class="col-md-8">
+                                                <label class="form-label">Agregar nuevo rol:</label>
+                                                <select class="form-select" id="selectNuevoRol">
+                                                    <option value="">Seleccione un rol para agregar</option>
+                                                    @foreach($rolesDisponibles as $rol)
+                                                        <option value="{{ $rol->id }}" data-name="{{ strtolower($rol->nombre) }}">
+                                                            {{ $rol->nombre }}
                                                         </option>
                                                     @endforeach
                                                 </select>
-                                                @error('grado_id')
-                                                    <div class="invalid-feedback">{{ $message }}</div>
-                                                @enderror
+                                            </div>
+                                            <div class="col-md-4 d-flex align-items-end">
+                                                <button type="button" id="btnAgregarRol" class="btn btn-primary w-100">
+                                                    <i class="bi bi-plus-circle me-1"></i>Agregar Rol
+                                                </button>
                                             </div>
                                         </div>
-
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="fecha_nacimiento" class="form-label">Fecha de Nacimiento</label>
-                                                <input type="date" class="form-control @error('fecha_nacimiento') is-invalid @enderror"
-                                                       id="fecha_nacimiento" name="fecha_nacimiento"
-                                                       value="{{ old('fecha_nacimiento', $user->estudiante->fecha_nacimiento ?? '') }}">
-                                                @error('fecha_nacimiento')
-                                                    <div class="invalid-feedback">{{ $message }}</div>
-                                                @enderror
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Apoderado -->
-                                    <div class="mb-3">
-                                        <h6 class="mb-3">
-                                            <i class="bi bi-people-fill me-2"></i>Apoderado
-                                        </h6>
-
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox"
-                                                   id="sin_apoderado" name="sin_apoderado"
-                                                   {{ old('sin_apoderado', !$user->estudiante->apoderado_id) ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="sin_apoderado">
-                                                El estudiante no tiene apoderado
-                                            </label>
-                                        </div>
-
-                                        <div id="apoderadoContainer" class="{{ old('sin_apoderado', !$user->estudiante->apoderado_id) ? 'd-none' : '' }}">
-                                            <div class="row">
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Buscar Apoderado</label>
-                                                        <select class="form-select select2-apoderado @error('apoderado_id') is-invalid @enderror"
-                                                                id="apoderado_id" name="apoderado_id">
-                                                            <option value=""></option>
-                                                            @if(old('apoderado_id', $user->estudiante->apoderado_id))
-                                                                @php
-                                                                    $apoderado = \App\Models\Apoderado::with('user')
-                                                                        ->find(old('apoderado_id', $user->estudiante->apoderado_id));
-                                                                @endphp
-                                                                @if($apoderado)
-                                                                    <option value="{{ $apoderado->id }}" selected>
-                                                                        {{ $apoderado->user->nombre }} {{ $apoderado->user->apellido_paterno }} (DNI: {{ $apoderado->user->dni }})
-                                                                    </option>
-                                                                @endif
-                                                            @endif
-                                                        </select>
-                                                        @error('apoderado_id')
-                                                            <div class="invalid-feedback">{{ $message }}</div>
-                                                        @enderror
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Parentesco</label>
-                                                        <select name="parentesco"
-                                                                class="form-select @error('parentesco') is-invalid @enderror">
-                                                            <option value="">Seleccione parentesco</option>
-                                                            <option value="padre" {{ old('parentesco', $user->estudiante->parentesco ?? '') == 'padre' ? 'selected' : '' }}>Padre</option>
-                                                            <option value="madre" {{ old('parentesco', $user->estudiante->parentesco ?? '') == 'madre' ? 'selected' : '' }}>Madre</option>
-                                                            <option value="tutor" {{ old('parentesco', $user->estudiante->parentesco ?? '') == 'tutor' ? 'selected' : '' }}>Tutor</option>
-                                                            <option value="otro" {{ old('parentesco', $user->estudiante->parentesco ?? '') == 'otro' ? 'selected' : '' }}>Otro</option>
-                                                        </select>
-                                                        @error('parentesco')
-                                                            <div class="invalid-feedback">{{ $message }}</div>
-                                                        @enderror
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
-                        @endif
-
-                        <!-- Apoderado -->
-                        @if($user->apoderado)
-                        <div id="campos-apoderado" class="campos-rol mb-4">
-                            <div class="card border-info">
-                                <div class="card-header bg-info bg-opacity-10 text-info">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-person-bounding-box me-2"></i>Datos del Apoderado
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="estado_apoderado" class="form-label">Estado del Apoderado</label>
-                                                <select class="form-select @error('estado_apoderado') is-invalid @enderror"
-                                                        id="estado_apoderado" name="estado_apoderado">
-                                                    <option value="1" {{ old('estado_apoderado', $user->apoderado->estado ?? '') == '1' ? 'selected' : '' }}>Activo</option>
-                                                    <option value="0" {{ old('estado_apoderado', $user->apoderado->estado ?? '') == '0' ? 'selected' : '' }}>Inactivo</option>
-                                                </select>
-                                                @error('estado_apoderado')
-                                                    <div class="invalid-feedback">{{ $message }}</div>
-                                                @enderror
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Parentesco <span class="text-danger">*</span></label>
-                                                <select name="parentesco"
-                                                        class="form-select @error('parentesco') is-invalid @enderror">
-                                                    <option value="">Seleccione parentesco</option>
-                                                    <option value="padre" {{ old('parentesco', $user->apoderado->parentesco ?? '') == 'padre' ? 'selected' : '' }}>Padre</option>
-                                                    <option value="madre" {{ old('parentesco', $user->apoderado->parentesco ?? '') == 'madre' ? 'selected' : '' }}>Madre</option>
-                                                    <option value="tutor" {{ old('parentesco', $user->apoderado->parentesco ?? '') == 'tutor' ? 'selected' : '' }}>Tutor</option>
-                                                    <option value="otro" {{ old('parentesco', $user->apoderado->parentesco ?? '') == 'otro' ? 'selected' : '' }}>Otro</option>
-                                                </select>
-                                                @error('parentesco')
-                                                    <div class="invalid-feedback">{{ $message }}</div>
-                                                @enderror
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        @endif
-
-                        <!-- Auxiliar -->
-                        @if($user->auxiliar)
-                        <div id="campos-auxiliar" class="campos-rol mb-4">
-                            <div class="card border-warning">
-                                <div class="card-header bg-warning bg-opacity-10 text-warning">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-person-workspace me-2"></i>Datos del Auxiliar
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="estado_auxiliar" class="form-label">Estado del Auxiliar</label>
-                                                <select class="form-select @error('estado_auxiliar') is-invalid @enderror"
-                                                        id="estado_auxiliar" name="estado_auxiliar">
-                                                    <option value="1" {{ old('estado_auxiliar', $user->auxiliar->estado ?? '') == '1' ? 'selected' : '' }}>Activo</option>
-                                                    <option value="0" {{ old('estado_auxiliar', $user->auxiliar->estado ?? '') == '0' ? 'selected' : '' }}>Inactivo</option>
-                                                </select>
-                                                @error('estado_auxiliar')
-                                                    <div class="invalid-feedback">{{ $message }}</div>
-                                                @enderror
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="turno" class="form-label">Turno</label>
-                                                <select class="form-select @error('turno') is-invalid @enderror"
-                                                        id="turno" name="turno">
-                                                    <option value="">Seleccione turno</option>
-                                                    <option value="mañana" {{ old('turno', $user->auxiliar->turno ?? '') == 'mañana' ? 'selected' : '' }}>Mañana</option>
-                                                    <option value="tarde" {{ old('turno', $user->auxiliar->turno ?? '') == 'tarde' ? 'selected' : '' }}>Tarde</option>
-                                                    <option value="completo" {{ old('turno', $user->auxiliar->turno ?? '') == 'completo' ? 'selected' : '' }}>Completo</option>
-                                                </select>
-                                                @error('turno')
-                                                    <div class="invalid-feedback">{{ $message }}</div>
-                                                @enderror
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-12">
-                                            <div class="mb-3">
-                                                <label for="funciones" class="form-label">Funciones</label>
-                                                <input type="text" class="form-control @error('funciones') is-invalid @enderror"
-                                                       id="funciones" name="funciones"
-                                                       value="{{ old('funciones', $user->auxiliar->funciones ?? '') }}">
-                                                @error('funciones')
-                                                    <div class="invalid-feedback">{{ $message }}</div>
-                                                @enderror
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        @endif
-
-                        <!-- Docente -->
-                        @if($user->docente)
-                        <div id="campos-docente" class="campos-rol mb-4">
-                            <div class="card border-success">
-                                <div class="card-header bg-success bg-opacity-10 text-success">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-person-video3 me-2"></i>Datos del Docente
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="estado_docente" class="form-label">Estado del Docente</label>
-                                                <select class="form-select @error('estado_docente') is-invalid @enderror"
-                                                        id="estado_docente" name="estado_docente">
-                                                    <option value="1" {{ old('estado_docente', $user->docente->estado ?? '') == 1 ? 'selected' : '' }}>Activo</option>
-                                                    <option value="0" {{ old('estado_docente', $user->docente->estado ?? '') == 0 ? 'selected' : '' }}>Inactivo</option>
-                                                </select>
-                                                @error('estado_docente')
-                                                    <div class="invalid-feedback">{{ $message }}</div>
-                                                @enderror
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        @endif
 
                         <!-- Botones -->
                         <div class="d-flex justify-content-between mt-4">
@@ -484,124 +421,167 @@
         </div>
     </div>
 </div>
+@endsection
 
-<!-- Scripts -->
+@section('scripts')
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<style>
-    .select2-container .select2-selection--single {
-        height: 38px;
-        border: 1px solid #dee2e6;
-    }
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 36px;
-    }
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 36px;
-    }
-    .select2-container--default .select2-selection--single {
-        border-radius: 0.375rem;
-    }
-    .form-text {
-        font-size: 0.875rem;
-        color: #6c757d;
-    }
-</style>
-
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
 <script>
 $(document).ready(function() {
-    // Mostrar campos según rol seleccionado
-    $('#rol').change(function() {
-        const rolId = $(this).val();
-
-        // Ocultar todos los campos específicos
-        $('.campos-rol').hide();
-
-        // Mostrar campos según el rol seleccionado
-        if (rolId == 6) { // Estudiante
-            $('#campos-estudiante').show();
-            $('#grado_id').attr('required', true);
-        } else if (rolId == 5) { // Apoderado
-            $('#campos-apoderado').show();
-            $('#campos-apoderado select[name="parentesco"]').attr('required', true);
-        } else if (rolId == 4) { // Auxiliar
-            $('#campos-auxiliar').show();
-        } else if (rolId == 3) { // Docente
-            $('#campos-docente').show();
-        }
+    // Inicializar Select2
+    $('#selectNuevoRol').select2({
+        placeholder: "Seleccione un rol",
+        allowClear: true
     });
 
-    // Inicializar Select2 para apoderados
-    $('.select2-apoderado').select2({
-        placeholder: "Buscar apoderado...",
-        allowClear: true,
-        minimumInputLength: 2,
-        ajax: {
-            url: '{{ route("apoderados.search") }}',
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                return {
-                    q: params.term,
-                    page: params.page || 1
-                };
-            },
-            processResults: function(data, params) {
-                params.page = params.page || 1;
-                return {
-                    results: data.items || [],
-                    pagination: {
-                        more: (params.page * 10) < (data.total_count || 0)
-                    }
-                };
-            },
-            cache: true
-        },
-        templateResult: function(apoderado) {
-            if (apoderado.loading) return apoderado.text;
+    // Templates simples
+    const roleTemplates = {
+        'estudiante': (index) => `
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Grado</label>
+                        <select name="estudiante_grado[${index}]" class="form-select">
+                            <option value="">Seleccionar grado</option>
+                            @foreach($grados as $grado)
+                            <option value="{{ $grado->id }}">{{ $grado->nombre }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Fecha de Nacimiento</label>
+                        <input type="date" name="estudiante_fecha_nacimiento[${index}]" class="form-control">
+                    </div>
+                </div>
+            </div>
+        `,
+        'docente': (index) => `
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="mb-3">
+                        <label class="form-label">Estado</label>
+                        <select name="docente_estado[${index}]" class="form-select">
+                            <option value="1">Activo</option>
+                            <option value="0">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `,
+        'apoderado': (index) => `
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Parentesco</label>
+                        <input type="text" name="apoderado_parentesco[${index}]" class="form-control" placeholder="Ej: Padre, Madre, Tutor">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Estado</label>
+                        <select name="apoderado_estado[${index}]" class="form-select">
+                            <option value="1">Activo</option>
+                            <option value="0">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `,
+        'auxiliar': (index) => `
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Turno</label>
+                        <select name="auxiliar_turno[${index}]" class="form-select">
+                            <option value="mañana">Mañana</option>
+                            <option value="tarde">Tarde</option>
+                            <option value="noche">Noche</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Estado</label>
+                        <select name="auxiliar_estado[${index}]" class="form-select">
+                            <option value="1">Activo</option>
+                            <option value="0">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Funciones</label>
+                        <textarea name="auxiliar_funciones[${index}]" class="form-control" rows="2" placeholder="Descripción de funciones"></textarea>
+                    </div>
+                </div>
+            </div>
+        `,
+        'director': (index) => `
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="mb-3">
+                        <label class="form-label">Estado</label>
+                        <select name="director_estado[${index}]" class="form-select">
+                            <option value="1">Activo</option>
+                            <option value="0">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `
+    };
 
-            return $(
-                '<div class="d-flex justify-content-between align-items-center">' +
-                    '<span>' + (apoderado.nombre_completo || apoderado.text) + '</span>' +
-                    '<small class="text-muted ms-2">DNI: ' + (apoderado.dni || '') + '</small>' +
-                '</div>'
-            );
-        },
-        templateSelection: function(apoderado) {
-            if (!apoderado.id) return apoderado.text || 'Buscar apoderado...';
-            return (apoderado.nombre_completo || apoderado.text) +
-                   (apoderado.dni ? ' (DNI: ' + apoderado.dni + ')' : '');
+    // Agregar nuevo rol
+    $('#btnAgregarRol').click(function() {
+        const selectRol = $('#selectNuevoRol');
+        const rolId = selectRol.val();
+        const rolOption = selectRol.find('option:selected');
+        const rolNombre = rolOption.data('name');
+
+        if (!rolId) {
+            alert('Por favor seleccione un rol');
+            return;
         }
-    });
 
-    // Apoderado checkbox
-    $('#sin_apoderado').change(function() {
-        if ($(this).is(':checked')) {
-            $('#apoderadoContainer').addClass('d-none');
-            $('#apoderado_id').val('').trigger('change');
-            $('#apoderadoContainer select[name="parentesco"]').val('');
-        } else {
-            $('#apoderadoContainer').removeClass('d-none');
+        if ($(`input[name="roles[]"][value="${rolId}"]`).length > 0) {
+            alert('Este rol ya está asignado al usuario');
+            return;
         }
+
+        const totalRoles = $('.rol-item').length;
+        const template = roleTemplates[rolNombre] ? roleTemplates[rolNombre](totalRoles)
+            : '<div class="alert alert-info">No hay campos específicos para este rol.</div>';
+
+        const nuevoRolHtml = `
+            <div class="rol-item mb-4 p-3 border rounded-3 bg-light border-secondary"
+                 data-role-id="${rolId}"
+                 data-role-name="${rolNombre}"
+                 data-new="true">
+                <div class="row align-items-center mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label text-muted d-block">
+                            Rol Adicional ${totalRoles + 1}
+                        </label>
+                        <input type="hidden" name="roles[]" value="${rolId}">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-primary me-2">${rolOption.text()}</span>
+                            <span class="badge bg-info">Nuevo</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="campos-especificos">
+                    ${template}
+                </div>
+            </div>
+        `;
+
+        $('#nuevosRolesContainer').append(nuevoRolHtml);
+        rolOption.prop('disabled', true);
+        selectRol.val('').trigger('change');
     });
-
-    // Si hay error de validación, mostrar los campos según el rol seleccionado
-    @if(old('rol'))
-        $('#rol').trigger('change');
-    @endif
-
-    // Si no hay rol en old() pero el usuario tiene un rol, disparar el cambio
-    @if(!old('rol') && $user->roles->first())
-        setTimeout(function() {
-            $('#rol').trigger('change');
-        }, 100);
-    @endif
-
-    @if(old('sin_apoderado') || (!$user->estudiante || !$user->estudiante->apoderado_id))
-        $('#sin_apoderado').trigger('change');
-    @endif
 });
 </script>
 @endsection
