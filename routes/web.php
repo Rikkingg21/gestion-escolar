@@ -111,8 +111,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/user', [UserController::class, 'store'])->name('user.store');
     Route::get('/user/{user}/edit', [UserController::class, 'edit'])->name('user.edit');
     Route::put('/user/{user}', [UserController::class, 'update'])->name('user.update');
-Route::get('/user/get-role-fields/{roleId}', [UserController::class, 'getRoleFields'])
-    ->name('user.get-role-fields');
+    Route::post('/users/{user}/agregar-rol-temporal', [UserController::class, 'agregarRolTemporal'])->name('users.agregarRolTemporal');
 
     //ruta de usuarios mediante ajax
     Route::get('/usuarios/activos', [UserController::class, 'ajaxUserActivo'])->name('usuarios.activos');

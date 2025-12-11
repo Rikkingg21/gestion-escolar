@@ -383,10 +383,15 @@ public function edit(User $user)
         'director'
     ]);
 
-    return view('user.edit', compact('user', 'roles', 'grados'));
+    // Obtener roles actuales para mostrar en el formulario
+    $userRoles = $user->roles->pluck('id')->toArray();
+
+    return view('user.edit', compact('user', 'roles', 'grados', 'userRoles'));
 }
 public function update(Request $request, User $user)
 {
+    \Log::info('Datos recibidos en update:', $request->all());
+
     // Validar datos básicos del usuario
     $userData = $request->validate([
         'dni' => 'required|string|max:8|unique:users,dni,' . $user->id,
@@ -397,104 +402,171 @@ public function update(Request $request, User $user)
         'email' => 'required|email|unique:users,email,' . $user->id,
         'telefono' => 'nullable|string|max:9',
         'estado' => 'required|in:0,1,2',
-        'password' => 'nullable|string|min:8|confirmed',
     ]);
 
-    // Validar que existan roles
+    if ($request->filled('password')) {
+        $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+    }
+
+    // Validar roles existentes
     $request->validate([
         'roles' => 'required|array|min:1',
         'roles.*' => 'exists:roles,id',
     ]);
 
-    // Procesar los datos específicos por rol
-    $roles = $request->input('roles', []);
-    $rolesNombres = Role::whereIn('id', $roles)->pluck('nombre')->map(fn($name) => strtolower($name))->toArray();
+    // Validar nuevos roles si existen
+    if ($request->has('nuevos_roles')) {
+        $request->validate([
+            'nuevos_roles' => 'array',
+            'nuevos_roles.*' => 'exists:roles,id',
+        ]);
+    }
 
-    // Validar campos específicos según roles
-    foreach ($rolesNombres as $index => $rolNombre) {
+    // Combinar todos los roles
+    $todosLosRoles = array_merge($request->roles, $request->nuevos_roles ?? []);
+
+    // Obtener nombres de todos los roles
+    $todosLosRolesNombres = Role::whereIn('id', $todosLosRoles)
+        ->pluck('nombre')
+        ->map(fn($name) => strtolower($name))
+        ->toArray();
+
+    \Log::info('Todos los roles:', $todosLosRolesNombres);
+
+    // Validar campos específicos para roles EXISTENTES
+    $rolesExistentesNombres = Role::whereIn('id', $request->roles)
+        ->pluck('nombre')
+        ->map(fn($name) => strtolower($name))
+        ->toArray();
+
+    foreach ($rolesExistentesNombres as $rolNombre) {
         switch ($rolNombre) {
             case 'estudiante':
                 $request->validate([
-                    'estudiante_grado.' . $index => 'required|exists:grados,id',
-                    'estudiante_fecha_nacimiento.' . $index => 'required|date',
+                    'estudiante_grado' => 'required|exists:grados,id',
+                    'estudiante_apoderado' => 'nullable|exists:apoderados,id',
+                    'estudiante_fecha_nacimiento' => 'required|date',
+                    'estudiante_estado' => 'required|in:0,1',
                 ]);
                 break;
-
             case 'docente':
                 $request->validate([
-                    'docente_estado.' . $index => 'required|in:0,1',
+                    'docente_estado' => 'required|in:0,1',
                 ]);
                 break;
-
             case 'apoderado':
                 $request->validate([
-                    'apoderado_parentesco.' . $index => 'required|string|max:50',
-                    'apoderado_estado.' . $index => 'required|in:0,1',
+                    'apoderado_parentesco' => 'required|string|max:50',
+                    'apoderado_estado' => 'required|in:0,1',
                 ]);
                 break;
-
             case 'auxiliar':
                 $request->validate([
-                    'auxiliar_turno.' . $index => 'required|in:mañana,tarde,noche',
-                    'auxiliar_estado.' . $index => 'required|in:0,1',
-                    'auxiliar_funciones.' . $index => 'nullable|string',
+                    'auxiliar_turno' => 'required|in:mañana,tarde,noche',
+                    'auxiliar_estado' => 'required|in:0,1',
+                    'auxiliar_funciones' => 'nullable|string',
                 ]);
                 break;
-
             case 'director':
                 $request->validate([
-                    'director_estado.' . $index => 'required|in:0,1',
+                    'director_estado' => 'required|in:0,1',
                 ]);
                 break;
         }
     }
 
-    // Iniciar transacción para asegurar consistencia
+    // Validar campos específicos para roles NUEVOS
+    if ($request->has('nuevos_roles')) {
+        $nuevosRolesNombres = Role::whereIn('id', $request->nuevos_roles)
+            ->pluck('nombre')
+            ->map(fn($name) => strtolower($name))
+            ->toArray();
+
+        foreach ($nuevosRolesNombres as $index => $rolNombre) {
+            switch ($rolNombre) {
+                case 'estudiante':
+                    $request->validate([
+                        'nuevo_estudiante_grado.' . $index => 'required|exists:grados,id',
+                        'nuevo_estudiante_apoderado.' . $index => 'nullable|exists:apoderados,id',
+                        'nuevo_estudiante_fecha_nacimiento.' . $index => 'required|date',
+                        'nuevo_estudiante_estado.' . $index => 'required|in:0,1',
+                    ]);
+                    break;
+                case 'docente':
+                    $request->validate([
+                        'nuevo_docente_estado.' . $index => 'required|in:0,1',
+                    ]);
+                    break;
+                case 'apoderado':
+                    $request->validate([
+                        'nuevo_apoderado_parentesco.' . $index => 'required|string|max:50',
+                        'nuevo_apoderado_estado.' . $index => 'required|in:0,1',
+                    ]);
+                    break;
+                case 'auxiliar':
+                    $request->validate([
+                        'nuevo_auxiliar_turno.' . $index => 'required|in:mañana,tarde,noche',
+                        'nuevo_auxiliar_estado.' . $index => 'required|in:0,1',
+                        'nuevo_auxiliar_funciones.' . $index => 'nullable|string',
+                    ]);
+                    break;
+                case 'director':
+                    $request->validate([
+                        'nuevo_director_estado.' . $index => 'required|in:0,1',
+                    ]);
+                    break;
+            }
+        }
+    }
+
     DB::beginTransaction();
 
     try {
-        // Preparar datos del usuario - NO incluir password si está vacío
-        $userUpdateData = [
-            'dni' => $userData['dni'],
-            'nombre_usuario' => $userData['nombre_usuario'],
-            'nombre' => $userData['nombre'],
-            'apellido_paterno' => $userData['apellido_paterno'],
-            'apellido_materno' => $userData['apellido_materno'],
-            'email' => $userData['email'],
-            'telefono' => $userData['telefono'],
-            'estado' => $userData['estado'],
+        // Actualizar datos básicos del usuario
+        $updateData = [
+            'dni' => $request->dni,
+            'nombre_usuario' => $request->nombre_usuario,
+            'nombre' => $request->nombre,
+            'apellido_paterno' => $request->apellido_paterno,
+            'apellido_materno' => $request->apellido_materno,
+            'email' => $request->email,
+            'telefono' => $request->telefono,
+            'estado' => $request->estado,
         ];
 
-        // Solo actualizar password si se proporcionó una nueva
         if ($request->filled('password')) {
-            $userUpdateData['password'] = Hash::make($request->password);
+            $updateData['password'] = Hash::make($request->password);
         }
 
-        $user->update($userUpdateData);
+        $user->update($updateData);
 
-        // Sincronizar roles (elimina los antiguos y agrega los nuevos)
-        $user->roles()->sync($request->roles);
+        // Sincronizar TODOS los roles (existentes + nuevos)
+        $user->roles()->sync($todosLosRoles);
 
-        // Actualizar o crear modelos específicos según roles
-        foreach ($rolesNombres as $index => $rolNombre) {
+        // Procesar roles EXISTENTES (ACTUALIZAR)
+        foreach ($rolesExistentesNombres as $rolNombre) {
             switch ($rolNombre) {
                 case 'estudiante':
                     $estudianteData = [
-                        'grado_id' => $request->input("estudiante_grado.$index"),
-                        'fecha_nacimiento' => $request->input("estudiante_fecha_nacimiento.$index"),
-                        'estado' => '1', // Estado por defecto para estudiante
+                        'grado_id' => $request->estudiante_grado,
+                        'apoderado_id' => $request->estudiante_apoderado,
+                        'fecha_nacimiento' => $request->estudiante_fecha_nacimiento,
+                        'estado' => $request->estudiante_estado,
                     ];
 
                     if ($user->estudiante) {
                         $user->estudiante->update($estudianteData);
                     } else {
+                        // Esto podría pasar si un rol fue removido y luego se agrega de nuevo
                         Estudiante::create(array_merge($estudianteData, ['user_id' => $user->id]));
                     }
                     break;
 
                 case 'docente':
                     $docenteData = [
-                        'estado' => $request->input("docente_estado.$index", '1'),
+                        'estado' => $request->docente_estado,
                     ];
 
                     if ($user->docente) {
@@ -506,8 +578,8 @@ public function update(Request $request, User $user)
 
                 case 'apoderado':
                     $apoderadoData = [
-                        'parentesco' => $request->input("apoderado_parentesco.$index"),
-                        'estado' => $request->input("apoderado_estado.$index", '1'),
+                        'parentesco' => $request->apoderado_parentesco,
+                        'estado' => $request->apoderado_estado,
                     ];
 
                     if ($user->apoderado) {
@@ -519,9 +591,9 @@ public function update(Request $request, User $user)
 
                 case 'auxiliar':
                     $auxiliarData = [
-                        'turno' => $request->input("auxiliar_turno.$index"),
-                        'funciones' => $request->input("auxiliar_funciones.$index"),
-                        'estado' => $request->input("auxiliar_estado.$index", '1'),
+                        'turno' => $request->auxiliar_turno,
+                        'funciones' => $request->auxiliar_funciones,
+                        'estado' => $request->auxiliar_estado,
                     ];
 
                     if ($user->auxiliar) {
@@ -533,7 +605,7 @@ public function update(Request $request, User $user)
 
                 case 'director':
                     $directorData = [
-                        'estado' => $request->input("director_estado.$index", '1'),
+                        'estado' => $request->director_estado,
                     ];
 
                     if ($user->director) {
@@ -545,8 +617,66 @@ public function update(Request $request, User $user)
             }
         }
 
-        // Eliminar modelos específicos para roles que ya no tiene
-        $rolesAEliminar = array_diff(['estudiante', 'docente', 'apoderado', 'auxiliar', 'director'], $rolesNombres);
+        // Procesar roles NUEVOS (CREAR)
+        if ($request->has('nuevos_roles')) {
+            foreach ($nuevosRolesNombres as $index => $rolNombre) {
+                switch ($rolNombre) {
+                    case 'estudiante':
+                        $estudianteData = [
+                            'grado_id' => $request->input("nuevo_estudiante_grado.{$index}"),
+                            'apoderado_id' => $request->input("nuevo_estudiante_apoderado.{$index}"),
+                            'fecha_nacimiento' => $request->input("nuevo_estudiante_fecha_nacimiento.{$index}"),
+                            'estado' => $request->input("nuevo_estudiante_estado.{$index}", '1'),
+                            'user_id' => $user->id,
+                        ];
+
+                        Estudiante::create($estudianteData);
+                        break;
+
+                    case 'docente':
+                        $docenteData = [
+                            'estado' => $request->input("nuevo_docente_estado.{$index}", '1'),
+                            'user_id' => $user->id,
+                        ];
+
+                        Docente::create($docenteData);
+                        break;
+
+                    case 'apoderado':
+                        $apoderadoData = [
+                            'parentesco' => $request->input("nuevo_apoderado_parentesco.{$index}"),
+                            'estado' => $request->input("nuevo_apoderado_estado.{$index}", '1'),
+                            'user_id' => $user->id,
+                        ];
+
+                        Apoderado::create($apoderadoData);
+                        break;
+
+                    case 'auxiliar':
+                        $auxiliarData = [
+                            'turno' => $request->input("nuevo_auxiliar_turno.{$index}"),
+                            'funciones' => $request->input("nuevo_auxiliar_funciones.{$index}"),
+                            'estado' => $request->input("nuevo_auxiliar_estado.{$index}", '1'),
+                            'user_id' => $user->id,
+                        ];
+
+                        Auxiliar::create($auxiliarData);
+                        break;
+
+                    case 'director':
+                        $directorData = [
+                            'estado' => $request->input("nuevo_director_estado.{$index}", '1'),
+                            'user_id' => $user->id,
+                        ];
+
+                        Director::create($directorData);
+                        break;
+                }
+            }
+        }
+
+        // Eliminar modelos para roles que ya no tiene
+        $rolesAEliminar = array_diff(['estudiante', 'docente', 'apoderado', 'auxiliar', 'director'], $todosLosRolesNombres);
 
         foreach ($rolesAEliminar as $rolAEliminar) {
             switch ($rolAEliminar) {
@@ -575,12 +705,11 @@ public function update(Request $request, User $user)
 
     } catch (\Exception $e) {
         DB::rollBack();
-
-        // Log del error para debugging
         \Log::error('Error al actualizar usuario: ' . $e->getMessage());
         \Log::error('Trace: ' . $e->getTraceAsString());
 
-        return back()->with('error', 'Error al actualizar el usuario: ' . $e->getMessage());
+        return back()->with('error', 'Error al actualizar el usuario: ' . $e->getMessage())
+                     ->withInput();
     }
 }
     public function importar()
