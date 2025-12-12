@@ -111,7 +111,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/user', [UserController::class, 'store'])->name('user.store');
     Route::get('/user/{user}/edit', [UserController::class, 'edit'])->name('user.edit');
     Route::put('/user/{user}', [UserController::class, 'update'])->name('user.update');
-    Route::post('/users/{user}/agregar-rol-temporal', [UserController::class, 'agregarRolTemporal'])->name('users.agregarRolTemporal');
+
+    Route::post('/users/{user}/remove-relacion-no-protegidos/', [UserController::class, 'removeRelacionRolNoProtegidos'])->name('role.removir-relacion-no-protegidos');
 
     //ruta de usuarios mediante ajax
     Route::get('/usuarios/activos', [UserController::class, 'ajaxUserActivo'])->name('usuarios.activos');

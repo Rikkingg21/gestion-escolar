@@ -16,10 +16,12 @@ use App\Models\Auxiliar;
 use App\Models\Director;
 use App\Models\Grado;
 use App\Models\Materia;
+use App\Models\Userrole;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Facades\Validator;
+
 
 
 class UserController extends Controller
@@ -367,351 +369,374 @@ class UserController extends Controller
         }
     }
 
-public function edit(User $user)
-{
-    $roles = Role::all();
-    $grados = Grado::where('estado', 1)->get();
+    public function edit(User $user)
+    {
+        $roles = Role::all();
+        $grados = Grado::where('estado', 1)->get();
 
-    // Cargar todas las relaciones del usuario
-    $user->load([
-        'roles',
-        'estudiante.grado',
-        'estudiante.apoderado.user',
-        'docente',
-        'apoderado',
-        'auxiliar',
-        'director'
-    ]);
-
-    // Obtener roles actuales para mostrar en el formulario
-    $userRoles = $user->roles->pluck('id')->toArray();
-
-    return view('user.edit', compact('user', 'roles', 'grados', 'userRoles'));
-}
-public function update(Request $request, User $user)
-{
-    \Log::info('Datos recibidos en update:', $request->all());
-
-    // Validar datos básicos del usuario
-    $userData = $request->validate([
-        'dni' => 'required|string|max:8|unique:users,dni,' . $user->id,
-        'nombre_usuario' => 'required|string|max:50|unique:users,nombre_usuario,' . $user->id,
-        'nombre' => 'required|string|max:50',
-        'apellido_paterno' => 'required|string|max:50',
-        'apellido_materno' => 'nullable|string|max:50',
-        'email' => 'required|email|unique:users,email,' . $user->id,
-        'telefono' => 'nullable|string|max:9',
-        'estado' => 'required|in:0,1,2',
-    ]);
-
-    if ($request->filled('password')) {
-        $request->validate([
-            'password' => 'required|string|min:8|confirmed',
+        // Cargar todas las relaciones del usuario
+        $user->load([
+            'roles',
+            'estudiante.grado',
+            'estudiante.apoderado.user',
+            'docente',
+            'apoderado',
+            'auxiliar',
+            'director'
         ]);
+
+        // Obtener roles actuales para mostrar en el formulario
+        $userRoles = $user->roles->pluck('id')->toArray();
+
+        // Definir roles protegidos (IDs que NO se pueden eliminar)
+        $rolesProtegidos = [1, 2, 3, 4, 5, 6]; // Ajusta según tus necesidades
+
+        return view('user.edit', compact('user', 'roles', 'grados', 'userRoles', 'rolesProtegidos'));
     }
+    public function update(Request $request, User $user)
+    {
+        \Log::info('Datos recibidos en update:', $request->all());
 
-    // Validar roles existentes
-    $request->validate([
-        'roles' => 'required|array|min:1',
-        'roles.*' => 'exists:roles,id',
-    ]);
-
-    // Validar nuevos roles si existen
-    if ($request->has('nuevos_roles')) {
-        $request->validate([
-            'nuevos_roles' => 'array',
-            'nuevos_roles.*' => 'exists:roles,id',
+        // Validar datos básicos del usuario
+        $userData = $request->validate([
+            'dni' => 'required|string|max:8|unique:users,dni,' . $user->id,
+            'nombre_usuario' => 'required|string|max:50|unique:users,nombre_usuario,' . $user->id,
+            'nombre' => 'required|string|max:50',
+            'apellido_paterno' => 'required|string|max:50',
+            'apellido_materno' => 'nullable|string|max:50',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'telefono' => 'nullable|string|max:9',
+            'estado' => 'required|in:0,1,2',
         ]);
-    }
 
-    // Combinar todos los roles
-    $todosLosRoles = array_merge($request->roles, $request->nuevos_roles ?? []);
-
-    // Obtener nombres de todos los roles
-    $todosLosRolesNombres = Role::whereIn('id', $todosLosRoles)
-        ->pluck('nombre')
-        ->map(fn($name) => strtolower($name))
-        ->toArray();
-
-    \Log::info('Todos los roles:', $todosLosRolesNombres);
-
-    // Validar campos específicos para roles EXISTENTES
-    $rolesExistentesNombres = Role::whereIn('id', $request->roles)
-        ->pluck('nombre')
-        ->map(fn($name) => strtolower($name))
-        ->toArray();
-
-    foreach ($rolesExistentesNombres as $rolNombre) {
-        switch ($rolNombre) {
-            case 'estudiante':
-                $request->validate([
-                    'estudiante_grado' => 'required|exists:grados,id',
-                    'estudiante_apoderado' => 'nullable|exists:apoderados,id',
-                    'estudiante_fecha_nacimiento' => 'required|date',
-                    'estudiante_estado' => 'required|in:0,1',
-                ]);
-                break;
-            case 'docente':
-                $request->validate([
-                    'docente_estado' => 'required|in:0,1',
-                ]);
-                break;
-            case 'apoderado':
-                $request->validate([
-                    'apoderado_parentesco' => 'required|string|max:50',
-                    'apoderado_estado' => 'required|in:0,1',
-                ]);
-                break;
-            case 'auxiliar':
-                $request->validate([
-                    'auxiliar_turno' => 'required|in:mañana,tarde,noche',
-                    'auxiliar_estado' => 'required|in:0,1',
-                    'auxiliar_funciones' => 'nullable|string',
-                ]);
-                break;
-            case 'director':
-                $request->validate([
-                    'director_estado' => 'required|in:0,1',
-                ]);
-                break;
+        if ($request->filled('password')) {
+            $request->validate([
+                'password' => 'required|string|min:8|confirmed',
+            ]);
         }
-    }
 
-    // Validar campos específicos para roles NUEVOS
-    if ($request->has('nuevos_roles')) {
-        $nuevosRolesNombres = Role::whereIn('id', $request->nuevos_roles)
+        // Validar roles existentes
+        $request->validate([
+            'roles' => 'required|array|min:1',
+            'roles.*' => 'exists:roles,id',
+        ]);
+
+        // Validar nuevos roles si existen
+        if ($request->has('nuevos_roles')) {
+            $request->validate([
+                'nuevos_roles' => 'array',
+                'nuevos_roles.*' => 'exists:roles,id',
+            ]);
+        }
+
+        // Combinar todos los roles
+        $todosLosRoles = array_merge($request->roles, $request->nuevos_roles ?? []);
+
+        // Obtener nombres de todos los roles
+        $todosLosRolesNombres = Role::whereIn('id', $todosLosRoles)
             ->pluck('nombre')
             ->map(fn($name) => strtolower($name))
             ->toArray();
 
-        foreach ($nuevosRolesNombres as $index => $rolNombre) {
-            switch ($rolNombre) {
-                case 'estudiante':
-                    $request->validate([
-                        'nuevo_estudiante_grado.' . $index => 'required|exists:grados,id',
-                        'nuevo_estudiante_apoderado.' . $index => 'nullable|exists:apoderados,id',
-                        'nuevo_estudiante_fecha_nacimiento.' . $index => 'required|date',
-                        'nuevo_estudiante_estado.' . $index => 'required|in:0,1',
-                    ]);
-                    break;
-                case 'docente':
-                    $request->validate([
-                        'nuevo_docente_estado.' . $index => 'required|in:0,1',
-                    ]);
-                    break;
-                case 'apoderado':
-                    $request->validate([
-                        'nuevo_apoderado_parentesco.' . $index => 'required|string|max:50',
-                        'nuevo_apoderado_estado.' . $index => 'required|in:0,1',
-                    ]);
-                    break;
-                case 'auxiliar':
-                    $request->validate([
-                        'nuevo_auxiliar_turno.' . $index => 'required|in:mañana,tarde,noche',
-                        'nuevo_auxiliar_estado.' . $index => 'required|in:0,1',
-                        'nuevo_auxiliar_funciones.' . $index => 'nullable|string',
-                    ]);
-                    break;
-                case 'director':
-                    $request->validate([
-                        'nuevo_director_estado.' . $index => 'required|in:0,1',
-                    ]);
-                    break;
-            }
-        }
-    }
+        \Log::info('Todos los roles:', $todosLosRolesNombres);
 
-    DB::beginTransaction();
+        // Validar campos específicos para roles EXISTENTES
+        $rolesExistentesNombres = Role::whereIn('id', $request->roles)
+            ->pluck('nombre')
+            ->map(fn($name) => strtolower($name))
+            ->toArray();
 
-    try {
-        // Actualizar datos básicos del usuario
-        $updateData = [
-            'dni' => $request->dni,
-            'nombre_usuario' => $request->nombre_usuario,
-            'nombre' => $request->nombre,
-            'apellido_paterno' => $request->apellido_paterno,
-            'apellido_materno' => $request->apellido_materno,
-            'email' => $request->email,
-            'telefono' => $request->telefono,
-            'estado' => $request->estado,
-        ];
-
-        if ($request->filled('password')) {
-            $updateData['password'] = Hash::make($request->password);
-        }
-
-        $user->update($updateData);
-
-        // Sincronizar TODOS los roles (existentes + nuevos)
-        $user->roles()->sync($todosLosRoles);
-
-        // Procesar roles EXISTENTES (ACTUALIZAR)
         foreach ($rolesExistentesNombres as $rolNombre) {
             switch ($rolNombre) {
                 case 'estudiante':
-                    $estudianteData = [
-                        'grado_id' => $request->estudiante_grado,
-                        'apoderado_id' => $request->estudiante_apoderado,
-                        'fecha_nacimiento' => $request->estudiante_fecha_nacimiento,
-                        'estado' => $request->estudiante_estado,
-                    ];
-
-                    if ($user->estudiante) {
-                        $user->estudiante->update($estudianteData);
-                    } else {
-                        // Esto podría pasar si un rol fue removido y luego se agrega de nuevo
-                        Estudiante::create(array_merge($estudianteData, ['user_id' => $user->id]));
-                    }
+                    $request->validate([
+                        'estudiante_grado' => 'required|exists:grados,id',
+                        'estudiante_apoderado' => 'nullable|exists:apoderados,id',
+                        'estudiante_fecha_nacimiento' => 'required|date',
+                        'estudiante_estado' => 'required|in:0,1',
+                    ]);
                     break;
-
                 case 'docente':
-                    $docenteData = [
-                        'estado' => $request->docente_estado,
-                    ];
-
-                    if ($user->docente) {
-                        $user->docente->update($docenteData);
-                    } else {
-                        Docente::create(array_merge($docenteData, ['user_id' => $user->id]));
-                    }
+                    $request->validate([
+                        'docente_estado' => 'required|in:0,1',
+                    ]);
                     break;
-
                 case 'apoderado':
-                    $apoderadoData = [
-                        'parentesco' => $request->apoderado_parentesco,
-                        'estado' => $request->apoderado_estado,
-                    ];
-
-                    if ($user->apoderado) {
-                        $user->apoderado->update($apoderadoData);
-                    } else {
-                        Apoderado::create(array_merge($apoderadoData, ['user_id' => $user->id]));
-                    }
+                    $request->validate([
+                        'apoderado_parentesco' => 'required|string|max:50',
+                        'apoderado_estado' => 'required|in:0,1',
+                    ]);
                     break;
-
                 case 'auxiliar':
-                    $auxiliarData = [
-                        'turno' => $request->auxiliar_turno,
-                        'funciones' => $request->auxiliar_funciones,
-                        'estado' => $request->auxiliar_estado,
-                    ];
-
-                    if ($user->auxiliar) {
-                        $user->auxiliar->update($auxiliarData);
-                    } else {
-                        Auxiliar::create(array_merge($auxiliarData, ['user_id' => $user->id]));
-                    }
+                    $request->validate([
+                        'auxiliar_turno' => 'required|in:mañana,tarde,noche',
+                        'auxiliar_estado' => 'required|in:0,1',
+                        'auxiliar_funciones' => 'nullable|string',
+                    ]);
                     break;
-
                 case 'director':
-                    $directorData = [
-                        'estado' => $request->director_estado,
-                    ];
-
-                    if ($user->director) {
-                        $user->director->update($directorData);
-                    } else {
-                        Director::create(array_merge($directorData, ['user_id' => $user->id]));
-                    }
+                    $request->validate([
+                        'director_estado' => 'required|in:0,1',
+                    ]);
                     break;
             }
         }
 
-        // Procesar roles NUEVOS (CREAR)
+        // Validar campos específicos para roles NUEVOS
         if ($request->has('nuevos_roles')) {
+            $nuevosRolesNombres = Role::whereIn('id', $request->nuevos_roles)
+                ->pluck('nombre')
+                ->map(fn($name) => strtolower($name))
+                ->toArray();
+
             foreach ($nuevosRolesNombres as $index => $rolNombre) {
                 switch ($rolNombre) {
                     case 'estudiante':
-                        $estudianteData = [
-                            'grado_id' => $request->input("nuevo_estudiante_grado.{$index}"),
-                            'apoderado_id' => $request->input("nuevo_estudiante_apoderado.{$index}"),
-                            'fecha_nacimiento' => $request->input("nuevo_estudiante_fecha_nacimiento.{$index}"),
-                            'estado' => $request->input("nuevo_estudiante_estado.{$index}", '1'),
-                            'user_id' => $user->id,
-                        ];
-
-                        Estudiante::create($estudianteData);
+                        $request->validate([
+                            'nuevo_estudiante_grado.' . $index => 'required|exists:grados,id',
+                            'nuevo_estudiante_apoderado.' . $index => 'nullable|exists:apoderados,id',
+                            'nuevo_estudiante_fecha_nacimiento.' . $index => 'required|date',
+                            'nuevo_estudiante_estado.' . $index => 'required|in:0,1',
+                        ]);
                         break;
-
                     case 'docente':
-                        $docenteData = [
-                            'estado' => $request->input("nuevo_docente_estado.{$index}", '1'),
-                            'user_id' => $user->id,
-                        ];
-
-                        Docente::create($docenteData);
+                        $request->validate([
+                            'nuevo_docente_estado.' . $index => 'required|in:0,1',
+                        ]);
                         break;
-
                     case 'apoderado':
-                        $apoderadoData = [
-                            'parentesco' => $request->input("nuevo_apoderado_parentesco.{$index}"),
-                            'estado' => $request->input("nuevo_apoderado_estado.{$index}", '1'),
-                            'user_id' => $user->id,
-                        ];
-
-                        Apoderado::create($apoderadoData);
+                        $request->validate([
+                            'nuevo_apoderado_parentesco.' . $index => 'required|string|max:50',
+                            'nuevo_apoderado_estado.' . $index => 'required|in:0,1',
+                        ]);
                         break;
-
                     case 'auxiliar':
-                        $auxiliarData = [
-                            'turno' => $request->input("nuevo_auxiliar_turno.{$index}"),
-                            'funciones' => $request->input("nuevo_auxiliar_funciones.{$index}"),
-                            'estado' => $request->input("nuevo_auxiliar_estado.{$index}", '1'),
-                            'user_id' => $user->id,
-                        ];
-
-                        Auxiliar::create($auxiliarData);
+                        $request->validate([
+                            'nuevo_auxiliar_turno.' . $index => 'required|in:mañana,tarde,noche',
+                            'nuevo_auxiliar_estado.' . $index => 'required|in:0,1',
+                            'nuevo_auxiliar_funciones.' . $index => 'nullable|string',
+                        ]);
                         break;
-
                     case 'director':
-                        $directorData = [
-                            'estado' => $request->input("nuevo_director_estado.{$index}", '1'),
-                            'user_id' => $user->id,
-                        ];
-
-                        Director::create($directorData);
+                        $request->validate([
+                            'nuevo_director_estado.' . $index => 'required|in:0,1',
+                        ]);
                         break;
                 }
             }
         }
 
-        // Eliminar modelos para roles que ya no tiene
-        $rolesAEliminar = array_diff(['estudiante', 'docente', 'apoderado', 'auxiliar', 'director'], $todosLosRolesNombres);
+        DB::beginTransaction();
 
-        foreach ($rolesAEliminar as $rolAEliminar) {
-            switch ($rolAEliminar) {
-                case 'estudiante':
-                    $user->estudiante?->delete();
-                    break;
-                case 'docente':
-                    $user->docente?->delete();
-                    break;
-                case 'apoderado':
-                    $user->apoderado?->delete();
-                    break;
-                case 'auxiliar':
-                    $user->auxiliar?->delete();
-                    break;
-                case 'director':
-                    $user->director?->delete();
-                    break;
+        try {
+            // Actualizar datos básicos del usuario
+            $updateData = [
+                'dni' => $request->dni,
+                'nombre_usuario' => $request->nombre_usuario,
+                'nombre' => $request->nombre,
+                'apellido_paterno' => $request->apellido_paterno,
+                'apellido_materno' => $request->apellido_materno,
+                'email' => $request->email,
+                'telefono' => $request->telefono,
+                'estado' => $request->estado,
+            ];
+
+            if ($request->filled('password')) {
+                $updateData['password'] = Hash::make($request->password);
             }
+
+            $user->update($updateData);
+
+            // Sincronizar TODOS los roles (existentes + nuevos)
+            $user->roles()->sync($todosLosRoles);
+
+            // Procesar roles EXISTENTES (ACTUALIZAR)
+            foreach ($rolesExistentesNombres as $rolNombre) {
+                switch ($rolNombre) {
+                    case 'estudiante':
+                        $estudianteData = [
+                            'grado_id' => $request->estudiante_grado,
+                            'apoderado_id' => $request->estudiante_apoderado,
+                            'fecha_nacimiento' => $request->estudiante_fecha_nacimiento,
+                            'estado' => $request->estudiante_estado,
+                        ];
+
+                        if ($user->estudiante) {
+                            $user->estudiante->update($estudianteData);
+                        } else {
+                            // Esto podría pasar si un rol fue removido y luego se agrega de nuevo
+                            Estudiante::create(array_merge($estudianteData, ['user_id' => $user->id]));
+                        }
+                        break;
+
+                    case 'docente':
+                        $docenteData = [
+                            'estado' => $request->docente_estado,
+                        ];
+
+                        if ($user->docente) {
+                            $user->docente->update($docenteData);
+                        } else {
+                            Docente::create(array_merge($docenteData, ['user_id' => $user->id]));
+                        }
+                        break;
+
+                    case 'apoderado':
+                        $apoderadoData = [
+                            'parentesco' => $request->apoderado_parentesco,
+                            'estado' => $request->apoderado_estado,
+                        ];
+
+                        if ($user->apoderado) {
+                            $user->apoderado->update($apoderadoData);
+                        } else {
+                            Apoderado::create(array_merge($apoderadoData, ['user_id' => $user->id]));
+                        }
+                        break;
+
+                    case 'auxiliar':
+                        $auxiliarData = [
+                            'turno' => $request->auxiliar_turno,
+                            'funciones' => $request->auxiliar_funciones,
+                            'estado' => $request->auxiliar_estado,
+                        ];
+
+                        if ($user->auxiliar) {
+                            $user->auxiliar->update($auxiliarData);
+                        } else {
+                            Auxiliar::create(array_merge($auxiliarData, ['user_id' => $user->id]));
+                        }
+                        break;
+
+                    case 'director':
+                        $directorData = [
+                            'estado' => $request->director_estado,
+                        ];
+
+                        if ($user->director) {
+                            $user->director->update($directorData);
+                        } else {
+                            Director::create(array_merge($directorData, ['user_id' => $user->id]));
+                        }
+                        break;
+                }
+            }
+
+            // Procesar roles NUEVOS (CREAR)
+            if ($request->has('nuevos_roles')) {
+                foreach ($nuevosRolesNombres as $index => $rolNombre) {
+                    switch ($rolNombre) {
+                        case 'estudiante':
+                            $estudianteData = [
+                                'grado_id' => $request->input("nuevo_estudiante_grado.{$index}"),
+                                'apoderado_id' => $request->input("nuevo_estudiante_apoderado.{$index}"),
+                                'fecha_nacimiento' => $request->input("nuevo_estudiante_fecha_nacimiento.{$index}"),
+                                'estado' => $request->input("nuevo_estudiante_estado.{$index}", '1'),
+                                'user_id' => $user->id,
+                            ];
+
+                            Estudiante::create($estudianteData);
+                            break;
+
+                        case 'docente':
+                            $docenteData = [
+                                'estado' => $request->input("nuevo_docente_estado.{$index}", '1'),
+                                'user_id' => $user->id,
+                            ];
+
+                            Docente::create($docenteData);
+                            break;
+
+                        case 'apoderado':
+                            $apoderadoData = [
+                                'parentesco' => $request->input("nuevo_apoderado_parentesco.{$index}"),
+                                'estado' => $request->input("nuevo_apoderado_estado.{$index}", '1'),
+                                'user_id' => $user->id,
+                            ];
+
+                            Apoderado::create($apoderadoData);
+                            break;
+
+                        case 'auxiliar':
+                            $auxiliarData = [
+                                'turno' => $request->input("nuevo_auxiliar_turno.{$index}"),
+                                'funciones' => $request->input("nuevo_auxiliar_funciones.{$index}"),
+                                'estado' => $request->input("nuevo_auxiliar_estado.{$index}", '1'),
+                                'user_id' => $user->id,
+                            ];
+
+                            Auxiliar::create($auxiliarData);
+                            break;
+
+                        case 'director':
+                            $directorData = [
+                                'estado' => $request->input("nuevo_director_estado.{$index}", '1'),
+                                'user_id' => $user->id,
+                            ];
+
+                            Director::create($directorData);
+                            break;
+                    }
+                }
+            }
+
+            // Eliminar modelos para roles que ya no tiene
+            $rolesAEliminar = array_diff(['estudiante', 'docente', 'apoderado', 'auxiliar', 'director'], $todosLosRolesNombres);
+
+            foreach ($rolesAEliminar as $rolAEliminar) {
+                switch ($rolAEliminar) {
+                    case 'estudiante':
+                        $user->estudiante?->delete();
+                        break;
+                    case 'docente':
+                        $user->docente?->delete();
+                        break;
+                    case 'apoderado':
+                        $user->apoderado?->delete();
+                        break;
+                    case 'auxiliar':
+                        $user->auxiliar?->delete();
+                        break;
+                    case 'director':
+                        $user->director?->delete();
+                        break;
+                }
+            }
+
+            DB::commit();
+
+            //return redirect()->route('user.index')
+            return redirect()->route('user.edit', $user->id)
+                ->with('success', 'Usuario actualizado correctamente.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al actualizar usuario: ' . $e->getMessage());
+            \Log::error('Trace: ' . $e->getTraceAsString());
+
+            return back()->with('error', 'Error al actualizar el usuario: ' . $e->getMessage())
+                        ->withInput();
+        }
+    }
+    public function removeRelacionRolNoProtegidos(Request $request, User $user)
+    {
+        $roleId = $request->input('role_id');
+        $rolesProtegidos = $request->input('roles_protegidos', []);
+
+        if (in_array($roleId, $rolesProtegidos)) {
+            return response()->json(['success' => false, 'message' => 'No puedes eliminar un rol protegido.'], 403);
         }
 
-        DB::commit();
+        $deleted = Userrole::where('user_id', $user->id)
+            ->where('role_id', $roleId)
+            ->delete();
 
-        return redirect()->route('user.index')
-            ->with('success', 'Usuario actualizado correctamente.');
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        \Log::error('Error al actualizar usuario: ' . $e->getMessage());
-        \Log::error('Trace: ' . $e->getTraceAsString());
-
-        return back()->with('error', 'Error al actualizar el usuario: ' . $e->getMessage())
-                     ->withInput();
+        if ($deleted) {
+            return response()->json(['success' => true, 'message' => 'Rol desvinculado correctamente.']);
+        } else {
+            return response()->json(['success' => false, 'message' => 'Relación no encontrada.'], 404);
+        }
     }
-}
     public function importar()
     {
         return view('user.importar');

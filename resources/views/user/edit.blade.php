@@ -431,10 +431,57 @@
                                                             @break
 
                                                         @default
-                                                            <div class="alert alert-info">
+                                                        <div class="alert alert-info d-flex align-items-center justify-content-between">
+                                                            <div>
                                                                 <i class="bi bi-info-circle me-2"></i>
                                                                 Este rol no requiere campos adicionales.
                                                             </div>
+                                                            <span class="badge bg-primary ms-2">{{ $rol->nombre ?? 'Rol' }}</span>
+                                                        </div>
+                                                        <button type="button"
+                                                            class="btn btn-outline-danger btn-sm mt-1 btn-desvincular-rol"
+                                                            data-role-id="{{ $rol->id ?? '' }}"
+                                                            data-user-id="{{ $user->id }}">
+                                                            <i class="bi bi-x-circle me-1"></i>Desvincular Rol
+                                                        </button>
+                                                        <script>
+                                                        $(document).ready(function() {
+                                                            $(document).on('click', '.btn-desvincular-rol', function() {
+                                                                const $btn = $(this);
+                                                                const rolId = $btn.data('role-id');
+                                                                const userId = $btn.data('user-id');
+                                                                // Si tienes los roles protegidos en JS, pásalos aquí. Si no, puedes omitirlo.
+                                                                const rolesProtegidos = [1,2,3,4,5,6];
+
+                                                                if (!confirm('¿Seguro que deseas desvincular este rol?')) return;
+
+                                                                $.ajax({
+                                                                    url: '/users/' + userId + '/remove-relacion-no-protegidos',
+                                                                    type: 'POST',
+                                                                    data: {
+                                                                        role_id: rolId,
+                                                                        roles_protegidos: rolesProtegidos,
+                                                                        _token: '{{ csrf_token() }}'
+                                                                    },
+                                                                    success: function(response) {
+                                                                        if (response.success) {
+                                                                            // Eliminar visualmente el bloque del rol
+                                                                            $btn.closest('.rol-item').remove();
+                                                                        } else {
+                                                                            alert(response.message || 'No se pudo eliminar el rol.');
+                                                                        }
+                                                                    },
+                                                                    error: function(xhr) {
+                                                                        let msg = 'Error al eliminar el rol.';
+                                                                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                                                                            msg = xhr.responseJSON.message;
+                                                                        }
+                                                                        alert(msg);
+                                                                    }
+                                                                });
+                                                            });
+                                                        });
+                                                        </script>
                                                     @endswitch
                                                 </div>
                                             </div>
@@ -999,8 +1046,6 @@ $(document).ready(function() {
         // Eliminar el rol
         rolDiv.remove();
 
-        // NOTA: No necesitamos decrementar nuevoRolCounter porque los índices
-        // se basan en el momento de creación, no son secuenciales
     });
 });
 </script>
