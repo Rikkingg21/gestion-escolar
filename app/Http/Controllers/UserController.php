@@ -395,8 +395,6 @@ class UserController extends Controller
     }
     public function update(Request $request, User $user)
     {
-        \Log::info('Datos recibidos en update:', $request->all());
-
         // Validar datos básicos del usuario
         $userData = $request->validate([
             'dni' => 'required|string|max:8|unique:users,dni,' . $user->id,
@@ -437,8 +435,6 @@ class UserController extends Controller
             ->pluck('nombre')
             ->map(fn($name) => strtolower($name))
             ->toArray();
-
-        \Log::info('Todos los roles:', $todosLosRolesNombres);
 
         // Validar campos específicos para roles EXISTENTES
         $rolesExistentesNombres = Role::whereIn('id', $request->roles)
@@ -705,37 +701,37 @@ class UserController extends Controller
 
             DB::commit();
 
-            //return redirect()->route('user.index')
             return redirect()->route('user.edit', $user->id)
                 ->with('success', 'Usuario actualizado correctamente.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error al actualizar usuario: ' . $e->getMessage());
-            \Log::error('Trace: ' . $e->getTraceAsString());
-
-            return back()->with('error', 'Error al actualizar el usuario: ' . $e->getMessage())
+            return back()->with('error', 'Error al actualizar el usuario.')
                         ->withInput();
         }
     }
     public function removeRelacionRolNoProtegidos(Request $request, User $user)
     {
-        $roleId = $request->input('role_id');
-        $rolesProtegidos = $request->input('roles_protegidos', []);
+        $roleId = $request->role_id;
+        $rolesProtegidos = [1, 2, 3, 4, 5, 6];
 
         if (in_array($roleId, $rolesProtegidos)) {
-            return response()->json(['success' => false, 'message' => 'No puedes eliminar un rol protegido.'], 403);
+            return response()->json([
+                'success' => false,
+                'message' => 'No puedes eliminar un rol protegido.'
+            ], 403);
         }
 
         $deleted = Userrole::where('user_id', $user->id)
             ->where('role_id', $roleId)
             ->delete();
 
-        if ($deleted) {
-            return response()->json(['success' => true, 'message' => 'Rol desvinculado correctamente.']);
-        } else {
-            return response()->json(['success' => false, 'message' => 'Relación no encontrada.'], 404);
-        }
+        return response()->json([
+            'success' => (bool) $deleted,
+            'message' => $deleted
+                ? 'Rol desvinculado correctamente.'
+                : 'Relación no encontrada.'
+        ], $deleted ? 200 : 404);
     }
     public function importar()
     {

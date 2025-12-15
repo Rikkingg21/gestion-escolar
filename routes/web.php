@@ -112,13 +112,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/user/{user}/edit', [UserController::class, 'edit'])->name('user.edit');
     Route::put('/user/{user}', [UserController::class, 'update'])->name('user.update');
 
-    Route::post('/users/{user}/remove-relacion-no-protegidos/', [UserController::class, 'removeRelacionRolNoProtegidos'])->name('role.removir-relacion-no-protegidos');
-
     //ruta de usuarios mediante ajax
     Route::get('/usuarios/activos', [UserController::class, 'ajaxUserActivo'])->name('usuarios.activos');
     Route::get('/usuarios/lectores', [UserController::class, 'ajaxUserLector'])->name('usuarios.lectores');
     Route::get('/usuarios/inactivos', [UserController::class, 'ajaxUserInactivo'])->name('usuarios.inactivos');
-    Route::delete('/usuarios/{user}', [UserController::class, 'destroy'])->name('usuarios.destroy');
+    //Route::delete('/usuarios/{user}', [UserController::class, 'destroy'])->name('usuarios.destroy');
+
+    Route::delete('/users/{user}/remove-relacion-no-protegidos/', [UserController::class, 'removeRelacionRolNoProtegidos'])->name('users.remove-role');
 
     Route::get('/apoderados/search', [ApoderadoController::class, 'search'])->name('apoderados.search');
 

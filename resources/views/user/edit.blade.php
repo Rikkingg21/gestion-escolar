@@ -430,7 +430,7 @@
                                                             </div>
                                                             @break
 
-                                                        @default
+                                                       @default
                                                         <div class="alert alert-info d-flex align-items-center justify-content-between">
                                                             <div>
                                                                 <i class="bi bi-info-circle me-2"></i>
@@ -438,37 +438,52 @@
                                                             </div>
                                                             <span class="badge bg-primary ms-2">{{ $rol->nombre ?? 'Rol' }}</span>
                                                         </div>
+
+                                                        <!-- Botón con AJAX en lugar de formulario -->
                                                         <button type="button"
-                                                            class="btn btn-outline-danger btn-sm mt-1 btn-desvincular-rol"
-                                                            data-role-id="{{ $rol->id ?? '' }}"
-                                                            data-user-id="{{ $user->id }}">
+                                                                class="btn btn-outline-danger btn-sm mt-1 btn-desvincular-rol"
+                                                                data-role-id="{{ $rol->id }}"
+                                                                data-role-name="{{ $rol->nombre ?? 'Rol' }}">
                                                             <i class="bi bi-x-circle me-1"></i>Desvincular Rol
                                                         </button>
+
                                                         <script>
                                                         $(document).ready(function() {
+                                                            // Desvincular rol existente
                                                             $(document).on('click', '.btn-desvincular-rol', function() {
                                                                 const $btn = $(this);
-                                                                const rolId = $btn.data('role-id');
-                                                                const userId = $btn.data('user-id');
-                                                                // Si tienes los roles protegidos en JS, pásalos aquí. Si no, puedes omitirlo.
-                                                                const rolesProtegidos = [1,2,3,4,5,6];
+                                                                const roleId = $btn.data('role-id');
+                                                                const roleName = $btn.data('role-name');
+                                                                const userId = {{ $user->id }};
 
-                                                                if (!confirm('¿Seguro que deseas desvincular este rol?')) return;
+                                                                if (!confirm(`¿Seguro que deseas desvincular el rol "${roleName}"?`)) return;
 
+                                                                // Mostrar loading
+                                                                $btn.prop('disabled', true).html('<i class="bi bi-hourglass me-1"></i>Procesando...');
+
+                                                                // Enviar petición AJAX
                                                                 $.ajax({
-                                                                    url: '/users/' + userId + '/remove-relacion-no-protegidos',
-                                                                    type: 'POST',
+                                                                    url: '{{ route("users.remove-role", ["user" => $user->id]) }}',
+                                                                    type: 'DELETE', // Usa DELETE como definiste en tu ruta
                                                                     data: {
-                                                                        role_id: rolId,
-                                                                        roles_protegidos: rolesProtegidos,
+                                                                        role_id: roleId,
                                                                         _token: '{{ csrf_token() }}'
                                                                     },
                                                                     success: function(response) {
                                                                         if (response.success) {
                                                                             // Eliminar visualmente el bloque del rol
                                                                             $btn.closest('.rol-item').remove();
+
+                                                                            // Mostrar mensaje de éxito
+                                                                            mostrarAlerta('success', response.message);
+
+                                                                            // Recargar la página después de 1 segundo para actualizar datos
+                                                                            setTimeout(() => {
+                                                                                location.reload();
+                                                                            }, 1000);
                                                                         } else {
-                                                                            alert(response.message || 'No se pudo eliminar el rol.');
+                                                                            mostrarAlerta('error', response.message);
+                                                                            $btn.prop('disabled', false).html('<i class="bi bi-x-circle me-1"></i>Desvincular Rol');
                                                                         }
                                                                     },
                                                                     error: function(xhr) {
@@ -476,12 +491,25 @@
                                                                         if (xhr.responseJSON && xhr.responseJSON.message) {
                                                                             msg = xhr.responseJSON.message;
                                                                         }
-                                                                        alert(msg);
+                                                                        mostrarAlerta('error', msg);
+                                                                        $btn.prop('disabled', false).html('<i class="bi bi-x-circle me-1"></i>Desvincular Rol');
                                                                     }
                                                                 });
                                                             });
+
+                                                            function mostrarAlerta(tipo, mensaje) {
+                                                                // Crear alerta Bootstrap
+                                                                const alerta = `<div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
+                                                                    ${mensaje}
+                                                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                                                </div>`;
+
+                                                                // Insertar al inicio del contenedor principal
+                                                                $('#form-editar-usuario').prepend(alerta);
+                                                            }
                                                         });
                                                         </script>
+
                                                     @endswitch
                                                 </div>
                                             </div>
