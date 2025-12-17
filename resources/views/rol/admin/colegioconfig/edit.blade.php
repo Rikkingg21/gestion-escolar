@@ -105,7 +105,7 @@
                             </div>
                             <div class="card-body text-center">
                                 @if($colegio->logo_path)
-                                    <img src="{{ asset($colegio->logo_path) }}"
+                                    <img src="{{ Storage::url($colegio->logo_path) }}"
                                          alt="Logo actual del colegio"
                                          style="max-height: 200px; max-width: 100%;"
                                          class="img-fluid rounded">

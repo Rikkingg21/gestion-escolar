@@ -69,7 +69,7 @@ class ColegioController extends Controller
             $file->move($directorio, $nombreArchivo);
 
             // Guardar ruta en BD
-            $colegio->logo_path = 'storage/logo/' . $nombreArchivo;
+            $colegio->logo_path = 'logo/' . $nombreArchivo;
         }
 
         // Eliminar logo si se marca la casilla

@@ -35,7 +35,7 @@ class Colegio extends Model
     // Accesor para la URL del logo
     public function getLogoUrlAttribute()
     {
-        return $this->logo_path ? asset($this->logo_path) : asset('images/default-logo.png');
+        return $this->logo_path ? asset($this->logo_path) : asset('storage/logo/logo-actual.png');
     }
 
 }
