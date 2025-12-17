@@ -50,7 +50,7 @@ Route::redirect('/', '/login');
 // Rutas de autenticación
 Route::controller(LoginController::class)->group(function () {
     Route::get('/login', 'index')->name('index');
-    Route::post('/login', 'login')->name('login');;
+    Route::post('/login', 'login')->name('login');
     Route::post('/logout', 'logout')->name('logout');
 });
 Route::post('/logout-sub', [LoginController::class, 'logout_sub'])->name('logout_sub');
