@@ -54,7 +54,7 @@
             transition: width var(--transition-speed) ease;
             background-color: #212529;
             color: white;
-            height: 100vh;
+            height: 100dvh;
             position: fixed;
             left: 0;
             top: 0;
