@@ -17,6 +17,7 @@ use App\Models\Director;
 use App\Models\Grado;
 use App\Models\Materia;
 use App\Models\Userrole;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -737,193 +738,28 @@ class UserController extends Controller
     {
         return view('user.importar');
     }
-    public function validarApoderados(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|mimes:xlsx,xls|max:10240' // 10MB máximo
-        ]);
-
-        try {
-            $spreadsheet = IOFactory::load($request->file('file'));
-            $sheet = $spreadsheet->getActiveSheet();
-            $rows = $sheet->toArray();
-
-            $registrosValidos = [];
-            $errores = [];
-            $totalRegistros = 0;
-
-            // Saltar la primera fila (encabezados)
-            for ($i = 1; $i < count($rows); $i++) {
-                $row = $rows[$i];
-                $totalRegistros++;
-
-                // Validar que la fila no esté vacía
-                if (empty(array_filter($row))) {
-                    continue;
-                }
-
-                // Validar campos obligatorios
-                if (empty($row[0]) || empty($row[1]) || empty($row[2]) || empty($row[3]) || empty($row[5])) {
-                    $errores[] = [
-                        'fila' => $i + 1,
-                        'dni' => $row[0] ?? 'N/A',
-                        'error' => 'Faltan campos obligatorios'
-                    ];
-                    continue;
-                }
-
-                $dni = $row[0];
-
-                // Validar formato de DNI
-                if (!preg_match('/^[0-9]{8}$/', $dni)) {
-                    $errores[] = [
-                        'fila' => $i + 1,
-                        'dni' => $dni,
-                        'error' => 'Formato de DNI inválido (debe tener 8 dígitos)'
-                    ];
-                    continue;
-                }
-
-                // Verificar si el usuario ya existe
-                if (User::where('dni', $dni)->exists()) {
-                    $errores[] = [
-                        'fila' => $i + 1,
-                        'dni' => $dni,
-                        'error' => 'El DNI ya existe en el sistema'
-                    ];
-                    continue;
-                }
-
-                // Validar parentesco
-                $parentescoValido = ['padre', 'madre', 'tutor'];
-                $parentesco = strtolower(trim($row[5]));
-                if (!in_array($parentesco, $parentescoValido)) {
-                    $errores[] = [
-                        'fila' => $i + 1,
-                        'dni' => $dni,
-                        'error' => 'Parentesco inválido. Debe ser: padre, madre o tutor'
-                    ];
-                    continue;
-                }
-
-                // Registro válido
-                $registrosValidos[] = [
-                    'fila' => $i + 1,
-                    'dni' => $dni,
-                    'apellido_paterno' => mb_strtoupper($row[1], 'UTF-8'),
-                    'apellido_materno' => mb_strtoupper($row[2], 'UTF-8'),
-                    'nombre' => mb_strtoupper($row[3], 'UTF-8'),
-                    'telefono' => $row[4] ?? null,
-                    'parentesco' => $parentesco,
-                    'email' => $dni . '@ietere.com'
-                ];
-            }
-
-            return response()->json([
-                'success' => true,
-                'total_registros' => $totalRegistros,
-                'registros_validos' => $registrosValidos,
-                'total_validos' => count($registrosValidos),
-                'errores' => $errores,
-                'total_errores' => count($errores),
-                'session_key' => 'apoderados_pendientes_' . uniqid()
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al procesar el archivo: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    // Función original con el nombre que quieres mantener
     public function importarApoderados(Request $request)
     {
-        // Aumentar el tiempo de ejecución a 2 minutos
-        set_time_limit(120);
+        // Paso 1: Validar si es confirmación o cancelación
+        if ($request->has('accion')) {
+            $accion = $request->input('accion');
 
-        // Decodificar los registros que vienen como JSON string
-        $registros = json_decode($request->registros, true);
+            if ($accion === 'cancelar') {
+                // Limpiar sesión y cancelar
+                session()->forget('import_apoderados_data');
 
-        // Validar que se pudieron decodificar correctamente
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Formato de datos inválido'
-            ], 400);
-        }
+                return redirect()->route('user.importar')
+                    ->with('info', 'Importación de apoderados cancelada.');
+            }
 
-        $validator = Validator::make(['registros' => $registros], [
-            'registros' => 'required|array',
-            'registros.*.dni' => 'required|string',
-            'registros.*.nombre' => 'required|string',
-            'registros.*.apellido_paterno' => 'required|string',
-            'registros.*.apellido_materno' => 'required|string',
-            'registros.*.parentesco' => 'required|string'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Datos de validación incorrectos',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $exitosos = 0;
-        $errores = [];
-        $totalRegistros = count($registros);
-
-        foreach ($registros as $index => $registro) {
-            try {
-                // Verificar nuevamente que no exista (por si acaso)
-                if (User::where('dni', $registro['dni'])->exists()) {
-                    $errores[] = "DNI {$registro['dni']} ya existe en el sistema";
-                    continue;
-                }
-
-                // Crear el usuario apoderado
-                $user = User::create([
-                    'dni' => $registro['dni'],
-                    'nombre_usuario' => $registro['dni'],
-                    'nombre' => $registro['nombre'],
-                    'apellido_paterno' => $registro['apellido_paterno'],
-                    'apellido_materno' => $registro['apellido_materno'],
-                    'email' => $registro['dni'] . '@ietere.com',
-                    'password' => Hash::make($registro['dni']),
-                    'telefono' => $registro['telefono'] ?? null,
-                    'estado' => '1',
-                ]);
-
-                // Asignar rol de apoderado (ID 5)
-                $user->roles()->attach(5);
-
-                // Crear registro de apoderado
-                Apoderado::create([
-                    'user_id' => $user->id,
-                    'parentesco' => $registro['parentesco'],
-                    'estado' => '1',
-                ]);
-
-                $exitosos++;
-
-            } catch (\Exception $e) {
-                $errores[] = "DNI {$registro['dni']}: " . $e->getMessage();
+            if ($accion === 'procesar') {
+                return $this->procesarImportacionApoderados($request);
             }
         }
 
-        return response()->json([
-            'success' => true,
-            'exitosos' => $exitosos,
-            'errores' => $errores
-        ]);
-    }
-
-    public function validarEstudiantes(Request $request)
-    {
+        // Paso 1: Validación inicial del archivo
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls|max:10240' // 10MB máximo
+            'file' => 'required|file|mimes:xlsx,xls|max:10240', // 10MB máximo
         ]);
 
         try {
@@ -931,242 +767,671 @@ class UserController extends Controller
             $sheet = $spreadsheet->getActiveSheet();
             $rows = $sheet->toArray();
 
-            $registrosValidos = [];
-            $errores = [];
             $totalRegistros = 0;
+            $errores = [];
+            $registrosValidos = [];
 
-            // Saltar la primera fila (encabezados)
+            // Validar cada fila (saltando encabezados)
             for ($i = 1; $i < count($rows); $i++) {
                 $row = $rows[$i];
+                $numeroFila = $i + 1;
+
+                // Verificar si la fila está vacía
+                if (empty(array_filter($row, function($value) {
+                    return $value !== null && $value !== '';
+                }))) {
+                    continue;
+                }
+
                 $totalRegistros++;
 
-                // Validar que la fila no esté vacía
-                if (empty(array_filter($row))) {
-                    continue;
-                }
-
-                // Validar campos obligatorios
-                if (empty($row[0]) || empty($row[1]) || empty($row[3]) || empty($row[5]) || empty($row[6]) || empty($row[7]) || empty($row[8])) {
-                    $errores[] = [
-                        'fila' => $i + 1,
-                        'dni_estudiante' => $row[0] ?? 'N/A',
-                        'error' => 'Faltan campos obligatorios'
-                    ];
-                    continue;
-                }
-
-                $dniEstudiante = $row[0];
-                $dniApoderado = $row[5];
-
-                // Validar formato de DNI del estudiante
-                if (!preg_match('/^[0-9]{8}$/', $dniEstudiante)) {
-                    $errores[] = [
-                        'fila' => $i + 1,
-                        'dni_estudiante' => $dniEstudiante,
-                        'error' => 'Formato de DNI del estudiante inválido (debe tener 8 dígitos)'
-                    ];
-                    continue;
-                }
-
-                // Validar formato de DNI del apoderado
-                if (!preg_match('/^[0-9]{8}$/', $dniApoderado)) {
-                    $errores[] = [
-                        'fila' => $i + 1,
-                        'dni_estudiante' => $dniEstudiante,
-                        'error' => 'Formato de DNI del apoderado inválido (debe tener 8 dígitos)'
-                    ];
-                    continue;
-                }
-
-                // Verificar si el estudiante ya existe
-                if (User::where('dni', $dniEstudiante)->exists()) {
-                    $errores[] = [
-                        'fila' => $i + 1,
-                        'dni_estudiante' => $dniEstudiante,
-                        'error' => 'El DNI del estudiante ya existe en el sistema'
-                    ];
-                    continue;
-                }
-
-                // Buscar al apoderado por DNI
-                $apoderadoUser = User::where('dni', $dniApoderado)->first();
-                if (!$apoderadoUser) {
-                    $errores[] = [
-                        'fila' => $i + 1,
-                        'dni_estudiante' => $dniEstudiante,
-                        'error' => 'No se encontró al apoderado con DNI: ' . $dniApoderado
-                    ];
-                    continue;
-                }
-
-                $apoderado = Apoderado::where('user_id', $apoderadoUser->id)->first();
-                if (!$apoderado) {
-                    $errores[] = [
-                        'fila' => $i + 1,
-                        'dni_estudiante' => $dniEstudiante,
-                        'error' => 'El usuario con DNI ' . $dniApoderado . ' no es un apoderado'
-                    ];
-                    continue;
-                }
-
-                // Buscar el grado
-                $grado = Grado::where('grado', mb_strtoupper($row[6], 'UTF-8'))
-                            ->where('seccion', mb_strtoupper($row[7], 'UTF-8'))
-                            ->where('nivel', mb_strtoupper($row[8], 'UTF-8'))
-                            ->first();
-
-                if (!$grado) {
-                    $errores[] = [
-                        'fila' => $i + 1,
-                        'dni_estudiante' => $dniEstudiante,
-                        'error' => 'No se encontró el grado: ' . mb_strtoupper($row[6], 'UTF-8') .
-                                ' - sección: ' . mb_strtoupper($row[7], 'UTF-8') .
-                                ' - nivel: ' . mb_strtoupper($row[8], 'UTF-8')
-                    ];
-                    continue;
-                }
-
-                // Validar fecha de nacimiento
-                $fechaNacimiento = null;
-                if (!empty($row[4])) {
-                    try {
-                        $fechaNacimiento = \Carbon\Carbon::createFromFormat('d/m/Y', $row[4])->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        try {
-                            $fechaNacimiento = \Carbon\Carbon::parse($row[4])->format('Y-m-d');
-                        } catch (\Exception $e) {
-                            $errores[] = [
-                                'fila' => $i + 1,
-                                'dni_estudiante' => $dniEstudiante,
-                                'error' => 'Formato de fecha de nacimiento inválido: ' . $row[4]
-                            ];
-                            continue;
-                        }
+                try {
+                    // Validar campos obligatorios
+                    if (empty($row[0]) || empty($row[1]) || empty($row[2]) || empty($row[3]) || empty($row[5])) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni' => $row[0] ?? 'N/A',
+                            'error' => 'Faltan campos obligatorios'
+                        ];
+                        continue;
                     }
-                }
 
-                // Registro válido
-                $registrosValidos[] = [
-                    'fila' => $i + 1,
-                    'dni_estudiante' => $dniEstudiante,
-                    'apellido_paterno' => mb_strtoupper($row[1], 'UTF-8'),
-                    'apellido_materno' => !empty($row[2]) ? mb_strtoupper($row[2], 'UTF-8') : null,
-                    'nombre' => mb_strtoupper($row[3], 'UTF-8'),
-                    'fecha_nacimiento' => $fechaNacimiento,
-                    'dni_apoderado' => $dniApoderado,
-                    'grado' => mb_strtoupper($row[6], 'UTF-8'),
-                    'seccion' => mb_strtoupper($row[7], 'UTF-8'),
-                    'nivel' => mb_strtoupper($row[8], 'UTF-8'),
-                    'grado_id' => $grado->id,
-                    'apoderado_id' => $apoderado->id,
-                    'apoderado_nombre' => $apoderadoUser->nombre . ' ' . $apoderadoUser->apellido_paterno,
-                    'email' => $dniEstudiante . '@ietere.com'
-                ];
+                    $dni = trim($row[0]);
+
+                    // Validar formato de DNI
+                    if (!preg_match('/^[0-9]{8}$/', $dni)) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni' => $dni,
+                            'error' => 'Formato de DNI inválido (debe tener 8 dígitos)'
+                        ];
+                        continue;
+                    }
+
+                    // Verificar si el usuario ya existe
+                    if (User::where('dni', $dni)->exists()) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni' => $dni,
+                            'error' => 'El DNI ya existe en el sistema'
+                        ];
+                        continue;
+                    }
+
+                    // Validar parentesco
+                    $parentescosValidos = ['padre', 'madre', 'tutor'];
+                    $parentesco = strtolower(trim($row[5]));
+                    if (!in_array($parentesco, $parentescosValidos)) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni' => $dni,
+                            'error' => 'Parentesco inválido. Debe ser: ' . implode(', ', $parentescosValidos)
+                        ];
+                        continue;
+                    }
+
+                    // Validar teléfono si está presente
+                    $telefono = isset($row[4]) ? trim($row[4]) : null;
+                    if ($telefono && !preg_match('/^[0-9]{7,15}$/', $telefono)) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni' => $dni,
+                            'error' => 'Formato de teléfono inválido'
+                        ];
+                        continue;
+                    }
+
+                    // Verificar duplicados dentro del archivo
+                    $claveRegistro = $dni;
+                    $duplicadoEnArchivo = collect($registrosValidos)->contains(function($registro) use ($dni) {
+                        return $registro['dni'] === $dni;
+                    });
+
+                    if ($duplicadoEnArchivo) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni' => $dni,
+                            'error' => 'DNI duplicado en el archivo'
+                        ];
+                        continue;
+                    }
+
+                    // Agregar a registros válidos
+                    $registrosValidos[] = [
+                        'fila' => $numeroFila,
+                        'datos' => [
+                            'dni' => $dni,
+                            'apellido_paterno' => mb_strtoupper(trim($row[1]), 'UTF-8'),
+                            'apellido_materno' => mb_strtoupper(trim($row[2]), 'UTF-8'),
+                            'nombre' => mb_strtoupper(trim($row[3]), 'UTF-8'),
+                            'telefono' => $telefono,
+                            'parentesco' => $parentesco,
+                            'email' => $dni . '@ietere.com',
+                            'password' => $dni, // Se hasheará al crear
+                            'nombre_usuario' => $dni
+                        ]
+                    ];
+
+                } catch (\Exception $e) {
+                    $errores[] = [
+                        'fila' => $numeroFila,
+                        'dni' => $row[0] ?? 'N/A',
+                        'error' => $e->getMessage()
+                    ];
+                }
             }
 
-            return response()->json([
-                'success' => true,
-                'total_registros' => $totalRegistros,
+            // Guardar datos en sesión para el próximo paso
+            session()->put('import_apoderados_data', [
                 'registros_validos' => $registrosValidos,
-                'total_validos' => count($registrosValidos),
+                'total_registros' => $totalRegistros,
                 'errores' => $errores,
-                'total_errores' => count($errores),
-                'session_key' => 'estudiantes_pendientes_' . uniqid()
+                'archivo_nombre' => $request->file('file')->getClientOriginalName()
             ]);
 
+            // Devolver a la vista con datos de validación
+            return redirect()->route('user.importar')
+                ->with('validacion_apoderados', true)
+                ->with('total_registros_apoderados', $totalRegistros)
+                ->with('registros_validos_apoderados', count($registrosValidos))
+                ->with('errores_validacion_apoderados', $errores)
+                ->with('datos_validos_apoderados', $registrosValidos)
+                ->with('tipo_importacion', 'apoderados');
+
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al procesar el archivo: ' . $e->getMessage()
-            ], 500);
+            return redirect()->back()
+                ->with('error', 'Error al procesar el archivo: ' . $e->getMessage())
+                ->withInput();
         }
     }
-    public function importarEstudiantes(Request $request)
+
+    // Método privado para procesar la importación de apoderados
+    private function procesarImportacionApoderados(Request $request)
     {
-        // Aumentar el tiempo de ejecución a 2 minutos
+        // Aumentar el tiempo de ejecución para procesamiento masivo
         set_time_limit(120);
 
-        // Decodificar los registros que vienen como JSON string
-        $registros = json_decode($request->registros, true);
+        try {
+            $importData = session()->get('import_apoderados_data');
 
-        // Validar que se pudieron decodificar correctamente
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Formato de datos inválido'
-            ], 400);
-        }
+            if (!$importData) {
+                return redirect()->route('user.importar')
+                    ->with('error', 'No hay datos de importación para procesar. Por favor, valide el archivo nuevamente.');
+            }
 
-        $validator = Validator::make(['registros' => $registros], [
-            'registros' => 'required|array',
-            'registros.*.dni_estudiante' => 'required|string',
-            'registros.*.nombre' => 'required|string',
-            'registros.*.apellido_paterno' => 'required|string',
-            'registros.*.grado_id' => 'required|integer',
-            'registros.*.apoderado_id' => 'required|integer'
-        ]);
+            $registrosValidos = $importData['registros_validos'];
+            $exitosos = 0;
+            $erroresProceso = [];
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Datos de validación incorrectos',
-                'errors' => $validator->errors()
-            ], 422);
-        }
+            // Procesar cada registro válido
+            foreach ($registrosValidos as $registro) {
+                try {
+                    DB::beginTransaction();
 
-        $exitosos = 0;
-        $errores = [];
-        $totalRegistros = count($registros);
+                    // Verificar nuevamente que no exista (concurrente)
+                    if (User::where('dni', $registro['datos']['dni'])->exists()) {
+                        $erroresProceso[] = [
+                            'fila' => $registro['fila'],
+                            'dni' => $registro['datos']['dni'],
+                            'error' => 'El DNI ya existe en el sistema'
+                        ];
+                        DB::rollBack();
+                        continue;
+                    }
 
-        foreach ($registros as $index => $registro) {
-            try {
-                // Verificar nuevamente que no exista (por si acaso)
-                if (User::where('dni', $registro['dni_estudiante'])->exists()) {
-                    $errores[] = "DNI {$registro['dni_estudiante']} ya existe en el sistema";
-                    continue;
+                    // Crear el usuario
+                    $user = User::create([
+                        'dni' => $registro['datos']['dni'],
+                        'nombre_usuario' => $registro['datos']['nombre_usuario'],
+                        'nombre' => $registro['datos']['nombre'],
+                        'apellido_paterno' => $registro['datos']['apellido_paterno'],
+                        'apellido_materno' => $registro['datos']['apellido_materno'],
+                        'email' => $registro['datos']['email'],
+                        'password' => Hash::make($registro['datos']['password']),
+                        'telefono' => $registro['datos']['telefono'],
+                        'estado' => '1',
+                        'email_verified_at' => now(),
+                    ]);
+
+                    // Asignar rol de apoderado (ID 5)
+                    $user->roles()->attach(5);
+
+                    // Crear registro de apoderado
+                    Apoderado::create([
+                        'user_id' => $user->id,
+                        'parentesco' => $registro['datos']['parentesco'],
+                        'estado' => '1',
+                    ]);
+
+                    DB::commit();
+                    $exitosos++;
+
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    $erroresProceso[] = [
+                        'fila' => $registro['fila'],
+                        'dni' => $registro['datos']['dni'],
+                        'error' => 'Error al crear usuario: ' . $e->getMessage()
+                    ];
                 }
+            }
 
-                // Crear el usuario estudiante
-                $user = User::create([
-                    'dni' => $registro['dni_estudiante'],
-                    'nombre_usuario' => $registro['dni_estudiante'],
-                    'nombre' => $registro['nombre'],
-                    'apellido_paterno' => $registro['apellido_paterno'],
-                    'apellido_materno' => $registro['apellido_materno'] ?? null,
-                    'email' => $registro['dni_estudiante'] . '@ietere.com',
-                    'password' => Hash::make($registro['dni_estudiante']),
-                    'estado' => '1',
-                ]);
+            // Limpiar sesión
+            session()->forget('import_apoderados_data');
 
-                // Asignar rol de estudiante (ID 6)
-                $user->roles()->attach(6);
+            // Preparar mensaje final
+            $mensaje = "Importación completada: $exitosos apoderados importados exitosamente.";
+            $tipoMensaje = 'success';
 
-                // Crear registro de estudiante
-                Estudiante::create([
-                    'user_id' => $user->id,
-                    'grado_id' => $registro['grado_id'],
-                    'apoderado_id' => $registro['apoderado_id'],
-                    'fecha_nacimiento' => $registro['fecha_nacimiento'] ?? null,
-                    'parentesco' => 'Hijo(a)',
-                    'estado' => '1',
-                ]);
+            if (count($erroresProceso) > 0) {
+                $mensaje .= " Se produjeron " . count($erroresProceso) . " errores durante el procesamiento.";
+                $tipoMensaje = 'warning';
 
-                $exitosos++;
+                // Guardar errores de proceso en sesión
+                session()->flash('errores_proceso_apoderados', $erroresProceso);
+            }
 
-            } catch (\Exception $e) {
-                $errores[] = "DNI {$registro['dni_estudiante']}: " . $e->getMessage();
+            return redirect()->route('user.importar')
+                ->with($tipoMensaje, $mensaje)
+                ->with('exitosos_apoderados', $exitosos);
 
-                // Eliminar usuario si se creó pero falló algo después
-                if (isset($user)) {
-                    $user->delete();
-                }
+        } catch (\Exception $e) {
+            return redirect()->route('user.importar')
+                ->with('error', 'Error durante el procesamiento: ' . $e->getMessage());
+        }
+    }
+
+    public function importarEstudiantes(Request $request)
+    {
+        // Paso 1: Validar si es confirmación o cancelación
+        if ($request->has('accion')) {
+            $accion = $request->input('accion');
+
+            if ($accion === 'cancelar') {
+                // Limpiar sesión y cancelar
+                session()->forget('import_estudiantes_data');
+
+                return redirect()->route('user.importar')
+                    ->with('info', 'Importación de estudiantes cancelada.');
+            }
+
+            if ($accion === 'procesar') {
+                return $this->procesarImportacionEstudiantes($request);
             }
         }
 
-        return response()->json([
-            'success' => true,
-            'exitosos' => $exitosos,
-            'errores' => $errores
+        // Paso 1: Validación inicial del archivo
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls|max:10240', // 10MB máximo
         ]);
+
+        try {
+            $spreadsheet = IOFactory::load($request->file('file'));
+            $sheet = $spreadsheet->getActiveSheet();
+            $rows = $sheet->toArray();
+
+            $totalRegistros = 0;
+            $errores = [];
+            $registrosValidos = [];
+
+            // Validar cada fila (saltando encabezados)
+            for ($i = 1; $i < count($rows); $i++) {
+                $row = $rows[$i];
+                $numeroFila = $i + 1;
+
+                // Verificar si la fila está vacía
+                if (empty(array_filter($row, function($value) {
+                    return $value !== null && $value !== '';
+                }))) {
+                    continue;
+                }
+
+                $totalRegistros++;
+
+                try {
+                    // Validar campos obligatorios
+                    if (empty($row[0]) || empty($row[1]) || empty($row[3]) || empty($row[5]) || empty($row[6]) || empty($row[7]) || empty($row[8])) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni_estudiante' => $row[0] ?? 'N/A',
+                            'error' => 'Faltan campos obligatorios'
+                        ];
+                        continue;
+                    }
+
+                    $dniEstudiante = trim($row[0]);
+                    $dniApoderado = trim($row[5]);
+
+                    // Validar formato de DNI del estudiante
+                    if (!preg_match('/^[0-9]{8}$/', $dniEstudiante)) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni_estudiante' => $dniEstudiante,
+                            'error' => 'Formato de DNI del estudiante inválido (debe tener 8 dígitos)'
+                        ];
+                        continue;
+                    }
+
+                    // Validar formato de DNI del apoderado
+                    if (!preg_match('/^[0-9]{8}$/', $dniApoderado)) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni_estudiante' => $dniEstudiante,
+                            'error' => 'Formato de DNI del apoderado inválido (debe tener 8 dígitos)'
+                        ];
+                        continue;
+                    }
+
+                    // Verificar si el estudiante ya existe
+                    if (User::where('dni', $dniEstudiante)->exists()) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni_estudiante' => $dniEstudiante,
+                            'error' => 'El DNI del estudiante ya existe en el sistema'
+                        ];
+                        continue;
+                    }
+
+                    // Buscar al apoderado por DNI
+                    $apoderadoUser = User::where('dni', $dniApoderado)->first();
+                    if (!$apoderadoUser) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni_estudiante' => $dniEstudiante,
+                            'error' => 'No se encontró al apoderado con DNI: ' . $dniApoderado
+                        ];
+                        continue;
+                    }
+
+                    // Verificar que el usuario sea apoderado
+                    $apoderado = Apoderado::where('user_id', $apoderadoUser->id)->first();
+                    if (!$apoderado) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni_estudiante' => $dniEstudiante,
+                            'error' => 'El usuario con DNI ' . $dniApoderado . ' no es un apoderado'
+                        ];
+                        continue;
+                    }
+
+                    // Validar grado, sección y nivel
+                    $gradoNumero = trim($row[6]);
+                    $seccion = mb_strtoupper(trim($row[7]), 'UTF-8');
+                    $nivel = mb_strtoupper(trim($row[8]), 'UTF-8');
+
+                    // Validar formato del grado
+                    if (!is_numeric($gradoNumero)) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni_estudiante' => $dniEstudiante,
+                            'error' => 'El grado debe ser un número'
+                        ];
+                        continue;
+                    }
+
+                    // Validar nivel
+                    $nivelesValidos = ['PRIMARIA', 'SECUNDARIA'];
+                    if (!in_array($nivel, $nivelesValidos)) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni_estudiante' => $dniEstudiante,
+                            'error' => 'Nivel inválido. Debe ser: ' . implode(' o ', $nivelesValidos)
+                        ];
+                        continue;
+                    }
+
+                    // Buscar el grado
+                    $grado = Grado::where('grado', $gradoNumero)
+                        ->where('seccion', $seccion)
+                        ->where('nivel', $nivel)
+                        ->where('estado', '1')
+                        ->first();
+
+                    if (!$grado) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni_estudiante' => $dniEstudiante,
+                            'error' => 'No se encontró el grado: ' . $gradoNumero .
+                                    '° - sección: ' . $seccion .
+                                    ' - nivel: ' . $nivel . ' (o no está activo)'
+                        ];
+                        continue;
+                    }
+
+                    // Validar fecha de nacimiento
+                    $fechaNacimiento = null;
+                    if (!empty($row[4])) {
+                        $fechaStr = trim($row[4]);
+
+                        // Primero, verificar si es un valor numérico de Excel (serial date)
+                        if (is_numeric($fechaStr)) {
+                            try {
+                                // Convertir serial date de Excel a fecha PHP
+                                $excelDate = (int)$fechaStr;
+                                if ($excelDate > 60) {
+                                    // Excel para Windows usa 1900 como base, pero tiene un error: cree que 1900 fue bisiesto
+                                    $excelDate -= 1;
+                                }
+                                $fechaNacimiento = Carbon::create(1900, 1, 1)->addDays($excelDate - 1);
+                            } catch (\Exception $e) {
+                                $errores[] = [
+                                    'fila' => $numeroFila,
+                                    'dni_estudiante' => $dniEstudiante,
+                                    'error' => 'Fecha de nacimiento (serial Excel) inválida: ' . $fechaStr
+                                ];
+                                continue;
+                            }
+                        } else {
+                            try {
+                                // Si es string, intentar con múltiples formatos
+                                $fechaParseada = null;
+
+                                // Intentar con formato dd/mm/yyyy
+                                if (preg_match('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/', $fechaStr)) {
+                                    // Reemplazar cualquier separador por /
+                                    $fechaNormalizada = str_replace(['-', '\\'], '/', $fechaStr);
+
+                                    // Separar partes
+                                    $partes = explode('/', $fechaNormalizada);
+                                    if (count($partes) === 3) {
+                                        $dia = intval($partes[0]);
+                                        $mes = intval($partes[1]);
+                                        $anio = intval($partes[2]);
+
+                                        // Verificar qué formato tiene (dd/mm/yyyy o mm/dd/yyyy)
+                                        if ($mes > 12 && $dia <= 12) {
+                                            // Probablemente es mm/dd/yyyy pero mes > 12, así que intercambiar
+                                            $temp = $mes;
+                                            $mes = $dia;
+                                            $dia = $temp;
+                                        }
+
+                                        // Crear fecha
+                                        $fechaParseada = Carbon::create($anio, $mes, $dia);
+                                    }
+                                }
+
+                                // Si no se pudo parsear con formato específico, intentar con Carbon
+                                if (!$fechaParseada) {
+                                    $fechaParseada = Carbon::parse($fechaStr);
+                                }
+
+                                $fechaNacimiento = $fechaParseada;
+
+                                // Validar que la fecha sea válida (no en el futuro)
+                                if ($fechaNacimiento->isFuture()) {
+                                    throw new \Exception('La fecha de nacimiento no puede ser futura');
+                                }
+
+                                // Validar edad mínima (3 años) y máxima (20 años)
+                                $edad = $fechaNacimiento->age;
+                                if ($edad < 3 || $edad > 20) {
+                                    throw new \Exception('Edad fuera del rango permitido (3-20 años)');
+                                }
+
+                                $fechaNacimiento = $fechaNacimiento->format('Y-m-d');
+
+                            } catch (\Exception $e) {
+                                $errores[] = [
+                                    'fila' => $numeroFila,
+                                    'dni_estudiante' => $dniEstudiante,
+                                    'error' => 'Fecha de nacimiento inválida: "' . $fechaStr . '" - ' . $e->getMessage()
+                                ];
+                                continue;
+                            }
+                        }
+                    }
+
+                    // Verificar duplicados dentro del archivo
+                    $claveRegistro = $dniEstudiante;
+                    $duplicadoEnArchivo = collect($registrosValidos)->contains(function($registro) use ($dniEstudiante) {
+                        return $registro['dni_estudiante'] === $dniEstudiante;
+                    });
+
+                    if ($duplicadoEnArchivo) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'dni_estudiante' => $dniEstudiante,
+                            'error' => 'DNI de estudiante duplicado en el archivo'
+                        ];
+                        continue;
+                    }
+
+                    // Agregar a registros válidos
+                    $registrosValidos[] = [
+                        'fila' => $numeroFila,
+                        'datos' => [
+                            'dni_estudiante' => $dniEstudiante,
+                            'apellido_paterno' => mb_strtoupper(trim($row[1]), 'UTF-8'),
+                            'apellido_materno' => !empty($row[2]) ? mb_strtoupper(trim($row[2]), 'UTF-8') : null,
+                            'nombre' => mb_strtoupper(trim($row[3]), 'UTF-8'),
+                            'fecha_nacimiento' => $fechaNacimiento,
+                            'dni_apoderado' => $dniApoderado,
+                            'grado' => $gradoNumero,
+                            'seccion' => $seccion,
+                            'nivel' => $nivel,
+                            'grado_id' => $grado->id,
+                            'grado_nombre' => $grado->nombreCompleto ?? $gradoNumero . '° ' . $seccion . ' - ' . $nivel,
+                            'apoderado_id' => $apoderado->id,
+                            'apoderado_nombre' => $apoderadoUser->nombreCompleto ?? ($apoderadoUser->nombre . ' ' . $apoderadoUser->apellido_paterno),
+                            'email' => $dniEstudiante . '@ietere.com',
+                            'password' => $dniEstudiante, // Se hasheará al crear
+                            'nombre_usuario' => $dniEstudiante
+                        ]
+                    ];
+
+                } catch (\Exception $e) {
+                    $errores[] = [
+                        'fila' => $numeroFila,
+                        'dni_estudiante' => $row[0] ?? 'N/A',
+                        'error' => $e->getMessage()
+                    ];
+                }
+            }
+
+            // Guardar datos en sesión para el próximo paso
+            session()->put('import_estudiantes_data', [
+                'registros_validos' => $registrosValidos,
+                'total_registros' => $totalRegistros,
+                'errores' => $errores,
+                'archivo_nombre' => $request->file('file')->getClientOriginalName()
+            ]);
+
+            // Devolver a la vista con datos de validación
+            return redirect()->route('user.importar')
+                ->with('validacion_estudiantes', true)
+                ->with('total_registros_estudiantes', $totalRegistros)
+                ->with('registros_validos_estudiantes', count($registrosValidos))
+                ->with('errores_validacion_estudiantes', $errores)
+                ->with('datos_validos_estudiantes', $registrosValidos)
+                ->with('tipo_importacion', 'estudiantes');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al procesar el archivo: ' . $e->getMessage())
+                ->withInput();
+        }
+    }
+
+    // Método privado para procesar la importación de estudiantes
+    private function procesarImportacionEstudiantes(Request $request)
+    {
+        // Aumentar el tiempo de ejecución para procesamiento masivo
+        set_time_limit(120);
+
+        try {
+            $importData = session()->get('import_estudiantes_data');
+
+            if (!$importData) {
+                return redirect()->route('user.importar')
+                    ->with('error', 'No hay datos de importación para procesar. Por favor, valide el archivo nuevamente.');
+            }
+
+            $registrosValidos = $importData['registros_validos'];
+            $exitosos = 0;
+            $erroresProceso = [];
+
+            // Procesar cada registro válido
+            foreach ($registrosValidos as $registro) {
+                try {
+                    DB::beginTransaction();
+
+                    // Verificar nuevamente que no exista (concurrente)
+                    if (User::where('dni', $registro['datos']['dni_estudiante'])->exists()) {
+                        $erroresProceso[] = [
+                            'fila' => $registro['fila'],
+                            'dni_estudiante' => $registro['datos']['dni_estudiante'],
+                            'error' => 'El DNI del estudiante ya existe en el sistema'
+                        ];
+                        DB::rollBack();
+                        continue;
+                    }
+
+                    // Verificar que el apoderado aún existe
+                    $apoderado = Apoderado::find($registro['datos']['apoderado_id']);
+                    if (!$apoderado) {
+                        $erroresProceso[] = [
+                            'fila' => $registro['fila'],
+                            'dni_estudiante' => $registro['datos']['dni_estudiante'],
+                            'error' => 'El apoderado ya no existe en el sistema'
+                        ];
+                        DB::rollBack();
+                        continue;
+                    }
+
+                    // Verificar que el grado aún existe
+                    $grado = Grado::find($registro['datos']['grado_id']);
+                    if (!$grado || $grado->estado !== '1') {
+                        $erroresProceso[] = [
+                            'fila' => $registro['fila'],
+                            'dni_estudiante' => $registro['datos']['dni_estudiante'],
+                            'error' => 'El grado ya no existe o no está activo'
+                        ];
+                        DB::rollBack();
+                        continue;
+                    }
+
+                    // Crear el usuario estudiante
+                    $user = User::create([
+                        'dni' => $registro['datos']['dni_estudiante'],
+                        'nombre_usuario' => $registro['datos']['nombre_usuario'],
+                        'nombre' => $registro['datos']['nombre'],
+                        'apellido_paterno' => $registro['datos']['apellido_paterno'],
+                        'apellido_materno' => $registro['datos']['apellido_materno'],
+                        'email' => $registro['datos']['email'],
+                        'password' => Hash::make($registro['datos']['password']),
+                        'estado' => '1',
+                        'email_verified_at' => now(),
+                    ]);
+
+                    // Asignar rol de estudiante (ID 6)
+                    $user->roles()->attach(6);
+
+                    // Crear registro de estudiante
+                    Estudiante::create([
+                        'user_id' => $user->id,
+                        'grado_id' => $registro['datos']['grado_id'],
+                        'apoderado_id' => $registro['datos']['apoderado_id'],
+                        'fecha_nacimiento' => $registro['datos']['fecha_nacimiento'],
+                        'parentesco' => 'Hijo(a)',
+                        'estado' => '1',
+                    ]);
+
+                    DB::commit();
+                    $exitosos++;
+
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    $erroresProceso[] = [
+                        'fila' => $registro['fila'],
+                        'dni_estudiante' => $registro['datos']['dni_estudiante'],
+                        'error' => 'Error al crear estudiante: ' . $e->getMessage()
+                    ];
+                }
+            }
+
+            // Limpiar sesión
+            session()->forget('import_estudiantes_data');
+
+            // Preparar mensaje final
+            $mensaje = "Importación completada: $exitosos estudiantes importados exitosamente.";
+            $tipoMensaje = 'success';
+
+            if (count($erroresProceso) > 0) {
+                $mensaje .= " Se produjeron " . count($erroresProceso) . " errores durante el procesamiento.";
+                $tipoMensaje = 'warning';
+
+                // Guardar errores de proceso en sesión
+                session()->flash('errores_proceso_estudiantes', $erroresProceso);
+            }
+
+            return redirect()->route('user.importar')
+                ->with($tipoMensaje, $mensaje)
+                ->with('exitosos_estudiantes', $exitosos);
+
+        } catch (\Exception $e) {
+            return redirect()->route('user.importar')
+                ->with('error', 'Error durante el procesamiento: ' . $e->getMessage());
+        }
     }
 }

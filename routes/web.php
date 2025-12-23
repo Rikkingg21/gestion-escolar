@@ -123,10 +123,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/apoderados/search', [ApoderadoController::class, 'search'])->name('apoderados.search');
 
     Route::get('/user/importar', [UserController::class, 'importar'])->name('user.importar');
-    Route::post('/importar/validar-apoderados', [UserController::class, 'validarApoderados'])->name('importar.validar-apoderados');
-    Route::post('/importar/apoderados', [UserController::class, 'importarApoderados'])->name('importar.apoderados');
-    Route::post('/importar/validar-estudiantes', [UserController::class, 'validarEstudiantes'])->name('importar.validar-estudiantes');
-    Route::post('/importar/estudiantes', [UserController::class, 'importarEstudiantes'])->name('importar.estudiantes');
+    // Para apoderados
+Route::post('/users/importar/apoderados', [UserController::class, 'importarApoderados'])
+    ->name('importar.apoderados');
+
+// Para estudiantes (cuando lo implementes)
+Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstudiantes'])
+    ->name('importar.estudiantes');
 
     Route::get('/grado', [GradoController::class, 'index'])->name('grado.index');
 
