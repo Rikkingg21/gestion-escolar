@@ -203,6 +203,8 @@ Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstu
             'grado_nivel' => '[a-zA-Z]+', // Solo letras para el nivel
             'date' => '\d{2}-\d{2}-\d{4}' // Formato dd-mm-yyyy
         ]);
+    Route::post('marcar-individual/{estudiante}', [AsistenciaController::class, 'marcarIndividual'])->name('asistencia.marcar-individual');
+    Route::post('asistencia/{grado}/{fecha}/guardar', [AsistenciaController::class, 'guardarMultiple'])->name('asistencia.guardar-multiple');
     Route::post('/asistencia', [AsistenciaController::class, 'store'])->name('asistencia.store');
     Route::put('/asistencia', [AsistenciaController::class, 'update'])->name('asistencia.update');
     Route::post('/asistencia/marcar-todos-puntualidad', [AsistenciaController::class, 'marcarTodosPuntualidad'])->name('asistencia.marcar-todos-puntualidad');
