@@ -224,11 +224,18 @@ document.addEventListener('DOMContentLoaded', function() {
     fechaInput.value = new Date().toISOString().split('T')[0];
 
     btnAsistenciaAutomatica.addEventListener('click', function() {
+        // Validar que se haya seleccionado bimestre
         if (!bimestreSelect.value) {
             alert('Por favor, seleccione un bimestre');
             return;
         }
 
+        // Preguntar confirmación
+        if (!confirm('¿Estás seguro de marcar a todos los estudiantes como puntuales?')) {
+            return; // Si el usuario cancela, no hacer nada
+        }
+
+        // Si el usuario confirma, continuar con el proceso
         const originalText = btnAsistenciaAutomatica.innerHTML;
         btnAsistenciaAutomatica.innerHTML = 'Guardando...';
         btnAsistenciaAutomatica.disabled = true;
