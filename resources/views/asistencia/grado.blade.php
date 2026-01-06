@@ -272,6 +272,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const contadorTardanza = document.getElementById('contadorTardanza');
     const contadorTotal = document.getElementById('contadorTotal');
 
+    // Función para actualizar estado de botones rápidos
+    function actualizarEstadoBotonesRapidos() {
+        document.querySelectorAll('.btn-marcar-rapido').forEach(btn => {
+            const estudianteId = btn.dataset.estudianteId;
+            const select = document.querySelector(`select[name="asistencias[${estudianteId}]"]`);
+
+            // Si ya tiene registro, deshabilitar
+            if (select && select.value) {
+                btn.disabled = true;
+                btn.classList.add('disabled');
+                btn.title = 'Ya tiene registro de asistencia';
+            }
+        });
+    }
+
     // Configurar selects con colores
     document.querySelectorAll('.tipo-asistencia-select').forEach(select => {
         updateSelectColor(select);
@@ -279,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateSelectColor(this);
             updateEstado(this.dataset.estudianteId, 'Registrado');
             updateContadores();
+            actualizarEstadoBotonesRapidos();
         });
     });
 
@@ -367,12 +383,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     setTimeout(() => fila.classList.remove('table-success'), 1500);
 
                     updateContadores();
+                    actualizarEstadoBotonesRapidos();
                 } else {
                     alert(data.message || 'Error al registrar la asistencia');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Ocurrió un error al conectar con el servidor');
+                alert('Ocurrió un error al conectar con el servidor o no seleccionó el Bimestre.');
             } finally {
                 // Restaurar botón
                 this.disabled = false;
@@ -406,16 +423,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 bimestreSelect.focus();
                 return;
             }
-
-            let todosMarcados = true;
-            document.querySelectorAll('.tipo-asistencia-select:not([disabled])').forEach(select => {
-                if (!select.value) {
-                    todosMarcados = false;
-                    select.classList.add('is-invalid');
-                } else {
-                    select.classList.remove('is-invalid');
-                }
-            });
 
             // Actualizar bimestre hidden
             if (bimestreSelect.value) {
@@ -461,6 +468,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Inicializar contadores
     updateContadores();
+    actualizarEstadoBotonesRapidos();
 
     // Actualizar bimestre cuando cambie
     if (bimestreSelect) {
