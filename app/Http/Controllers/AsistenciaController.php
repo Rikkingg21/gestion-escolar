@@ -621,62 +621,73 @@ class AsistenciaController extends Controller
         $fecha_seleccionada = $request->input('fecha'); // Formato esperado: 'Y-m-d'
         $bimestre_seleccionado = $request->input('bimestre');
 
+        // Validar que se haya proporcionado bimestre
+        if (!$bimestre_seleccionado) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Debe seleccionar un bimestre'
+            ], 400);
+        }
+
         // Obtener grados activos
         $gradosActivos = Grado::where('estado', '1')->pluck('id')->toArray();
 
         // Obtener estudiantes activos
         $estudiantesActivos = Estudiante::whereIn('grado_id', $gradosActivos)
             ->where('estado', '1')
+            ->with(['asistencias' => function($query) use ($fecha_seleccionada) {
+                $query->whereDate('fecha', $fecha_seleccionada);
+            }])
             ->get();
 
         DB::beginTransaction();
         try {
             $registrosCreados = 0;
-            $registrosActualizados = 0;
+            $registrosOmitidos = 0;
+            $estudiantesSinRegistro = [];
 
             foreach ($estudiantesActivos as $estudiante) {
-                // Verificar si ya existe un registro para este estudiante en esta fecha
-                $asistenciaExistente = Asistencia::where('estudiante_id', $estudiante->id)
-                    ->where('grado_id', $estudiante->grado_id)
-                    ->whereDate('fecha', $fecha_seleccionada)
-                    ->first();
+                // Verificar si ya tiene registro en esta fecha
+                $tieneRegistro = $estudiante->asistencias->isNotEmpty();
 
-                if ($asistenciaExistente) {
-                    // Si existe, actualizar el tipo de asistencia a 5 (Puntualidad)
-                    $asistenciaExistente->update([
-                        'tipo_asistencia_id' => 5,
-                        'bimestre' => $bimestre_seleccionado,
-                        'registrador_id' => auth()->id(),
-                        'descripcion' => 'Actualizado a Puntualidad automáticamente'
-                    ]);
-                    $registrosActualizados++;
-                } else {
-                    // Si no existe, crear nuevo registro
-                    Asistencia::create([
-                        'estudiante_id' => $estudiante->id,
-                        'grado_id' => $estudiante->grado_id,
-                        'bimestre' => $bimestre_seleccionado,
-                        'tipo_asistencia_id' => 5, // Puntualidad
-                        'fecha' => $fecha_seleccionada,
-                        'hora' => now()->format('H:i:s'),
-                        'registrador_id' => auth()->id(),
-                        'descripcion' => 'Registro automático de Puntualidad'
-                    ]);
-                    $registrosCreados++;
+                if ($tieneRegistro) {
+                    // Si ya tiene registro, OMITIR (no hacer nada)
+                    $registrosOmitidos++;
+                    continue;
                 }
+
+                // Solo crear registro para estudiantes SIN registro previo
+                Asistencia::create([
+                    'estudiante_id' => $estudiante->id,
+                    'grado_id' => $estudiante->grado_id,
+                    'bimestre' => $bimestre_seleccionado,
+                    'tipo_asistencia_id' => 5, // Puntualidad
+                    'fecha' => $fecha_seleccionada,
+                    'hora' => now()->format('H:i:s'),
+                    'registrador_id' => auth()->id(),
+                    'descripcion' => 'Registro automático de Puntualidad'
+                ]);
+                $registrosCreados++;
+
+                $estudiantesSinRegistro[] = [
+                    'id' => $estudiante->id,
+                    'nombre' => $estudiante->user->nombre ?? 'N/A'
+                ];
             }
 
             DB::commit();
 
-            // Devolver datos en formato json con resultados
             return response()->json([
                 'success' => true,
                 'fecha' => $fecha_seleccionada,
                 'bimestre' => $bimestre_seleccionado,
-                'total_estudiantes' => $estudiantesActivos->count(),
+                'total_estudiantes_activos' => $estudiantesActivos->count(),
+                'estudiantes_con_registro' => $registrosOmitidos,
                 'registros_creados' => $registrosCreados,
-                'registros_actualizados' => $registrosActualizados,
-                'total_afectados' => $registrosCreados + $registrosActualizados
+                'estudiantes_afectados' => $estudiantesSinRegistro,
+                'mensaje' => $registrosCreados > 0
+                    ? "Se marcaron {$registrosCreados} estudiantes como puntuales. Se omitieron {$registrosOmitidos} que ya tenían registro."
+                    : "No se crearon nuevos registros. Todos los estudiantes ya tenían asistencia registrada."
             ]);
 
         } catch (\Exception $e) {
@@ -684,7 +695,7 @@ class AsistenciaController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Error al guardar las asistencias: ' . $e->getMessage(),
+                'error' => 'Error al procesar las asistencias: ' . $e->getMessage(),
                 'fecha' => $fecha_seleccionada,
                 'bimestre' => $bimestre_seleccionado
             ], 500);
