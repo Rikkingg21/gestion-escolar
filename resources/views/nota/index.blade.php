@@ -206,6 +206,25 @@
                                                 </th>
                                             @endif
                                         @endforeach
+                                        <!-- Nueva columna SIAGIE -->
+                                        @php
+                                            // Filtrar competencias NO transversales
+                                            $competenciasNoTransversales = $competencias->filter(function($competencia) {
+                                                return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') === false;
+                                            });
+
+                                            // Encontrar la competencia TRANSVERSALES
+                                            $competenciaTransversal = $competencias->first(function($competencia) {
+                                                return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') !== false;
+                                            });
+
+                                            $numCompetenciasNoTransversales = $competenciasNoTransversales->count();
+                                            $numCriteriosTransversales = $competenciaTransversal ? $competenciaTransversal->criterios->count() : 0;
+                                            $totalColumnasSIAGIE = $numCompetenciasNoTransversales + $numCriteriosTransversales;
+                                        @endphp
+                                        <th colspan="{{ $totalColumnasSIAGIE }}" style="background-color: #2c3e50; color: white; text-align: center;">
+                                            <i class="fas fa-chart-line"></i> SIAGIE
+                                        </th>
                                     </tr>
                                     <tr>
                                         @foreach($competencias as $competencia)
@@ -216,6 +235,20 @@
                                                 </th>
                                             @endforeach
                                         @endforeach
+                                        <!-- Subcolumnas de SIAGIE - Competencias NO transversales -->
+                                        @foreach($competenciasNoTransversales as $competencia)
+                                            <th style="background-color: #34495e; color: white;" title="Promedio de {{ $competencia->nombre }}">
+                                                {{ $competencia->nombre }}
+                                            </th>
+                                        @endforeach
+                                        <!-- Subcolumnas de SIAGIE - Criterios transversales -->
+                                        @if($competenciaTransversal)
+                                            @foreach($competenciaTransversal->criterios ?? [] as $criterio)
+                                                <th style="background-color: #34495e; color: white;" title="{{ $criterio->descripcion ?? 'Sin descripción' }}">
+                                                    {{ $criterio->nombre }}
+                                                </th>
+                                            @endforeach
+                                        @endif
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -226,14 +259,45 @@
                                                 {{ $estudiante->user->apellido_materno }},
                                                 {{ $estudiante->user->nombre }}
                                             </td>
+                                            @php
+                                                // Inicializar arrays para cálculos
+                                                $sumasPorCompetencia = [];
+                                                $contadoresPorCompetencia = [];
+                                                $notasTransversales = [];
+
+                                                // Inicializar arrays para cada competencia
+                                                foreach($competencias as $competencia) {
+                                                    $sumasPorCompetencia[$competencia->id] = 0;
+                                                    $contadoresPorCompetencia[$competencia->id] = 0;
+                                                }
+
+                                                // Inicializar array para notas de cada criterio transversal
+                                                if($competenciaTransversal) {
+                                                    foreach($competenciaTransversal->criterios as $criterio) {
+                                                        $notasTransversales[$criterio->id] = null;
+                                                    }
+                                                }
+                                            @endphp
+
                                             @foreach($competencias as $competencia)
                                                 @foreach($competencia->criterios as $criterio)
+                                                    @php
+                                                        $key = $estudiante->id.'-'.$criterio->id;
+                                                        $notaData = $notasExistentes[$key] ?? null;
+                                                        $nota = $notaData['nota'] ?? null;
+
+                                                        if ($nota !== null) {
+                                                            // Sumar para promedio de esta competencia
+                                                            $sumasPorCompetencia[$competencia->id] += $nota;
+                                                            $contadoresPorCompetencia[$competencia->id]++;
+
+                                                            // Almacenar nota de criterio transversal
+                                                            if (strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') !== false) {
+                                                                $notasTransversales[$criterio->id] = $nota;
+                                                            }
+                                                        }
+                                                    @endphp
                                                     <td>
-                                                        @php
-                                                            $key = $estudiante->id.'-'.$criterio->id;
-                                                            $notaData = $notasExistentes[$key] ?? null;
-                                                            $nota = $notaData['nota'] ?? null;
-                                                        @endphp
                                                         <input type="number"
                                                             name="notas[{{ $estudiante->id }}][{{ $criterio->id }}]"
                                                             value="{{ $nota }}"
@@ -243,10 +307,51 @@
                                                             class="form-control form-control-sm nota-input"
                                                             {{ !$puedeEditar ? 'readonly' : '' }}
                                                             style="{{ !$puedeEditar ? 'background-color: #f8f9fa;' : '' }}"
-                                                            oninput="this.value = this.value.replace(/[^0-4]/g, '').replace(/(\..*)\./g, '$1');">
+                                                            oninput="this.value = this.value.replace(/[^0-4]/g, '').replace(/(\..*)\./g, '$1');"
+                                                            data-competencia-id="{{ $competencia->id }}"
+                                                            data-criterio-id="{{ $criterio->id }}"
+                                                            data-es-transversal="{{ strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') !== false ? 'true' : 'false' }}">
                                                     </td>
                                                 @endforeach
                                             @endforeach
+
+                                            <!-- Celdas SIAGIE para promedios de cada competencia NO transversal -->
+                                            @foreach($competenciasNoTransversales as $competencia)
+                                                @php
+                                                    $promedioCompetencia = $contadoresPorCompetencia[$competencia->id] > 0
+                                                        ? round($sumasPorCompetencia[$competencia->id] / $contadoresPorCompetencia[$competencia->id], 1)
+                                                        : '-';
+                                                @endphp
+                                                <td style="background-color: #ecf0f1; font-weight: bold; text-align: center;">
+                                                    <span class="badge {{ $promedioCompetencia != '-' ? 'bg-primary' : 'bg-secondary' }}" style="font-size: 1em;">
+                                                        {{ $promedioCompetencia }}
+                                                    </span>
+                                                    @if($promedioCompetencia != '-')
+                                                        <input type="hidden"
+                                                            name="promedios[{{ $estudiante->id }}][competencia_{{ $competencia->id }}]"
+                                                            value="{{ $promedioCompetencia }}">
+                                                    @endif
+                                                </td>
+                                            @endforeach
+
+                                            <!-- Celdas SIAGIE para cada criterio de COMPETENCIAS TRANSVERSALES -->
+                                            @if($competenciaTransversal)
+                                                @foreach($competenciaTransversal->criterios as $criterio)
+                                                    <td style="background-color: #ecf0f1; font-weight: bold; text-align: center;">
+                                                        @php
+                                                            $notaTransversal = $notasTransversales[$criterio->id] ?? null;
+                                                        @endphp
+                                                        <span class="badge {{ $notaTransversal !== null ? 'bg-success' : 'bg-secondary' }}" style="font-size: 1em;">
+                                                            {{ $notaTransversal ?? '-' }}
+                                                        </span>
+                                                        @if($notaTransversal !== null)
+                                                            <input type="hidden"
+                                                                name="promedios[{{ $estudiante->id }}][transversal_criterio_{{ $criterio->id }}]"
+                                                                value="{{ $notaTransversal }}">
+                                                        @endif
+                                                    </td>
+                                                @endforeach
+                                            @endif
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -271,6 +376,25 @@
                                                 </th>
                                             @endif
                                         @endforeach
+                                        <!-- Nueva columna SIAGIE -->
+                                        @php
+                                            // Filtrar competencias NO transversales
+                                            $competenciasNoTransversales = $competencias->filter(function($competencia) {
+                                                return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') === false;
+                                            });
+
+                                            // Encontrar la competencia TRANSVERSALES
+                                            $competenciaTransversal = $competencias->first(function($competencia) {
+                                                return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') !== false;
+                                            });
+
+                                            $numCompetenciasNoTransversales = $competenciasNoTransversales->count();
+                                            $numCriteriosTransversales = $competenciaTransversal ? $competenciaTransversal->criterios->count() : 0;
+                                            $totalColumnasSIAGIE = $numCompetenciasNoTransversales + $numCriteriosTransversales;
+                                        @endphp
+                                        <th colspan="{{ $totalColumnasSIAGIE }}" style="background-color: #7f8c8d; color: white; text-align: center;">
+                                            <i class="fas fa-chart-line"></i> SIAGIE
+                                        </th>
                                     </tr>
                                     <tr>
                                         @foreach($competencias as $competencia)
@@ -280,6 +404,20 @@
                                                 </th>
                                             @endforeach
                                         @endforeach
+                                        <!-- Subcolumnas de SIAGIE - Competencias NO transversales -->
+                                        @foreach($competenciasNoTransversales as $competencia)
+                                            <th style="background-color: #95a5a6; color: white;" title="Promedio de {{ $competencia->nombre }}">
+                                                {{ $competencia->nombre }}
+                                            </th>
+                                        @endforeach
+                                        <!-- Subcolumnas de SIAGIE - Criterios transversales -->
+                                        @if($competenciaTransversal)
+                                            @foreach($competenciaTransversal->criterios ?? [] as $criterio)
+                                                <th style="background-color: #95a5a6; color: white;" title="{{ $criterio->descripcion ?? 'Sin descripción' }}">
+                                                    {{ $criterio->nombre }}
+                                                </th>
+                                            @endforeach
+                                        @endif
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -292,14 +430,45 @@
                                                 {{ $estudiante->user->nombre }}
                                                 <span class="badge bg-warning ms-2">Inactivo</span>
                                             </td>
+                                            @php
+                                                // Inicializar arrays para cálculos
+                                                $sumasPorCompetencia = [];
+                                                $contadoresPorCompetencia = [];
+                                                $notasTransversales = [];
+
+                                                // Inicializar arrays para cada competencia
+                                                foreach($competencias as $competencia) {
+                                                    $sumasPorCompetencia[$competencia->id] = 0;
+                                                    $contadoresPorCompetencia[$competencia->id] = 0;
+                                                }
+
+                                                // Inicializar array para notas de cada criterio transversal
+                                                if($competenciaTransversal) {
+                                                    foreach($competenciaTransversal->criterios as $criterio) {
+                                                        $notasTransversales[$criterio->id] = null;
+                                                    }
+                                                }
+                                            @endphp
+
                                             @foreach($competencias as $competencia)
                                                 @foreach($competencia->criterios as $criterio)
+                                                    @php
+                                                        $key = $estudiante->id.'-'.$criterio->id;
+                                                        $notaData = $notasExistentes[$key] ?? null;
+                                                        $nota = $notaData['nota'] ?? null;
+
+                                                        if ($nota !== null) {
+                                                            // Sumar para promedio de esta competencia
+                                                            $sumasPorCompetencia[$competencia->id] += $nota;
+                                                            $contadoresPorCompetencia[$competencia->id]++;
+
+                                                            // Almacenar nota de criterio transversal
+                                                            if (strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') !== false) {
+                                                                $notasTransversales[$criterio->id] = $nota;
+                                                            }
+                                                        }
+                                                    @endphp
                                                     <td>
-                                                        @php
-                                                            $key = $estudiante->id.'-'.$criterio->id;
-                                                            $notaData = $notasExistentes[$key] ?? null;
-                                                            $nota = $notaData['nota'] ?? null;
-                                                        @endphp
                                                         <input type="number"
                                                             value="{{ $nota }}"
                                                             min="1"
@@ -311,6 +480,34 @@
                                                     </td>
                                                 @endforeach
                                             @endforeach
+
+                                            <!-- Celdas SIAGIE para promedios de cada competencia NO transversal -->
+                                            @foreach($competenciasNoTransversales as $competencia)
+                                                @php
+                                                    $promedioCompetencia = $contadoresPorCompetencia[$competencia->id] > 0
+                                                        ? round($sumasPorCompetencia[$competencia->id] / $contadoresPorCompetencia[$competencia->id], 1)
+                                                        : '-';
+                                                @endphp
+                                                <td style="background-color: #d5dbdb; font-weight: bold; text-align: center;">
+                                                    <span class="badge {{ $promedioCompetencia != '-' ? 'bg-secondary' : 'bg-light text-dark' }}" style="font-size: 1em;">
+                                                        {{ $promedioCompetencia }}
+                                                    </span>
+                                                </td>
+                                            @endforeach
+
+                                            <!-- Celdas SIAGIE para cada criterio de COMPETENCIAS TRANSVERSALES -->
+                                            @if($competenciaTransversal)
+                                                @foreach($competenciaTransversal->criterios as $criterio)
+                                                    <td style="background-color: #d5dbdb; font-weight: bold; text-align: center;">
+                                                        @php
+                                                            $notaTransversal = $notasTransversales[$criterio->id] ?? null;
+                                                        @endphp
+                                                        <span class="badge {{ $notaTransversal !== null ? 'bg-secondary' : 'bg-light text-dark' }}" style="font-size: 1em;">
+                                                            {{ $notaTransversal ?? '-' }}
+                                                        </span>
+                                                    </td>
+                                                @endforeach
+                                            @endif
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -746,6 +943,141 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+});
+</script>
+<script>
+    // Calcular promedios en tiempo real
+document.querySelectorAll('.nota-input').forEach(input => {
+    input.addEventListener('input', function() {
+        calcularPromediosCompetencias(this.closest('tr'));
+    });
+    input.addEventListener('blur', function() {
+        calcularPromediosCompetencias(this.closest('tr'));
+    });
+});
+
+function calcularPromediosCompetencias(row) {
+    if (!row) return;
+
+    // Reiniciar arrays para cálculos
+    const sumasPorCompetencia = {};
+    const contadoresPorCompetencia = {};
+    const notasTransversales = {};
+
+    // Obtener todos los inputs de notas en esta fila
+    const notaInputs = row.querySelectorAll('.nota-input');
+
+    // Primera pasada: recolectar datos
+    notaInputs.forEach(input => {
+        const nota = parseFloat(input.value);
+        if (!isNaN(nota) && nota >= 1 && nota <= 4) {
+            const competenciaId = input.dataset.competenciaId;
+            const esTransversal = input.dataset.esTransversal === 'true';
+            const criterioId = input.dataset.criterioId;
+
+            // Inicializar arrays si no existen
+            if (!sumasPorCompetencia[competenciaId]) {
+                sumasPorCompetencia[competenciaId] = 0;
+                contadoresPorCompetencia[competenciaId] = 0;
+            }
+
+            // Sumar para promedio de competencia
+            sumasPorCompetencia[competenciaId] += nota;
+            contadoresPorCompetencia[competenciaId]++;
+
+            // Si es transversal, guardar nota individual
+            if (esTransversal) {
+                notasTransversales[criterioId] = nota;
+            }
+        }
+    });
+
+    // Segunda pasada: actualizar promedios en celdas SIAGIE
+    // Obtener el índice de la primera celda SIAGIE
+    const totalCriterios = document.querySelectorAll('#tablaNotasActivos thead tr:first-child th:not(:first-child):not([colspan])').length;
+    const primeraCeldaSIAGIE = totalCriterios + 1; // +1 por la columna "Estudiante"
+
+    // Actualizar promedios de competencias NO transversales
+    let celdaIndex = primeraCeldaSIAGIE;
+
+    // Buscar todas las celdas SIAGIE de competencias
+    const headersSIAGIE = document.querySelectorAll('#tablaNotasActivos thead tr:nth-child(2) th');
+
+    headersSIAGIE.forEach((header, index) => {
+        if (index >= totalCriterios) { // Esto son las celdas SIAGIE
+            const headerText = header.textContent.trim();
+            const headerTitle = header.title;
+
+            // Buscar la competencia correspondiente
+            let competenciaId = null;
+            let esCriterioTransversal = false;
+            let criterioIdTransversal = null;
+
+            // Verificar si es competencia NO transversal
+            @foreach($competenciasNoTransversales as $competencia)
+                if (headerText === '{{ $competencia->nombre }}') {
+                    competenciaId = {{ $competencia->id }};
+                }
+            @endforeach
+
+            // Verificar si es criterio transversal
+            @if($competenciaTransversal)
+                @foreach($competenciaTransversal->criterios as $criterio)
+                    if (headerText === '{{ $criterio->nombre }}') {
+                        esCriterioTransversal = true;
+                        criterioIdTransversal = {{ $criterio->id }};
+                    }
+                @endforeach
+            @endif
+
+            // Obtener la celda correspondiente
+            const celdaSIAGIE = row.cells[primeraCeldaSIAGIE + index - totalCriterios];
+
+            if (celdaSIAGIE) {
+                if (competenciaId) {
+                    // Es competencia NO transversal - mostrar promedio
+                    const suma = sumasPorCompetencia[competenciaId] || 0;
+                    const contador = contadoresPorCompetencia[competenciaId] || 0;
+                    const promedio = contador > 0 ? (suma / contador).toFixed(1) : '-';
+
+                    const badge = celdaSIAGIE.querySelector('.badge');
+                    if (badge) {
+                        badge.textContent = promedio;
+                        badge.className = 'badge ' + (promedio != '-' ? 'bg-primary' : 'bg-secondary');
+                    }
+
+                    // Actualizar hidden input
+                    const hiddenInput = celdaSIAGIE.querySelector('input[type="hidden"]');
+                    if (hiddenInput && promedio != '-') {
+                        hiddenInput.value = promedio;
+                    }
+                } else if (esCriterioTransversal) {
+                    // Es criterio transversal - mostrar nota individual
+                    const notaTransversal = notasTransversales[criterioIdTransversal] || null;
+                    const valorMostrar = notaTransversal !== null ? notaTransversal : '-';
+
+                    const badge = celdaSIAGIE.querySelector('.badge');
+                    if (badge) {
+                        badge.textContent = valorMostrar;
+                        badge.className = 'badge ' + (notaTransversal !== null ? 'bg-success' : 'bg-secondary');
+                    }
+
+                    // Actualizar hidden input
+                    const hiddenInput = celdaSIAGIE.querySelector('input[type="hidden"]');
+                    if (hiddenInput && notaTransversal !== null) {
+                        hiddenInput.value = notaTransversal;
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Inicializar cálculos al cargar
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('#tablaNotasActivos tbody tr').forEach(row => {
+        calcularPromediosCompetencias(row);
+    });
 });
 </script>
 
