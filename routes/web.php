@@ -30,6 +30,7 @@ use App\Http\Controllers\ConductaController;
 use App\Http\Controllers\LibretaController;
 
 use App\Http\Controllers\AsistenciaController;
+use App\Http\Controllers\AsistenciahistorialController;
 
 use App\Http\Controllers\GradoController;
 use App\Http\Controllers\MateriaController;
@@ -50,7 +51,7 @@ Route::redirect('/', '/login');
 // Rutas de autenticación
 Route::controller(LoginController::class)->group(function () {
     Route::get('/login', 'index')->name('index');
-    Route::post('/login', 'login')->name('login');;
+    Route::post('/login', 'login')->name('login');
     Route::post('/logout', 'logout')->name('logout');
 });
 Route::post('/logout-sub', [LoginController::class, 'logout_sub'])->name('logout_sub');
@@ -210,4 +211,6 @@ Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstu
     Route::post('/asistencia/marcar-todos-puntualidad', [AsistenciaController::class, 'marcarTodosPuntualidad'])->name('asistencia.marcar-todos-puntualidad');
     Route::get('/asistencia/reporte', [AsistenciaController::class, 'reporteAsistencia'])->name('asistencia.reporte');
     Route::get('/asistencia/estudiantes-por-grado', [AsistenciaController::class, 'estudiantesPorGrado'])->name('asistencia.estudiantes-por-grado');
+
+    Route::get('/historial-asistencia/{anio?}/{bimestre?}', [AsistenciahistorialController::class, 'calendarioAsistencia'])->name('asistencia.calendario');
 });
