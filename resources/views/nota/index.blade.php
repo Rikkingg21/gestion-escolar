@@ -198,7 +198,7 @@
                             <table class="table table-bordered" id="tablaNotasActivos">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th rowspan="2">Estudiante</th>
+                                        <th rowspan="2" style="text-align: center;">Estudiante</th>
                                         @foreach($competencias as $competencia)
                                             @if($competencia->criterios && $competencia->criterios->count() > 0)
                                                 <th colspan="{{ $competencia->criterios->count() }}">
@@ -229,7 +229,7 @@
                                     <tr>
                                         @foreach($competencias as $competencia)
                                             @foreach($competencia->criterios ?? [] as $criterio)
-                                                <th title="{{ $criterio->descripcion ?? 'Sin descripción' }}">
+                                                <th class="alinear-vertical" title="{{ $criterio->descripcion ?? 'Sin descripción' }}">
                                                     {{ $criterio->nombre }}
                                                     <input type="hidden" name="criterios[]" value="{{ $criterio->id }}">
                                                 </th>
@@ -237,14 +237,14 @@
                                         @endforeach
                                         <!-- Subcolumnas de SIAGIE - Competencias NO transversales -->
                                         @foreach($competenciasNoTransversales as $competencia)
-                                            <th style="background-color: #34495e; color: white;" title="Promedio de {{ $competencia->nombre }}">
+                                            <th style="background-color: #34495e; color: white;" class="alinear-vertical">
                                                 {{ $competencia->nombre }}
                                             </th>
                                         @endforeach
                                         <!-- Subcolumnas de SIAGIE - Criterios transversales -->
                                         @if($competenciaTransversal)
                                             @foreach($competenciaTransversal->criterios ?? [] as $criterio)
-                                                <th style="background-color: #34495e; color: white;" title="{{ $criterio->descripcion ?? 'Sin descripción' }}">
+                                                <th style="background-color: #34495e; color: white;" class="alinear-vertical">
                                                     {{ $criterio->nombre }}
                                                 </th>
                                             @endforeach
@@ -254,7 +254,7 @@
                                 <tbody>
                                     @foreach($estudiantesActivos as $estudiante)
                                         <tr>
-                                            <td>
+                                            <td style="white-space: nowrap; min-width: 250px; text-align: left; padding: 8px 15px;">
                                                 {{ $estudiante->user->apellido_paterno }}
                                                 {{ $estudiante->user->apellido_materno }},
                                                 {{ $estudiante->user->nombre }}
@@ -368,7 +368,7 @@
                             <table class="table table-bordered" id="tablaNotasInactivos">
                                 <thead class="table-light">
                                     <tr>
-                                        <th rowspan="2">Estudiante</th>
+                                        <th rowspan="2" style="text-align: center;">Estudiante</th>
                                         @foreach($competencias as $competencia)
                                             @if($competencia->criterios && $competencia->criterios->count() > 0)
                                                 <th colspan="{{ $competencia->criterios->count() }}">
@@ -399,21 +399,21 @@
                                     <tr>
                                         @foreach($competencias as $competencia)
                                             @foreach($competencia->criterios ?? [] as $criterio)
-                                                <th title="{{ $criterio->descripcion ?? 'Sin descripción' }}">
+                                                <th class="alinear-vertical" title="{{ $criterio->descripcion ?? 'Sin descripción' }}">
                                                     {{ $criterio->nombre }}
                                                 </th>
                                             @endforeach
                                         @endforeach
                                         <!-- Subcolumnas de SIAGIE - Competencias NO transversales -->
                                         @foreach($competenciasNoTransversales as $competencia)
-                                            <th style="background-color: #95a5a6; color: white;" title="Promedio de {{ $competencia->nombre }}">
+                                            <th style="background-color: #95a5a6; color: white;" class="alinear-vertical">
                                                 {{ $competencia->nombre }}
                                             </th>
                                         @endforeach
                                         <!-- Subcolumnas de SIAGIE - Criterios transversales -->
                                         @if($competenciaTransversal)
                                             @foreach($competenciaTransversal->criterios ?? [] as $criterio)
-                                                <th style="background-color: #95a5a6; color: white;" title="{{ $criterio->descripcion ?? 'Sin descripción' }}">
+                                                <th style="background-color: #95a5a6; color: white;" class="alinear-vertical">
                                                     {{ $criterio->nombre }}
                                                 </th>
                                             @endforeach
@@ -423,8 +423,8 @@
                                 <tbody>
                                     @foreach($estudiantesInactivos as $estudiante)
                                         <tr class="table-secondary">
-                                            <td>
-                                                <i class="fas fa-lock text-muted me-1"></i>
+                                            <td style="white-space: nowrap; min-width: 250px; text-align: left; padding: 8px 15px;">
+                                                <i class="fas fa-lock text-muted me-2"></i>
                                                 {{ $estudiante->user->apellido_paterno }}
                                                 {{ $estudiante->user->apellido_materno }},
                                                 {{ $estudiante->user->nombre }}
@@ -476,7 +476,7 @@
                                                             step="1"
                                                             class="form-control form-control-sm"
                                                             readonly
-                                                            style="background-color: #f8f9fa;">
+                                                            style="background-color: #f8f9fa; cursor: not-allowed;">
                                                     </td>
                                                 @endforeach
                                             @endforeach
@@ -1080,5 +1080,33 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+<style>
+    .alinear-vertical {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        white-space: normal;
+        max-height: 210px;
+        padding: 10px;
+        text-align: left;
+        font-size: 1.2em;
+    }
+    /* Estilos para inputs */
+    .nota-input {
+        width: 60px;
+        margin: 0 auto;
+        text-align: center;
+        font-weight: bold;
+    }
+    /* Ajustes para responsividad */
+    @media (max-width: 768px) {
+        .alinear-vertical {
+            min-height: 120px;
+            max-height: 150px;
+            width: 25px !important;
+            padding: 8px 2px !important;
+            font-size: 0.8rem;
+        }
+    }
+</style>
 
 @endsection
