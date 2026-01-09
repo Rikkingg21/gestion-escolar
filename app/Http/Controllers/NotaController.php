@@ -33,37 +33,128 @@ class NotaController extends Controller
 
     public function index($curso_grado_sec_niv_anio_id, $bimestre)
     {
-        // Validar que el bimestre sea válido
+        // 1. Validar parámetros
         if (!in_array($bimestre, ['1', '2', '3', '4'])) {
             abort(404, 'Bimestre no válido.');
         }
 
-        // Cargar el curso con sus relaciones
-        $curso = $this->cargarCurso($curso_grado_sec_niv_anio_id);
+        $user = auth()->user();
 
+        // Cargar el curso primero
+        $curso = $this->cargarCurso($curso_grado_sec_niv_anio_id);
         if (!$curso) {
             abort(404, 'Curso no encontrado.');
         }
 
-        // Cargar estudiantes
-        $estudiantes = $this->cargarEstudiantes($curso, $bimestre);
-
-        // Cargar competencias y criterios
-        $competencias = $this->cargarCompetencias($curso, $bimestre);
-
-        // Cargar notas existentes
-        $notasExistentes = $this->cargarNotasExistentes($curso_grado_sec_niv_anio_id, $bimestre, $competencias, $estudiantes);
-
-        // Cargar conductas
-        $conductas = $this->cargarConductas();
-
-        // Cargar notas de conducta
-        $conductaNotas = $this->cargarConductaNotas($curso_grado_sec_niv_anio_id, $bimestre, $estudiantes);
-
-        // Obtener estado actual
+        // Obtener el estado actual
         $estadoActual = $this->obtenerEstadoActual($curso_grado_sec_niv_anio_id, $bimestre);
 
+        // Configuración de etiquetas
+        $estadosNotasConfig = [
+            '0' => ['Privado', 'secondary'],
+            '1' => ['Publicado', 'info'],
+            '2' => ['Oficial', 'success'],
+            '3' => ['Extra Oficial', 'warning']
+        ];
+
+        // Determinar si es el docente asignado a este curso
+        $esDocenteDelCurso = $user->hasRole('docente') &&
+                            $user->docente &&
+                            ($curso->docente_id == $user->docente->id);
+
+        // Lógica: ¿Puede editar las notas?
+        $puedeEditar = $user->hasRole('admin') ||
+                    $user->hasRole('director') ||
+                    ($esDocenteDelCurso && in_array($estadoActual, ['0', '1']));
+
+        // ¿Puede cambiar el estado (Publicar)?
+        $puedePublicar = false;
+        $textoBotonPublicar = '';
+
+        if ($user->hasRole('admin') && in_array($estadoActual, ['0', '1', '2'])) {
+            $puedePublicar = true;
+            $textoBotonPublicar = match ($estadoActual) {
+                '0' => "Publicar Notas",
+                '1' => "Marcar como Oficial",
+                '2' => "Marcar como Extra Oficial",
+            };
+        } elseif ($user->hasRole('director') && in_array($estadoActual, ['0', '1'])) {
+            $puedePublicar = true;
+            $textoBotonPublicar = match ($estadoActual) {
+                '0' => "Publicar Notas",
+                '1' => "Marcar como Oficial",
+            };
+        } elseif ($esDocenteDelCurso && $estadoActual == '0') {
+            $puedePublicar = true;
+            $textoBotonPublicar = "Publicar Notas";
+        }
+
+        // 2. Columnas principales - Cargar estudiantes
+        $estudiantes = $this->cargarEstudiantes($curso, $bimestre);
+
+        // 3. Columnas principales - Cargar competencias con estado '1' (Activas) de la materia
+        $competencias = $this->cargarCompetencias($curso, $bimestre);
+
+        // 4. Sub columnas - Cargar criterios relacionadas con las competencias
+        // (Ya está incluido en cargarCompetencias())
+
+        // 5. Columnas principales - Cargar SIAGIE
+        // Filtrar competencias NO transversales para SIAGIE
+        $competenciasNoTransversales = $competencias->filter(function($competencia) {
+            return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') === false;
+        });
+
+        // 6. Sub columnas de SIAGIE
+        // Encontrar la competencia TRANSVERSALES y dividir en sus criterios
+        $competenciaTransversal = $competencias->first(function($competencia) {
+            return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') !== false;
+        });
+
+        // Inicializar arrays para cálculos de promedios SIAGIE
+        $sumasPorCompetencia = [];
+        $contadoresPorCompetencia = [];
+        $notasTransversales = [];
+
+        // Inicializar arrays para cada competencia
+        foreach($competencias as $competencia) {
+            $sumasPorCompetencia[$competencia->id] = 0;
+            $contadoresPorCompetencia[$competencia->id] = 0;
+        }
+
+        // Inicializar array para notas de cada criterio transversal
+        if($competenciaTransversal) {
+            foreach($competenciaTransversal->criterios as $criterio) {
+                $notasTransversales[$criterio->id] = null;
+            }
+        }
+
+        // Calcular total de columnas SIAGIE
+        $numCompetenciasNoTransversales = $competenciasNoTransversales->count();
+        $numCriteriosTransversales = $competenciaTransversal ? $competenciaTransversal->criterios->count() : 0;
+        $totalColumnasSIAGIE = $numCompetenciasNoTransversales + $numCriteriosTransversales;
+
+        // 7. Columnas principales - Cargar conductas activas
+        $conductas = $this->cargarConductas();
+
+        // 8. Datos de subcolumnas - Cargar estado de notas (tanto para criterios y conducta)
+        $notasExistentes = $this->cargarNotasExistentes($curso_grado_sec_niv_anio_id, $bimestre, $competencias, $estudiantes);
+        $conductaNotas = $this->cargarConductaNotas($curso_grado_sec_niv_anio_id, $bimestre, $estudiantes);
+
+        // 9. Datos de SIAGIE - Promedios de lo que está llamando
+        // (Los cálculos se harán en la vista o en un método adicional según sea necesario)
+
         return view('nota.index', [
+            'user' => $user,
+            'estadosNotas' => $estadosNotasConfig,
+            'puedeEditar' => $puedeEditar,
+            'puedePublicar' => $puedePublicar,
+            'textoBotonPublicar' => $textoBotonPublicar,
+            'competenciaTransversal' => $competenciaTransversal,
+            'competenciasNoTransversales' => $competenciasNoTransversales,
+            'totalColumnasSIAGIE' => $totalColumnasSIAGIE,
+            'sumasPorCompetencia' => $sumasPorCompetencia,
+            'contadoresPorCompetencia' => $contadoresPorCompetencia,
+            'notasTransversales' => $notasTransversales,
             'curso_id' => $curso_grado_sec_niv_anio_id,
             'bimestre' => $bimestre,
             'curso' => $curso,
@@ -79,9 +170,8 @@ class NotaController extends Controller
             'conductaNotas' => $conductaNotas
         ]);
     }
-    /**
-     * Cargar el curso con sus relaciones
-     */
+
+    //Cargar el curso con sus relaciones
     private function cargarCurso($curso_grado_sec_niv_anio_id)
     {
         return Cursogradosecnivanio::with([
@@ -92,9 +182,8 @@ class NotaController extends Controller
             ->find($curso_grado_sec_niv_anio_id);
     }
 
-    /**
-     * Cargar estudiantes activos e inactivos
-     */
+
+     //Cargar estudiantes activos e inactivos
     private function cargarEstudiantes($curso, $bimestre)
     {
         return [
@@ -103,9 +192,9 @@ class NotaController extends Controller
         ];
     }
 
-    /**
-     * Cargar estudiantes activos
-     */
+
+    //Cargar estudiantes activos
+
     private function cargarEstudiantesActivos($curso)
     {
         return Estudiante::with(['user'])
@@ -119,9 +208,9 @@ class NotaController extends Controller
             ->get();
     }
 
-    /**
-     * Cargar estudiantes inactivos con notas
-     */
+
+    //Cargar estudiantes inactivos con notas
+
     private function cargarEstudiantesInactivos($curso, $bimestre)
     {
         return Estudiante::with(['user'])
@@ -141,9 +230,8 @@ class NotaController extends Controller
             ->get();
     }
 
-    /**
-     * Cargar competencias y criterios para el bimestre específico
-     */
+
+    //Cargar competencias y criterios para el bimestre específico
     private function cargarCompetencias($curso, $bimestre)
     {
         $competencias = $curso->materia->materiaCompetencia->map(function($competencia) use ($curso, $bimestre) {
@@ -158,9 +246,8 @@ class NotaController extends Controller
         return $competencias->filter(fn($c) => $c->criterios->isNotEmpty());
     }
 
-    /**
-     * Cargar notas existentes
-     */
+
+    //Cargar notas existentes
     private function cargarNotasExistentes($curso_id, $bimestre, $competencias, $estudiantes)
     {
         $criteriosIds = $competencias->flatMap->criterios->pluck('id');
@@ -182,9 +269,8 @@ class NotaController extends Controller
             });
     }
 
-    /**
-     * Cargar conductas activas
-     */
+
+    //Cargar conductas activas
     private function cargarConductas()
     {
         return Conducta::where('estado', "1")
@@ -192,9 +278,7 @@ class NotaController extends Controller
             ->get();
     }
 
-    /**
-     * Cargar notas de conducta existentes
-     */
+    //Cargar notas de conducta existentes
     private function cargarConductaNotas($curso_id, $bimestre, $estudiantes)
     {
         $estudianteIds = $estudiantes['activos']->pluck('id')
@@ -213,9 +297,7 @@ class NotaController extends Controller
             });
     }
 
-    /**
-     * Obtener estado actual de las notas
-     */
+    //Obtener estado actual de las notas
     private function obtenerEstadoActual($curso_id, $bimestre)
     {
         // Primero verificar si existen notas para este curso y bimestre
@@ -249,171 +331,6 @@ class NotaController extends Controller
         return $estado;
     }
 
-    public function store(Request $request)
-    {
-        try {
-            DB::beginTransaction();
-
-            $curso_id = $request->curso_id;
-            $bimestre = $request->bimestre;
-            $notas = $request->notas ?? [];
-            $estadoActual = $this->obtenerEstadoActual($curso_id, $bimestre);
-
-            foreach ($notas as $estudiante_id => $criterios) {
-                foreach ($criterios as $criterio_id => $nota) {
-                    // Solo procesar si la nota tiene valor (no vacío)
-                    if ($nota !== null && $nota !== '') {
-                        $nota = intval($nota);
-
-                        // Validar que la nota esté en el rango permitido (1-4)
-                        if ($nota < 1 || $nota > 4) {
-                            continue;
-                        }
-
-                        // Buscar si ya existe una nota
-                        $notaExistente = Nota::where('estudiante_id', $estudiante_id)
-                            ->where('materia_criterio_id', $criterio_id)
-                            ->where('bimestre', $bimestre)
-                            ->first();
-
-                        if ($notaExistente) {
-                            // Solo actualizar si el estado actual permite edición
-                            if ($this->puedeEditarNota($estadoActual)) {
-                                $notaExistente->update([
-                                    'nota' => $nota,
-                                    // Mantener el estado 'publico' existente
-                                ]);
-                            }
-                        } else {
-                            // Crear nueva nota solo si se permite edición
-                            if ($this->puedeEditarNota($estadoActual)) {
-                                Nota::create([
-                                    'estudiante_id' => $estudiante_id,
-                                    'materia_criterio_id' => $criterio_id,
-                                    'bimestre' => $bimestre,
-                                    'nota' => $nota,
-                                    'publico' => $estadoActual // Usar el estado actual del bimestre
-                                ]);
-                            }
-                        }
-                    } else {
-                        // Si la nota está vacía, eliminar solo si se permite edición
-                        if ($this->puedeEditarNota($estadoActual)) {
-                            $notaExistente = Nota::where('estudiante_id', $estudiante_id)
-                                ->where('materia_criterio_id', $criterio_id)
-                                ->where('bimestre', $bimestre)
-                                ->first();
-
-                            if ($notaExistente) {
-                                $notaExistente->delete();
-                            }
-                        }
-                    }
-                }
-            }
-
-            DB::commit();
-
-            return redirect()
-                ->route('nota.index', [
-                    'curso_grado_sec_niv_anio_id' => $curso_id,
-                    'bimestre' => $bimestre
-                ])
-                ->with('success', 'Calificaciones guardadas exitosamente.');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return redirect()
-                ->route('nota.index', [
-                    'curso_grado_sec_niv_anio_id' => $curso_id,
-                    'bimestre' => $bimestre
-                ])
-                ->with('error', 'Error al guardar las calificaciones: ' . $e->getMessage());
-        }
-    }
-    public function storeConductaNotas(Request $request)
-    {
-        try {
-            DB::beginTransaction();
-
-            $curso_id = $request->curso_id;
-            $bimestre = $request->bimestre;
-            $notas_conducta = $request->notas_conducta ?? [];
-            $estadoActual = $this->obtenerEstadoActual($curso_id, $bimestre);
-
-            foreach ($notas_conducta as $estudiante_id => $conductas) {
-                foreach ($conductas as $conducta_id => $nota) {
-                    // Solo procesar si la nota tiene valor (no vacío)
-                    if ($nota !== null && $nota !== '') {
-                        $nota = intval($nota);
-
-                        // Validar que la nota esté en el rango permitido (1-4)
-                        if ($nota < 1 || $nota > 4) {
-                            continue;
-                        }
-
-                        // Buscar si ya existe una nota de conducta
-                        $notaConductaExistente = Conductanota::where('estudiante_id', $estudiante_id)
-                            ->where('conducta_id', $conducta_id)
-                            ->where('bimestre', $bimestre)
-                            ->first();
-
-                        if ($notaConductaExistente) {
-                            // Solo actualizar si el estado actual permite edición
-                            if ($this->puedeEditarNota($estadoActual)) {
-                                $notaConductaExistente->update([
-                                    'nota' => $nota,
-                                ]);
-                            }
-                        } else {
-                            // Crear nueva nota solo si se permite edición
-                            if ($this->puedeEditarNota($estadoActual)) {
-                                Conductanota::create([
-                                    'estudiante_id' => $estudiante_id,
-                                    'conducta_id' => $conducta_id,
-                                    'bimestre' => $bimestre,
-                                    'nota' => $nota,
-                                    'publico' => $estadoActual // Usar el estado actual del bimestre
-                                ]);
-                            }
-                        }
-                    } else {
-                        // Si la nota está vacía, eliminar solo si se permite edición
-                        if ($this->puedeEditarNota($estadoActual)) {
-                            $notaConductaExistente = Conductanota::where('estudiante_id', $estudiante_id)
-                                ->where('conducta_id', $conducta_id)
-                                ->where('bimestre', $bimestre)
-                                ->first();
-
-                            if ($notaConductaExistente) {
-                                $notaConductaExistente->delete();
-                            }
-                        }
-                    }
-                }
-            }
-
-            DB::commit();
-
-            return redirect()
-                ->route('nota.index', [
-                    'curso_grado_sec_niv_anio_id' => $curso_id,
-                    'bimestre' => $bimestre
-                ])
-                ->with('success', 'Notas de conducta guardadas exitosamente.');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return redirect()
-                ->route('nota.index', [
-                    'curso_grado_sec_niv_anio_id' => $curso_id,
-                    'bimestre' => $bimestre
-                ])
-                ->with('error', 'Error al guardar las notas de conducta: ' . $e->getMessage());
-        }
-    }
     public function publicar(Request $request, $curso_grado_sec_niv_anio_id, $bimestre)
     {
         try {
@@ -589,6 +506,145 @@ class NotaController extends Controller
                 ->with('error', 'Error al revertir publicación: ' . $e->getMessage());
         }
     }
+    public function guardarNotas(Request $request)
+    {
+        try {
+            DB::beginTransaction();
+
+            $curso_id = $request->curso_id;
+            $bimestre = $request->bimestre;
+            $notas_criterios = $request->notas ?? [];
+            $notas_conductas = $request->conductas ?? [];
+            $estadoActual = $this->obtenerEstadoActual($curso_id, $bimestre);
+
+            // 1. Procesar notas de criterios
+            foreach ($notas_criterios as $estudiante_id => $criterios) {
+                foreach ($criterios as $criterio_id => $nota) {
+                    // Solo procesar si la nota tiene valor (no vacío)
+                    if ($nota !== null && $nota !== '') {
+                        $nota = intval($nota);
+
+                        // Validar que la nota esté en el rango permitido (1-4)
+                        if ($nota < 1 || $nota > 4) {
+                            continue;
+                        }
+
+                        // Buscar si ya existe una nota
+                        $notaExistente = Nota::where('estudiante_id', $estudiante_id)
+                            ->where('materia_criterio_id', $criterio_id)
+                            ->where('bimestre', $bimestre)
+                            ->first();
+
+                        if ($notaExistente) {
+                            // Solo actualizar si el estado actual permite edición
+                            if ($this->puedeEditarNota($estadoActual)) {
+                                $notaExistente->update([
+                                    'nota' => $nota,
+                                    // Mantener el estado 'publico' existente
+                                ]);
+                            }
+                        } else {
+                            // Crear nueva nota solo si se permite edición
+                            if ($this->puedeEditarNota($estadoActual)) {
+                                Nota::create([
+                                    'estudiante_id' => $estudiante_id,
+                                    'materia_criterio_id' => $criterio_id,
+                                    'bimestre' => $bimestre,
+                                    'nota' => $nota,
+                                    'publico' => $estadoActual // Usar el estado actual del bimestre
+                                ]);
+                            }
+                        }
+                    } else {
+                        // Si la nota está vacía, eliminar solo si se permite edición
+                        if ($this->puedeEditarNota($estadoActual)) {
+                            $notaExistente = Nota::where('estudiante_id', $estudiante_id)
+                                ->where('materia_criterio_id', $criterio_id)
+                                ->where('bimestre', $bimestre)
+                                ->first();
+
+                            if ($notaExistente) {
+                                $notaExistente->delete();
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Procesar notas de conductas
+            foreach ($notas_conductas as $estudiante_id => $conductas) {
+                foreach ($conductas as $conducta_id => $nota) {
+                    // Solo procesar si la nota tiene valor (no vacío)
+                    if ($nota !== null && $nota !== '') {
+                        $nota = intval($nota);
+
+                        // Validar que la nota esté en el rango permitido (1-4)
+                        if ($nota < 1 || $nota > 4) {
+                            continue;
+                        }
+
+                        // Buscar si ya existe una nota de conducta
+                        $notaConductaExistente = Conductanota::where('estudiante_id', $estudiante_id)
+                            ->where('conducta_id', $conducta_id)
+                            ->where('bimestre', $bimestre)
+                            ->first();
+
+                        if ($notaConductaExistente) {
+                            // Solo actualizar si el estado actual permite edición
+                            if ($this->puedeEditarNota($estadoActual)) {
+                                $notaConductaExistente->update([
+                                    'nota' => $nota,
+                                ]);
+                            }
+                        } else {
+                            // Crear nueva nota solo si se permite edición
+                            if ($this->puedeEditarNota($estadoActual)) {
+                                Conductanota::create([
+                                    'estudiante_id' => $estudiante_id,
+                                    'conducta_id' => $conducta_id,
+                                    'bimestre' => $bimestre,
+                                    'nota' => $nota,
+                                    'publico' => $estadoActual // Usar el estado actual del bimestre
+                                ]);
+                            }
+                        }
+                    } else {
+                        // Si la nota está vacía, eliminar solo si se permite edición
+                        if ($this->puedeEditarNota($estadoActual)) {
+                            $notaConductaExistente = Conductanota::where('estudiante_id', $estudiante_id)
+                                ->where('conducta_id', $conducta_id)
+                                ->where('bimestre', $bimestre)
+                                ->first();
+
+                            if ($notaConductaExistente) {
+                                $notaConductaExistente->delete();
+                            }
+                        }
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return redirect()
+                ->route('nota.index', [
+                    'curso_grado_sec_niv_anio_id' => $curso_id,
+                    'bimestre' => $bimestre
+                ])
+                ->with('success', 'Notas guardadas exitosamente.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()
+                ->route('nota.index', [
+                    'curso_grado_sec_niv_anio_id' => $curso_id,
+                    'bimestre' => $bimestre
+                ])
+                ->with('error', 'Error al guardar las notas: ' . $e->getMessage());
+        }
+    }
+
     private function puedeEditarNota($estadoActual)
     {
         $user = auth()->user();

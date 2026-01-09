@@ -97,8 +97,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/nota/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'index'])->name('nota.index');
     Route::get('/nota/create', [NotaController::class, 'create'])->name('nota.create');
-    Route::post('/nota', [NotaController::class, 'store'])->name('nota.store');
-    Route::post('/nota-conducta', [NotaController::class, 'storeConductaNotas'])->name('nota.storeConductaNotas');
+    Route::post('/nota-guardar', [NotaController::class, 'guardarNotas'])->name('nota.guardarNotas');
     Route::get('/nota/{id}/edit', [NotaController::class, 'edit'])->name('nota.edit');
     Route::put('/nota/{id}', [NotaController::class, 'update'])->name('nota.update');
     Route::delete('/nota/{id}', [NotaController::class, 'destroy'])->name('nota.destroy');
