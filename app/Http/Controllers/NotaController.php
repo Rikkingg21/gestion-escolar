@@ -24,8 +24,34 @@ class NotaController extends Controller
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
+            // Verificar acceso al módulo 13
             if (!auth()->user()->canAccessModule('13')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
+            }
+
+            $user = auth()->user();
+            $rolUsuario = $user->roles->first()->nombre;
+
+            // Solo verificar asignación de docente si el usuario tiene rol "docente"
+            if ($rolUsuario === 'docente') {
+                // Obtener el ID del curso desde la ruta
+                $cursoId = $request->route('curso_grado_sec_niv_anio_id');
+
+                if ($cursoId) {
+                    $curso = Cursogradosecnivanio::with('docente.user')->find($cursoId);
+
+                    if (!$curso) {
+                        abort(404, 'Curso no encontrado.');
+                    }
+
+                    // Verificar si el docente está asignado al curso
+                    if (!$curso->docente || !$curso->docente->user ||
+                        auth()->id() !== $curso->docente->user->id) {
+                        abort(403, 'No está asignado como docente de este curso.');
+                    }
+                } else {
+                    abort(400, 'ID de curso no proporcionado.');
+                }
             }
             return $next($request);
         });
@@ -57,15 +83,11 @@ class NotaController extends Controller
             '3' => ['Extra Oficial', 'warning']
         ];
 
-        // Determinar si es el docente asignado a este curso
-        $esDocenteDelCurso = $user->hasRole('docente') &&
-                            $user->docente &&
-                            ($curso->docente_id == $user->docente->id);
-
-        // Lógica: ¿Puede editar las notas?
-        $puedeEditar = $user->hasRole('admin') ||
-                    $user->hasRole('director') ||
-                    ($esDocenteDelCurso && in_array($estadoActual, ['0', '1']));
+        // Lógica: ¿Puede guardar las notas?
+        $puedeGuardar = false;
+        if (($user->hasRole('admin') || $user->hasRole('director') || $user->hasRole('docente')) && in_array($estadoActual, ['0'])) {
+            $puedeGuardar = true;
+        }
 
         // ¿Puede cambiar el estado (Publicar)?
         $puedePublicar = false;
@@ -84,19 +106,26 @@ class NotaController extends Controller
                 '0' => "Publicar Notas",
                 '1' => "Marcar como Oficial",
             };
-        } elseif ($esDocenteDelCurso && $estadoActual == '0') {
+        } elseif ($user->hasRole('docente') && in_array($estadoActual, ['0'])) {
             $puedePublicar = true;
             $textoBotonPublicar = "Publicar Notas";
         }
 
-        // 2. Columnas principales - Cargar estudiantes
+        // logica para revertir la publicación
+        $puedeRevertir = false;
+        if (($user->hasRole('admin')) && in_array($estadoActual, ['1','2','3'])) {
+            $puedeRevertir = true;
+        }elseif ($user->hasRole('director') && in_array($estadoActual, ['1','2'])) {
+            $puedeRevertir = true;
+        }elseif ($user->hasRole('docente') && in_array($estadoActual, ['1'])) {
+            $puedeRevertir = true;
+        }
+
+        //Columnas principales - Cargar estudiantes
         $estudiantes = $this->cargarEstudiantes($curso, $bimestre);
 
-        // 3. Columnas principales - Cargar competencias con estado '1' (Activas) de la materia
+        //Columnas principales - Cargar competencias con estado '1' (Activas) de la materia
         $competencias = $this->cargarCompetencias($curso, $bimestre);
-
-        // 4. Sub columnas - Cargar criterios relacionadas con las competencias
-        // (Ya está incluido en cargarCompetencias())
 
         // 5. Columnas principales - Cargar SIAGIE
         // Filtrar competencias NO transversales para SIAGIE
@@ -104,7 +133,7 @@ class NotaController extends Controller
             return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') === false;
         });
 
-        // 6. Sub columnas de SIAGIE
+        //Sub columnas de SIAGIE
         // Encontrar la competencia TRANSVERSALES y dividir en sus criterios
         $competenciaTransversal = $competencias->first(function($competencia) {
             return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') !== false;
@@ -133,21 +162,22 @@ class NotaController extends Controller
         $numCriteriosTransversales = $competenciaTransversal ? $competenciaTransversal->criterios->count() : 0;
         $totalColumnasSIAGIE = $numCompetenciasNoTransversales + $numCriteriosTransversales;
 
-        // 7. Columnas principales - Cargar conductas activas
+        // Columnas principales - Cargar conductas activas
         $conductas = $this->cargarConductas();
 
-        // 8. Datos de subcolumnas - Cargar estado de notas (tanto para criterios y conducta)
+        //Datos de subcolumnas - Cargar estado de notas (tanto para criterios y conducta)
         $notasExistentes = $this->cargarNotasExistentes($curso_grado_sec_niv_anio_id, $bimestre, $competencias, $estudiantes);
         $conductaNotas = $this->cargarConductaNotas($curso_grado_sec_niv_anio_id, $bimestre, $estudiantes);
 
-        // 9. Datos de SIAGIE - Promedios de lo que está llamando
+        //Datos de SIAGIE - Promedios de lo que está llamando
         // (Los cálculos se harán en la vista o en un método adicional según sea necesario)
 
         return view('nota.index', [
             'user' => $user,
             'estadosNotas' => $estadosNotasConfig,
-            'puedeEditar' => $puedeEditar,
+            'puedeGuardar' => $puedeGuardar,
             'puedePublicar' => $puedePublicar,
+            'puedeRevertir' => $puedeRevertir,
             'textoBotonPublicar' => $textoBotonPublicar,
             'competenciaTransversal' => $competenciaTransversal,
             'competenciasNoTransversales' => $competenciasNoTransversales,
@@ -182,8 +212,7 @@ class NotaController extends Controller
             ->find($curso_grado_sec_niv_anio_id);
     }
 
-
-     //Cargar estudiantes activos e inactivos
+    //Cargar estudiantes activos e inactivos
     private function cargarEstudiantes($curso, $bimestre)
     {
         return [
@@ -192,9 +221,7 @@ class NotaController extends Controller
         ];
     }
 
-
     //Cargar estudiantes activos
-
     private function cargarEstudiantesActivos($curso)
     {
         return Estudiante::with(['user'])
@@ -208,9 +235,7 @@ class NotaController extends Controller
             ->get();
     }
 
-
     //Cargar estudiantes inactivos con notas
-
     private function cargarEstudiantesInactivos($curso, $bimestre)
     {
         return Estudiante::with(['user'])
@@ -230,7 +255,6 @@ class NotaController extends Controller
             ->get();
     }
 
-
     //Cargar competencias y criterios para el bimestre específico
     private function cargarCompetencias($curso, $bimestre)
     {
@@ -242,10 +266,8 @@ class NotaController extends Controller
                 ->values();
             return $competencia;
         });
-
         return $competencias->filter(fn($c) => $c->criterios->isNotEmpty());
     }
-
 
     //Cargar notas existentes
     private function cargarNotasExistentes($curso_id, $bimestre, $competencias, $estudiantes)
@@ -268,7 +290,6 @@ class NotaController extends Controller
                 ];
             });
     }
-
 
     //Cargar conductas activas
     private function cargarConductas()
@@ -351,7 +372,7 @@ class NotaController extends Controller
                 } else {
                     throw new \Exception('Estado actual no válido para publicación.');
                 }
-            } elseif ($user->hasRole('director')) {
+            } elseif ($user->hasRole('director') || $user->hasRole('docente')) {
                 // Director puede avanzar hasta estado '2'
                 if ($estadoActual == '0') {
                     $nuevoEstado = '1';
@@ -359,13 +380,6 @@ class NotaController extends Controller
                     $nuevoEstado = '2';
                 } else {
                     throw new \Exception('Director solo puede publicar hasta estado Oficial.');
-                }
-            } elseif ($user->hasRole('docente')) {
-                // Docente puede avanzar hasta estado '1'
-                if ($estadoActual == '0') {
-                    $nuevoEstado = '1';
-                } else {
-                    throw new \Exception('Docente solo puede publicar hasta estado Publicado.');
                 }
             } else {
                 throw new \Exception('No tiene permisos para publicar notas.');
@@ -444,8 +458,8 @@ class NotaController extends Controller
         try {
             $user = auth()->user();
 
-            // Solo admin/director puede revertir
-            if (!$user->hasRole('admin') && !$user->hasRole('director')) {
+            // Solo admin/director/docente puede revertir
+            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
                 throw new \Exception('No tiene permisos para revertir la publicación.');
             }
 

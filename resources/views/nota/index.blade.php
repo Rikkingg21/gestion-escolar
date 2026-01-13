@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title','Notas')
 @section('content')
 <div class="container-fluid">
     <!-- Encabezado -->
@@ -16,12 +16,27 @@
                 </span>
             </div>
 
-            <!-- Botón Publicar -->
-            @if($puedePublicar)
-            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#publicarModal">
-                {{ $textoBotonPublicar }}
-            </button>
-            @endif
+            <div class="btn-group" role="group">
+            <!-- PUBLICAR / AVANZAR -->
+                @if($puedePublicar)
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#publicarModal">
+                    <i class="fas fa-paper-plane me-1"></i>
+                    {{ $textoBotonPublicar }}
+                </button>
+                @endif
+
+                <!-- REVERTIR -->
+                @if($puedeRevertir)
+                <a href="{{ route('nota.revertir.form', [
+                    'curso_grado_sec_niv_anio_id' => $curso_id,
+                    'bimestre' => $bimestre
+                ]) }}"
+                class="btn btn-outline-danger">
+                    <i class="fas fa-undo me-1"></i>
+                    Revertir
+                </a>
+                @endif
+            </div>
         </div>
     </div>
 
@@ -93,6 +108,27 @@
             </div>
         </div>
     </div>
+    <div class="row mb-4">
+        <div class="col-12">
+            {{-- Mensajes de error generales del sistema (Validaciones, etc) --}}
+            @if ($errors->any())
+                <div class="alert alert-danger border-left-danger shadow-sm" role="alert">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li><i class="fas fa-times-circle me-1"></i> {{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            {{-- Mensaje de éxito (si acabas de realizar una acción) --}}
+            @if(session('success'))
+                <div class="alert alert-success border-left-success shadow-sm" role="alert">
+                    <i class="fas fa-check-circle me-1"></i> {{ session('success') }}
+                </div>
+            @endif
+        </div>
+    </div>
 
     <!-- Tabla de notas -->
     <div class="card shadow mb-4">
@@ -102,14 +138,14 @@
                 <div class="switch-container mr-4">
                     <label class="mr-2 mb-0">Formato:</label>
                     <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
-                        <input type="radio" class="btn-check" name="btnradio" id="btnalfabetico" autocomplete="off" checked="">
-                        <label class="btn btn-outline-primary" for="btnalfabetico">Alfabetico</label>
-                        <input type="radio" class="btn-check" name="btnradio" id="btnnumerico" autocomplete="off" checked="">
-                        <label class="btn btn-outline-primary" for="btnnumerico">Numerico</label>
+                        <input type="radio" class="btn-check" name="btnradio" id="btnculitativo" autocomplete="off" checked="">
+                        <label class="btn btn-outline-primary" for="btnculitativo">Cualitativo</label>
+                        <input type="radio" class="btn-check" name="btnradio" id="btncuantitativo" autocomplete="off" checked="">
+                        <label class="btn btn-outline-primary" for="btncuantitativo">Cuantitativo</label>
                     </div>
                 </div>
                 <span class="text-xs text-gray-600 mr-3">
-                    <i class="fas fa-edit text-primary"></i> Puede editar: {{ $puedeEditar ? 'Sí' : 'No' }}
+                    <i class="fas fa-edit text-primary"></i> Puede guardar: {{ $puedeGuardar ? 'Sí' : 'No' }}
                 </span>
                 <span class="text-xs text-gray-600">
                     <i class="fas fa-paper-plane text-success"></i> Puede publicar: {{ $puedePublicar ? 'Sí' : 'No' }}
@@ -211,11 +247,11 @@
                                         $key = $estudiante->id . '-' . $criterio->id;
                                         $nota = $notasExistentes[$key]['nota'] ?? null;
                                         $publico = $notasExistentes[$key]['publico'] ?? '0';
-                                        $puedeEditarCampo = $puedeEditar && in_array($publico, ['0', '1']);
+                                        $puedeGuardarCampo = $puedeGuardar && in_array($publico, ['0', '1']);
                                         $valorMostrar = $nota;
                                     @endphp
 
-                                    @if($puedeEditarCampo)
+                                    @if($puedeGuardarCampo)
                                     <input type="text"
                                         class="form-control form-control-sm text-center nota-input"
                                         name="notas[{{ $estudiante->id }}][{{ $criterio->id }}]"
@@ -288,10 +324,10 @@
                                     $keyCond = $estudiante->id . '-' . $conducta->id;
                                     $notaCond = $conductaNotas[$keyCond]['nota'] ?? null;
                                     $publicoCond = $conductaNotas[$keyCond]['publico'] ?? '0';
-                                    $puedeEditarConducta = $puedeEditar && in_array($publicoCond, ['0', '1']);
+                                    $puedeGuardarConducta = $puedeGuardar && in_array($publicoCond, ['0', '1']);
                                 @endphp
 
-                                @if($puedeEditarConducta)
+                                @if($puedeGuardarConducta)
                                 <input type="number"
                                        class="form-control form-control-sm text-center conducta-input"
                                        name="conductas[{{ $estudiante->id }}][{{ $conducta->id }}]"
@@ -347,7 +383,7 @@
                                         $key = $estudiante->id . '-' . $criterio->id;
                                         $nota = $notasExistentes[$key]['nota'] ?? null;
                                         $publico = $notasExistentes[$key]['publico'] ?? '0';
-                                        $puedeEditarCampo = $puedeEditar && in_array($publico, ['0', '1']);
+                                        $puedeGuardarCampo = $puedeGuardar && in_array($publico, ['0', '1']);
                                     @endphp
 
                                     <div class="font-weight-bold
@@ -428,7 +464,7 @@
                 </table>
             </div>
 
-            @if($puedeEditar)
+            @if($puedeGuardar)
             <div class="mt-3 text-right">
                 <button type="button" class="btn btn-success" id="btnGuardarNotas">
                     <i class="fas fa-save mr-2"></i>Guardar Cambios
@@ -441,37 +477,43 @@
 
 <!-- Modal para publicar notas -->
 @if($puedePublicar)
-<div class="modal fade" id="publicarModal" tabindex="-1" role="dialog" aria-labelledby="publicarModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+<div class="modal fade" id="publicarModal" tabindex="-1" aria-labelledby="publicarModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="publicarModalLabel">Cambiar Estado de Notas</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="publicarModalLabel">
+                    <i class="fas fa-paper-plane me-2"></i>
+                    {{ $textoBotonPublicar }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="" method="POST">
+
+            <form action="{{ route('nota.publicar', [
+                'curso_grado_sec_niv_anio_id' => $curso_id,
+                'bimestre' => $bimestre
+            ]) }}" method="POST">
                 @csrf
+
                 <div class="modal-body">
-                    <div class="form-group">
-                        <label for="nuevoEstado">Nuevo estado para las notas</label>
-                        <select class="form-control" id="nuevoEstado" name="nuevo_estado" required>
-                            <option value="">Seleccionar estado...</option>
-                            @foreach($estadosNotas as $key => $estado)
-                                @if($key > $estadoActual)
-                                    <option value="{{ $key }}">{{ $estado[0] }}</option>
-                                @endif
-                            @endforeach
-                        </select>
+                    <p>¿Confirma que desea <strong>{{ strtolower($textoBotonPublicar) }}</strong> las notas de este bimestre?</p>
+
+                    <div class="alert alert-info mt-3">
+                        <strong>Estado actual:</strong> {{ $estadosNotas[$estadoActual][0] }}<br>
+                        <strong>Nuevo estado:</strong>
+                        <strong class="text-primary">{{ str_replace(['Publicar Notas', 'Marcar como '], ['', ''], $textoBotonPublicar) }}</strong>
                     </div>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        Al cambiar el estado a "{{ $textoBotonPublicar }}", las notas se harán visibles según los permisos correspondientes.
+
+                    <div class="alert alert-warning small mt-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Esta acción avanzará el estado de visibilidad de las notas.
                     </div>
                 </div>
+
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Confirmar Cambio</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check me-1"></i> Confirmar
+                    </button>
                 </div>
             </form>
         </div>
