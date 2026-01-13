@@ -12,6 +12,8 @@ use App\Models\Materia;
 use App\Models\Docente;
 use App\Models\Materia\Materiacompetencia;
 use App\Models\Materia\Materiacriterio;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\NotasExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -685,4 +687,469 @@ class NotaController extends Controller
             'estadoActual' => $estadoActual
         ]);
     }
+public function exportarExcel($curso_grado_sec_niv_anio_id, $bimestre)
+{
+    // 1. Validar parámetros (igual que en index)
+    if (!in_array($bimestre, ['1', '2', '3', '4'])) {
+        abort(404, 'Bimestre no válido.');
+    }
+
+    // 2. Cargar el curso
+    $curso = $this->cargarCurso($curso_grado_sec_niv_anio_id);
+    if (!$curso) {
+        abort(404, 'Curso no encontrado.');
+    }
+
+    // 3. Cargar todos los datos necesarios (igual que en index)
+    $estudiantes = $this->cargarEstudiantes($curso, $bimestre);
+    $competencias = $this->cargarCompetencias($curso, $bimestre);
+    $competenciasNoTransversales = $competencias->filter(function($competencia) {
+        return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') === false;
+    });
+
+    $competenciaTransversal = $competencias->first(function($competencia) {
+        return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') !== false;
+    });
+
+    $notasExistentes = $this->cargarNotasExistentes($curso_grado_sec_niv_anio_id, $bimestre, $competencias, $estudiantes);
+    $conductas = $this->cargarConductas();
+    $conductaNotas = $this->cargarConductaNotas($curso_grado_sec_niv_anio_id, $bimestre, $estudiantes);
+
+    // 4. Obtener el formato actual
+    $formato = request()->get('formato', 'cuantitativo');
+
+    // 5. Generar nombre del archivo
+    $nombreArchivo = 'Registro_Notas_'
+        . str_replace(' ', '_', $curso->materia->nombre) . '_'
+        . $curso->grado->nombre . '_'
+        . 'Bimestre_' . $bimestre . '_'
+        . date('Ymd_His') . '.xls';
+
+    // 6. Generar contenido Excel
+    $excelContent = $this->generarContenidoExcel([
+        'curso' => $curso,
+        'materia' => $curso->materia,
+        'grado' => $curso->grado,
+        'docente' => $curso->docente,
+        'bimestre' => $bimestre,
+        'competencias' => $competencias,
+        'competenciasNoTransversales' => $competenciasNoTransversales,
+        'competenciaTransversal' => $competenciaTransversal,
+        'estudiantesActivos' => $estudiantes['activos'],
+        'estudiantesInactivos' => $estudiantes['inactivos'],
+        'notasExistentes' => $notasExistentes,
+        'conductas' => $conductas,
+        'conductaNotas' => $conductaNotas,
+        'formato' => $formato,
+        'fecha_generacion' => now(),
+    ]);
+
+    // 7. Descargar archivo
+    return response()->streamDownload(function () use ($excelContent) {
+        echo $excelContent;
+    }, $nombreArchivo, [
+        'Content-Type' => 'application/vnd.ms-excel',
+        'Content-Disposition' => 'attachment; filename="' . $nombreArchivo . '"',
+        'Cache-Control' => 'max-age=0',
+    ]);
+}
+
+/**
+ * Generar contenido Excel en formato HTML (Excel puede abrir HTML)
+ */
+private function generarContenidoExcel($datos)
+{
+    ob_start();
+
+    // Inicio del documento HTML que Excel puede abrir
+    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office"
+          xmlns:x="urn:schemas-microsoft-com:office:excel"
+          xmlns="http://www.w3.org/TR/REC-html40">
+          <head>
+            <meta charset="UTF-8">
+            <!--[if gte mso 9]>
+            <xml>
+                <x:ExcelWorkbook>
+                    <x:ExcelWorksheets>
+                        <x:ExcelWorksheet>
+                            <x:Name>Registro de Notas</x:Name>
+                            <x:WorksheetOptions>
+                                <x:Print>
+                                    <x:ValidPrinterInfo/>
+                                    <x:PaperSizeIndex>9</x:PaperSizeIndex>
+                                    <x:HorizontalResolution>600</x:HorizontalResolution>
+                                    <x:VerticalResolution>600</x:VerticalResolution>
+                                </x:Print>
+                                <x:Selected/>
+                                <x:Panes>
+                                    <x:Pane>
+                                        <x:Number>3</x:Number>
+                                        <x:ActiveRow>1</x:ActiveRow>
+                                        <x:ActiveCol>1</x:ActiveCol>
+                                    </x:Pane>
+                                </x:Panes>
+                                <x:ProtectContents>False</x:ProtectContents>
+                                <x:ProtectObjects>False</x:ProtectObjects>
+                                <x:ProtectScenarios>False</x:ProtectScenarios>
+                            </x:WorksheetOptions>
+                        </x:ExcelWorksheet>
+                    </x:ExcelWorksheets>
+                </x:ExcelWorkbook>
+            </xml>
+            <![endif]>
+            <style>
+                table {
+                    border-collapse: collapse;
+                    font-family: Arial, sans-serif;
+                    font-size: 11px;
+                    width: 100%;
+                }
+                th, td {
+                    border: 1px solid #000000;
+                    padding: 4px;
+                    text-align: center;
+                    vertical-align: middle;
+                }
+                th {
+                    background-color: #f2f2f2;
+                    font-weight: bold;
+                    color: #000000;
+                }
+                .titulo {
+                    font-size: 16px;
+                    font-weight: bold;
+                    text-align: center;
+                    padding: 10px;
+                }
+                .subtitulo {
+                    font-size: 12px;
+                    padding: 5px;
+                }
+                .encabezado-competencias {
+                    background-color: #e8f4f8 !important;
+                }
+                .encabezado-siagie {
+                    background-color: #17a2b8 !important;
+                    color: white !important;
+                }
+                .encabezado-transversales {
+                    background-color: #17a2b8 !important;
+                    color: white !important;
+                }
+                .encabezado-conductas {
+                    background-color: #ffc107 !important;
+                }
+                .text-success { color: #28a745; }
+                .text-warning { color: #ffc107; }
+                .text-danger { color: #dc3545; }
+                .text-center { text-align: center; }
+                .text-left { text-align: left; }
+                .bg-light { background-color: #f8f9fa; }
+                .bg-gray { background-color: #e9ecef; }
+                .nowrap { white-space: nowrap; }
+            </style>
+          </head>
+          <body>';
+
+    // Título principal
+    echo '<table width="100%">
+            <tr>
+                <td colspan="100" class="titulo">REGISTRO DE NOTAS</td>
+            </tr>
+            <tr>
+                <td colspan="100" class="subtitulo">
+                    Materia: ' . htmlspecialchars($datos['materia']->nombre ?? 'N/A') . ' |
+                    Grado: ' . htmlspecialchars($datos['grado']->nombre ?? 'N/A') . ' |
+                    Bimestre: ' . htmlspecialchars($datos['bimestre']) . ' |
+                    Formato: ' . ($datos['formato'] == 'cuantitativo' ? 'Cuantitativo (1-4)' : 'Cualitativo (AD, A, B, C)') . ' |
+                    Generado: ' . $datos['fecha_generacion']->format('d/m/Y H:i:s') . '
+                </td>
+            </tr>
+          </table><br>';
+
+    // Inicio de tabla principal
+    echo '<table width="100%" cellspacing="0">';
+
+    // Primera fila de encabezados (con rowspan/colspan)
+    echo '<tr>';
+    echo '<th rowspan="3" width="30">N°</th>';
+    echo '<th rowspan="3" width="200" class="text-left">ESTUDIANTES</th>';
+
+    // Encabezados de competencias
+    $totalCompetenciasCols = 0;
+    foreach ($datos['competencias'] as $competencia) {
+        if (!empty($competencia->criterios)) {
+            $colspan = count($competencia->criterios);
+            $totalCompetenciasCols += $colspan;
+            echo '<th colspan="' . $colspan . '" class="encabezado-competencias">' .
+                 htmlspecialchars($competencia->nombre) . '<br><small>Competencia</small></th>';
+        }
+    }
+
+    // Encabezados SIAGIE
+    $siagieCols = 0;
+    if (!empty($datos['competenciasNoTransversales'])) {
+        $siagieCols = count($datos['competenciasNoTransversales']);
+        echo '<th colspan="' . $siagieCols . '" class="encabezado-siagie">SIAGIE<br><small>Competencias</small></th>';
+    }
+
+    // Encabezados Transversales
+    $transversalesCols = 0;
+    if (!empty($datos['competenciaTransversal']) && !empty($datos['competenciaTransversal']->criterios)) {
+        $transversalesCols = count($datos['competenciaTransversal']->criterios);
+        echo '<th colspan="' . $transversalesCols . '" class="encabezado-transversales">SIAGIE<br><small>Transversales</small></th>';
+    }
+
+    // Encabezados Conductas
+    $conductasCols = 0;
+    if (!empty($datos['conductas'])) {
+        $conductasCols = count($datos['conductas']);
+        echo '<th colspan="' . $conductasCols . '" class="encabezado-conductas">CONDUCTAS</th>';
+    }
+
+    echo '</tr>';
+
+    // Segunda fila de encabezados (nombres de criterios)
+    echo '<tr>';
+
+    // Nombres de criterios por competencia
+    foreach ($datos['competencias'] as $competencia) {
+        if (!empty($competencia->criterios)) {
+            foreach ($competencia->criterios as $criterio) {
+                echo '<th class="small">' . htmlspecialchars($criterio->nombre) . '</th>';
+            }
+        }
+    }
+
+    // Nombres de competencias SIAGIE
+    if (!empty($datos['competenciasNoTransversales'])) {
+        foreach ($datos['competenciasNoTransversales'] as $competenciaNT) {
+            echo '<th class="small encabezado-siagie">' .
+                 htmlspecialchars($competenciaNT->nombre) . '<br><small>Promedio</small></th>';
+        }
+    }
+
+    // Nombres de criterios transversales
+    if (!empty($datos['competenciaTransversal']) && !empty($datos['competenciaTransversal']->criterios)) {
+        foreach ($datos['competenciaTransversal']->criterios as $criterioTrans) {
+            echo '<th class="small encabezado-transversales">' .
+                 htmlspecialchars($criterioTrans->nombre) . '<br><small>Transversal</small></th>';
+        }
+    }
+
+    // Nombres de conductas
+    if (!empty($datos['conductas'])) {
+        foreach ($datos['conductas'] as $conducta) {
+            echo '<th class="small encabezado-conductas">' . htmlspecialchars($conducta->nombre) . '</th>';
+        }
+    }
+
+    echo '</tr>';
+
+    // Tercera fila (vacía para estructura)
+    echo '<tr>';
+    // No se necesitan más encabezados aquí
+    echo '</tr>';
+
+    // Función para formatear nota
+    $formatearNota = function($nota) use ($datos) {
+        if ($nota === null || $nota === '') {
+            return '-';
+        }
+
+        if ($datos['formato'] === 'cualitativo') {
+            $notaNum = floatval($nota);
+            if ($notaNum >= 3.5) return 'AD';
+            if ($notaNum >= 2.5) return 'A';
+            if ($notaNum >= 1.5) return 'B';
+            if ($notaNum >= 1) return 'C';
+            return '-';
+        }
+
+        return $nota;
+    };
+
+    // Función para obtener clase CSS según nota
+    $obtenerClaseNota = function($nota, $formato) {
+        if ($nota === null || $nota === '' || $nota === '-') {
+            return '';
+        }
+
+        if ($formato === 'cuantitativo') {
+            $notaNum = floatval($nota);
+            if ($notaNum >= 3) return 'text-success';
+            if ($notaNum == 2) return 'text-warning';
+            if ($notaNum == 1) return 'text-danger';
+        } else {
+            if ($nota === 'AD' || $nota === 'A') return 'text-success';
+            if ($nota === 'B') return 'text-warning';
+            if ($nota === 'C') return 'text-danger';
+        }
+
+        return '';
+    };
+
+    // Datos de estudiantes activos
+    $numero = 1;
+    foreach ($datos['estudiantesActivos'] as $estudiante) {
+        echo '<tr>';
+
+        // Número y nombre
+        echo '<td class="text-center">' . $numero++ . '</td>';
+        echo '<td class="text-left nowrap"><strong>' .
+             htmlspecialchars(($estudiante->user->apellido_paterno ?? '') . ' ' .
+             ($estudiante->user->apellido_materno ?? '') . ', ' .
+             ($estudiante->user->nombre ?? '')) . '</strong></td>';
+
+        // Notas por criterio
+        foreach ($datos['competencias'] as $competencia) {
+            if (!empty($competencia->criterios)) {
+                foreach ($competencia->criterios as $criterio) {
+                    $key = $estudiante->id . '-' . $criterio->id;
+                    $nota = $datos['notasExistentes'][$key]['nota'] ?? null;
+                    $notaFormateada = $formatearNota($nota);
+                    $clase = $obtenerClaseNota($notaFormateada, $datos['formato']);
+                    echo '<td class="text-center ' . $clase . '"><strong>' . $notaFormateada . '</strong></td>';
+                }
+            }
+        }
+
+        // Promedios SIAGIE
+        foreach ($datos['competenciasNoTransversales'] as $competenciaNT) {
+            $suma = 0;
+            $count = 0;
+            if (!empty($competenciaNT->criterios)) {
+                foreach ($competenciaNT->criterios as $criterio) {
+                    $key = $estudiante->id . '-' . $criterio->id;
+                    if (isset($datos['notasExistentes'][$key]['nota'])) {
+                        $suma += $datos['notasExistentes'][$key]['nota'];
+                        $count++;
+                    }
+                }
+            }
+            $promedio = $count > 0 ? round($suma / $count, 1) : null;
+            $promedioFormateado = $formatearNota($promedio);
+            $clase = $obtenerClaseNota($promedioFormateado, $datos['formato']);
+            echo '<td class="text-center bg-light ' . $clase . '"><strong>' . $promedioFormateado . '</strong></td>';
+        }
+
+        // Transversales
+        if (!empty($datos['competenciaTransversal']) && !empty($datos['competenciaTransversal']->criterios)) {
+            foreach ($datos['competenciaTransversal']->criterios as $criterioTrans) {
+                $keyTrans = $estudiante->id . '-' . $criterioTrans->id;
+                $notaTrans = $datos['notasExistentes'][$keyTrans]['nota'] ?? null;
+                $notaTransFormateada = $formatearNota($notaTrans);
+                $clase = $obtenerClaseNota($notaTransFormateada, $datos['formato']);
+                echo '<td class="text-center bg-light ' . $clase . '"><strong>' . $notaTransFormateada . '</strong></td>';
+            }
+        }
+
+        // Conductas
+        if (!empty($datos['conductas'])) {
+            foreach ($datos['conductas'] as $conducta) {
+                $keyCond = $estudiante->id . '-' . $conducta->id;
+                $notaCond = $datos['conductaNotas'][$keyCond]['nota'] ?? null;
+                $notaCondFormateada = $formatearNota($notaCond);
+                $clase = $obtenerClaseNota($notaCondFormateada, $datos['formato']);
+                echo '<td class="text-center ' . $clase . '"><strong>' . $notaCondFormateada . '</strong></td>';
+            }
+        }
+
+        echo '</tr>';
+    }
+
+    // Estudiantes inactivos
+    if (!empty($datos['estudiantesInactivos']) && $datos['estudiantesInactivos']->count() > 0) {
+        echo '<tr><td colspan="' . (2 + $totalCompetenciasCols + $siagieCols + $transversalesCols + $conductasCols) .
+             '" class="bg-gray text-center"><strong><i>ESTUDIANTES INACTIVOS CON NOTAS REGISTRADAS</i></strong></td></tr>';
+
+        foreach ($datos['estudiantesInactivos'] as $estudiante) {
+            echo '<tr class="text-muted">';
+
+            // Ícono de inactivo
+            echo '<td class="text-center"><i>●</i></td>';
+            echo '<td class="text-left nowrap">' .
+                 htmlspecialchars(($estudiante->user->apellido_paterno ?? '') . ' ' .
+                 ($estudiante->user->apellido_materno ?? '') . ', ' .
+                 ($estudiante->user->nombre ?? '')) . '<br><small>Inactivo</small></td>';
+
+            // Notas por criterio
+            foreach ($datos['competencias'] as $competencia) {
+                if (!empty($competencia->criterios)) {
+                    foreach ($competencia->criterios as $criterio) {
+                        $key = $estudiante->id . '-' . $criterio->id;
+                        $nota = $datos['notasExistentes'][$key]['nota'] ?? null;
+                        $notaFormateada = $formatearNota($nota);
+                        $clase = $obtenerClaseNota($notaFormateada, $datos['formato']);
+                        echo '<td class="text-center ' . $clase . '"><strong>' . $notaFormateada . '</strong></td>';
+                    }
+                }
+            }
+
+            // Promedios SIAGIE
+            foreach ($datos['competenciasNoTransversales'] as $competenciaNT) {
+                $suma = 0;
+                $count = 0;
+                if (!empty($competenciaNT->criterios)) {
+                    foreach ($competenciaNT->criterios as $criterio) {
+                        $key = $estudiante->id . '-' . $criterio->id;
+                        if (isset($datos['notasExistentes'][$key]['nota'])) {
+                            $suma += $datos['notasExistentes'][$key]['nota'];
+                            $count++;
+                        }
+                    }
+                }
+                $promedio = $count > 0 ? round($suma / $count, 1) : null;
+                $promedioFormateado = $formatearNota($promedio);
+                $clase = $obtenerClaseNota($promedioFormateado, $datos['formato']);
+                echo '<td class="text-center bg-light ' . $clase . '"><strong>' . $promedioFormateado . '</strong></td>';
+            }
+
+            // Transversales
+            if (!empty($datos['competenciaTransversal']) && !empty($datos['competenciaTransversal']->criterios)) {
+                foreach ($datos['competenciaTransversal']->criterios as $criterioTrans) {
+                    $keyTrans = $estudiante->id . '-' . $criterioTrans->id;
+                    $notaTrans = $datos['notasExistentes'][$keyTrans]['nota'] ?? null;
+                    $notaTransFormateada = $formatearNota($notaTrans);
+                    $clase = $obtenerClaseNota($notaTransFormateada, $datos['formato']);
+                    echo '<td class="text-center bg-light ' . $clase . '"><strong>' . $notaTransFormateada . '</strong></td>';
+                }
+            }
+
+            // Conductas
+            if (!empty($datos['conductas'])) {
+                foreach ($datos['conductas'] as $conducta) {
+                    $keyCond = $estudiante->id . '-' . $conducta->id;
+                    $notaCond = $datos['conductaNotas'][$keyCond]['nota'] ?? null;
+                    $notaCondFormateada = $formatearNota($notaCond);
+                    $clase = $obtenerClaseNota($notaCondFormateada, $datos['formato']);
+                    echo '<td class="text-center ' . $clase . '"><strong>' . $notaCondFormateada . '</strong></td>';
+                }
+            }
+
+            echo '</tr>';
+        }
+    }
+
+    echo '</table>';
+
+    // Leyenda
+    echo '<br><table width="100%">
+            <tr>
+                <td class="subtitulo">
+                    <strong>Leyenda:</strong>
+                    <span class="text-success">' . ($datos['formato'] == 'cuantitativo' ? '3-4' : 'A-AD') . ' (Satisfactorio)</span> |
+                    <span class="text-warning">' . ($datos['formato'] == 'cuantitativo' ? '2' : 'B') . ' (En proceso)</span> |
+                    <span class="text-danger">' . ($datos['formato'] == 'cuantitativo' ? '1' : 'C') . ' (En inicio)</span>
+                </td>
+            </tr>
+            <tr>
+                <td class="subtitulo">Sistema de Gestión Académica - Documento generado automáticamente</td>
+            </tr>
+          </table>';
+
+    echo '</body></html>';
+
+    return ob_get_clean();
+}
 }

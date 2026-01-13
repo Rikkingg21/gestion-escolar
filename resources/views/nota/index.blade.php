@@ -145,7 +145,9 @@
                         <label class="btn btn-outline-primary" for="btncualitativo">Cualitativo</label>
 
                         <button type="button" class="btn btn-secondary">PDF</button>
-                        <button type="button" class="btn btn-secondary">EXCEL</button>
+                        <button type="button" class="btn btn-success" id="btnExportarExcel">
+                            <i class="fas fa-file-excel mr-1"></i>Excel
+                        </button>
                     </div>
                 </div>
                 <span class="text-xs text-gray-600 mr-3">
@@ -1218,6 +1220,46 @@ $(document).ready(function() {
     // Asignar la función al botón PDF
     $(document).on('click', '.btn-secondary:contains("PDF")', function() {
         generarPDF();
+    });
+});
+</script>
+<script>
+$(document).on('click', '#btnExportarExcel', function() {
+    // Preguntar por formato
+    Swal.fire({
+        title: 'Exportar a Excel',
+        text: '¿En qué formato desea exportar las notas?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Cuantitativo (1-4)',
+        cancelButtonText: 'Cualitativo (AD, A, B, C)',
+        showDenyButton: true,
+        denyButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed || result.dismiss === Swal.DismissReason.cancel) {
+            const formato = result.isConfirmed ? 'cuantitativo' : 'cualitativo';
+
+            // Mostrar carga
+            Swal.fire({
+                title: 'Generando Excel...',
+                text: 'Por favor espere',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Llamar al servidor
+            const url = '{{ route("notas.exportar.excel", ["curso_grado_sec_niv_anio_id" => $curso_id, "bimestre" => $bimestre]) }}' +
+                        '?formato=' + formato;
+
+            window.location.href = url;
+
+            // Cerrar el loading después de un tiempo
+            setTimeout(() => {
+                Swal.close();
+            }, 2000);
+        }
     });
 });
 </script>

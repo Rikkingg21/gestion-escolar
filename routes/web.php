@@ -105,6 +105,11 @@ Route::middleware('auth')->group(function () {
     Route::post('nota/revertir/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'revertir'])->name('nota.revertir');
     Route::get('nota/revertir-form/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'showRevertirForm'])->name('nota.revertir.form');
 
+    Route::get('/notas/exportar-excel/{curso_grado_sec_niv_anio_id}/{bimestre}',
+    [NotaController::class, 'exportarExcel'])
+    ->name('notas.exportar.excel')
+    ->middleware('auth');
+
     Route::get('/user', [UserController::class, 'index'])->name('user.index');
     Route::get('/user/create', [UserController::class, 'create'])->name('user.create');
 
