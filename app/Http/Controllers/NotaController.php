@@ -465,6 +465,33 @@ class NotaController extends Controller
                 throw new \Exception('No tiene permisos para revertir la publicación.');
             }
 
+            $sessionMain = session('sessionmain');
+            if (!$sessionMain) {
+                return redirect()
+                    ->route('nota.index', [
+                        'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
+                        'bimestre' => $bimestre
+                    ])
+                    ->with('error', 'No hay sesión principal activa. Inicie sesión principal para realizar esta acción.');
+            }
+
+            // Validar la contraseña
+            $request->validate([
+                'password' => 'required|string'
+            ]);
+
+            // Verificar la contraseña de la sesión principal
+            if (!Hash::check($request->password, $sessionMain->password)) {
+                return redirect()
+                    ->route('nota.index', [
+                        'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
+                        'bimestre' => $bimestre
+                    ])
+                    ->withErrors(['password' => 'Contraseña incorrecta'])
+                    ->withInput();
+            }
+
+
             DB::beginTransaction();
 
             $estadoActual = $this->obtenerEstadoActual($curso_grado_sec_niv_anio_id, $bimestre);
