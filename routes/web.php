@@ -14,8 +14,10 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ColegioController;
 use App\Http\Controllers\DocenteController;
 use App\Http\Controllers\AuxiliarController;
-use App\Http\Controllers\ApoceradoController;
-use App\Http\Controllers\EsstudianteController;
+use App\Http\Controllers\EstudianteController;
+use App\Http\Controllers\ApoderadoController;
+
+use App\Http\Controllers\PeriodoController;
 
 use App\Http\Controllers\Maya\MayaController;
 use App\Http\Controllers\Maya\BimestreController;
@@ -39,8 +41,7 @@ use App\Http\Controllers\Materia\MateriaCriterioController;
 
 use App\Http\Controllers\ReporteController;
 
-use App\Http\Controllers\EstudianteController;
-use App\Http\Controllers\ApoderadoController;
+
 use App\Models\Apoderado;
 use App\Models\Estudiante;
 use App\Models\Materia\Materiacompetencia;
@@ -86,6 +87,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/module/{id}/edit', [ModuleController::class, 'edit'])->name('module.edit');
     Route::put('/module/{id}', [ModuleController::class, 'update'])->name('module.update');
     Route::delete('/module/{id}', [ModuleController::class, 'destroy'])->name('module.destroy');
+
+    Route::get('/periodo', [PeriodoController::class, 'index'])->name('periodo.index');
+    Route::get('/periodo/create', [PeriodoController::class, 'create'])->name('periodo.create');
+    Route::post('/periodo', [PeriodoController::class, 'store'])->name('periodo.store');
+
+    Route::get('/periodo/{id}/edit', [PeriodoController::class, 'edit'])->name('periodo.edit');
+    Route::put('/periodo/{id}', [PeriodoController::class, 'update'])->name('periodo.update');
+    Route::delete('/periodo/{id}', [PeriodoController::class, 'destroy'])->name('periodo.destroy');
 
     Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
     Route::get('/maya/create', [MayaController::class, 'create'])->name('maya.create');
