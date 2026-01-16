@@ -18,6 +18,7 @@ use App\Http\Controllers\EstudianteController;
 use App\Http\Controllers\ApoderadoController;
 
 use App\Http\Controllers\PeriodoController;
+use App\Http\Controllers\MatriculaController;
 
 use App\Http\Controllers\Maya\MayaController;
 use App\Http\Controllers\Maya\BimestreController;
@@ -91,10 +92,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/periodo', [PeriodoController::class, 'index'])->name('periodo.index');
     Route::get('/periodo/create', [PeriodoController::class, 'create'])->name('periodo.create');
     Route::post('/periodo', [PeriodoController::class, 'store'])->name('periodo.store');
-
     Route::get('/periodo/{id}/edit', [PeriodoController::class, 'edit'])->name('periodo.edit');
     Route::put('/periodo/{id}', [PeriodoController::class, 'update'])->name('periodo.update');
     Route::delete('/periodo/{id}', [PeriodoController::class, 'destroy'])->name('periodo.destroy');
+
+    Route::get('/matricula/{nombre}', [MatriculaController::class, 'index'])->name('matricula.index');
+    Route::get('/matricula/create', [MatriculaController::class, 'create'])->name('matricula.create');
+
+    Route::get('/matricula/{id}/edit', [MatriculaController::class, 'edit'])->name('matricula.edit');
+    Route::put('/matricula/{id}', [MatriculaController::class, 'update'])->name('matricula.update');
+    Route::delete('/matricula/{id}', [MatriculaController::class, 'destroy'])->name('matricula.destroy');
+    Route::get('/matricula/grado/{nombre}/{grado_id}', [MatriculaController::class, 'grado'])->name('matricula.grado');
+    Route::post('/matricula', [MatriculaController::class, 'store'])->name('matricula.store');
+    Route::put('/matricula/{matricula}/estado', [MatriculaController::class, 'cambiarEstado'])->name('matricula.estado');
 
     Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
     Route::get('/maya/create', [MayaController::class, 'create'])->name('maya.create');

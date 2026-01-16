@@ -24,6 +24,7 @@ class Matricula extends Model
         'estudiante_id',
         'periodo_id',
         'grado_id',
+        'estado',
     ];
     public function estudiante()
     {
