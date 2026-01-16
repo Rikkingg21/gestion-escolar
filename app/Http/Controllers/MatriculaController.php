@@ -24,8 +24,10 @@ class MatriculaController extends Controller
             return redirect()->route('matricula.index')->with('error', 'Período no encontrado');
         }
 
-        // Obtener todos los grados activos
-        $grados = Grado::where('estado', '1')
+        // Obtener TODOS los grados que tienen matrículas en este período
+        $gradosConMatriculas = Grado::whereHas('matriculas', function($query) use ($periodo) {
+                $query->where('periodo_id', $periodo->id);
+            })
             ->withCount(['matriculas' => function($query) use ($periodo) {
                 $query->where('periodo_id', $periodo->id);
             }])
@@ -34,9 +36,15 @@ class MatriculaController extends Controller
             ->orderBy('seccion')
             ->get();
 
-        // Separar grados con y sin matrículas
-        $gradosConMatriculas = $grados->where('matriculas_count', '>', 0);
-        $gradosSinMatriculas = $grados->where('matriculas_count', 0);
+        // Obtener todos los grados activos que NO tienen matrículas en este período
+        $gradosSinMatriculas = Grado::where('estado', '1')
+            ->whereDoesntHave('matriculas', function($query) use ($periodo) {
+                $query->where('periodo_id', $periodo->id);
+            })
+            ->orderBy('nivel')
+            ->orderBy('grado')
+            ->orderBy('seccion')
+            ->get();
 
         // Verificar si hay matrículas para este período
         $hayMatriculas = $gradosConMatriculas->count() > 0;
