@@ -82,6 +82,54 @@ class MatriculaController extends Controller
             'grado_id' => $grado->id
         ])->with('success', 'Estudiante matriculado exitosamente.');
     }
+    // En MatriculaController.php
+    public function matricularMasivamente(Request $request)
+    {
+        $request->validate([
+            'periodo_id' => 'required|exists:periodos,id',
+            'grado_id' => 'required|exists:grados,id',
+            'estudiante_ids' => 'required|array',
+            'estudiante_ids.*' => 'exists:estudiantes,id',
+        ]);
+
+        $periodo = Periodo::find($request->periodo_id);
+        $grado = Grado::find($request->grado_id);
+
+        $estudiantesMatriculados = [];
+        $estudiantesNoMatriculados = [];
+
+        foreach ($request->estudiante_ids as $estudiante_id) {
+            // Verificar si ya existe matrícula
+            $existe = Matricula::where('estudiante_id', $estudiante_id)
+                ->where('periodo_id', $request->periodo_id)
+                ->where('grado_id', $request->grado_id)
+                ->exists();
+
+            if (!$existe) {
+                // Crear matrícula
+                $matricula = Matricula::create([
+                    'estudiante_id' => $estudiante_id,
+                    'periodo_id' => $request->periodo_id,
+                    'grado_id' => $request->grado_id,
+                    'estado' => '1', // Estado activo
+                ]);
+
+                $estudiantesMatriculados[] = $estudiante_id;
+            } else {
+                $estudiantesNoMatriculados[] = $estudiante_id;
+            }
+        }
+
+        // Preparar mensaje de respuesta
+        $mensaje = "Matrícula masiva completada. ";
+        $mensaje .= count($estudiantesMatriculados) . " estudiante(s) matriculado(s) exitosamente. ";
+
+        if (count($estudiantesNoMatriculados) > 0) {
+            $mensaje .= count($estudiantesNoMatriculados) . " estudiante(s) ya estaban matriculado(s).";
+        }
+
+        return back()->with('success', $mensaje);
+    }
     public function grado($nombre, $grado_id)
     {
         // Obtener el período por nombre

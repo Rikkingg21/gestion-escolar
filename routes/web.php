@@ -104,6 +104,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/matricula/{id}', [MatriculaController::class, 'destroy'])->name('matricula.destroy');
     Route::get('/matricula/grado/{nombre}/{grado_id}', [MatriculaController::class, 'grado'])->name('matricula.grado');
     Route::post('/matricula', [MatriculaController::class, 'store'])->name('matricula.store');
+    Route::post('/matricula/masiva', [MatriculaController::class, 'matricularMasivamente'])->name('matricula.masiva');
     Route::put('/matricula/{matricula}/estado', [MatriculaController::class, 'cambiarEstado'])->name('matricula.estado');
 
     Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
