@@ -154,6 +154,9 @@
                 No hay grados activos disponibles para este período.
             </div>
         @endif
+        <a href="{{ route('periodo.index') }}" class="btn btn-secondary mt-3">
+            Regresar a Períodos
+        </a>
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
