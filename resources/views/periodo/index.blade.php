@@ -70,23 +70,15 @@
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
                                                         <a href="#" class="btn btn-outline-primary" title="Ver Matrículas">
-                                                            <i class="fas fa-users"></i>
+                                                            <i class="bi bi-folder2-open"></i>
+                                                            Ver
                                                         </a>
+
                                                         <a href="{{ route('periodo.edit', $periodo->id) }}"
-                                                           class="btn btn-outline-warning" title="Editar">
-                                                            <i class="fas fa-edit"></i>
+                                                        class="btn btn-outline-warning" title="Editar">
+                                                            <i class="bi bi-pencil-square"></i>
+                                                            Editar
                                                         </a>
-                                                        <form action="{{ route('periodo.destroy', $periodo->id) }}"
-                                                              method="POST" class="d-inline">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit"
-                                                                    class="btn btn-outline-danger"
-                                                                    onclick="return confirm('¿Estás seguro de eliminar el periodo \"{{ $periodo->nombre }}\"?')"
-                                                                    title="Eliminar">
-                                                                <i class="fas fa-trash"></i>
-                                                            </button>
-                                                        </form>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -147,11 +139,13 @@
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
                                                         <a href="#" class="btn btn-outline-secondary" title="Ver Matrículas">
-                                                            <i class="fas fa-users"></i>
+                                                            <i class="bi bi-folder2-open"></i>
+                                                            Ver
                                                         </a>
                                                         <a href="{{ route('periodo.edit', $periodo->id) }}"
                                                            class="btn btn-outline-warning" title="Editar">
-                                                            <i class="fas fa-edit"></i>
+                                                            <i class="bi bi-pencil-square"></i>
+                                                            Editar
                                                         </a>
                                                         <form action="{{ route('periodo.destroy', $periodo->id) }}"
                                                               method="POST" class="d-inline">
@@ -161,7 +155,7 @@
                                                                     class="btn btn-outline-danger"
                                                                     onclick="return confirm('¿Estás seguro de eliminar el periodo \"{{ $periodo->nombre }}\"?')"
                                                                     title="Eliminar">
-                                                                <i class="fas fa-trash"></i>
+                                                                <i class="bi bi-trash3"></i>
                                                             </button>
                                                         </form>
                                                     </div>
