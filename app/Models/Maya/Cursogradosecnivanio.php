@@ -10,6 +10,7 @@ use App\Models\Maya\Bimestre;
 use App\Models\Docente;
 use App\Models\Grado;
 use App\Models\Materia;
+use App\Models\Periodo;
 
 class Cursogradosecnivanio extends Model
 {
@@ -24,6 +25,7 @@ class Cursogradosecnivanio extends Model
         'grado_id',
         'anio',
         'materia_id',
+        'periodo_id',
     ];
     public function grado()
     {
@@ -36,6 +38,10 @@ class Cursogradosecnivanio extends Model
     public function materia()
     {
         return $this->belongsTo(Materia::class, 'materia_id');
+    }
+    public function periodo()
+    {
+        return $this->belongsTo(Periodo::class, 'periodo_id');
     }
     public function getHighestBimestreWithAsistencia()
     {

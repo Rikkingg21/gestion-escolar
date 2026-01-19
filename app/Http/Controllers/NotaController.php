@@ -227,8 +227,12 @@ class NotaController extends Controller
     private function cargarEstudiantesActivos($curso)
     {
         return Estudiante::with(['user'])
-            ->where('grado_id', $curso->grado_id)
-            ->where('estado', '1')
+            ->where('estado', '1') // Estado activo del estudiante
+            ->whereHas('matriculas', function($query) use ($curso) {
+                $query->where('estado', '1') // Matrícula activa
+                    ->where('grado_id', $curso->grado_id)
+                    ->where('periodo_id', $curso->periodo_id);
+            })
             ->orderByRaw("
                 (SELECT apellido_paterno FROM users WHERE users.id = estudiantes.user_id),
                 (SELECT apellido_materno FROM users WHERE users.id = estudiantes.user_id),
@@ -237,12 +241,15 @@ class NotaController extends Controller
             ->get();
     }
 
-    //Cargar estudiantes inactivos con notas
     private function cargarEstudiantesInactivos($curso, $bimestre)
     {
-        return Estudiante::with(['user'])
-            ->where('grado_id', $curso->grado_id)
-            ->where('estado', '0')
+        // Primero obtenemos estudiantes que fueron matriculados pero retirados
+        $estudiantesRetirados = Estudiante::with(['user'])
+            ->whereHas('matriculas', function($query) use ($curso) {
+                $query->where('estado', '0') // Matrícula retirada
+                    ->where('grado_id', $curso->grado_id)
+                    ->where('periodo_id', $curso->periodo_id);
+            })
             ->whereHas('notas', function($query) use ($curso, $bimestre) {
                 $query->where('bimestre', $bimestre)
                     ->whereHas('criterio', function($q) use ($curso) {
@@ -255,6 +262,11 @@ class NotaController extends Controller
                 (SELECT nombre FROM users WHERE users.id = estudiantes.user_id)
             ")
             ->get();
+
+        // Opcional: Si quieres filtrar también por estudiantes inactivos
+        // return $estudiantesRetirados->where('estado', '0');
+
+        return $estudiantesRetirados;
     }
 
     //Cargar competencias y criterios para el bimestre específico
