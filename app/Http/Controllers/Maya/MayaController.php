@@ -9,6 +9,7 @@ use App\Models\Materia;
 use App\Models\Grado;
 use App\Models\Docente;
 use App\Models\Materia\Materiacriterio;
+use App\Models\Periodo;
 use App\Models\User;
 
 class MayaController extends Controller
@@ -146,7 +147,9 @@ class MayaController extends Controller
             return $a->seccion <=> $b->seccion;
         })->values();
 
-        return view('modulos.maya.create', compact('materias', 'docentes', 'grados'));
+        $periodos = Periodo::where('estado', 1)->orderBy('nombre')->get();
+
+        return view('modulos.maya.create', compact('materias', 'docentes', 'grados', 'periodos'));
     }
     public function store(Request $request)
     {
@@ -155,17 +158,18 @@ class MayaController extends Controller
             'docente_designado_id' => 'required|exists:docentes,id',
             'grado_id' => 'required|exists:grados,id',
             'anio' => 'required|integer',
+            'periodo_id' => 'required|exists:periodos,id',
         ]);
         $data = $request->all();
         $data['materia_id'] = strtoupper($data['materia_id']);
         $data['docente_designado_id'] = strtoupper($data['docente_designado_id']);
         $data['grado_id'] = strtoupper($data['grado_id']);
         $data['anio'] = strtoupper($data['anio']);
+        $data['periodo_id'] = strtoupper($data['periodo_id']);
         $maya = Cursogradosecnivanio::create($data);
         return redirect()->route('maya.index', ['anio' => $maya->anio])
             ->with('success', 'Maya creada exitosamente.');
     }
-
 
     public function edit($id)
     {
@@ -207,7 +211,9 @@ class MayaController extends Controller
             return $a->seccion <=> $b->seccion;
         })->values(); // Re-indexa la colección después de ordenar
 
-        return view('modulos.maya.edit', compact('maya', 'materias', 'docentes', 'grados'));
+        $periodos = Periodo::where('estado', 1)->orderBy('nombre')->get();
+
+        return view('modulos.maya.edit', compact('maya', 'materias', 'docentes', 'grados', 'periodos'));
     }
     public function update(Request $request, $id)
     {
@@ -216,6 +222,7 @@ class MayaController extends Controller
             'docente_designado_id' => 'required|exists:docentes,id',
             'grado_id' => 'required|exists:grados,id',
             'anio' => 'required|integer',
+            'periodo_id' => 'required|exists:periodos,id',
         ]);
         $maya = Cursogradosecnivanio::findOrFail($id);
         $data = $request->all();
@@ -223,6 +230,7 @@ class MayaController extends Controller
         $data['docente_designado_id'] = strtoupper($data['docente_designado_id']);
         $data['grado_id'] = strtoupper($data['grado_id']);
         $data['anio'] = strtoupper($data['anio']);
+        $data['periodo_id'] = strtoupper($data['periodo_id']);
         $maya->update($data);
         return redirect()->route('maya.index', ['anio' => $maya->anio])
             ->with('success', 'Maya actualizada exitosamente.');
