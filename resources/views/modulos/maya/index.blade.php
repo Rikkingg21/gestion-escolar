@@ -34,12 +34,17 @@
         <div class="card-body">
             <form method="GET" action="{{ route('maya.index') }}">
                 <div class="row g-3">
-                    <div class="col-md-3">
-                        <label for="anio-select" class="form-label fw-semibold">Año académico</label>
-                        <select name="anio" id="anio-select" class="form-select">
-                            @foreach($anios as $anio)
-                                <option value="{{ $anio }}" {{ $anio == $anioSeleccionado ? 'selected' : '' }}>
-                                    {{ $anio }}
+                    <div class="col-md-4">
+                        <label for="periodo_id" class="form-label fw-semibold">Periodo Académico</label>
+                        <select name="periodo_id" id="periodo_id" class="form-select" required>
+                            @foreach($periodos as $periodo)
+                                <option value="{{ $periodo->id }}"
+                                        {{ ($periodoSeleccionadoId ?? null) == $periodo->id ? 'selected' : '' }}
+                                        data-anio="{{ $periodo->anio }}">
+                                    {{ $periodo->anio }}
+                                    @if($periodo->estado == 0)
+                                        - Inactivo
+                                    @endif
                                 </option>
                             @endforeach
                         </select>
@@ -70,10 +75,10 @@
                     </div>
 
                     @if(isset($docentes))
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="docente_id" class="form-label fw-semibold">Docente</label>
                         <select name="docente_id" id="docente_id" class="form-select">
-                            <option value="">Todos los docentes</option>
+                            <option value="">Todos</option>
                             @foreach($docentes as $docente)
                                 <option value="{{ $docente->id }}" {{ request('docente_id') == $docente->id ? 'selected' : '' }}>
                                     {{ $docente->user->apellido_paterno }} {{ $docente->user->apellido_materno }}, {{ $docente->user->nombre }}
@@ -118,7 +123,10 @@
                                         <strong class="h6 mb-1 d-block text-dark">{{ $maya->materia->nombre }}</strong>
                                         <small class="text-muted">
                                             {{ $maya->grado->grado }}° {{ $maya->grado->seccion }} -
-                                            {{ $maya->grado->nivel }} ({{ $maya->anio }})
+                                            {{ $maya->grado->nivel }}
+                                            @if($maya->periodo)
+                                                ({{ $maya->periodo->anio }})
+                                            @endif
                                         </small>
                                     </div>
                                     <span class="badge bg-primary">
@@ -129,7 +137,7 @@
                                     <i class="bi bi-person-vcard text-primary me-1"></i>
                                     <small>
                                         <strong class="text-dark">Docente:</strong>
-                                        @if($maya->docente)
+                                        @if($maya->docente && $maya->docente->user)
                                             <span class="text-dark">
                                                 {{ $maya->docente->user->apellido_paterno }}
                                                 {{ $maya->docente->user->apellido_materno }},
@@ -145,8 +153,26 @@
                     </h2>
 
                     <div id="collapseMaya{{ $maya->id }}" class="accordion-collapse collapse"
-                         aria-labelledby="headingMaya{{ $maya->id }}" data-bs-parent="#mayasAccordion">
+                        aria-labelledby="headingMaya{{ $maya->id }}" data-bs-parent="#mayasAccordion">
                         <div class="accordion-body bg-light">
+                            <!-- Información del periodo -->
+                            @if($maya->periodo)
+                            <div class="alert alert-info border-info mb-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-calendar-week me-2"></i>
+                                    <div>
+                                        <strong class="text-dark">Periodo:</strong> {{ $maya->periodo->nombre }}
+                                        <span class="ms-2"><strong class="text-dark">Año:</strong> {{ $maya->periodo->anio }}</span>
+                                        @if($maya->periodo->descripcion)
+                                            <div class="mt-1">
+                                                <small class="text-dark">{{ $maya->periodo->descripcion }}</small>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
                             <!-- Acciones de administración -->
                             @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
                             <div class="d-flex flex-wrap gap-2 mb-4 p-3 bg-white rounded border">
@@ -168,53 +194,88 @@
                             <div class="row g-2">
                                 @foreach ($maya->bimestres_disponibles as $bimestre)
                                 @php
+                                    $anioPeriodo = $periodoSeleccionado ? $periodoSeleccionado->anio : date('Y');
                                     $criteriosCount = App\Models\Materia\Materiacriterio::where('materia_id', $maya->materia_id)
                                         ->where('grado_id', $maya->grado_id)
-                                        ->where('anio', $anioSeleccionado)
+                                        ->where('anio', $anioPeriodo)
                                         ->where('bimestre', $bimestre)
                                         ->count();
+
+                                    // Opcional: contar notas registradas en este bimestre
+                                    $notasCount = 0; // Puedes implementar esto si lo necesitas
+                                    // $notasCount = App\Models\Nota::whereHas('criterio', function($q) use ($maya, $anioPeriodo, $bimestre) {
+                                    //     $q->where('materia_id', $maya->materia_id)
+                                    //       ->where('grado_id', $maya->grado_id)
+                                    //       ->where('anio', $anioPeriodo)
+                                    //       ->where('bimestre', $bimestre);
+                                    // })->count();
                                 @endphp
 
                                 <div class="col-md-6 col-lg-4">
                                     <div class="card border h-100">
                                         <div class="card-body text-center">
                                             <div class="mb-3">
-                                                <i class="bi bi-calendar-week text-primary fs-1"></i>
+                                                @if($notasCount > 0)
+                                                    <i class="bi bi-check-circle text-success fs-1"></i>
+                                                @elseif($criteriosCount > 0)
+                                                    <i class="bi bi-calendar-week text-primary fs-1"></i>
+                                                @else
+                                                    <i class="bi bi-calendar-x text-warning fs-1"></i>
+                                                @endif
                                             </div>
 
                                             <h5 class="card-title text-dark">Bimestre {{ $bimestre }}</h5>
 
                                             <p class="card-text">
-                                                <small class="text-muted">
-                                                    {{ $criteriosCount }} criterio(s) configurado(s)
-                                                </small>
+                                                @if($criteriosCount > 0)
+                                                    <small class="text-muted">
+                                                        {{ $criteriosCount }} criterio(s)
+                                                        @if($notasCount > 0)
+                                                            <br>
+                                                            <span class="text-success">
+                                                                <i class="bi bi-check-circle me-1"></i>{{ $notasCount }} nota(s)
+                                                            </span>
+                                                        @endif
+                                                    </small>
+                                                @else
+                                                    <small class="text-warning">
+                                                        <i class="bi bi-exclamation-triangle me-1"></i>Sin criterios
+                                                    </small>
+                                                @endif
                                             </p>
 
                                             <!-- Enlace directo a calificar -->
-                                            <a href="{{ route('nota.index', [
-                                                'curso_grado_sec_niv_anio_id' => $maya->id,
-                                                'bimestre' => $bimestre
-                                            ]) }}" class="btn btn-primary btn-sm w-100 mb-2">
-                                                <i class="bi bi-journal-check me-1"></i> Calificar
-                                            </a>
+                                            @if($criteriosCount > 0)
+                                                <a href="{{ route('nota.index', [
+                                                    'curso_grado_sec_niv_anio_id' => $maya->id,
+                                                    'bimestre' => $bimestre
+                                                ]) }}" class="btn btn-primary btn-sm w-100 mb-2">
+                                                    <i class="bi bi-journal-check me-1"></i> Calificar
+                                                </a>
+                                            @endif
 
                                             @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
                                                 <a href="{{ route('materiacriterio.index', [
                                                     'materia_id' => $maya->materia_id,
                                                     'grado_id' => $maya->grado_id,
-                                                    'anio' => $anioSeleccionado,
+                                                    'anio' => $anioPeriodo,
                                                     'bimestre' => $bimestre
                                                 ]) }}" class="btn btn-outline-info btn-sm w-100">
-                                                    <i class="bi bi-list-check me-1"></i> Gestionar Criterios
+                                                    <i class="bi bi-list-check me-1"></i>
+                                                    {{ $criteriosCount > 0 ? 'Gestionar' : 'Crear' }} Criterios
                                                 </a>
                                             @endif
                                         </div>
 
                                         <!-- Estado del bimestre -->
                                         <div class="card-footer bg-transparent">
-                                            @if($criteriosCount > 0)
+                                            @if($notasCount > 0)
                                                 <small class="text-success">
-                                                    <i class="bi bi-check-circle me-1"></i> Listo para calificar
+                                                    <i class="bi bi-check-circle me-1"></i> Notas registradas
+                                                </small>
+                                            @elseif($criteriosCount > 0)
+                                                <small class="text-primary">
+                                                    <i class="bi bi-clock me-1"></i> Listo para calificar
                                                 </small>
                                             @else
                                                 <small class="text-warning">
@@ -232,9 +293,11 @@
                                     <i class="bi bi-exclamation-triangle me-2"></i>
                                     <div>
                                         <strong class="text-dark">Sin bimestres configurados</strong>
-                                        <span class="text-dark d-block">No hay criterios definidos para esta combinación de materia, grado y año.</span>
+                                        <span class="text-dark d-block">
+                                            No hay criterios definidos para esta combinación de materia, grado y año {{ $periodoSeleccionado ? $periodoSeleccionado->anio : date('Y') }}.
+                                        </span>
                                         @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
-                                            <a href="{{ route('materiacriterio.create') }}?materia_id={{ $maya->materia_id }}&grado_id={{ $maya->grado_id }}&anio={{ $anioSeleccionado }}"
+                                            <a href="{{ route('materiacriterio.create') }}?materia_id={{ $maya->materia_id }}&grado_id={{ $maya->grado_id }}&anio={{ $periodoSeleccionado ? $periodoSeleccionado->anio : date('Y') }}"
                                             class="btn btn-sm btn-primary mt-2">
                                                 <i class="bi bi-plus-circle me-1"></i> Crear Criterios
                                             </a>
@@ -251,7 +314,14 @@
                     <div class="alert alert-warning mx-3">
                         <i class="bi bi-inbox fs-1 d-block mb-3"></i>
                         <h5 class="mb-2">No se encontraron mayas curriculares</h5>
-                        <p class="mb-3">No hay resultados con los filtros seleccionados.</p>
+                        <p class="mb-3">
+                            @if($periodoSeleccionado)
+                                No hay resultados para el periodo <strong>{{ $periodoSeleccionado->nombre }}</strong>
+                                con los filtros seleccionados.
+                            @else
+                                No hay resultados con los filtros seleccionados.
+                            @endif
+                        </p>
                         <a href="{{ route('maya.index') }}" class="btn btn-primary">
                             <i class="bi bi-arrow-counterclockwise me-2"></i> Ver Todas las Mayas
                         </a>
@@ -260,15 +330,34 @@
                 @endforelse
             </div>
         </div>
+
+        <!-- Pie de página con estadísticas -->
+        @if($mayas->count() > 0)
+        <div class="card-footer bg-light py-3">
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Total Mayas</small>
+                    <span class="h5 text-dark">{{ $mayas->count() }}</span>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Total Bimestres</small>
+                    <span class="h5 text-dark">{{ $mayas->sum(fn($m) => $m->bimestres_disponibles->count()) }}</span>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Periodo Actual</small>
+                    <span class="h6 text-dark">{{ $periodoSeleccionado->nombre ?? 'No seleccionado' }}</span>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Año</small>
+                    <span class="h6 text-dark">{{ $periodoSeleccionado->anio ?? date('Y') }}</span>
+                </div>
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 
 <script>
-    // Cambiar año académico
-    document.getElementById('anio-select').addEventListener('change', function() {
-        window.location.href = '?anio=' + this.value;
-    });
-
     // Función para guardar el estado de los acordeones
     function saveAccordionState(targetId) {
         localStorage.setItem('maya_last_open', targetId);
