@@ -30,10 +30,10 @@ class MayaController extends Controller
 
         // Si el usuario tiene rol admin o director se muestran periodos con estado '1' y '0'
         if ($user->hasRole('admin') || $user->hasRole('director')) {
-            $periodos = Periodo::whereIn('estado', [0, 1])
-                ->orderBy('anio', 'desc')
-                ->orderBy('nombre')
-                ->get();
+            $periodos = Periodo::all()
+                ->sortByDesc('anio')
+                ->sortBy('nombre')
+                ->values();
         } else {
             $periodos = Periodo::where('estado', 1)
                 ->orderBy('anio', 'desc')
