@@ -7,7 +7,6 @@
             <h4 class="mb-0 text-black"><strong>Libreta de Calificaciones</strong></h4>
         </div>
         <div class="card-body bg-light">
-            <!-- Formulario de filtros -->
             <form action="{{ route('libreta.pdf', ['anio' => $anio_param, 'bimestre' => $bimestre_param]) }}" method="POST">
                 @csrf
                 <div class="row g-3 align-items-end mb-4">
@@ -16,7 +15,7 @@
                         <label for="anio" class="form-label fw-bold text-primary">
                             <i class="fas fa-calendar-alt me-2"></i>Año Académico
                         </label>
-                        <select name="anio" id="anio" class="form-select border-2 border-primary shadow-sm" onchange="cambiarAnio(this.value)">
+                        <select name="anio" id="anio" class="form-select border-2 border-primary shadow-sm" onchange="cambiarPeriodo(this.value)">
                             <option value="">-- Seleccione Año --</option>
                             @foreach($periodos as $periodo)
                                 <option value="{{ $periodo->anio }}"
@@ -50,74 +49,116 @@
                     </div>
                 </div>
             </form>
-            <div class="container text-center">
-                <div class="row">
-                    <div class="col-sm-3">
-                    <img src="{{ Storage::url($colegio->logo_path) }}" alt="Logo del colegio" class="img-thumbnail border-0">
+
+            <!-- SECCIÓN: Datos del estudiante en el periodo -->
+            @if($matricula_actual && $periodo_actual)
+            <div class="container border border-2 border-dark rounded-3 p-4 mb-4 bg-white">
+                <!-- Encabezado de la libreta -->
+                <div class="text-center mb-4">
+                    <div class="h3 fw-bold text-primary border-bottom border-2 border-primary pb-2">
+                        LIBRETA DE CALIFICACIONES DEL ESTUDIANTE (sec EBR)
                     </div>
-                    <div class="col-sm-9">
-                        <div class="row">
-                            <div class="col-8 col-sm-6">
-                            UGEL:
-                            </div>
-                            <div class="col-4 col-sm-6">
-                            TACNA
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-8 col-sm-6">
-                            II.EE:
-                            </div>
-                            <div class="col-4 col-sm-6">
-                            {{ $colegio->nombre }}
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-8 col-sm-6">
-                            NIVEL:
-                            </div>
-                            <div class="col-4 col-sm-6">
+                    <div class="h5 fw-bold text-success mt-2">
+                        {{ $periodo_actual->anio }} -
+                        @if($bimestre_param == 'anual')
+                            EVALUACIÓN ANUAL
+                        @else
+                            {{ $bimestre_param }}° BIMESTRE
+                        @endif
+                    </div>
+                </div>
 
-                            </div>
+                <!-- Contenido de la libreta -->
+                <div class="row align-items-center">
+                    <!-- Logo -->
+                    <div class="col-sm-3 text-center border-end border-2 border-dark pe-3">
+                        @if($colegio->logo_path)
+                        <img src="{{ Storage::url($colegio->logo_path) }}" alt="Logo del colegio"
+                                style="" class="img-thumbnail border-0">
+                        @else
+                        <div class="border border-2 border-secondary rounded-3 p-4 mb-3 bg-light">
+                            <i class="fas fa-school fa-3x text-muted"></i>
+                            <div class="mt-2 text-muted small">LOGO</div>
                         </div>
-                        <div class="row">
-                            <div class="col-8 col-sm-6">
-                                GRADO:
-                            </div>
-                            <div class="col-4 col-sm-6">
-                                @if(isset($periodo->matricula) && isset($periodo->matricula->grado))
-                                    {{ $periodo->matricula->grado->nombre ?? '' }}
-                                    @if(isset($periodo->matricula->seccion))
-                                        - {{ $periodo->matricula->seccion->nombre ?? '' }}
-                                    @endif
-                                    @if(isset($periodo->matricula->grado->nivel))
-                                        - {{ $periodo->matricula->grado->nivel->nombre ?? '' }}
-                                    @endif
-                                @else
-                                    <span class="text-muted">No asignado</span>
-                                @endif
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-8 col-sm-6">
-                            SECCIÓN:
-                            </div>
-                            <div class="col-4 col-sm-6">
+                        @endif
+                    </div>
 
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-8 col-sm-6">
-                            ESTUDIANTE:
-                            </div>
-                            <div class="col-4 col-sm-6">
-                                {{ $estudiante->user->apellido_materno }} {{ $estudiante->user->apellido_paterno }}, {{ $estudiante->user->nombre }}
-                            </div>
+                    <!-- Datos -->
+                    <div class="col-sm-9 ps-4">
+                        <div class="table-responsive">
+                            <table class="table table-borderless mb-0 text-center">
+                                <!-- UGEL -->
+                                <tr class="border-bottom border-1 border-secondary">
+                                    <td width="35%" class="border-1 fw-bold text-dark ps-0">
+                                        UGEL:
+                                    </td>
+                                    <td class="border-1 text-dark">
+                                        <strong>{{ $colegio->ugel ?? 'Tacna' }}</strong>
+                                    </td>
+                                </tr>
+                                <!-- II.EE -->
+                                <tr class="border-bottom border-1 border-secondary">
+                                    <td class="border-1 fw-bold text-dark ps-0">
+                                        II.EE:
+                                    </td>
+                                    <td class="border-1 text-dark">
+                                        <strong>{{ $colegio->nombre ?? 'NO REGISTRADO' }}</strong>
+                                    </td>
+                                </tr>
+                                <!-- NIVEL -->
+                                <tr class="border-bottom border-1 border-secondary">
+                                    <td class="border-1 fw-bold text-dark ps-0">
+                                        NIVEL:
+                                    </td>
+                                    <td class="border-1 text-dark">
+                                        <strong>{{ $matricula_actual->grado->nivel ?? 'No disponible' }}</strong>
+                                    </td>
+                                </tr>
+                                <!-- GRADO -->
+                                <tr class="border-bottom border-1 border-secondary">
+                                    <td class="border-1 fw-bold text-dark ps-0">
+                                        GRADO:
+                                    </td>
+                                    <td class="border-1 text-dark">
+                                        <strong>{{ $matricula_actual->grado->grado ?? 'No disponible' }}°</strong>
+                                    </td>
+                                </tr>
+                                <!-- SECCIÓN -->
+                                <tr class="border-bottom border-1 border-secondary">
+                                    <td class="border-1 fw-bold text-dark ps-0">
+                                        SECCIÓN:
+                                    </td>
+                                    <td class="border-1 text-dark">
+                                        <strong>"{{ $matricula_actual->grado->seccion ?? 'No disponible' }}"</strong>
+                                    </td>
+                                </tr>
+                                <!-- ESTUDIANTE -->
+                                <tr>
+                                    <td class="border-1 fw-bold text-dark ps-0">
+                                        ESTUDIANTE:
+                                    </td>
+                                    <td class="border-1 text-dark">
+                                        <strong class="text-primary">
+                                            {{ $estudiante->user->apellido_paterno }}
+                                            {{ $estudiante->user->apellido_materno }},
+                                            {{ $estudiante->user->nombre }}
+                                        </strong>
+                                    </td>
+                                </tr>
+                                <!-- DNI ESTUDIANTE -->
+                                <tr>
+                                    <td class="border-1 fw-bold text-dark ps-0">
+                                        DNI:
+                                    </td>
+                                    <td class="border-1 text-dark">
+                                        <strong>{{ $estudiante->user->dni }}</strong>
+                                    </td>
+                                </tr>
+                            </table>
                         </div>
                     </div>
                 </div>
             </div>
-
             <!-- Sección de Calificaciones de Materias -->
             @if($materias_con_jerarquia->count() > 0)
             <div class="mt-4">
@@ -333,30 +374,26 @@
                 </div>
             </div>
             @endif
-
-            <!-- Mensaje si no hay calificaciones -->
-            @if($materias_con_jerarquia->count() == 0 && $notas_conducta->count() == 0)
-            <div class="mt-4">
-                <div class="alert alert-info border-2 border-info">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
-                        <div>
-                            <h5 class="mb-1 text-info">No hay calificaciones publicadas</h5>
-                            <p class="mb-0">No se han publicado calificaciones para el periodo seleccionado.</p>
-                        </div>
+            @else
+            <!-- Mensaje si no hay matrícula -->
+            <div class="alert alert-warning border border-2 border-warning rounded-3">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle fa-2x me-3 text-warning"></i>
+                    <div>
+                        <h5 class="mb-1 text-warning">No se encontró matrícula</h5>
+                        <p class="mb-0">El estudiante no tiene matrícula registrada para el año {{ $anio_param }}.</p>
                     </div>
                 </div>
             </div>
             @endif
-
         </div>
     </div>
 </div>
 
 <script>
-function cambiarAnio(anio) {
+function cambiarPeriodo(anio) {
     if (!anio) return;
-    const baseUrl = "{{ route('libreta.index', ['anio' => 'ANIO_PLACEHOLDER', 'bimestre' => $bimestre_param]) }}";
+    const baseUrl = "{{ route('libreta.index', ['anio' => 'ANIO_PLACEHOLDER', 'bimestre' => '1']) }}";
     const url = baseUrl.replace('ANIO_PLACEHOLDER', anio);
     window.location.href = url;
 }

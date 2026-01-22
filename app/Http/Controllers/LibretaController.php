@@ -106,17 +106,23 @@ class LibretaController extends Controller
             // 1. OBTENER NOTAS DE MATERIAS
             // ==============================================
 
-            // Primero, obtener todas las notas del estudiante para el periodo y bimestre
-            $notasQuery = Nota::with(['criterio.materiaCompetencia', 'criterio.materia'])
+            // Nota importante: Las notas están relacionadas con criterios, y los criterios tienen el campo 'anio'
+            // Debemos filtrar las notas a través de sus criterios por el año del periodo
+
+            $notasEstudiante = Nota::with(['criterio.materiaCompetencia', 'criterio.materia'])
                 ->where('estudiante_id', $estudiante->id)
-                ->where('publico', '!=', '0');
+                ->where('publico', '!=', '0')
+                // Filtrar notas que pertenecen a criterios del año actual
+                ->whereHas('criterio', function($query) use ($periodoActual) {
+                    $query->where('anio', $periodoActual->anio);
+                });
 
             // Filtrar por bimestre si no es "anual"
             if ($bimestre !== 'anual') {
-                $notasQuery->where('bimestre', $bimestre);
+                $notasEstudiante->where('bimestre', $bimestre);
             }
 
-            $notasEstudiante = $notasQuery->get();
+            $notasEstudiante = $notasEstudiante->get();
 
             // Agrupar notas por materia
             $notasPorMateria = [];
@@ -174,9 +180,12 @@ class LibretaController extends Controller
             // 2. OBTENER NOTAS DE CONDUCTA
             // ==============================================
 
+            // Para las notas de conducta, necesitamos filtrarlas de alguna manera por año
+            // Si tu modelo Conductanota no tiene relación directa con año, podemos usar esto:
             $notasConductaQuery = Conductanota::with(['conducta'])
                 ->where('estudiante_id', $estudiante->id)
                 ->where('publico', '!=', '0');
+                // NOTA: Si Conductanota no tiene campo 'anio', necesitarás agregarlo o relacionarlo
 
             // Filtrar por bimestre si no es "anual"
             if ($bimestre !== 'anual') {
@@ -199,9 +208,16 @@ class LibretaController extends Controller
             // 3. OBTENER ASISTENCIAS
             // ==============================================
 
+            // Para asistencias, también necesitamos filtrar por año
+            // Si la tabla asistencias no tiene campo 'anio', podemos filtrar por fechas dentro del año
+
             $asistenciasQuery = Asistencia::with(['tipoasistencia', 'grado'])
                 ->where('estudiante_id', $estudiante->id)
                 ->where('grado_id', $matriculaActual->grado_id);
+
+            // Si las asistencias tienen fecha, podemos filtrar por año escolar
+            // Esto asume que el año escolar va desde enero a diciembre del año indicado
+            $asistenciasQuery->whereYear('fecha', $periodoActual->anio);
 
             // Filtrar por bimestre si no es "anual"
             if ($bimestre !== 'anual') {
