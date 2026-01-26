@@ -8,6 +8,7 @@ use App\Models\Maya\Cursogradosecnivanio;
 use App\Models\Estudiante;
 use App\Models\Conducta;
 use App\Models\Conductanota;
+use App\Models\Periodo;
 use App\Models\Materia;
 use App\Models\Docente;
 use App\Models\Materia\Materiacompetencia;
@@ -72,6 +73,22 @@ class NotaController extends Controller
         $curso = $this->cargarCurso($curso_grado_sec_niv_anio_id);
         if (!$curso) {
             abort(404, 'Curso no encontrado.');
+        }
+
+        // Obtener el periodo (si no existe en el curso, buscar el activo)
+        if ($curso->periodo_id) {
+            $periodo = Periodo::find($curso->periodo_id);
+        } else {
+            // Buscar periodo activo como fallback
+            $periodo = Periodo::where('activo', true)->first();
+
+            // Si no hay periodo activo, crear uno temporal o usar uno por defecto
+            if (!$periodo) {
+                $periodo = (object) [
+                    'id' => 0,
+                    'nombre' => 'Periodo no configurado'
+                ];
+            }
         }
 
         // Obtener el estado actual
@@ -199,19 +216,16 @@ class NotaController extends Controller
             'notasExistentes' => $notasExistentes,
             'estadoActual' => $estadoActual,
             'conductas' => $conductas,
-            'conductaNotas' => $conductaNotas
+            'conductaNotas' => $conductaNotas,
+            'periodo' => $periodo
         ]);
     }
 
     //Cargar el curso con sus relaciones
-    private function cargarCurso($curso_grado_sec_niv_anio_id)
+    private function cargarCurso($id)
     {
-        return Cursogradosecnivanio::with([
-                'grado',
-                'materia.materiaCompetencia.materiaCriterio',
-                'docente.user'
-            ])
-            ->find($curso_grado_sec_niv_anio_id);
+        return CursoGradoSecNivAnio::with(['materia', 'grado', 'docente.user', 'periodo'])
+            ->find($id);
     }
 
     //Cargar estudiantes activos e inactivos
@@ -571,6 +585,7 @@ class NotaController extends Controller
             $notas_criterios = $request->notas ?? [];
             $notas_conductas = $request->conductas ?? [];
             $estadoActual = $this->obtenerEstadoActual($curso_id, $bimestre);
+            $periodo_id = Cursogradosecnivanio::find($curso_id)->periodo_id;
 
             // 1. Procesar notas de criterios
             foreach ($notas_criterios as $estudiante_id => $criterios) {
@@ -642,6 +657,7 @@ class NotaController extends Controller
                         $notaConductaExistente = Conductanota::where('estudiante_id', $estudiante_id)
                             ->where('conducta_id', $conducta_id)
                             ->where('bimestre', $bimestre)
+                            ->where('periodo_id', $periodo_id)
                             ->first();
 
                         if ($notaConductaExistente) {
@@ -657,6 +673,7 @@ class NotaController extends Controller
                                 Conductanota::create([
                                     'estudiante_id' => $estudiante_id,
                                     'conducta_id' => $conducta_id,
+                                    'periodo_id' => $periodo_id,
                                     'bimestre' => $bimestre,
                                     'nota' => $nota,
                                     'publico' => $estadoActual // Usar el estado actual del bimestre
@@ -669,6 +686,7 @@ class NotaController extends Controller
                             $notaConductaExistente = Conductanota::where('estudiante_id', $estudiante_id)
                                 ->where('conducta_id', $conducta_id)
                                 ->where('bimestre', $bimestre)
+                                ->where('periodo_id', $periodo_id)
                                 ->first();
 
                             if ($notaConductaExistente) {

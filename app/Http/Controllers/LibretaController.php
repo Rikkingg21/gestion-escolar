@@ -175,17 +175,15 @@ class LibretaController extends Controller
                     'competencias' => $competencias
                 ]);
             }
-
             // ==============================================
-            // 2. OBTENER NOTAS DE CONDUCTA
+            // 2. OBTENER NOTAS DE CONDUCTA (ACTUALIZADO)
             // ==============================================
 
-            // Para las notas de conducta, necesitamos filtrarlas de alguna manera por año
-            // Si tu modelo Conductanota no tiene relación directa con año, podemos usar esto:
-            $notasConductaQuery = Conductanota::with(['conducta'])
+            // Ahora podemos filtrar por periodo_id ya que el modelo tiene esta relación
+            $notasConductaQuery = Conductanota::with(['conducta', 'periodo'])
                 ->where('estudiante_id', $estudiante->id)
+                ->where('periodo_id', $periodoActual->id) // ¡FILTRO POR PERIODO!
                 ->where('publico', '!=', '0');
-                // NOTA: Si Conductanota no tiene campo 'anio', necesitarás agregarlo o relacionarlo
 
             // Filtrar por bimestre si no es "anual"
             if ($bimestre !== 'anual') {
@@ -201,8 +199,10 @@ class LibretaController extends Controller
                         'valor' => $notaConducta->nota,
                         'bimestre' => $notaConducta->bimestre,
                         'publico' => $notaConducta->publico,
+                        'periodo_anio' => $notaConducta->periodo->anio ?? null,
                     ];
                 });
+
 
             // ==============================================
             // 3. OBTENER ASISTENCIAS

@@ -5,7 +5,10 @@
     <!-- Encabezado -->
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">
-            Notas - {{ $curso->grado->nombre }} - {{ $materia->nombre }} - Bimestre {{ $bimestre }}
+            Notas - {{ $grado -> NombreCompleto }} - {{ $materia->nombre }} - Bimestre {{ $bimestre }}
+            <span class="h6 text-primary">
+                {{ $periodo->anio }} ({{ $periodo->id }})
+            </span>
         </h1>
 
         <div class="d-flex align-items-center">
