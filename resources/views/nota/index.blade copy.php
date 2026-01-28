@@ -73,10 +73,10 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Estudiantes Matriculados
+                                Estudiantes Activos
                             </div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ $estudiantesMatriculadosActivos->count() }}
+                                {{ $estudiantesActivos->count() }}
                             </div>
                         </div>
                         <div class="col-auto">
@@ -233,7 +233,7 @@
                     </thead>
 
                     <tbody>
-                        @foreach($estudiantesMatriculadosActivos as $index => $estudiante)
+                        @foreach($estudiantesActivos as $index => $estudiante)
                         <tr>
                             <td class="text-center align-middle">{{ $index + 1 }}</td>
 
@@ -359,16 +359,16 @@
                         </tr>
                         @endforeach
 
-                        @if($estudiantesMatriculadosRetirados->count() > 0)
+                        @if($estudiantesInactivos->count() > 0)
                         <tr class="bg-gray-200">
                             <td colspan="{{ 2 + $competencias->sum(fn($c) => $c->criterios->count()) + $totalColumnasSIAGIE + $conductas->count() }}"
                                 class="text-center font-weight-bold py-2">
                                 <i class="fas fa-user-slash text-gray-600 mr-2"></i>
-                                ESTUDIANTES MATRICULADOS RETIRADOS CON NOTAS REGISTRADAS
+                                ESTUDIANTES INACTIVOS CON NOTAS REGISTRADAS
                             </td>
                         </tr>
 
-                        @foreach($estudiantesMatriculadosRetirados as $index => $estudiante)
+                        @foreach($estudiantesInactivos as $index => $estudiante)
                         <tr class="text-muted">
                             <td class="text-center align-middle">
                                 <i class="fas fa-user-slash text-gray-400"></i>
