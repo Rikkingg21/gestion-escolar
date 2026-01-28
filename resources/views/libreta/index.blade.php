@@ -167,66 +167,84 @@
                         <i class="fas fa-chart-bar me-2"></i>Calificaciones Académicas
                     </h5>
 
-                    @foreach($materias_con_jerarquia as $materia)
-                    <div class="mb-4 border border-1 border-primary rounded-2 p-3 bg-light">
-                        <!-- Materia -->
-                        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-1 border-secondary">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-book text-primary me-2"></i>
-                                <h6 class="fw-bold text-primary mb-0">{{ $materia['materia_nombre'] }}</h6>
-                            </div>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered bg-white">
+                            <thead class="table-success">
+                                <tr>
+                                    <th class="fw-bold text-center" style="width: 25%">Materia</th>
+                                    <th class="fw-bold text-center" style="width: 25%">Competencia</th>
+                                    <th class="fw-bold text-center" style="width: 30%">Criterio de Evaluación</th>
+                                    <th class="fw-bold text-center" style="width: 10%">Bimestre</th>
+                                    <th class="fw-bold text-center" style="width: 10%">Nota</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($materias_con_jerarquia as $materiaIndex => $materia)
+                                    @php
+                                        $materiaRowspan = 0;
+                                        foreach($materia['competencias'] as $competencia) {
+                                            $materiaRowspan += $competencia['criterios']->count();
+                                        }
+                                    @endphp
 
-                        <!-- Competencias y Criterios con Notas -->
-                        @foreach($materia['competencias'] as $competencia)
-                        <div class="ms-2 mb-3">
-                            <!-- Competencia -->
-                            <div class="d-flex align-items-center mb-2">
-                                <i class="fas fa-bullseye text-success me-2"></i>
-                                <span class="fw-semibold text-success">{{ $competencia['competencia_nombre'] }}</span>
-                            </div>
+                                    @foreach($materia['competencias'] as $competenciaIndex => $competencia)
+                                        @php
+                                            $competenciaRowspan = $competencia['criterios']->count();
+                                        @endphp
 
-                            <!-- Criterios con Notas -->
-                            @if($competencia['criterios']->count() > 0)
-                            <div class="ms-4">
-                                <table class="table table-sm table-borderless mb-0">
-                                    <tbody>
-                                        @foreach($competencia['criterios'] as $criterio)
-                                        <tr class="border-bottom border-1 border-light">
-                                            <td width="70%" class="ps-0">
-                                                <div class="d-flex align-items-center">
-                                                    <i class="fas fa-circle text-info me-2" style="font-size: 0.5rem;"></i>
-                                                    <span class="text-dark">{{ $criterio['criterio_nombre'] }}</span>
-                                                </div>
+                                        @foreach($competencia['criterios'] as $criterioIndex => $criterio)
+                                        <tr>
+                                            <!-- Columna Materia (solo primera fila de cada materia) -->
+                                            @if($competenciaIndex == 0 && $criterioIndex == 0)
+                                            <td class="fw-bold text-primary align-middle" rowspan="{{ $materiaRowspan }}">
+                                                <i class="fas fa-book me-2"></i>{{ $materia['materia_nombre'] }}
                                             </td>
-                                            <td class="text-end">
+                                            @endif
+                                            <!-- Columna Competencia (solo primera fila de cada competencia) -->
+                                            @if($criterioIndex == 0)
+                                            <td class="fw-semibold text-success align-middle" rowspan="{{ $competenciaRowspan }}">
+                                                <i class="fas fa-bullseye me-2"></i>{{ $competencia['competencia_nombre'] }}
+                                            </td>
+                                            @endif
+                                            <!-- Columna Criterio -->
+                                            <td class="ps-3">
+                                                <i class="fas fa-circle text-info me-2" style="font-size: 0.5rem;"></i>
+                                                {{ $criterio['criterio_nombre'] }}
+                                            </td>
+                                            <!-- Columna Bimestre -->
+                                            <td class="text-center">
+                                                @if($criterio['nota'] && $criterio['nota']['bimestre'])
+                                                <span class="badge bg-secondary">
+                                                    {{ $criterio['nota']['bimestre'] }}
+                                                </span>
+                                                @else
+                                                <span class="text-muted">-</span>
+                                                @endif
+                                            </td>
+                                            <!-- Columna Nota -->
+                                            <td class="text-center fw-bold">
                                                 @if($criterio['nota'])
                                                 <span class="badge
                                                     @if($criterio['nota']['valor'] >= 13) bg-success
                                                     @elseif($criterio['nota']['valor'] >= 10) bg-warning
                                                     @else bg-danger
-                                                    @endif fs-6">
+                                                    @endif fs-6 px-3">
                                                     {{ $criterio['nota']['valor'] }}
                                                 </span>
-                                                @if($criterio['nota']['bimestre'])
-                                                <small class="text-muted ms-2">Bim {{ $criterio['nota']['bimestre'] }}</small>
-                                                @endif
+                                                @else
+                                                <span class="text-muted">-</span>
                                                 @endif
                                             </td>
                                         </tr>
                                         @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                            @endif
-                        </div>
-                        @endforeach
+                                    @endforeach
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
-                    @endforeach
                 </div>
             </div>
             @endif
-
             <!-- Sección de Calificaciones de Conducta -->
             @if($notas_conducta->count() > 0)
             <div class="mt-4">
@@ -235,28 +253,33 @@
                         <i class="fas fa-user-check me-2"></i>Calificaciones de Conducta
                     </h5>
 
-                    <div class="row">
-                        @foreach($notas_conducta as $notaConducta)
-                        <div class="col-md-6 col-lg-4 mb-3">
-                            <div class="border border-1 border-secondary rounded-2 p-3 bg-white">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="fw-bold text-dark mb-0">{{ $notaConducta['conducta_nombre'] }}</h6>
-                                    <span class="badge
-                                        @if($notaConducta['valor'] >= 13) bg-success
-                                        @elseif($notaConducta['valor'] >= 10) bg-warning
-                                        @else bg-danger
-                                        @endif fs-6">
-                                        {{ $notaConducta['valor'] }}
-                                    </span>
-                                </div>
-                                @if($notaConducta['bimestre'])
-                                <small class="text-muted">
-                                    <i class="fas fa-calendar-alt me-1"></i> Bimestre {{ $notaConducta['bimestre'] }}
-                                </small>
-                                @endif
-                            </div>
-                        </div>
-                        @endforeach
+                    <div class="table-responsive">
+                        <table class="table table-bordered bg-white">
+                            <thead class="table-info">
+                                <tr>
+                                    <th class="fw-bold">Conducta</th>
+                                    <th class="fw-bold text-center">Bimestre</th>
+                                    <th class="fw-bold text-center">Calificación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($notas_conducta as $notaConducta)
+                                <tr>
+                                    <td class="fw-semibold">{{ $notaConducta['conducta_nombre'] }}</td>
+                                    <td class="text-center">
+                                        @if($notaConducta['bimestre'])
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-calendar-alt me-1"></i> {{ $notaConducta['bimestre'] }}
+                                        </span>
+                                        @else
+                                        <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-center fw-bold fs-5">{{ $notaConducta['valor'] }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
