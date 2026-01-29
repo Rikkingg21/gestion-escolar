@@ -868,5 +868,22 @@ function cambiarBimestre(bimestre) {
     const url = baseUrl.replace('BIMESTRE_PLACEHOLDER', bimestre);
     window.location.href = url;
 }
+
+// Script para redondear visualmente las notas y promedios a 1,2,3,4
+document.addEventListener('DOMContentLoaded', function() {
+    // Selecciona todos los badges de nota y promedio en la tabla de calificaciones regulares
+    const badgeSelector = '.table .badge.bg-success, .table .badge.bg-warning, .table .badge.bg-danger';
+    document.querySelectorAll(badgeSelector).forEach(function(badge) {
+        let valor = badge.textContent.trim();
+        // Solo si es número
+        if (!isNaN(valor) && valor !== '') {
+            let num = parseFloat(valor);
+            if (num >= 1 && num <= 4) {
+                let redondeado = Math.round(num);
+                badge.textContent = redondeado;
+            }
+        }
+    });
+});
 </script>
 @endsection
