@@ -179,9 +179,6 @@
                             <h5 class="fw-bold mb-0">
                                 <i class="fas fa-table me-2"></i>Calificaciones Regulares
                             </h5>
-                            <span class="badge bg-light text-primary fs-6">
-                                <i class="fas fa-list-alt me-1"></i>Vista Consolidada
-                            </span>
                         </div>
 
                         <div class="table-responsive">
@@ -624,8 +621,8 @@
                                                             <th class="fw-bold">Materia</th>
                                                             <th class="fw-bold">Competencia</th>
                                                             <th class="fw-bold">Criterio</th>
-                                                            <th class="fw-bold text-center">Nota</th>
                                                             <th class="fw-bold text-center">Bimestre</th>
+                                                            <th class="fw-bold text-center">Nota</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -642,6 +639,15 @@
                                                                     <i class="fas fa-arrow-circle-right text-info me-1" style="font-size: 0.7rem;"></i>
                                                                     {{ $criterio['criterio_nombre'] }}
                                                                 </td>
+                                                                <td class="text-center">
+                                                                    @if($criterio['nota'] && $criterio['nota']['bimestre'])
+                                                                    <span class="badge bg-secondary">
+                                                                        {{ $criterio['nota']['bimestre'] }}
+                                                                    </span>
+                                                                    @else
+                                                                    <span class="text-muted"> 0</span>
+                                                                    @endif
+                                                                </td>
                                                                 <td class="text-center fw-bold">
                                                                     @if($criterio['nota'])
                                                                     <span class="badge
@@ -650,15 +656,6 @@
                                                                         @else bg-danger
                                                                         @endif">
                                                                         {{ $criterio['nota']['valor'] }}
-                                                                    </span>
-                                                                    @else
-                                                                    <span class="text-muted"> 0</span>
-                                                                    @endif
-                                                                </td>
-                                                                <td class="text-center">
-                                                                    @if($criterio['nota'] && $criterio['nota']['bimestre'])
-                                                                    <span class="badge bg-secondary">
-                                                                        {{ $criterio['nota']['bimestre'] }}
                                                                     </span>
                                                                     @else
                                                                     <span class="text-muted"> 0</span>
