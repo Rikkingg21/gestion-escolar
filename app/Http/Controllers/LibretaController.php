@@ -101,23 +101,26 @@ class LibretaController extends Controller
             'tipos' => []
         ];
 
+        // Variables adicionales para la lógica que estaba en la vista
+        $materiasRegulares = [];
+        $competenciasTransversales = [];
+        $criteriosTransversales = [];
+        $promediosPorCriterio = [];
+        $promedioGeneralTransversales = 0;
+        $transversalesPorMateria = [];
+        $totalCompetenciasTransversales = 0;
+
         if ($matriculaActual && $periodoActual) {
             // ==============================================
             // 1. OBTENER NOTAS DE MATERIAS
             // ==============================================
-
-            // Nota importante: Las notas están relacionadas con criterios, y los criterios tienen el campo 'anio'
-            // Debemos filtrar las notas a través de sus criterios por el año del periodo
-
             $notasEstudiante = Nota::with(['criterio.materiaCompetencia', 'criterio.materia'])
                 ->where('estudiante_id', $estudiante->id)
                 ->where('publico', '!=', '0')
-                // Filtrar notas que pertenecen a criterios del año actual
                 ->whereHas('criterio', function($query) use ($periodoActual) {
                     $query->where('anio', $periodoActual->anio);
                 });
 
-            // Filtrar por bimestre si no es "anual"
             if ($bimestre !== 'anual') {
                 $notasEstudiante->where('bimestre', $bimestre);
             }
@@ -160,7 +163,7 @@ class LibretaController extends Controller
                 }
             }
 
-            // Convertir a la estructura final
+            // Convertir a la estructura final y procesar lógica de separación
             foreach ($notasPorMateria as $materiaData) {
                 $competencias = collect($materiaData['competencias'])
                     ->map(function($competencia) {
@@ -169,23 +172,117 @@ class LibretaController extends Controller
                     })
                     ->values();
 
-                $materiasConJerarquia->push([
+                $materiaItem = [
                     'materia_id' => $materiaData['materia_id'],
                     'materia_nombre' => $materiaData['materia_nombre'],
                     'competencias' => $competencias
-                ]);
-            }
-            // ==============================================
-            // 2. OBTENER NOTAS DE CONDUCTA (ACTUALIZADO)
-            // ==============================================
+                ];
 
-            // Ahora podemos filtrar por periodo_id ya que el modelo tiene esta relación
+                $materiasConJerarquia->push($materiaItem);
+
+                // Separar competencias transversales de las regulares
+                $transversales = [];
+                $regulares = [];
+
+                foreach ($competencias as $competencia) {
+                    // Verificar si es competencia transversal
+                    $competenciaNombre = strtoupper(trim($competencia['competencia_nombre']));
+                    if ($competenciaNombre == 'COMPETENCIAS TRANSVERSALES' ||
+                        str_contains($competenciaNombre, 'TRANSVERSAL')) {
+                        $transversales[] = $competencia;
+                    } else {
+                        $regulares[] = $competencia;
+                    }
+                }
+
+                if (count($regulares) > 0) {
+                    $materiasRegulares[] = [
+                        'materia_nombre' => $materiaData['materia_nombre'],
+                        'competencias' => $regulares
+                    ];
+                }
+
+                if (count($transversales) > 0) {
+                    foreach ($transversales as $transversal) {
+                        $competenciasTransversales[] = [
+                            'materia_nombre' => $materiaData['materia_nombre'],
+                            'competencia' => $transversal
+                        ];
+                    }
+                }
+            }
+
+            // Procesar competencias transversales para agrupar por criterio
+            foreach ($competenciasTransversales as $transversal) {
+                foreach ($transversal['competencia']['criterios'] as $criterio) {
+                    $criterioNombre = $criterio['criterio_nombre'];
+
+                    if (!isset($criteriosTransversales[$criterioNombre])) {
+                        $criteriosTransversales[$criterioNombre] = [
+                            'notas' => [],
+                            'bimestres' => []
+                        ];
+                    }
+
+                    if ($criterio['nota']) {
+                        $criteriosTransversales[$criterioNombre]['notas'][] = $criterio['nota']['valor'];
+                        if ($criterio['nota']['bimestre']) {
+                            $criteriosTransversales[$criterioNombre]['bimestres'][] = $criterio['nota']['bimestre'];
+                        }
+                    }
+                }
+            }
+
+            // Calcular promedios por criterio para transversales
+            foreach ($criteriosTransversales as $criterioNombre => $data) {
+                $totalNotas = count($data['notas']);
+                $promediosPorCriterio[$criterioNombre] = $totalNotas > 0 ?
+                    array_sum($data['notas']) / $totalNotas : 0;
+            }
+
+            // Calcular promedio general de transversales
+            $promedioGeneralTransversales = count($promediosPorCriterio) > 0 ?
+                array_sum($promediosPorCriterio) / count($promediosPorCriterio) : 0;
+
+            // Agrupar competencias transversales por materia
+            foreach ($competenciasTransversales as $transversal) {
+                $materiaNombre = $transversal['materia_nombre'];
+                if (!isset($transversalesPorMateria[$materiaNombre])) {
+                    $transversalesPorMateria[$materiaNombre] = [];
+                }
+                $transversalesPorMateria[$materiaNombre][] = $transversal;
+
+                // Calcular promedio de esta competencia transversal
+                $promedioTransversal = 0;
+                $criteriosConNota = 0;
+
+                foreach ($transversal['competencia']['criterios'] as $criterio) {
+                    if ($criterio['nota']) {
+                        $promedioTransversal += $criterio['nota']['valor'];
+                        $criteriosConNota++;
+                    }
+                }
+
+                if ($criteriosConNota > 0) {
+                    $promedioTransversal = $promedioTransversal / $criteriosConNota;
+                    $promedioGeneralTransversales += $promedioTransversal;
+                    $totalCompetenciasTransversales++;
+                }
+            }
+
+            // Recalcular promedio general si hay competencias transversales
+            if ($totalCompetenciasTransversales > 0) {
+                $promedioGeneralTransversales = $promedioGeneralTransversales / $totalCompetenciasTransversales;
+            }
+
+            // ==============================================
+            // 2. OBTENER NOTAS DE CONDUCTA
+            // ==============================================
             $notasConductaQuery = Conductanota::with(['conducta', 'periodo'])
                 ->where('estudiante_id', $estudiante->id)
-                ->where('periodo_id', $periodoActual->id) // ¡FILTRO POR PERIODO!
+                ->where('periodo_id', $periodoActual->id)
                 ->where('publico', '!=', '0');
 
-            // Filtrar por bimestre si no es "anual"
             if ($bimestre !== 'anual') {
                 $notasConductaQuery->where('bimestre', $bimestre);
             }
@@ -203,23 +300,14 @@ class LibretaController extends Controller
                     ];
                 });
 
-
             // ==============================================
             // 3. OBTENER ASISTENCIAS
             // ==============================================
-
-            // Para asistencias, también necesitamos filtrar por año
-            // Si la tabla asistencias no tiene campo 'anio', podemos filtrar por fechas dentro del año
-
             $asistenciasQuery = Asistencia::with(['tipoasistencia', 'grado'])
                 ->where('estudiante_id', $estudiante->id)
-                ->where('grado_id', $matriculaActual->grado_id);
+                ->where('grado_id', $matriculaActual->grado_id)
+                ->whereYear('fecha', $periodoActual->anio);
 
-            // Si las asistencias tienen fecha, podemos filtrar por año escolar
-            // Esto asume que el año escolar va desde enero a diciembre del año indicado
-            $asistenciasQuery->whereYear('fecha', $periodoActual->anio);
-
-            // Filtrar por bimestre si no es "anual"
             if ($bimestre !== 'anual') {
                 $asistenciasQuery->where('bimestre', $bimestre);
             }
@@ -257,6 +345,14 @@ class LibretaController extends Controller
             'resumen_asistencias' => $resumenAsistencias,
             'anio_param' => $anio,
             'bimestre_param' => $bimestre,
+            // Nuevas variables procesadas
+            'materias_regulares' => $materiasRegulares,
+            'competencias_transversales' => $competenciasTransversales,
+            'criterios_transversales' => $criteriosTransversales,
+            'promedios_por_criterio' => $promediosPorCriterio,
+            'promedio_general_transversales' => $promedioGeneralTransversales,
+            'transversales_por_materia' => $transversalesPorMateria,
+            'total_competencias_transversales' => $totalCompetenciasTransversales,
         ]);
     }
 }
