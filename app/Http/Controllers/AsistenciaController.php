@@ -10,6 +10,8 @@ use App\Models\Materia;
 use App\Models\Docente;
 use App\Models\Materia\Materiacompetencia;
 use App\Models\Materia\Materiacriterio;
+use App\Models\Periodo;
+use App\Models\Matricula;
 use Carbon\Carbon;
 use App\Models\Asistencia\Tipoasistencia;
 use App\Models\Grado;
@@ -29,7 +31,6 @@ class AsistenciaController extends Controller
             return $next($request);
         });
     }
-
 
     public function index(Request $request)
     {
@@ -67,67 +68,109 @@ class AsistenciaController extends Controller
         ]);
     }
 
-    public function showDate($grado_grado_seccion, $grado_nivel, $date)
-    {
-        try {
-            $fechaFormateada = Carbon::createFromFormat('d-m-Y', $date)->format('Y-m-d');
-        } catch (\Exception $e) {
-            abort(400, 'Formato de fecha inválido. Use dd-mm-yyyy');
+public function showDate($grado_grado_seccion, $grado_nivel, $date)
+{
+    try {
+        $fechaFormateada = Carbon::createFromFormat('d-m-Y', $date)->format('Y-m-d');
+        $anioFecha = Carbon::createFromFormat('d-m-Y', $date)->year;
+    } catch (\Exception $e) {
+        abort(400, 'Formato de fecha inválido. Use dd-mm-yyyy');
+    }
+
+    // Parsear grado y sección
+    if (!preg_match('/^(\d+)([a-zA-Z]+)$/', $grado_grado_seccion, $matches)) {
+        abort(400, 'Formato de grado/sección inválido. Ejemplo: 1a, 2b');
+    }
+
+    $gradoNumero = $matches[1];
+    $gradoSeccion = $matches[2];
+
+    $grado = Grado::where('grado', $gradoNumero)
+        ->where('seccion', $gradoSeccion)
+        ->where('nivel', $grado_nivel)
+        ->firstOrFail();
+
+    // Obtener el período basado en el AÑO de la fecha seleccionada
+    $periodoFecha = Periodo::where('anio', $anioFecha)
+        ->where('estado', '1')
+        ->first();
+
+    if (!$periodoFecha) {
+        abort(400, "No hay un período activo configurado para el año {$anioFecha}");
+    }
+
+    // Obtener estudiantes usando whereHas para mejor eficiencia
+    $estudiantesMatriculadosActivos = Estudiante::with(['user',
+        'asistencias' => function ($query) use ($fechaFormateada, $grado) {
+            $query->whereDate('fecha', $fechaFormateada)
+                  ->where('grado_id', $grado->id);
         }
+    ])
+    ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
+        $query->where('grado_id', $grado->id)
+              ->where('periodo_id', $periodoFecha->id)
+              ->where('estado', '1'); // Activo
+    })
+    ->get()
+    ->sortBy(function ($estudiante) {
+        return optional($estudiante->user)->apellido_paterno .
+            optional($estudiante->user)->apellido_materno .
+            optional($estudiante->user)->nombre;
+    });
 
-        // Parsear grado y sección
-        if (!preg_match('/^(\d+)([a-zA-Z]+)$/', $grado_grado_seccion, $matches)) {
-            abort(400, 'Formato de grado/sección inválido. Ejemplo: 1a, 2b');
+    $estudiantesMatriculadosRetirados = Estudiante::with(['user',
+        'asistencias' => function ($query) use ($fechaFormateada, $grado) {
+            $query->whereDate('fecha', $fechaFormateada)
+                  ->where('grado_id', $grado->id);
         }
+    ])
+    ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
+        $query->where('grado_id', $grado->id)
+              ->where('periodo_id', $periodoFecha->id)
+              ->where('estado', '0'); // Retirado
+    })
+    ->get()
+    ->sortBy(function ($estudiante) {
+        return optional($estudiante->user)->apellido_paterno .
+            optional($estudiante->user)->apellido_materno .
+            optional($estudiante->user)->nombre;
+    });
 
-        $gradoNumero = $matches[1];
-        $gradoSeccion = $matches[2];
-
-        $grado = Grado::where('grado', $gradoNumero)
-            ->where('seccion', $gradoSeccion)
-            ->where('nivel', $grado_nivel)
-            ->firstOrFail();
-
-        // Siempre cargar TODOS los estudiantes del grado (activos e inactivos)
-        $estudiantes = Estudiante::with(['user', 'asistencias' => function ($query) use ($fechaFormateada) {
-            $query->whereDate('fecha', $fechaFormateada);
-        }])
-            ->where('grado_id', $grado->id)
-            ->get();
-
-        // Ordenar por apellidos y nombre
-        $estudiantes = $estudiantes->sortBy(function ($estudiante) {
+    $todosEstudiantes = $estudiantesMatriculadosActivos->merge($estudiantesMatriculadosRetirados)
+        ->sortBy(function ($estudiante) {
             return optional($estudiante->user)->apellido_paterno .
                 optional($estudiante->user)->apellido_materno .
                 optional($estudiante->user)->nombre;
         });
 
-        $tiposAsistencia = Tipoasistencia::all();
+    $tiposAsistencia = Tipoasistencia::all();
 
-        // Verificar si existen registros (para decidir si es actualización o registro nuevo)
-        $existenRegistros = Asistencia::where('grado_id', $grado->id)
+    $existenRegistros = Asistencia::where('grado_id', $grado->id)
+        ->whereDate('fecha', $fechaFormateada)
+        ->exists();
+
+    $bimestreActual = null;
+    if ($existenRegistros) {
+        $registroEjemplo = Asistencia::where('grado_id', $grado->id)
             ->whereDate('fecha', $fechaFormateada)
-            ->exists();
-
-        // Bimestre actual (tomar del primer registro si existe)
-        $bimestreActual = null;
-        if ($existenRegistros) {
-            $registroEjemplo = Asistencia::where('grado_id', $grado->id)
-                ->whereDate('fecha', $fechaFormateada)
-                ->first();
-            $bimestreActual = $registroEjemplo?->bimestre;
-        }
-
-        return view('asistencia.grado', [
-            'grado'              => $grado,
-            'estudiantes'        => $estudiantes,
-            'fechaSeleccionada'  => $date,
-            'fechaFormateada'    => $fechaFormateada,
-            'tiposAsistencia'    => $tiposAsistencia,
-            'existenRegistros'   => $existenRegistros,
-            'bimestreActual'     => $bimestreActual,
-        ]);
+            ->first();
+        $bimestreActual = $registroEjemplo?->bimestre;
     }
+
+    return view('asistencia.grado', [
+        'grado'                            => $grado,
+        'estudiantesMatriculadosActivos'   => $estudiantesMatriculadosActivos,
+        'estudiantesMatriculadosRetirados' => $estudiantesMatriculadosRetirados,
+        'estudiantes'                      => $todosEstudiantes,
+        'fechaSeleccionada'                => $date,
+        'fechaFormateada'                  => $fechaFormateada,
+        'tiposAsistencia'                  => $tiposAsistencia,
+        'existenRegistros'                 => $existenRegistros,
+        'bimestreActual'                   => $bimestreActual,
+        'periodoActual'                    => $periodoFecha,
+        'anioFecha'                        => $anioFecha,
+    ]);
+}
     public function guardarMultiple(Request $request, Grado $grado, string $fecha)
     {
         $request->validate([
@@ -752,7 +795,6 @@ class AsistenciaController extends Controller
             'asistencias' => collect() // Colección vacía para evitar errores
         ]);
     }
-
     public function estudiantesPorGrado(Request $request)
     {
         $gradoId = $request->get('grado_id');

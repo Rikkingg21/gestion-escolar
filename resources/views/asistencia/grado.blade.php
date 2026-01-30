@@ -15,6 +15,12 @@
                     <i class="far fa-calendar-alt me-1"></i>
                     {{ \Carbon\Carbon::createFromFormat('d-m-Y', $fechaSeleccionada)->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}
                 </small>
+                @if(isset($periodoActual))
+                <small class="text-muted ms-2">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    Período: {{ $periodoActual->nombre }}
+                </small>
+                @endif
             </div>
         </div>
     </div>
@@ -79,6 +85,10 @@
                             <div class="small text-muted">Tardanza</div>
                         </div>
                         <div class="text-center">
+                            <span class="badge bg-info" id="contadorRetirados">0</span>
+                            <div class="small text-muted">Retirados</div>
+                        </div>
+                        <div class="text-center">
                             <span class="badge bg-secondary" id="contadorTotal">0</span>
                             <div class="small text-muted">Total</div>
                         </div>
@@ -96,14 +106,17 @@
 
         <input type="hidden" name="bimestre" id="bimestreHidden" value="{{ $bimestreActual ?? '' }}">
 
-        <div class="card shadow-sm">
-            <div class="card-header bg-light">
+        <!-- Sección: Estudiantes Matriculados Activos -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Lista de Estudiantes</h5>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i>
-                        {{ $existenRegistros ? 'Actualizar Asistencia' : 'Guardar Asistencia' }}
-                    </button>
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-check me-1"></i>
+                        Estudiantes Matriculados Activos
+                        <span class="badge bg-light text-success ms-2" id="contadorActivos">
+                            {{ $estudiantesMatriculadosActivos->count() }}
+                        </span>
+                    </h5>
                 </div>
             </div>
             <div class="card-body p-0">
@@ -120,7 +133,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($estudiantes as $estudiante)
+                            @forelse($estudiantesMatriculadosActivos as $estudiante)
                             @php
                                 $asistenciaActual = $estudiante->asistencias->first();
                                 $tipoAsistenciaId = $asistenciaActual ? $asistenciaActual->tipo_asistencia_id : null;
@@ -129,8 +142,9 @@
                                 $badgeClass = $asistenciaActual ? 'bg-success' : 'bg-warning';
                             @endphp
                             <tr id="estudiante-{{ $estudiante->id }}"
-                                class="{{ $estudiante->estado == 0 ? 'table-secondary' : '' }}"
-                                data-estudiante-id="{{ $estudiante->id }}">
+                                class="table-row-activo"
+                                data-estudiante-id="{{ $estudiante->id }}"
+                                data-estado="activo">
                                 <td>{{ $loop->iteration }}</td>
                                 <td>
                                     <div class="d-flex align-items-center">
@@ -140,11 +154,9 @@
                                                 {{ $estudiante->user->apellido_materno ?? '' }},
                                                 {{ $estudiante->user->nombre ?? '' }}
                                             </div>
-                                            @if($estudiante->estado == 0)
-                                            <small class="text-danger">
-                                                <i class="fas fa-user-slash"></i> Inactivo
+                                            <small class="text-success">
+                                                <i class="fas fa-check-circle"></i> Matriculado Activo
                                             </small>
-                                            @endif
                                         </div>
                                     </div>
                                 </td>
@@ -152,7 +164,7 @@
                                     <select name="asistencias[{{ $estudiante->id }}]"
                                             class="form-select form-select-sm tipo-asistencia-select"
                                             data-estudiante-id="{{ $estudiante->id }}"
-                                            {{ $estudiante->estado == 0 ? 'disabled' : '' }}>
+                                            data-estado="activo">
                                         <option value="">Seleccionar</option>
                                         @foreach($tiposAsistencia as $tipo)
                                         <option value="{{ $tipo->id }}"
@@ -169,15 +181,12 @@
                                                name="horas[{{ $estudiante->id }}]"
                                                class="form-control hora-input"
                                                value="{{ $horaActual }}"
-                                               data-estudiante-id="{{ $estudiante->id }}"
-                                               {{ $estudiante->estado == 0 ? 'disabled' : '' }}>
-                                        @if($estudiante->estado == 1)
+                                               data-estudiante-id="{{ $estudiante->id }}">
                                         <button type="button"
                                                 class="btn btn-outline-secondary btn-sm btn-hora-ahora"
                                                 data-estudiante-id="{{ $estudiante->id }}">
                                             <i class="fas fa-clock"></i>
                                         </button>
-                                        @endif
                                     </div>
                                 </td>
                                 <td>
@@ -192,7 +201,7 @@
                                                 data-estudiante-id="{{ $estudiante->id }}"
                                                 data-tipo="5"
                                                 title="Marcar como Puntual"
-                                                {{ $estudiante->estado == 0 ? 'disabled' : '' }}>
+                                                data-estado="activo">
                                             <i class="fas fa-check"></i> Puntual
                                         </button>
                                         <button type="button"
@@ -200,7 +209,7 @@
                                                 data-estudiante-id="{{ $estudiante->id }}"
                                                 data-tipo="1"
                                                 title="Marcar como Tardanza"
-                                                {{ $estudiante->estado == 0 ? 'disabled' : '' }}>
+                                                data-estado="activo">
                                             <i class="fas fa-clock"></i> Tardanza
                                         </button>
                                     </div>
@@ -211,7 +220,7 @@
                                 <td colspan="6" class="text-center py-4">
                                     <div class="text-muted">
                                         <i class="fas fa-user-graduate fa-2x mb-2"></i>
-                                        <p>No hay estudiantes {{ $existenRegistros ? '' : 'activos' }} en este grado</p>
+                                        <p>No hay estudiantes matriculados activos</p>
                                     </div>
                                 </td>
                             </tr>
@@ -220,17 +229,131 @@
                     </table>
                 </div>
             </div>
+        </div>
+
+        <!-- Sección: Estudiantes Matriculados Retirados (Solo lectura) -->
+        @if($estudiantesMatriculadosRetirados->count() > 0)
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-slash me-1"></i>
+                        Estudiantes Retirados (Solo consulta)
+                        <span class="badge bg-light text-dark ms-2" id="contadorRetiradosTable">
+                            {{ $estudiantesMatriculadosRetirados->count() }}
+                        </span>
+                    </h5>
+                    <span class="small">
+                        <i class="fas fa-info-circle"></i> Solo para consulta
+                    </span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th width="50">#</th>
+                                <th>Estudiante</th>
+                                <th width="150">Tipo Asistencia</th>
+                                <th width="120">Hora</th>
+                                <th width="100">Estado</th>
+                                <th width="250" class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($estudiantesMatriculadosRetirados as $estudiante)
+                            @php
+                                $asistenciaActual = $estudiante->asistencias->first();
+                                $tipoAsistenciaId = $asistenciaActual ? $asistenciaActual->tipo_asistencia_id : null;
+                                $horaActual = $asistenciaActual ? substr($asistenciaActual->hora, 0, 5) : '--:--';
+                                $estado = $asistenciaActual ? 'Registrado (Retirado)' : 'No aplica (Retirado)';
+                                $badgeClass = $asistenciaActual ? 'bg-secondary' : 'bg-light text-dark';
+                            @endphp
+                            <tr class="table-secondary" data-estado="retirado">
+                                <td>{{ $loop->iteration }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div>
+                                            <div class="fw-semibold text-muted">
+                                                {{ $estudiante->user->apellido_paterno ?? '' }}
+                                                {{ $estudiante->user->apellido_materno ?? '' }},
+                                                {{ $estudiante->user->nombre ?? '' }}
+                                            </div>
+                                            <small class="text-danger">
+                                                <i class="fas fa-user-times"></i> Retirado del período
+                                            </small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" disabled>
+                                        <option value="">Seleccionar</option>
+                                        @foreach($tiposAsistencia as $tipo)
+                                        <option value="{{ $tipo->id }}"
+                                                {{ $tipoAsistenciaId == $tipo->id ? 'selected' : '' }}>
+                                            {{ $tipo->nombre }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="time"
+                                           class="form-control form-control-sm"
+                                           value="{{ $horaActual }}"
+                                           disabled>
+                                </td>
+                                <td>
+                                    <span class="badge {{ $badgeClass }}">
+                                        {{ $estado }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-secondary" disabled>
+                                            <i class="fas fa-check"></i> Puntual
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" disabled>
+                                            <i class="fas fa-clock"></i> Tardanza
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-light">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Los estudiantes retirados se muestran solo para referencia histórica.
+                    No pueden ser modificados.
+                </small>
+            </div>
+        </div>
+        @endif
+
+        <div class="card shadow-sm">
             <div class="card-footer bg-light">
                 <div class="row align-items-center">
                     <div class="col-md-6">
                         <small class="text-muted">
                             <i class="fas fa-info-circle me-1"></i>
                             @if($existenRegistros)
-                                Total de registros: {{ $estudiantes->count() }}
+                                Total registrado: {{ $estudiantesMatriculadosActivos->count() + $estudiantesMatriculadosRetirados->count() }} estudiantes
                             @else
-                                Estudiantes activos: {{ $estudiantes->where('estado', 1)->count() }}
+                                Activos: {{ $estudiantesMatriculadosActivos->count() }} |
+                                Retirados: {{ $estudiantesMatriculadosRetirados->count() }} |
+                                Total: {{ $estudiantesMatriculadosActivos->count() + $estudiantesMatriculadosRetirados->count() }}
                             @endif
                         </small>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i>
+                            {{ $existenRegistros ? 'Actualizar Asistencia' : 'Guardar Asistencia' }}
+                        </button>
                     </div>
                 </div>
             </div>
