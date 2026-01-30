@@ -7,8 +7,11 @@
             <h4 class="mb-0 text-black"><strong>Libreta de Calificaciones</strong></h4>
         </div>
         <div class="card-body bg-light">
-            <form action="{{ route('libreta.pdf', ['anio' => $anio_param, 'bimestre' => $bimestre_param]) }}" method="POST">
+            <form id="pdfForm" action="{{ route('libreta.pdf', ['anio' => $anio_param, 'bimestre' => $bimestre_param]) }}" method="POST">
                 @csrf
+                <!-- Campo oculto para el tipo de PDF -->
+                <input type="hidden" name="tipo_pdf" id="tipoPdf" value="cuantitativo">
+
                 <div class="row g-3 align-items-end mb-4">
                     <!-- Periodo -->
                     <div class="col-12 col-sm-6 col-md-4">
@@ -43,12 +46,87 @@
 
                     <!-- Botón PDF -->
                     <div class="col-12 col-md-4 text-end">
-                        <button type="submit" class="btn btn-danger btn-lg w-100 shadow-lg py-2 mt-3 mt-md-0">
+                        <button type="button" class="btn btn-danger btn-lg w-100 shadow-lg py-2 mt-3 mt-md-0"
+                                data-bs-toggle="modal" data-bs-target="#pdfModal">
                             <i class="fas fa-file-pdf me-2"></i> Descargar PDF
                         </button>
                     </div>
                 </div>
             </form>
+
+            <!-- Modal para seleccionar tipo de PDF -->
+            <div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="pdfModalLabel">
+                                <i class="fas fa-file-pdf me-2"></i>Seleccionar Formato del PDF
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-4">¿En qué formato desea generar el reporte de calificaciones?</p>
+
+                            <div class="row g-3">
+                                <!-- Opción Cuantitativo -->
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-2 border-primary option-card"
+                                        data-tipo="cuantitativo" onclick="seleccionarTipo('cuantitativo')">
+                                        <div class="card-body text-center">
+                                            <div class="mb-3">
+                                                <i class="fas fa-calculator fa-3x text-primary"></i>
+                                            </div>
+                                            <h5 class="card-title fw-bold text-primary">Cuantitativo</h5>
+                                            <p class="card-text text-muted small">
+                                                Calificaciones en números (1-4)
+                                            </p>
+                                            <div class="mt-2">
+                                                <span class="badge bg-primary">Ejemplo: 3.5</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Opción Cualitativo -->
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-2 border-success option-card"
+                                        data-tipo="cualitativo" onclick="seleccionarTipo('cualitativo')">
+                                        <div class="card-body text-center">
+                                            <div class="mb-3">
+                                                <i class="fas fa-chart-bar fa-3x text-success"></i>
+                                            </div>
+                                            <h5 class="card-title fw-bold text-success">Cualitativo</h5>
+                                            <p class="card-text text-muted small">
+                                                Calificaciones en letras (A-D)
+                                            </p>
+                                            <div class="mt-2">
+                                                <span class="badge bg-success">Ejemplo: A</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Nota informativa -->
+                            <div class="alert alert-info mt-4 mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <small>
+                                    <strong>Cuantitativo:</strong> Escala numérica del 1 al 4<br>
+                                    <strong>Cualitativo:</strong> C = 1, B = 2, A = 3, AD = 4
+                                </small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </button>
+                            <button type="button" class="btn btn-primary" id="btnGenerarPdf" onclick="generarPdf()" disabled>
+                                <i class="fas fa-download me-2"></i>Generar PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- SECCIÓN: Datos del estudiante en el periodo -->
             @if($matricula_actual && $periodo_actual)
@@ -399,7 +477,7 @@
                                             </td>
                                             <td class="text-center">
                                                 @if($bimestreTexto != '-')
-                                                    B{{ $bimestreTexto }}
+                                                    {{ $bimestreTexto }}
                                                 @else
                                                 <span class="text-muted">-</span>
                                                 @endif
@@ -734,5 +812,71 @@ document.addEventListener('DOMContentLoaded', function() {
         actualizarNotas();
     }
 });
+</script>
+<script>
+let tipoSeleccionado = null;
+
+function seleccionarTipo(tipo) {
+    // Remover selección anterior
+    document.querySelectorAll('.option-card').forEach(card => {
+        card.classList.remove('selected');
+        card.style.backgroundColor = '#fff';
+    });
+
+    // Agregar selección actual
+    const card = document.querySelector(`.option-card[data-tipo="${tipo}"]`);
+    card.classList.add('selected');
+    card.style.backgroundColor = '#f0f8ff';
+
+    // Actualizar variable y habilitar botón
+    tipoSeleccionado = tipo;
+    document.getElementById('tipoPdf').value = tipo;
+    document.getElementById('btnGenerarPdf').disabled = false;
+
+    // Cambiar color del botón según selección
+    const btn = document.getElementById('btnGenerarPdf');
+    if (tipo === 'cualitativo') {
+        btn.className = 'btn btn-success';
+        btn.innerHTML = '<i class="fas fa-download me-2"></i>Generar PDF Cualitativo';
+    } else {
+        btn.className = 'btn btn-primary';
+        btn.innerHTML = '<i class="fas fa-download me-2"></i>Generar PDF Cuantitativo';
+    }
+}
+
+function generarPdf() {
+    if (!tipoSeleccionado) {
+        alert('Por favor seleccione un formato para el PDF');
+        return;
+    }
+
+    // Mostrar loading
+    const btn = document.getElementById('btnGenerarPdf');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generando...';
+    btn.disabled = true;
+
+    // Cerrar modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('pdfModal'));
+    modal.hide();
+
+    // Enviar formulario
+    setTimeout(() => {
+        document.getElementById('pdfForm').submit();
+
+        // Restaurar botón después de 3 segundos
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            tipoSeleccionado = null;
+
+            // Limpiar selección
+            document.querySelectorAll('.option-card').forEach(card => {
+                card.classList.remove('selected');
+                card.style.backgroundColor = '#fff';
+            });
+        }, 3000);
+    }, 500);
+}
 </script>
 @endsection

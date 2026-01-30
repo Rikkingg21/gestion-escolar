@@ -171,9 +171,7 @@ class LibretaController extends Controller
         return array_merge($resultados, $datosTransversales);
     }
 
-    /**
-     * Agrupar notas por materia, competencia y criterio
-     */
+    //Agrupar notas por materia, competencia y criterio
     private function agruparNotasPorMateria($notasEstudiante)
     {
         $notasPorMateria = [];
@@ -215,9 +213,7 @@ class LibretaController extends Controller
         return $notasPorMateria;
     }
 
-    /**
-     * Separar materias regulares de competencias transversales
-     */
+    //Separar materias regulares de competencias transversales
     private function separarMateriasRegularesTransversales($notasPorMateria)
     {
         $materiasRegulares = [];
@@ -269,9 +265,7 @@ class LibretaController extends Controller
         ];
     }
 
-    /**
-     * Procesar competencias transversales
-     */
+    //Procesar competencias transversales
     private function procesarCompetenciasTransversales($competenciasTransversales)
     {
         $criteriosTransversales = [];
@@ -338,9 +332,7 @@ class LibretaController extends Controller
         ];
     }
 
-    /**
-     * Obtener notas de conducta
-     */
+    //Obtener notas de conducta
     private function obtenerNotasConducta($estudianteId, $periodoActual, $bimestre)
     {
         $notasConductaQuery = Conductanota::with(['conducta', 'periodo'])
@@ -366,9 +358,7 @@ class LibretaController extends Controller
             });
     }
 
-    /**
-     * Obtener asistencias
-     */
+    //Obtener asistencias
     private function obtenerAsistencias($estudianteId, $gradoId, $periodoActual, $bimestre)
     {
         $asistenciasQuery = Asistencia::with(['tipoasistencia', 'grado'])
@@ -409,9 +399,7 @@ class LibretaController extends Controller
         ];
     }
 
-    /**
-     * Calcular total de criterios
-     */
+    //Calcular total de criterios
     private function calcularTotalCriterios($materiasRegulares)
     {
         $totalCriterios = 0;
@@ -426,9 +414,7 @@ class LibretaController extends Controller
         return $totalCriterios;
     }
 
-    /**
-     * Calcular total de competencias
-     */
+    //Calcular total de competencias
     private function calcularTotalCompetencias($materiasRegulares)
     {
         $totalCompetencias = 0;
@@ -440,9 +426,7 @@ class LibretaController extends Controller
         return $totalCompetencias;
     }
 
-    /**
-     * Calcular promedio general de materias
-     */
+    // Calcular promedio general de materias
     private function calcularPromedioGeneralMaterias($materiasRegulares)
     {
         $sumaPromedios = 0;
@@ -480,9 +464,7 @@ class LibretaController extends Controller
         return $materiasConPromedio > 0 ? $sumaPromedios / $materiasConPromedio : 0;
     }
 
-    /**
-     * Preparar datos de materias para la vista (rowspan y promedios)
-     */
+    //Preparar datos de materias para la vista (rowspan y promedios)
     private function prepararMateriasParaVista($materiasRegulares)
     {
         $materiasProcesadas = [];
@@ -540,5 +522,266 @@ class LibretaController extends Controller
         }
 
         return $materiasProcesadas;
+    }
+    public function pdf(Request $request, $anio, $bimestre)
+    {
+        $user = auth()->user();
+
+        // Obtener el estudiante con el usuario relacionado
+        $estudiante = Estudiante::with(['user'])
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$estudiante) {
+            abort(404, 'Estudiante no encontrado.');
+        }
+
+        // Validar que el bimestre sea válido (1-4 o anual)
+        if (!in_array($bimestre, ['anual', '1', '2', '3', '4'])) {
+            abort(404, 'Bimestre no válido.');
+        }
+
+        // Obtener el tipo de PDF (cuantitativo o cualitativo)
+        $tipoPdf = $request->input('tipo_pdf', 'cuantitativo');
+        if (!in_array($tipoPdf, ['cuantitativo', 'cualitativo'])) {
+            $tipoPdf = 'cuantitativo';
+        }
+
+        // Buscar el periodo por año (anio)
+        $periodoActual = Periodo::where('anio', $anio)->first();
+
+        if (!$periodoActual) {
+            $periodoActual = Periodo::where('estado', '1')
+                ->orderBy('anio', 'desc')
+                ->first();
+
+            if ($periodoActual) {
+                return redirect()->route('libreta.pdf', [
+                    'anio' => $periodoActual->anio,
+                    'bimestre' => $bimestre
+                ]);
+            }
+        }
+
+        // Obtener la matrícula del estudiante para este periodo
+        $matriculaActual = null;
+        if ($periodoActual) {
+            $matriculaActual = Matricula::with(['grado', 'periodo'])
+                ->where('estudiante_id', $estudiante->id)
+                ->where('periodo_id', $periodoActual->id)
+                ->first();
+        }
+
+        // Obtener datos de la IE (Colegio)
+        $colegio = Colegio::configuracion();
+
+        // Variables principales para la vista
+        $datosVista = [
+            'materias_regulares' => [],
+            'competencias_transversales' => [],
+            'criterios_transversales' => [],
+            'promedios_por_criterio' => [],
+            'promedio_general_transversales' => 0,
+            'notas_conducta' => collect(),
+            'asistencias' => collect(),
+            'resumen_asistencias' => ['total' => 0, 'tipos' => []],
+            'numero_criterio_global' => 0,
+            'numero_competencia_global' => 0,
+            'total_materias_regulares' => 0,
+            'promedio_general_materias' => 0,
+            'materias_procesadas' => []
+        ];
+
+        if ($matriculaActual && $periodoActual) {
+            // 1. OBTENER Y PROCESAR NOTAS DE MATERIAS
+            $datosMaterias = $this->procesarNotasMaterias($estudiante->id, $periodoActual, $bimestre);
+            $datosVista = array_merge($datosVista, $datosMaterias);
+
+            // 2. OBTENER NOTAS DE CONDUCTA
+            $datosVista['notas_conducta'] = $this->obtenerNotasConducta($estudiante->id, $periodoActual, $bimestre);
+
+            // 3. OBTENER ASISTENCIAS
+            $datosAsistencias = $this->obtenerAsistencias($estudiante->id, $matriculaActual->grado_id, $periodoActual, $bimestre);
+            $datosVista['asistencias'] = $datosAsistencias['asistencias'];
+            $datosVista['resumen_asistencias'] = $datosAsistencias['resumen'];
+
+            // 4. CALCULAR ESTADÍSTICAS GLOBALES
+            $datosVista['numero_criterio_global'] = $this->calcularTotalCriterios($datosVista['materias_regulares']);
+            $datosVista['numero_competencia_global'] = $this->calcularTotalCompetencias($datosVista['materias_regulares']);
+            $datosVista['total_materias_regulares'] = count($datosVista['materias_regulares']);
+            $datosVista['promedio_general_materias'] = $this->calcularPromedioGeneralMaterias($datosVista['materias_regulares']);
+
+            // 5. PREPARAR DATOS PARA LA VISTA (rowspan y promedios por materia)
+            $datosVista['materias_procesadas'] = $this->prepararMateriasParaVista($datosVista['materias_regulares']);
+        }
+
+        // Preparar datos para el PDF
+        $pdfData = array_merge([
+            'estudiante' => $estudiante,
+            'matricula_actual' => $matriculaActual,
+            'periodo_actual' => $periodoActual,
+            'colegio' => $colegio,
+            'anio_param' => $anio,
+            'bimestre_param' => $bimestre,
+            'tipo_pdf' => $tipoPdf,
+            'fecha_generacion' => now()->format('d/m/Y H:i:s'),
+            'user' => $user,
+            'modo_pdf' => true,
+        ], $datosVista);
+
+        // Aplicar conversión cualitativa si es necesario
+        if ($tipoPdf === 'cualitativo') {
+            $pdfData = $this->convertirDatosACualitativo($pdfData);
+        }
+
+        // Configurar opciones del PDF
+        $options = [
+            'defaultFont' => 'Arial',
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+            'dpi' => 150,
+        ];
+
+        // Generar nombre del archivo
+        $nombreArchivo = 'libreta_' .
+                        $estudiante->user->dni . '_' .
+                        $anio . '_' .
+                        ($bimestre == 'anual' ? 'anual' : 'bim' . $bimestre) . '_' .
+                        $tipoPdf . '_' .
+                        date('YmdHis') . '.pdf';
+
+        // Generar PDF
+        $pdf = Pdf::loadView('libreta.pdf', $pdfData)
+            ->setOptions($options)
+            ->setPaper('A4', 'portrait');
+
+        // Forzar descarga del PDF
+        return $pdf->download($nombreArchivo);
+    }
+
+    /**
+     * Convertir datos numéricos a cualitativos
+     */
+    private function convertirDatosACualitativo($datos)
+    {
+        // Función para convertir número a letra CON REDONDEO
+        $convertirNota = function($nota) {
+            if (is_numeric($nota)) {
+                $nota = floatval($nota);
+                // Redondear al entero más cercano
+                $notaRedondeada = round($nota);
+
+                // Ajustar para que esté en rango 1-4
+                if ($notaRedondeada > 4) $notaRedondeada = 4;
+                if ($notaRedondeada < 1) $notaRedondeada = 1;
+
+                // Convertir a letra
+                switch ($notaRedondeada) {
+                    case 4: return 'AD';
+                    case 3: return 'A';
+                    case 2: return 'B';
+                    case 1: return 'C';
+                    default: return 'C';
+                }
+            }
+            return $nota;
+        };
+
+        // 1. CONVERTIR CALIFICACIONES DE CRITERIOS EN MATERIAS REGULARES
+        if (isset($datos['materias_procesadas']) && is_array($datos['materias_procesadas'])) {
+            foreach ($datos['materias_procesadas'] as &$materia) {
+                // Convertir promedio de la materia (ya redondeado)
+                if (isset($materia['promedio']) && is_numeric($materia['promedio'])) {
+                    $materia['promedio'] = $convertirNota($materia['promedio']);
+                }
+
+                // Procesar competencias
+                if (isset($materia['competencias']) && is_array($materia['competencias'])) {
+                    foreach ($materia['competencias'] as &$competencia) {
+                        // Convertir promedio de competencia
+                        if (isset($competencia['promedio']) && is_numeric($competencia['promedio'])) {
+                            $competencia['promedio'] = $convertirNota($competencia['promedio']);
+                        }
+
+                        // Convertir notas de criterios
+                        if (isset($competencia['criterios']) && is_array($competencia['criterios'])) {
+                            foreach ($competencia['criterios'] as &$criterio) {
+                                // Asegurarnos de convertir el valor de la nota
+                                if (isset($criterio['nota']['valor']) && is_numeric($criterio['nota']['valor'])) {
+                                    $criterio['nota']['valor'] = $convertirNota($criterio['nota']['valor']);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. CONVERTIR COMPETENCIAS TRANSVERSALES
+        if (isset($datos['competencias_transversales']) && is_array($datos['competencias_transversales'])) {
+            foreach ($datos['competencias_transversales'] as &$transversal) {
+                if (isset($transversal['competencia']['criterios']) && is_array($transversal['competencia']['criterios'])) {
+                    foreach ($transversal['competencia']['criterios'] as &$criterio) {
+                        if (isset($criterio['nota']['valor']) && is_numeric($criterio['nota']['valor'])) {
+                            $criterio['nota']['valor'] = $convertirNota($criterio['nota']['valor']);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. CONVERTIR PROMEDIOS POR CRITERIO EN TRANSVERSALES
+        if (isset($datos['promedios_por_criterio']) && is_array($datos['promedios_por_criterio'])) {
+            foreach ($datos['promedios_por_criterio'] as &$promedio) {
+                if (is_numeric($promedio)) {
+                    $promedio = $convertirNota($promedio);
+                }
+            }
+        }
+
+        // 4. CONVERTIR PROMEDIO GENERAL DE TRANSVERSALES
+        if (isset($datos['promedio_general_transversales']) && is_numeric($datos['promedio_general_transversales'])) {
+            $datos['promedio_general_transversales'] = $convertirNota($datos['promedio_general_transversales']);
+        }
+
+        // 5. CONVERTIR PROMEDIO GENERAL DE MATERIAS
+        if (isset($datos['promedio_general_materias']) && is_numeric($datos['promedio_general_materias'])) {
+            $datos['promedio_general_materias'] = $convertirNota($datos['promedio_general_materias']);
+        }
+
+        // 6. CONVERTIR NOTAS DE CONDUCTA
+        if (isset($datos['notas_conducta']) && $datos['notas_conducta']->count() > 0) {
+            $datos['notas_conducta'] = $datos['notas_conducta']->map(function($notaConducta) use ($convertirNota) {
+                if (isset($notaConducta['valor']) && is_numeric($notaConducta['valor'])) {
+                    $notaConducta['valor'] = $convertirNota($notaConducta['valor']);
+                }
+                return $notaConducta;
+            });
+        }
+
+        // 7. CONVERTIR MATERIAS REGULARES (datos originales no procesados)
+        if (isset($datos['materias_regulares']) && is_array($datos['materias_regulares'])) {
+            foreach ($datos['materias_regulares'] as &$materia) {
+                if (isset($materia['competencias']) && is_array($materia['competencias'])) {
+                    foreach ($materia['competencias'] as &$competencia) {
+                        // Convertir promedio de competencia
+                        if (isset($competencia['promedio']) && is_numeric($competencia['promedio'])) {
+                            $competencia['promedio'] = $convertirNota($competencia['promedio']);
+                        }
+
+                        // Convertir criterios
+                        if (isset($competencia['criterios']) && is_array($competencia['criterios'])) {
+                            foreach ($competencia['criterios'] as &$criterio) {
+                                if (isset($criterio['nota']['valor']) && is_numeric($criterio['nota']['valor'])) {
+                                    $criterio['nota']['valor'] = $convertirNota($criterio['nota']['valor']);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return $datos;
     }
 }
