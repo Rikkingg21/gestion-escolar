@@ -6,6 +6,7 @@ use App\Models\Asistencia\Tipoasistencia;
 use App\Models\Grado;
 use App\Models\Estudiante;
 use App\Models\Maya\Bimestre;
+use App\Models\Periodo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -22,9 +23,11 @@ class Asistencia extends Model
         'grado_id',
         'bimestre',
         'tipo_asistencia_id',
+        'periodo_id',
         'fecha',
         'hora',
         'registrador_id',
+        'estado',
         'descripcion',
 
     ];
@@ -43,5 +46,9 @@ class Asistencia extends Model
     public function bimestre()
     {
         return $this->belongsTo(Bimestre::class, 'bimestre');
+    }
+    public function periodo()
+    {
+        return $this->belongsTo(Periodo::class, 'periodo_id');
     }
 }

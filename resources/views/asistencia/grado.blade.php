@@ -100,11 +100,12 @@
 
     <!-- Formulario principal -->
     <form id="formAsistencia"
-      action="{{ route('asistencia.guardar-multiple', ['grado' => $grado->id, 'fecha' => $fechaFormateada]) }}"
-      method="POST">
+        action="{{ route('asistencia.guardar-multiple', ['grado' => $grado->id, 'fecha' => $fechaFormateada]) }}"
+        method="POST">
         @csrf
 
         <input type="hidden" name="bimestre" id="bimestreHidden" value="{{ $bimestreActual ?? '' }}">
+        <input type="hidden" name="periodo_id" value="{{ $periodoActual->id }}">
 
         <!-- Sección: Estudiantes Matriculados Activos -->
         <div class="card shadow-sm mb-4">
@@ -450,7 +451,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Botones de marcado rápido
     document.querySelectorAll('.btn-marcar-rapido').forEach(btn => {
         btn.addEventListener('click', async function(e) {
             e.preventDefault();
@@ -465,6 +465,27 @@ document.addEventListener('DOMContentLoaded', function() {
             this.disabled = true;
             this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
+            // Verificar si se seleccionó bimestre (solo si no existen registros)
+            const bimestreSelect = document.getElementById('bimestre');
+            const bimestreHidden = document.getElementById('bimestreHidden');
+            let bimestreValue;
+
+            if ('{{ $existenRegistros }}' === '1') {
+                // Si ya existen registros, usar el bimestre actual
+                bimestreValue = bimestreHidden.value;
+            } else {
+                // Si no existen registros, verificar que se seleccionó bimestre
+                if (!bimestreSelect.value) {
+                    alert('Por favor, seleccione un bimestre primero');
+                    this.disabled = false;
+                    this.innerHTML = this.dataset.tipo === '5'
+                        ? '<i class="fas fa-check"></i> Puntual'
+                        : '<i class="fas fa-clock"></i> Tardanza';
+                    return;
+                }
+                bimestreValue = bimestreSelect.value;
+            }
+
             try {
                 const response = await fetch('{{ route("asistencia.marcar-individual", ":estudiante") }}'
                     .replace(':estudiante', estudianteId), {
@@ -478,7 +499,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         fecha: '{{ $fechaSeleccionada }}',           // d-m-Y
                         hora: nowFormatted(),                         // función auxiliar abajo
                         grado_id: '{{ $grado->id }}',
-                        bimestre: bimestreHidden.value || '{{ $bimestreActual ?? '' }}',
+                        periodo_id: '{{ $periodoActual->id }}',      // ¡NUEVO! Añadir periodo_id
+                        bimestre: bimestreValue,
+                        // Incluir descripción si la tienes
+                        descripcion: null,
                     })
                 });
 
@@ -507,12 +531,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     updateContadores();
                     actualizarEstadoBotonesRapidos();
+
+                    // Mostrar mensaje de éxito breve
+                    showToast('success', data.message || 'Asistencia registrada');
                 } else {
-                    alert(data.message || 'Error al registrar la asistencia');
+                    showToast('error', data.message || 'Error al registrar la asistencia');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Ocurrió un error al conectar con el servidor o no seleccionó el Bimestre.');
+                showToast('error', 'Ocurrió un error al conectar con el servidor');
             } finally {
                 // Restaurar botón
                 this.disabled = false;
@@ -610,34 +637,34 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-.tipo-asistencia-select {
-    transition: all 0.2s ease;
-    font-weight: 500;
-}
+    .tipo-asistencia-select {
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
 
-.tipo-asistencia-select:focus {
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-}
+    .tipo-asistencia-select:focus {
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
 
-.avatar-sm {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+    .avatar-sm {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-.hora-input {
-    max-width: 100px;
-}
+    .hora-input {
+        max-width: 100px;
+    }
 
-.table tbody tr:hover {
-    background-color: rgba(0, 0, 0, 0.02);
-}
+    .table tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
 
-.btn-group-sm > .btn {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-}
+    .btn-group-sm > .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
 </style>
 @endsection

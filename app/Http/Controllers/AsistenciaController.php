@@ -68,113 +68,114 @@ class AsistenciaController extends Controller
         ]);
     }
 
-public function showDate($grado_grado_seccion, $grado_nivel, $date)
-{
-    try {
-        $fechaFormateada = Carbon::createFromFormat('d-m-Y', $date)->format('Y-m-d');
-        $anioFecha = Carbon::createFromFormat('d-m-Y', $date)->year;
-    } catch (\Exception $e) {
-        abort(400, 'Formato de fecha inválido. Use dd-mm-yyyy');
-    }
-
-    // Parsear grado y sección
-    if (!preg_match('/^(\d+)([a-zA-Z]+)$/', $grado_grado_seccion, $matches)) {
-        abort(400, 'Formato de grado/sección inválido. Ejemplo: 1a, 2b');
-    }
-
-    $gradoNumero = $matches[1];
-    $gradoSeccion = $matches[2];
-
-    $grado = Grado::where('grado', $gradoNumero)
-        ->where('seccion', $gradoSeccion)
-        ->where('nivel', $grado_nivel)
-        ->firstOrFail();
-
-    // Obtener el período basado en el AÑO de la fecha seleccionada
-    $periodoFecha = Periodo::where('anio', $anioFecha)
-        ->where('estado', '1')
-        ->first();
-
-    if (!$periodoFecha) {
-        abort(400, "No hay un período activo configurado para el año {$anioFecha}");
-    }
-
-    // Obtener estudiantes usando whereHas para mejor eficiencia
-    $estudiantesMatriculadosActivos = Estudiante::with(['user',
-        'asistencias' => function ($query) use ($fechaFormateada, $grado) {
-            $query->whereDate('fecha', $fechaFormateada)
-                  ->where('grado_id', $grado->id);
+    public function showDate($grado_grado_seccion, $grado_nivel, $date)
+    {
+        try {
+            $fechaFormateada = Carbon::createFromFormat('d-m-Y', $date)->format('Y-m-d');
+            $anioFecha = Carbon::createFromFormat('d-m-Y', $date)->year;
+        } catch (\Exception $e) {
+            abort(400, 'Formato de fecha inválido. Use dd-mm-yyyy');
         }
-    ])
-    ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
-        $query->where('grado_id', $grado->id)
-              ->where('periodo_id', $periodoFecha->id)
-              ->where('estado', '1'); // Activo
-    })
-    ->get()
-    ->sortBy(function ($estudiante) {
-        return optional($estudiante->user)->apellido_paterno .
-            optional($estudiante->user)->apellido_materno .
-            optional($estudiante->user)->nombre;
-    });
 
-    $estudiantesMatriculadosRetirados = Estudiante::with(['user',
-        'asistencias' => function ($query) use ($fechaFormateada, $grado) {
-            $query->whereDate('fecha', $fechaFormateada)
-                  ->where('grado_id', $grado->id);
+        // Parsear grado y sección
+        if (!preg_match('/^(\d+)([a-zA-Z]+)$/', $grado_grado_seccion, $matches)) {
+            abort(400, 'Formato de grado/sección inválido. Ejemplo: 1a, 2b');
         }
-    ])
-    ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
-        $query->where('grado_id', $grado->id)
-              ->where('periodo_id', $periodoFecha->id)
-              ->where('estado', '0'); // Retirado
-    })
-    ->get()
-    ->sortBy(function ($estudiante) {
-        return optional($estudiante->user)->apellido_paterno .
-            optional($estudiante->user)->apellido_materno .
-            optional($estudiante->user)->nombre;
-    });
 
-    $todosEstudiantes = $estudiantesMatriculadosActivos->merge($estudiantesMatriculadosRetirados)
+        $gradoNumero = $matches[1];
+        $gradoSeccion = $matches[2];
+
+        $grado = Grado::where('grado', $gradoNumero)
+            ->where('seccion', $gradoSeccion)
+            ->where('nivel', $grado_nivel)
+            ->firstOrFail();
+
+        // Obtener el período basado en el AÑO de la fecha seleccionada
+        $periodoFecha = Periodo::where('anio', $anioFecha)
+            ->where('estado', '1')
+            ->first();
+
+        if (!$periodoFecha) {
+            abort(400, "No hay un período activo configurado para el año {$anioFecha}");
+        }
+
+        // Obtener estudiantes usando whereHas para mejor eficiencia
+        $estudiantesMatriculadosActivos = Estudiante::with(['user',
+            'asistencias' => function ($query) use ($fechaFormateada, $grado) {
+                $query->whereDate('fecha', $fechaFormateada)
+                    ->where('grado_id', $grado->id);
+            }
+        ])
+        ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
+            $query->where('grado_id', $grado->id)
+                ->where('periodo_id', $periodoFecha->id)
+                ->where('estado', '1'); // Activo
+        })
+        ->get()
         ->sortBy(function ($estudiante) {
             return optional($estudiante->user)->apellido_paterno .
                 optional($estudiante->user)->apellido_materno .
                 optional($estudiante->user)->nombre;
         });
 
-    $tiposAsistencia = Tipoasistencia::all();
+        $estudiantesMatriculadosRetirados = Estudiante::with(['user',
+            'asistencias' => function ($query) use ($fechaFormateada, $grado) {
+                $query->whereDate('fecha', $fechaFormateada)
+                    ->where('grado_id', $grado->id);
+            }
+        ])
+        ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
+            $query->where('grado_id', $grado->id)
+                ->where('periodo_id', $periodoFecha->id)
+                ->where('estado', '0'); // Retirado
+        })
+        ->get()
+        ->sortBy(function ($estudiante) {
+            return optional($estudiante->user)->apellido_paterno .
+                optional($estudiante->user)->apellido_materno .
+                optional($estudiante->user)->nombre;
+        });
 
-    $existenRegistros = Asistencia::where('grado_id', $grado->id)
-        ->whereDate('fecha', $fechaFormateada)
-        ->exists();
+        $todosEstudiantes = $estudiantesMatriculadosActivos->merge($estudiantesMatriculadosRetirados)
+            ->sortBy(function ($estudiante) {
+                return optional($estudiante->user)->apellido_paterno .
+                    optional($estudiante->user)->apellido_materno .
+                    optional($estudiante->user)->nombre;
+            });
 
-    $bimestreActual = null;
-    if ($existenRegistros) {
-        $registroEjemplo = Asistencia::where('grado_id', $grado->id)
+        $tiposAsistencia = Tipoasistencia::all();
+
+        $existenRegistros = Asistencia::where('grado_id', $grado->id)
             ->whereDate('fecha', $fechaFormateada)
-            ->first();
-        $bimestreActual = $registroEjemplo?->bimestre;
-    }
+            ->exists();
 
-    return view('asistencia.grado', [
-        'grado'                            => $grado,
-        'estudiantesMatriculadosActivos'   => $estudiantesMatriculadosActivos,
-        'estudiantesMatriculadosRetirados' => $estudiantesMatriculadosRetirados,
-        'estudiantes'                      => $todosEstudiantes,
-        'fechaSeleccionada'                => $date,
-        'fechaFormateada'                  => $fechaFormateada,
-        'tiposAsistencia'                  => $tiposAsistencia,
-        'existenRegistros'                 => $existenRegistros,
-        'bimestreActual'                   => $bimestreActual,
-        'periodoActual'                    => $periodoFecha,
-        'anioFecha'                        => $anioFecha,
-    ]);
-}
+        $bimestreActual = null;
+        if ($existenRegistros) {
+            $registroEjemplo = Asistencia::where('grado_id', $grado->id)
+                ->whereDate('fecha', $fechaFormateada)
+                ->first();
+            $bimestreActual = $registroEjemplo?->bimestre;
+        }
+
+        return view('asistencia.grado', [
+            'grado'                            => $grado,
+            'estudiantesMatriculadosActivos'   => $estudiantesMatriculadosActivos,
+            'estudiantesMatriculadosRetirados' => $estudiantesMatriculadosRetirados,
+            'estudiantes'                      => $todosEstudiantes,
+            'fechaSeleccionada'                => $date,
+            'fechaFormateada'                  => $fechaFormateada,
+            'tiposAsistencia'                  => $tiposAsistencia,
+            'existenRegistros'                 => $existenRegistros,
+            'bimestreActual'                   => $bimestreActual,
+            'periodoActual'                    => $periodoFecha,
+            'anioFecha'                        => $anioFecha,
+        ]);
+    }
     public function guardarMultiple(Request $request, Grado $grado, string $fecha)
     {
         $request->validate([
             'bimestre'                  => 'required|integer|between:1,4',
+            'periodo_id'                => 'required|exists:periodos,id',
             'asistencias'               => 'required|array',
             'asistencias.*'             => 'nullable|exists:tipo_asistencias,id',
             'horas'                     => 'required|array',
@@ -183,61 +184,115 @@ public function showDate($grado_grado_seccion, $grado_nivel, $date)
 
         $fechaCarbon = Carbon::parse($fecha)->startOfDay();
         $bimestre    = $request->bimestre;
+        $periodoId   = $request->periodo_id;
         $userId      = Auth::id();
+
+        $periodo = Periodo::find($periodoId);
+        if (!$periodo) {
+            return back()->with('error', 'El período especificado no existe.');
+        }
 
         $procesadas  = 0;
         $creadas     = 0;
         $actualizadas = 0;
         $omitidas    = 0;
+        $noMatriculados = 0;
+        $retirados   = 0;
 
-        foreach ($request->asistencias as $estudianteId => $tipoAsistenciaId) {
-            // Si no se seleccionó nada → omitir
-            if (empty($tipoAsistenciaId)) {
-                $omitidas++;
-                continue;
+        // Usar transacción para asegurar integridad de datos
+        DB::beginTransaction();
+
+        try {
+            foreach ($request->asistencias as $estudianteId => $tipoAsistenciaId) {
+                // Si no se seleccionó nada → omitir (pero si ya existe registro, podría eliminarse)
+                if (empty($tipoAsistenciaId)) {
+                    // Opcional: eliminar registro existente si se deja en blanco
+                    $asistenciaExistente = Asistencia::where([
+                        'estudiante_id' => $estudianteId,
+                        'grado_id'      => $grado->id,
+                        'periodo_id'    => $periodoId,
+                        'fecha'         => $fechaCarbon,
+                    ])->first();
+
+                    if ($asistenciaExistente) {
+                        $asistenciaExistente->delete();
+                        $actualizadas++; // Contar como actualización (eliminación)
+                    }
+
+                    $omitidas++;
+                    continue;
+                }
+
+                $hora = $request->horas[$estudianteId] ?? now()->format('H:i');
+
+                // Verificar matrícula
+                $matricula = Matricula::where('estudiante_id', $estudianteId)
+                    ->where('grado_id', $grado->id)
+                    ->where('periodo_id', $periodoId)
+                    ->first();
+
+                if (!$matricula) {
+                    $noMatriculados++;
+                    continue;
+                }
+
+                if ($matricula->estado == '0') {
+                    $retirados++;
+                    continue;
+                }
+
+                // Usar updateOrCreate para simplificar
+                $asistencia = Asistencia::updateOrCreate(
+                    [
+                        'estudiante_id' => $estudianteId,
+                        'grado_id'      => $grado->id,
+                        'periodo_id'    => $periodoId,
+                        'fecha'         => $fechaCarbon,
+                    ],
+                    [
+                        'tipo_asistencia_id' => $tipoAsistenciaId,
+                        'hora'               => $hora,
+                        'bimestre'           => $bimestre,
+                        'registrador_id'     => $userId,
+                        'estado'             => '1',
+                    ]
+                );
+
+                // Manejar descripción
+                if ($asistencia->wasRecentlyCreated) {
+                    $asistencia->update(['descripcion' => 'Registro múltiple']);
+                    $creadas++;
+                } else {
+                    // Solo actualizar descripción si no es registro manual
+                    if (strpos($asistencia->descripcion, 'Registro Manual') === false) {
+                        $asistencia->update(['descripcion' => 'Actualizado múltiple']);
+                    }
+                    $actualizadas++;
+                }
+
+                $procesadas++;
             }
 
-            $hora = $request->horas[$estudianteId] ?? now()->format('H:i');
+            DB::commit();
 
-            $estudiante = Estudiante::find($estudianteId);
-            if (!$estudiante || $estudiante->grado_id != $grado->id) {
-                $omitidas++;
-                continue;
-            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Error al guardar las asistencias: ' . $e->getMessage());
+        }
 
-            // Buscar si ya existe
-            $asistencia = Asistencia::where([
-                'estudiante_id' => $estudianteId,
-                'grado_id'      => $grado->id,
-                'fecha'         => $fechaCarbon,
-            ])->first();
+        // Construir mensaje
+        $mensaje = "Procesadas $procesadas asistencias: $creadas nuevas, $actualizadas actualizadas.";
 
-            if ($asistencia) {
-                // Actualizar
-                $asistencia->update([
-                    'tipo_asistencia_id' => $tipoAsistenciaId,
-                    'hora'               => $hora,
-                    'registrador_id'     => $userId,
-                    'bimestre'           => $bimestre,
-                    // 'descripcion'     => ... si lo agregas después
-                ]);
-                $actualizadas++;
-            } else {
-                // Crear
-                Asistencia::create([
-                    'estudiante_id'      => $estudianteId,
-                    'grado_id'           => $grado->id,
-                    'bimestre'           => $bimestre,
-                    'tipo_asistencia_id' => $tipoAsistenciaId,
-                    'fecha'              => $fechaCarbon,
-                    'hora'               => $hora,
-                    'registrador_id'     => $userId,
-                    'descripcion'        => null,
-                ]);
-                $creadas++;
-            }
+        if ($omitidas > 0) {
+            $mensaje .= " $omitidas omitidas.";
+        }
 
-            $procesadas++;
+        if ($noMatriculados > 0) {
+            $mensaje .= " $noMatriculados no matriculados.";
+        }
+
+        if ($retirados > 0) {
+            $mensaje .= " $retirados retirados.";
         }
 
         $fechaDMY = $fechaCarbon->format('d-m-Y');
@@ -248,81 +303,9 @@ public function showDate($grado_grado_seccion, $grado_nivel, $date)
             'grado_grado_seccion' => $gradoSeccion,
             'grado_nivel'         => $nivel,
             'date'                => $fechaDMY,
-        ])->with('success', "Procesadas $procesadas asistencias: $creadas nuevas, $actualizadas actualizadas, $omitidas omitidas.");
+        ])->with('success', $mensaje);
     }
-    /*
-    public function registrarMultiple(Request $request, Grado $grado, string $fecha)
-    {
-        $request->validate([
-            'bimestre'                  => 'required|integer|between:1,4',
-            'asistencias'               => 'required|array',
-            'asistencias.*'             => 'nullable|exists:tipo_asistencias,id',
-            'horas'                     => 'required|array',
-            'horas.*'                   => 'nullable|date_format:H:i',
-        ]);
 
-        $fechaCarbon = Carbon::parse($fecha)->startOfDay();
-        $bimestre    = $request->bimestre;
-        $userId      = Auth::id();
-
-        $creadas = 0;
-        $omitidas = 0;
-
-        foreach ($request->asistencias as $estudianteId => $tipoAsistenciaId) {
-            // Saltar si no se seleccionó asistencia
-            if (!$tipoAsistenciaId) {
-                $omitidas++;
-                continue;
-            }
-
-            $hora = $request->horas[$estudianteId] ?? now()->format('H:i');
-
-            // Verificar que el estudiante existe y pertenece al grado
-            $estudiante = Estudiante::find($estudianteId);
-            if (!$estudiante || $estudiante->grado_id != $grado->id) {
-                $omitidas++;
-                continue;
-            }
-
-            // Verificar que NO exista ya un registro (seguridad extra)
-            $existe = Asistencia::where([
-                'estudiante_id' => $estudianteId,
-                'grado_id'      => $grado->id,
-                'fecha'         => $fechaCarbon,
-            ])->exists();
-
-            if ($existe) {
-                // Opcional: podrías loguear o ignorar silenciosamente
-                $omitidas++;
-                continue;
-            }
-
-            // Crear el nuevo registro
-            Asistencia::create([
-                'estudiante_id'      => $estudianteId,
-                'grado_id'           => $grado->id,
-                'bimestre'           => $bimestre,
-                'tipo_asistencia_id' => $tipoAsistenciaId,
-                'fecha'              => $fechaCarbon,
-                'hora'               => $hora,
-                'registrador_id'     => $userId,
-                'descripcion'        => null, // o $request->input("descripcion.$estudianteId") si lo agregas después
-            ]);
-
-            $creadas++;
-        }
-
-        // Redirigir a la misma vista con mensaje de éxito
-        $fechaDMY = $fechaCarbon->format('d-m-Y');
-        $gradoSeccion = $grado->grado . $grado->seccion;
-        $nivel = strtolower($grado->nivel);
-
-        return redirect()->route('asistencia.grado', [
-            'grado_grado_seccion' => $gradoSeccion,
-            'grado_nivel'         => $nivel,
-            'date'                => $fechaDMY,
-        ])->with('success', "Se registraron $creadas asistencias nuevas. Omitidas: $omitidas.");
-    }*/
     public function marcarIndividual(Request $request, Estudiante $estudiante)
     {
         $request->validate([
@@ -330,51 +313,93 @@ public function showDate($grado_grado_seccion, $grado_nivel, $date)
             'fecha'              => 'required|date_format:d-m-Y',
             'hora'               => 'nullable|date_format:H:i',
             'grado_id'           => 'required|exists:grados,id',
+            'periodo_id'         => 'required|exists:periodos,id',
             'bimestre'           => 'required|integer|between:1,4',
         ]);
 
         $fecha = Carbon::createFromFormat('d-m-Y', $request->fecha)->startOfDay();
         $hora  = $request->hora ?? now()->format('H:i');
 
-        // Verificar que el estudiante pertenece al grado seleccionado
-        if ($estudiante->grado_id !== (int) $request->grado_id) {
+        // Verificar que existe período
+        $periodo = Periodo::find($request->periodo_id);
+        if (!$periodo) {
             return response()->json([
                 'success' => false,
-                'message' => 'El estudiante no pertenece a este grado.'
+                'message' => 'El período especificado no existe.'
             ], 422);
         }
 
-        // Buscar si ya existe registro para ese estudiante, fecha y grado
+        // Verificar que el estudiante está matriculado en ese grado y período
+        $matricula = Matricula::where('estudiante_id', $estudiante->id)
+            ->where('grado_id', $request->grado_id)
+            ->where('periodo_id', $request->periodo_id)
+            ->first();
+
+        if (!$matricula) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El estudiante no está matriculado en este grado para el período seleccionado.'
+            ], 422);
+        }
+
+        // Verificar que la matrícula está activa (si solo quieres permitir marcar a activos)
+        if ($matricula->estado == '0') {
+            return response()->json([
+                'success' => false,
+                'message' => 'El estudiante está retirado en este período. No se puede registrar asistencia.'
+            ], 422);
+        }
+
+        // Buscar si ya existe registro para ese estudiante, fecha, grado y período
         $asistencia = Asistencia::where([
             'estudiante_id'      => $estudiante->id,
             'grado_id'           => $request->grado_id,
+            'periodo_id'         => $request->periodo_id,
             'fecha'              => $fecha,
         ])->first();
 
+        // Descripción y estado fijos para registros manuales
+        $descripcion = 'Registro Manual';
+        $estadoAsistencia = '0'; // Estado '0' para registro manual
+
         if ($asistencia) {
-            // Actualizar
+            // Actualizar - mantener la descripción existente si ya tiene "Registro Manual"
+            // o agregarla si es diferente
+            $descripcionActual = $asistencia->descripcion;
+            if (strpos($descripcionActual, 'Registro Manual') === false) {
+                $descripcionFinal = $descripcionActual ?
+                    $descripcionActual . ' | ' . $descripcion :
+                    $descripcion;
+            } else {
+                $descripcionFinal = $descripcionActual;
+            }
+
             $asistencia->update([
                 'tipo_asistencia_id' => $request->tipo_asistencia_id,
                 'hora'               => $hora,
+                'bimestre'           => $request->bimestre,
                 'registrador_id'     => Auth::id(),
-                'descripcion'        => $request->descripcion ?? null,
+                'descripcion'        => $descripcionFinal,
+                'estado'             => $estadoAsistencia, // Actualizar estado a '0'
             ]);
         } else {
             // Crear nuevo
             $asistencia = Asistencia::create([
                 'estudiante_id'      => $estudiante->id,
                 'grado_id'           => $request->grado_id,
+                'periodo_id'         => $request->periodo_id,
                 'bimestre'           => $request->bimestre,
                 'tipo_asistencia_id' => $request->tipo_asistencia_id,
                 'fecha'              => $fecha,
                 'hora'               => $hora,
                 'registrador_id'     => Auth::id(),
-                'descripcion'        => null,
+                'descripcion'        => $descripcion,
+                'estado'             => $estadoAsistencia, // Estado '0' para registro manual
             ]);
         }
 
         // Cargar relación para devolver datos útiles
-        $asistencia->load('tipoasistencia');
+        $asistencia->load('tipoasistencia', 'periodo');
 
         return response()->json([
             'success' => true,
@@ -384,80 +409,14 @@ public function showDate($grado_grado_seccion, $grado_nivel, $date)
                 'nombre_tipo'        => $asistencia->tipoasistencia->nombre ?? '—',
                 'color'              => $asistencia->tipoasistencia->color ?? '#6B7280',
                 'hora'               => substr($asistencia->hora, 0, 5),
-                'estado'             => 'Registrado',
+                'periodo_id'         => $asistencia->periodo_id,
+                'periodo_nombre'     => $asistencia->periodo->nombre ?? '—',
+                'descripcion'        => $asistencia->descripcion,
+                'estado'             => $asistencia->estado == '0' ? 'Registro Manual' : 'Registrado',
+                'estado_codigo'      => $asistencia->estado,
             ]
         ]);
     }
-    /*
-    public function actualizarMultiple(Request $request, Grado $grado, string $fecha)
-    {
-        $request->validate([
-            'bimestre'                  => 'required|integer|between:1,4',
-            'asistencias'               => 'required|array',
-            'asistencias.*'             => 'nullable|exists:tipo_asistencias,id',
-            'horas'                     => 'required|array',
-            'horas.*'                   => 'nullable|date_format:H:i',
-        ]);
-
-        $fechaCarbon = Carbon::createFromFormat('d-m-Y', $fecha)->startOfDay();
-        $bimestre    = $request->bimestre;
-        $userId      = Auth::id();
-
-        $actualizadas = 0;
-        $creadas      = 0;
-
-        foreach ($request->asistencias as $estudianteId => $tipoAsistenciaId) {
-            if (!$tipoAsistenciaId) {
-                continue;
-            }
-
-            $hora = $request->horas[$estudianteId] ?? now()->format('H:i');
-
-            $estudiante = Estudiante::find($estudianteId);
-            if (!$estudiante || $estudiante->grado_id != $grado->id) {
-                continue;
-            }
-
-            $asistencia = Asistencia::where([
-                'estudiante_id' => $estudianteId,
-                'grado_id'      => $grado->id,
-                'fecha'         => $fechaCarbon,
-            ])->first();
-
-            if ($asistencia) {
-                $asistencia->update([
-                    'tipo_asistencia_id' => $tipoAsistenciaId,
-                    'hora'               => $hora,
-                    'registrador_id'     => $userId,
-                    'bimestre'           => $bimestre,
-                ]);
-                $actualizadas++;
-            } else {
-                Asistencia::create([
-                    'estudiante_id'      => $estudianteId,
-                    'grado_id'           => $grado->id,
-                    'bimestre'           => $bimestre,
-                    'tipo_asistencia_id' => $tipoAsistenciaId,
-                    'fecha'              => $fechaCarbon,
-                    'hora'               => $hora,
-                    'registrador_id'     => $userId,
-                ]);
-                $creadas++;
-            }
-        }
-
-        // ← Cambio importante aquí
-        $fechaDMY = $fechaCarbon->format('d-m-Y');           // 30-12-2025
-        $gradoSeccion = $grado->grado . $grado->seccion;     // ej: 1A
-        $nivel = strtolower($grado->nivel);                  // ej: secundaria
-
-        return redirect()->route('asistencia.grado', [
-            'grado_grado_seccion' => $gradoSeccion,
-            'grado_nivel'         => $nivel,
-            'date'                => $fechaDMY,
-        ])->with('success', "Se actualizaron $actualizadas y crearon $creadas registros de asistencia.");
-    }*/
-
     public function store(Request $request)
     {
         $validated = $request->validate([
