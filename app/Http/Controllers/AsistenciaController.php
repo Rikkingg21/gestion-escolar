@@ -34,37 +34,59 @@ class AsistenciaController extends Controller
 
     public function index(Request $request)
     {
-        // Obtener el año seleccionado (o el actual por defecto)
-        $selectedYear = $request->input('year', now()->year);
+        // Obtener el año seleccionado (por defecto año actual)
+        $currentYear = $request->get('year', now()->year);
+        $hoy = now()->format('Y-m-d');
 
-        // Obtener años distintos que tienen registros de asistencia
-        $yearsWithAttendance = Asistencia::select(DB::raw('YEAR(fecha) as year'))
-            ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year');
+        // Obtener el período activo para el año seleccionado
+        $periodoActual = Periodo::where('anio', $currentYear)
+            ->where('estado', '1')
+            ->first();
 
-        // Si el año seleccionado tiene registros, mostrar todos los grados (sin filtrar por estado)
-        if ($yearsWithAttendance->contains($selectedYear)) {
-            $grados = Grado::withCount(['asistencias' => function($query) use ($selectedYear) {
-                    $query->whereYear('fecha', $selectedYear);
-                }])
-                ->orderBy('nivel')
-                ->orderBy('grado')
-                ->orderBy('seccion')
-                ->get();
-        } else {
-            // Si no hay registros para el año, mostrar solo grados activos
-            $grados = Grado::where('estado', 1)
-                ->orderBy('nivel')
-                ->orderBy('grado')
-                ->orderBy('seccion')
-                ->get();
+        if (!$periodoActual) {
+            $periodoActual = Periodo::where('estado', '1')
+                ->orderBy('anio', 'desc')
+                ->first();
+        }
+
+        // Obtener grados con múltiples conteos
+        $grados = Grado::withCount([
+            // Total de asistencias en el período
+            'asistencias as total_asistencias' => function($query) use ($periodoActual) {
+                $query->where('periodo_id', $periodoActual->id);
+            },
+            // Asistencias de hoy en el período
+            'asistencias as asistencias_hoy' => function($query) use ($periodoActual, $hoy) {
+                $query->where('periodo_id', $periodoActual->id)
+                    ->whereDate('fecha', $hoy);
+            },
+            // Estudiantes matriculados activos en este período
+            'matriculas as estudiantes_matriculados' => function($query) use ($periodoActual) {
+                $query->where('periodo_id', $periodoActual->id)
+                    ->where('estado', '1');
+            }
+        ])
+        ->orderBy('nivel')
+        ->orderBy('grado')
+        ->orderBy('seccion')
+        ->get();
+
+        $availableYears = Periodo::where('estado', '1')
+            ->orderBy('anio', 'desc')
+            ->pluck('anio')
+            ->unique()
+            ->toArray();
+
+        if (empty($availableYears)) {
+            $availableYears = [now()->year];
         }
 
         return view('asistencia.index', [
             'grados' => $grados,
-            'currentYear' => $selectedYear,
-            'availableYears' => $yearsWithAttendance
+            'currentYear' => $currentYear,
+            'availableYears' => $availableYears,
+            'periodoActual' => $periodoActual,
+            'fechaHoy' => $hoy,
         ]);
     }
 
@@ -305,7 +327,6 @@ class AsistenciaController extends Controller
             'date'                => $fechaDMY,
         ])->with('success', $mensaje);
     }
-
     public function marcarIndividual(Request $request, Estudiante $estudiante)
     {
         $request->validate([
@@ -620,86 +641,134 @@ class AsistenciaController extends Controller
     }
     public function marcarTodosPuntualidad(Request $request)
     {
-        $fecha_seleccionada = $request->input('fecha'); // Formato esperado: 'Y-m-d'
-        $bimestre_seleccionado = $request->input('bimestre');
+        $request->validate([
+            'fecha' => 'required|date',
+            'bimestre' => 'required|integer|between:1,4',
+        ]);
 
-        // Validar que se haya proporcionado bimestre
-        if (!$bimestre_seleccionado) {
+        $fecha = Carbon::parse($request->fecha)->startOfDay();
+        $anioFecha = $fecha->year;
+        $bimestre = $request->bimestre;
+
+        // Obtener período basado en el año de la fecha
+        $periodo = Periodo::where('anio', $anioFecha)
+            ->where('estado', '1')
+            ->first();
+
+        if (!$periodo) {
             return response()->json([
                 'success' => false,
-                'error' => 'Debe seleccionar un bimestre'
-            ], 400);
+                'error' => 'No hay un período activo para el año ' . $anioFecha
+            ], 422);
         }
 
-        // Obtener grados activos
-        $gradosActivos = Grado::where('estado', '1')->pluck('id')->toArray();
-
-        // Obtener estudiantes activos
-        $estudiantesActivos = Estudiante::whereIn('grado_id', $gradosActivos)
-            ->where('estado', '1')
-            ->with(['asistencias' => function($query) use ($fecha_seleccionada) {
-                $query->whereDate('fecha', $fecha_seleccionada);
-            }])
-            ->get();
+        // Obtener todos los grados activos
+        $gradosActivos = Grado::where('estado', '1')->get();
 
         DB::beginTransaction();
+
         try {
             $registrosCreados = 0;
             $registrosOmitidos = 0;
-            $estudiantesSinRegistro = [];
+            $noMatriculados = 0;
+            $retirados = 0;
+            $estudiantesAfectados = [];
 
-            foreach ($estudiantesActivos as $estudiante) {
-                // Verificar si ya tiene registro en esta fecha
-                $tieneRegistro = $estudiante->asistencias->isNotEmpty();
+            foreach ($gradosActivos as $grado) {
+                // Obtener estudiantes matriculados ACTIVOS en este grado para el período
+                $matriculasActivas = Matricula::with(['estudiante'])
+                    ->where('grado_id', $grado->id)
+                    ->where('periodo_id', $periodo->id)
+                    ->where('estado', '1') // Solo matriculados activos
+                    ->get();
 
-                if ($tieneRegistro) {
-                    // Si ya tiene registro, OMITIR (no hacer nada)
-                    $registrosOmitidos++;
-                    continue;
+                foreach ($matriculasActivas as $matricula) {
+                    $estudiante = $matricula->estudiante;
+
+                    if (!$estudiante) {
+                        continue; // Si no hay estudiante asociado
+                    }
+
+                    // Verificar si ya existe asistencia para esta fecha, grado y período
+                    $existe = Asistencia::where([
+                        'estudiante_id' => $estudiante->id,
+                        'grado_id' => $grado->id,
+                        'periodo_id' => $periodo->id,
+                        'fecha' => $fecha,
+                    ])->exists();
+
+                    if ($existe) {
+                        $registrosOmitidos++;
+                        continue; // Ya existe registro
+                    }
+
+                    // Crear nuevo registro
+                    Asistencia::create([
+                        'estudiante_id'      => $estudiante->id,
+                        'grado_id'           => $grado->id,
+                        'periodo_id'         => $periodo->id,
+                        'bimestre'           => $bimestre,
+                        'tipo_asistencia_id' => 5, // ID para "Puntual"
+                        'fecha'              => $fecha,
+                        'hora'               => now()->toTimeString(),
+                        'registrador_id'     => auth()->id(),
+                        'descripcion'        => 'Registro automático masivo',
+                        'estado'             => '1',
+                    ]);
+
+                    $registrosCreados++;
+
+                    // Agregar a la lista de afectados
+                    $estudiantesAfectados[] = [
+                        'estudiante_id' => $estudiante->id,
+                        'grado_id' => $grado->id,
+                        'grado' => $grado->grado . '° ' . $grado->seccion,
+                        'nivel' => $grado->nivel,
+                    ];
                 }
 
-                // Solo crear registro para estudiantes SIN registro previo
-                Asistencia::create([
-                    'estudiante_id' => $estudiante->id,
-                    'grado_id' => $estudiante->grado_id,
-                    'bimestre' => $bimestre_seleccionado,
-                    'tipo_asistencia_id' => 5, // Puntualidad
-                    'fecha' => $fecha_seleccionada,
-                    'hora' => now()->format('H:i:s'),
-                    'registrador_id' => auth()->id(),
-                    'descripcion' => 'Registro automático de Puntualidad'
-                ]);
-                $registrosCreados++;
-
-                $estudiantesSinRegistro[] = [
-                    'id' => $estudiante->id,
-                    'nombre' => $estudiante->user->nombre ?? 'N/A'
-                ];
+                // Contar estudiantes retirados para información
+                $retirados += Matricula::where('grado_id', $grado->id)
+                    ->where('periodo_id', $periodo->id)
+                    ->where('estado', '0') // Retirados
+                    ->count();
             }
+
+            // Contar estudiantes no matriculados en ningún grado del período
+            $totalEstudiantes = Estudiante::count();
+            $matriculadosEnPeriodo = Matricula::where('periodo_id', $periodo->id)->count();
+            $noMatriculados = $totalEstudiantes - $matriculadosEnPeriodo;
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'fecha' => $fecha_seleccionada,
-                'bimestre' => $bimestre_seleccionado,
-                'total_estudiantes_activos' => $estudiantesActivos->count(),
-                'estudiantes_con_registro' => $registrosOmitidos,
-                'registros_creados' => $registrosCreados,
-                'estudiantes_afectados' => $estudiantesSinRegistro,
+                'total_afectados' => $registrosCreados,
+                'fecha' => $fecha->format('Y-m-d'),
+                'bimestre' => $bimestre,
+                'periodo' => [
+                    'id' => $periodo->id,
+                    'nombre' => $periodo->nombre,
+                    'anio' => $periodo->anio,
+                ],
+                'resumen' => [
+                    'registros_creados' => $registrosCreados,
+                    'registros_omitidos' => $registrosOmitidos,
+                    'estudiantes_retirados' => $retirados,
+                    'estudiantes_no_matriculados' => $noMatriculados,
+                    'grados_activos_procesados' => $gradosActivos->count(),
+                ],
+                'estudiantes_afectados' => $estudiantesAfectados,
                 'mensaje' => $registrosCreados > 0
-                    ? "Se marcaron {$registrosCreados} estudiantes como puntuales. Se omitieron {$registrosOmitidos} que ya tenían registro."
-                    : "No se crearon nuevos registros. Todos los estudiantes ya tenían asistencia registrada."
+                    ? "Se marcaron {$registrosCreados} estudiantes como puntuales en {$gradosActivos->count()} grados activos."
+                    : "No se crearon nuevos registros. Todos los estudiantes matriculados ya tenían asistencia registrada para esta fecha."
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-
             return response()->json([
                 'success' => false,
-                'error' => 'Error al procesar las asistencias: ' . $e->getMessage(),
-                'fecha' => $fecha_seleccionada,
-                'bimestre' => $bimestre_seleccionado
+                'error' => 'Error al procesar: ' . $e->getMessage()
             ], 500);
         }
     }
