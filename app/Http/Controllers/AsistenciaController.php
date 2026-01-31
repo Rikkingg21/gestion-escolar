@@ -774,25 +774,31 @@ class AsistenciaController extends Controller
     }
     public function reporteAsistencia(Request $request)
     {
+        // Obtener períodos activos para el filtro
+        $periodos = Periodo::where('estado', '1')
+            ->orderBy('anio', 'desc')
+            ->get();
+
         $grados = Grado::where('estado', 1)
             ->orderBy('nivel')
             ->orderBy('grado')
             ->orderBy('seccion')
             ->get();
 
-        // Cargar tipos de asistencia sin el filtro de estado
         $tiposAsistencia = Tipoasistencia::all();
 
         // Si se envió el formulario, procesar los resultados
         if ($request->has('grado_id')) {
             $request->validate([
                 'grado_id' => 'required|exists:grados,id',
+                'periodo_id' => 'required|exists:periodos,id',
                 'fecha_inicio' => 'required|date',
                 'fecha_fin' => 'required|date|after_or_equal:fecha_inicio'
             ]);
 
-            $query = Asistencia::with(['estudiante.user', 'grado', 'tipoasistencia', 'bimestre'])
-                ->whereBetween('fecha', [$request->fecha_inicio, $request->fecha_fin]);
+            $query = Asistencia::with(['estudiante.user', 'grado', 'tipoasistencia', 'bimestre', 'periodo'])
+                ->whereBetween('fecha', [$request->fecha_inicio, $request->fecha_fin])
+                ->where('periodo_id', $request->periodo_id); // Filtrar por período
 
             if ($request->filled('grado_id')) {
                 $query->where('grado_id', $request->grado_id);
@@ -814,33 +820,72 @@ class AsistenciaController extends Controller
                                 ->orderBy('estudiante_id')
                                 ->get();
 
-            return view('asistencia.reporte', compact('grados', 'tiposAsistencia', 'asistencias'));
+            // Calcular estadísticas
+            $estadisticas = [];
+            if ($asistencias->count() > 0) {
+                $estadisticas = [
+                    'total_asistencias' => $asistencias->count(),
+                    'por_tipo_asistencia' => $asistencias->groupBy('tipo_asistencia_id')->map->count(),
+                    'por_bimestre' => $asistencias->groupBy('bimestre')->map->count(),
+                    'fecha_primera' => $asistencias->min('fecha'),
+                    'fecha_ultima' => $asistencias->max('fecha'),
+                    'total_estudiantes' => $asistencias->unique('estudiante_id')->count(),
+                ];
+            }
+
+            return view('asistencia.reporte', compact(
+                'periodos',
+                'grados',
+                'tiposAsistencia',
+                'asistencias',
+                'estadisticas'
+            ));
         }
 
         return view('asistencia.reporte', [
+            'periodos' => $periodos,
             'grados' => $grados,
             'tiposAsistencia' => $tiposAsistencia,
-            'asistencias' => collect() // Colección vacía para evitar errores
+            'asistencias' => collect(),
+            'estadisticas' => null
         ]);
     }
     public function estudiantesPorGrado(Request $request)
     {
-        $gradoId = $request->get('grado_id');
+        $request->validate([
+            'grado_id' => 'required|exists:grados,id',
+            'periodo_id' => 'required|exists:periodos,id' // Ahora necesitamos también el periodo_id
+        ]);
 
-        $estudiantes = Estudiante::where('grado_id', $gradoId)
-            ->where('estado', 1)
-            ->with('user')
+        $gradoId = $request->get('grado_id');
+        $periodoId = $request->get('periodo_id');
+
+        // Obtener estudiantes MATRICULADOS en el grado y período específicos
+        $estudiantes = Matricula::where('grado_id', $gradoId)
+            ->where('periodo_id', $periodoId)
+            ->where('estado', '1') // Solo matriculados activos
+            ->with(['estudiante.user'])
             ->get()
-            ->map(function($estudiante) {
+            ->map(function($matricula) {
+                $estudiante = $matricula->estudiante;
+
+                if (!$estudiante || !$estudiante->user) {
+                    return null;
+                }
+
                 // Formato: Apellidos, Nombres
                 $apellidos = trim($estudiante->user->apellido_paterno . ' ' . $estudiante->user->apellido_materno);
                 $nombres = $estudiante->user->nombre;
 
                 return [
                     'id' => $estudiante->id,
-                    'nombres_completos' => $apellidos . ', ' . $nombres
+                    'nombres_completos' => $apellidos . ', ' . $nombres,
+                    'matricula_estado' => $matricula->estado
                 ];
-            });
+            })
+            ->filter() // Filtrar valores nulos
+            ->sortBy('nombres_completos')
+            ->values();
 
         return response()->json($estudiantes);
     }
