@@ -355,6 +355,7 @@
                             <i class="fas fa-save"></i>
                             {{ $existenRegistros ? 'Actualizar Asistencia' : 'Guardar Asistencia' }}
                         </button>
+
                     </div>
                 </div>
             </div>

@@ -235,6 +235,9 @@ Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstu
     Route::post('/asistencia/marcar-todos-puntualidad', [AsistenciaController::class, 'marcarTodosPuntualidad'])->name('asistencia.marcar-todos-puntualidad');
     Route::get('/asistencia/reporte', [AsistenciaController::class, 'reporteAsistencia'])->name('asistencia.reporte');
     Route::get('/asistencia/estudiantes-por-grado', [AsistenciaController::class, 'estudiantesPorGrado'])->name('asistencia.estudiantes-por-grado');
-
+    Route::post('/asistencia/bloquear', [AsistenciaController::class, 'bloquear'])
+    ->name('asistencia.bloquear');
+    Route::post('/asistencia/desbloquear', [AsistenciaController::class, 'desbloquear'])
+    ->name('asistencia.desbloquear');
     Route::get('/historial-asistencia/{anio?}/{bimestre?}', [AsistenciahistorialController::class, 'calendarioAsistencia'])->name('asistencia.calendario');
 });
