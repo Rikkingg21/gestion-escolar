@@ -188,9 +188,6 @@ class NotaController extends Controller
         $notasExistentes = $this->cargarNotasExistentes($curso_grado_sec_niv_anio_id, $bimestre, $competencias, $estudiantes);
         $conductaNotas = $this->cargarConductaNotas($curso_grado_sec_niv_anio_id, $bimestre, $estudiantes);
 
-        //Datos de SIAGIE - Promedios de lo que está llamando
-        // (Los cálculos se harán en la vista o en un método adicional según sea necesario)
-
         return view('nota.index', [
             'user' => $user,
             'estadosNotas' => $estadosNotasConfig,
@@ -330,27 +327,29 @@ class NotaController extends Controller
     }
 
     //Cargar notas de conducta existentes
-    private function cargarConductaNotas($curso_id, $bimestre, $estudiantes)
+    private function cargarConductaNotas($curso_grado_sec_niv_anio_id, $bimestre, $estudiantes)
     {
         $estudianteIds = $estudiantes['activos']->pluck('id')
             ->merge($estudiantes['retirados']->pluck('id'));
 
-        // Obtener el periodo_id del curso
-        $periodo_id = Cursogradosecnivanio::find($curso_id)?->periodo_id;
+        // Si no hay estudiantes, retornar colección vacía
+        if ($estudianteIds->isEmpty()) {
+            return collect();
+        }
 
-        $conductaNotas = Conductanota::where('bimestre', $bimestre)
-            ->where('periodo_id', $periodo_id)
+        return Conductanota::where('bimestre', $bimestre)
+            ->where('curso_grado_sec_niv_anio_id', $curso_grado_sec_niv_anio_id)
             ->whereIn('estudiante_id', $estudianteIds)
-            ->get();
-
-        return $conductaNotas->mapWithKeys(function ($item) {
-            return [
-                $item['estudiante_id'].'-'.$item['conducta_id'] => [
-                    'nota' => $item['nota'],
-                    'publico' => $item['publico']
-                ]
-            ];
-        });
+            ->get()
+            ->mapWithKeys(function ($item) {
+                // Clave: solo estudiante-conducta (sin curso)
+                return [
+                    $item->estudiante_id . '-' . $item->conducta_id => [
+                        'nota' => $item->nota ?? 0,
+                        'publico' => $item->publico ?? false
+                    ]
+                ];
+            });
     }
     //Obtener estado actual de las notas
     private function obtenerEstadoActual($curso_id, $bimestre)
@@ -611,9 +610,16 @@ class NotaController extends Controller
             $notas_criterios = $request->notas ?? [];
             $notas_conductas = $request->conductas ?? [];
             $estadoActual = $this->obtenerEstadoActual($curso_id, $bimestre);
-            $periodo_id = Cursogradosecnivanio::find($curso_id)->periodo_id;
 
-            // 1. Procesar notas de criterios
+            // Obtener el curso para extraer periodo_id y asegurar que existe
+            $curso = Cursogradosecnivanio::find($curso_id);
+            if (!$curso) {
+                throw new \Exception('Curso no encontrado');
+            }
+
+            $periodo_id = $curso->periodo_id;
+
+            // 1. Procesar notas de criterios (esta parte se mantiene igual)
             foreach ($notas_criterios as $estudiante_id => $criterios) {
                 foreach ($criterios as $criterio_id => $nota) {
                     // Solo procesar si la nota tiene valor (no vacío)
@@ -670,7 +676,7 @@ class NotaController extends Controller
                 }
             }
 
-            // 2. Procesar notas de conductas
+            // 2. Procesar notas de conductas (ACTUALIZADO con curso_grado_sec_niv_anio_id)
             foreach ($notas_conductas as $estudiante_id => $conductas) {
                 foreach ($conductas as $conducta_id => $nota) {
                     // Solo procesar si la nota tiene valor (no vacío)
@@ -683,10 +689,11 @@ class NotaController extends Controller
                         }
 
                         // Buscar si ya existe una nota de conducta
+                        // CAMBIO IMPORTANTE: Ahora también filtramos por curso_grado_sec_niv_anio_id
                         $notaConductaExistente = Conductanota::where('estudiante_id', $estudiante_id)
                             ->where('conducta_id', $conducta_id)
+                            ->where('curso_grado_sec_niv_anio_id', $curso_id) // NUEVO FILTRO
                             ->where('bimestre', $bimestre)
-                            ->where('periodo_id', $periodo_id)
                             ->first();
 
                         if ($notaConductaExistente) {
@@ -694,6 +701,7 @@ class NotaController extends Controller
                             if ($this->puedeEditarNota($estadoActual)) {
                                 $notaConductaExistente->update([
                                     'nota' => $nota,
+                                    'periodo_id' => $periodo_id, // Actualizar periodo_id por si acaso
                                 ]);
                             }
                         } else {
@@ -702,6 +710,7 @@ class NotaController extends Controller
                                 Conductanota::create([
                                     'estudiante_id' => $estudiante_id,
                                     'conducta_id' => $conducta_id,
+                                    'curso_grado_sec_niv_anio_id' => $curso_id, // NUEVO CAMPO
                                     'periodo_id' => $periodo_id,
                                     'bimestre' => $bimestre,
                                     'nota' => $nota,
@@ -714,8 +723,8 @@ class NotaController extends Controller
                         if ($this->puedeEditarNota($estadoActual)) {
                             $notaConductaExistente = Conductanota::where('estudiante_id', $estudiante_id)
                                 ->where('conducta_id', $conducta_id)
+                                ->where('curso_grado_sec_niv_anio_id', $curso_id) // NUEVO FILTRO
                                 ->where('bimestre', $bimestre)
-                                ->where('periodo_id', $periodo_id)
                                 ->first();
 
                             if ($notaConductaExistente) {
