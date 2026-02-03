@@ -594,38 +594,117 @@
             <!-- Sección de Calificaciones de Conducta -->
             @if($notas_conducta->count() > 0)
             <div class="mt-4">
-                <div class="border border-2 border-info rounded-3 p-3">
-                    <h5 class="fw-bold text-info mb-3">
+                <div class="border border-2 border-success rounded-3 p-3">
+                    <h5 class="mb-3">
                         <i class="fas fa-user-check me-2"></i>Calificaciones de Conducta
                     </h5>
 
-                    <div class="table-responsive">
-                        <table class="table table-bordered bg-white">
-                            <thead class="table-info">
+                    <!-- Tabla resumen de conductas -->
+                    <div class="table-responsive mb-3">
+                        <table class="table table-bordered">
+                            <thead>
                                 <tr>
-                                    <th class="fw-bold">Conducta</th>
-                                    <th class="fw-bold text-center">Bimestre</th>
-                                    <th class="fw-bold text-center">Calificación</th>
+                                    <th class="text-center">Conducta</th>
+                                    <th class="text-center">Bimestre</th>
+                                    <th class="text-center">Calificación Promedio</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($notas_conducta as $notaConducta)
-                                <tr>
-                                    <td class="fw-semibold">{{ $notaConducta['conducta_nombre'] }}</td>
-                                    <td class="text-center">
-                                        @if($notaConducta['bimestre'])
-                                            B{{ $notaConducta['bimestre'] }}
-                                        @else
-                                            <span class="text-muted"> - </span>
-                                        @endif
-                                    </td>
-                                    <td class="text-center fw-bold fs-5">
-                                        <span class="nota-valor">{{ $notaConducta['valor'] }}</span>
-                                    </td>
-                                </tr>
+                                @php
+                                    $conductasAgrupadas = [];
+                                    $totalBimestres = 0;
+
+                                    foreach($notas_conducta as $conductasMateria) {
+                                        foreach($conductasMateria as $notaConducta) {
+                                            $conductaId = $notaConducta['conducta_id'];
+                                            $conductaNombre = $notaConducta['conducta_nombre'];
+                                            $bimestre = $notaConducta['bimestre'];
+                                            $valor = $notaConducta['valor'];
+
+                                            if(!isset($conductasAgrupadas[$conductaId])) {
+                                                $conductasAgrupadas[$conductaId] = [
+                                                    'nombre' => $conductaNombre,
+                                                    'total' => 0,
+                                                    'count' => 0,
+                                                    'bimestres' => []
+                                                ];
+                                            }
+
+                                            $conductasAgrupadas[$conductaId]['total'] += $valor;
+                                            $conductasAgrupadas[$conductaId]['count']++;
+                                            $conductasAgrupadas[$conductaId]['bimestres'][$bimestre] = $valor;
+                                            $totalBimestres = max($totalBimestres, $bimestre);
+                                        }
+                                    }
+                                    ksort($conductasAgrupadas);
+                                @endphp
+
+                                @foreach($conductasAgrupadas as $conductaId => $datosConducta)
+                                    @php
+                                        $promedio = $datosConducta['count'] > 0 ?
+                                            round($datosConducta['total'] / $datosConducta['count'], 1) : 0;
+                                    @endphp
+                                    <tr>
+                                        <td class="fw-bold">{{ $datosConducta['nombre'] }}</td>
+                                        <td class="text-center">
+                                            @for($i = 1; $i <= $totalBimestres; $i++)
+                                                @if(isset($datosConducta['bimestres'][$i]))
+                                                    B{{ $i }}
+                                                @endif
+                                            @endfor
+                                        </td>
+                                        <td class="text-center fw-bold">{{ $promedio }}</td>
+                                    </tr>
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Acordeón con detalles -->
+                    <div class="accordion mb-3">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed fw-bold text-dark bg-white" type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#collapseConductas">
+                                    Ver detalles por materia
+                                </button>
+                            </h2>
+                            <div id="collapseConductas" class="accordion-collapse collapse">
+                                <div class="accordion-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Materia</th>
+                                                    <th>Conducta</th>
+                                                    <th class="text-center">Bimestre</th>
+                                                    <th class="text-center">Calificación</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($notas_conducta as $materiaNombre => $conductasMateria)
+                                                    @php $materiaIndex = 0; @endphp
+                                                    @foreach($conductasMateria as $notaConducta)
+                                                        <tr>
+                                                            @if($materiaIndex === 0)
+                                                            <td rowspan="{{ count($conductasMateria) }}" class="align-middle">
+                                                                {{ $materiaNombre }}
+                                                            </td>
+                                                            @endif
+                                                            <td>{{ $notaConducta['conducta_nombre'] }}</td>
+                                                            <td class="text-center">B{{ $notaConducta['bimestre'] }}</td>
+                                                            <td class="text-center fw-bold">{{ $notaConducta['valor'] }}</td>
+                                                        </tr>
+                                                        @php $materiaIndex++; @endphp
+                                                    @endforeach
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

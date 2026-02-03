@@ -113,8 +113,12 @@ class LibretaController extends Controller
             $datosVista = array_merge($datosVista, $datosMaterias);
 
             // 2. OBTENER NOTAS DE CONDUCTA
-            $datosVista['notas_conducta'] = $this->obtenerNotasConducta($estudiante->id, $periodoActual, $bimestre);
-
+            $datosVista['notas_conducta'] = $this->obtenerNotasConducta(
+                $estudiante->id,
+                $periodoActual,
+                $bimestre,
+                $matriculaActual->grado_id // Añadir gradoId para filtrar cursos
+            );
             // 3. OBTENER ASISTENCIAS
             $datosAsistencias = $this->obtenerAsistencias($estudiante->id, $matriculaActual->grado_id, $periodoActual, $bimestre);
             $datosVista['asistencias'] = $datosAsistencias['asistencias'];
@@ -333,12 +337,26 @@ class LibretaController extends Controller
     }
 
     //Obtener notas de conducta
-    private function obtenerNotasConducta($estudianteId, $periodoActual, $bimestre)
+    private function obtenerNotasConducta($estudianteId, $periodoActual, $bimestre, $gradoId = null)
     {
-        $notasConductaQuery = Conductanota::with(['conducta', 'periodo'])
+        // Primero, obtener todos los cursos del estudiante en este periodo
+        $cursosEstudiante = Cursogradosecnivanio::where('periodo_id', $periodoActual->id)
+            ->where('grado_id', $gradoId)
+            ->get();
+
+        // Si no hay cursos, retornar colección vacía
+        if ($cursosEstudiante->isEmpty()) {
+            return collect();
+        }
+
+        // Obtener IDs de los cursos
+        $cursoIds = $cursosEstudiante->pluck('id');
+
+        // Consulta para notas de conducta
+        $notasConductaQuery = Conductanota::with(['conducta', 'periodo', 'curso_grado_sec_niv_anio.materia'])
             ->where('estudiante_id', $estudianteId)
-            ->where('periodo_id', $periodoActual->id)
-            ->where('publico', '!=', '0');
+            ->whereIn('curso_grado_sec_niv_anio_id', $cursoIds) // Filtrar por cursos del estudiante
+            ->where('publico', '!=', '0'); // Solo notas publicadas
 
         if ($bimestre !== 'anual') {
             $notasConductaQuery->where('bimestre', $bimestre);
@@ -354,10 +372,12 @@ class LibretaController extends Controller
                     'bimestre' => $notaConducta->bimestre,
                     'publico' => $notaConducta->publico,
                     'periodo_anio' => $notaConducta->periodo->anio ?? null,
+                    'materia_nombre' => $notaConducta->curso_grado_sec_niv_anio->materia->nombre ?? 'General',
+                    'materia_id' => $notaConducta->curso_grado_sec_niv_anio->materia->id ?? null,
                 ];
-            });
+            })
+            ->groupBy('materia_nombre'); // Agrupar por materia
     }
-
     //Obtener asistencias
     private function obtenerAsistencias($estudianteId, $gradoId, $periodoActual, $bimestre)
     {
