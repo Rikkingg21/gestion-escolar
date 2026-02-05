@@ -489,20 +489,7 @@
                                         @if($criterio['nota'])
                                             @php
                                                 $nota = $criterio['nota']['valor'];
-
-                                                // Determinar clase según el tipo de PDF
-                                                if($tipo_pdf == 'cuantitativo' && is_numeric($nota)) {
-                                                    $notaNum = floatval($nota);
-                                                    $textClass = $notaNum >= 3.5 ? 'text-success' :
-                                                                ($notaNum >= 2.5 ? 'text-warning' : 'text-danger');
-                                                } else {
-                                                    // Para cualitativo, usar colores basados en la letra
-                                                    $textClass = in_array($nota, ['AD', 'A']) ? 'text-success' :
-                                                                ($nota == 'B' ? 'text-warning' : 'text-danger');
-
-                                                    // Mostrar la letra directamente (ya viene convertida)
-                                                    $nota = $criterio['nota']['valor'];
-                                                }
+                                                $textClass = ($nota == 'C' || $nota == '1') ? 'text-danger' : '';
                                             @endphp
                                             <span class="nota-valor {{ $textClass }}">
                                                 {{ $nota }}
@@ -516,19 +503,7 @@
                                     @if($competenciaIndex === 0 && $criterioIndex === 0)
                                     <td rowspan="{{ $materia['rowspan'] }}" class="text-center align-middle">
                                         @if($materia['promedio'] > 0)
-                                            @php
-                                                $promedio = $materia['promedio'];
-                                                // Determinar clase según el tipo de PDF
-                                                if($tipo_pdf == 'cuantitativo' && is_numeric($promedio)) {
-                                                    $promedioNum = floatval($promedio);
-                                                    $materiaTextClass = $promedioNum >= 3.5 ? 'text-success' :
-                                                                        ($promedioNum >= 2.5 ? 'text-warning' : 'text-danger');
-                                                } else {
-                                                    // Para cualitativo
-                                                    $materiaTextClass = in_array($promedio, ['AD', 'A']) ? 'text-success' :
-                                                                        ($promedio == 'B' ? 'text-warning' : 'text-danger');
-                                                }
-                                            @endphp
+                                            @php $materiaTextClass = ($materia['promedio'] == 'C' || $materia['promedio'] == '1') ? 'text-danger' : ''; @endphp
                                             <div>
                                                 <span class="nota-valor {{ $materiaTextClass }}">
                                                     {{ $materia['promedio'] }}
@@ -571,19 +546,7 @@
                                 <!-- Columna Calificación -->
                                 <td class="text-center align-middle">
                                     @if($competencia['promedio'] > 0)
-                                    @php
-                                        $promedioComp = $competencia['promedio'];
-                                        // Determinar clase según el tipo de PDF
-                                        if($tipo_pdf == 'cuantitativo' && is_numeric($promedioComp)) {
-                                            $promedioNum = floatval($promedioComp);
-                                            $compTextClass = $promedioNum >= 3.5 ? 'text-success' :
-                                                            ($promedioNum >= 2.5 ? 'text-warning' : 'text-danger');
-                                        } else {
-                                            // Para cualitativo
-                                            $compTextClass = in_array($promedioComp, ['AD', 'A']) ? 'text-success' :
-                                                            ($promedioComp == 'B' ? 'text-warning' : 'text-danger');
-                                        }
-                                    @endphp
+                                    @php $compTextClass = ($competencia['promedio'] == 'C' || $competencia['promedio'] == '1') ? 'text-danger' : ''; @endphp
                                     <span class="nota-valor {{ $compTextClass }}">
                                         {{ $competencia['promedio'] }}
                                     </span>
@@ -654,7 +617,8 @@
                         </td>
                         <td class="text-center">
                             @if($promedioCriterio > 0)
-                                <span class="nota-valor">
+                                @php $transversalClass = ($promedioCriterio == 'C' || $promedioCriterio == '1') ? 'text-danger' : ''; @endphp
+                                <span class="nota-valor {{ $transversalClass }}">
                                     {{ $promedioCriterio }}
                                 </span>
                                 <div style="font-size: 9px; color: #666;">
@@ -673,7 +637,8 @@
                             <strong>Valoración General de Competencias Transversales</strong>
                         </td>
                         <td class="text-center">
-                            <strong class="nota-valor">{{ $promedio_general_transversales }}</strong>
+                            @php $generalTransClass = ($promedio_general_transversales == 'C' || $promedio_general_transversales == '1') ? 'text-danger' : ''; @endphp
+                            <strong class="nota-valor {{ $generalTransClass }}">{{ $promedio_general_transversales }}</strong>
                         </td>
                     </tr>
                 </tbody>
@@ -688,38 +653,46 @@
         @endif
 
         <!-- Calificaciones de Conducta -->
-        @if($notas_conducta->count() > 0)
+        @if(!empty($conductas_agrupadas))
         <div class="keep-together mt-4">
             <h4 style="color: #17a2b8; border-bottom: 2px solid #17a2b8; padding-bottom: 5px; margin-bottom: 15px;">
                 CALIFICACIONES DE CONDUCTA
             </h4>
 
-            <table class="table">
-                <thead class="table-info">
-                    <tr>
-                        <th style="width: 60%">Conducta</th>
-                        <th style="width: 20%" class="text-center">Bimestre</th>
-                        <th style="width: 20%" class="text-center">Calificación</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($notas_conducta as $notaConducta)
-                    <tr>
-                        <td>{{ $notaConducta['conducta_nombre'] }}</td>
-                        <td class="text-center">
-                            @if($notaConducta['bimestre'])
-                                B{{ $notaConducta['bimestre'] }}
-                            @else
-                                <span class="text-muted"> - </span>
-                            @endif
-                        </td>
-                        <td class="text-center">
-                            <span class="nota-valor">{{ $notaConducta['valor'] }}</span>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
+            <!-- Tabla resumen de conductas (promedios) -->
+            <div style="margin-bottom: 20px;">
+                <table class="table" style="margin-bottom: 0;">
+                    <thead class="table-info">
+                        <tr>
+                            <th style="width: 50%">Conducta</th>
+                            <th style="width: 30%" class="text-center">Bimestre</th>
+                            <th style="width: 20%" class="text-center">Calificación Promedio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($conductas_agrupadas as $conductaId => $datosConducta)
+                        <tr>
+                            <td>{{ $datosConducta['nombre'] }}</td>
+                            <td class="text-center">
+                                @if($total_bimestres_conducta > 0)
+                                    @for($i = 1; $i <= $total_bimestres_conducta; $i++)
+                                        @if(isset($datosConducta['bimestres'][$i]))
+                                            B{{ $i }}
+                                        @endif
+                                    @endfor
+                                @else
+                                    <span class="text-muted"> - </span>
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                @php $condClass = ($datosConducta['promedio'] == 'C' || $datosConducta['promedio'] == '1') ? 'text-danger' : ''; @endphp
+                                <span class="nota-valor {{ $condClass }}">{{ $datosConducta['promedio'] }}</span>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
         @endif
 
@@ -727,7 +700,7 @@
         @if($asistencias->count() > 0)
         <div class="keep-together mt-4">
             <h4 style="color: #856404; border-bottom: 3px solid #ffc107; padding-bottom: 8px; margin-bottom: 20px; font-family: 'Times New Roman', serif;">
-                📋 REGISTRO DE ASISTENCIAS
+                REGISTRO DE ASISTENCIAS
             </h4>
 
             @if(count($resumen_asistencias['tipos']) > 0)

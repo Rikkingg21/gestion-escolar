@@ -240,361 +240,358 @@
             <!-- Sección de Calificaciones de Materias -->
             @if(count($materias_regulares) > 0 || count($competencias_transversales) > 0)
             <div class="mt-4">
-                <div class="border border-2 border-success rounded-3 p-3">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold text-success mb-0">
-                            <i class="fas fa-chart-bar me-2"></i>Calificaciones Académicas
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">
+                        Calificaciones Académicas
+                    </h5>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="switchCualitativo" checked>
+                        <label class="form-check-label fw-bold" for="switchCualitativo">
+                            <span id="labelSwitchCualitativo">Cuantitativo</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Mostrar Materias Regulares -->
+                @if(count($materias_procesadas) > 0)
+                <div class="card mb-4 border shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">
+                            Calificaciones Regulares
                         </h5>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="switchCualitativo" checked>
-                            <label class="form-check-label fw-bold" for="switchCualitativo">
-                                <span id="labelSwitchCualitativo">Cuantitativo</span>
-                            </label>
+                        @if($promedio_general_materias > 0)
+                        <div class="badge bg-success fs-6">
+                            Promedio General: {{ number_format($promedio_general_materias, 1) }}
                         </div>
+                        @endif
                     </div>
 
-                    <!-- Mostrar Materias Regulares -->
-                    @if(count($materias_procesadas) > 0)
-                    <div class="card mb-4 border shadow-sm">
-                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                            <h5 class="fw-bold mb-0">
-                                <i class="fas fa-table me-2"></i>Calificaciones Regulares
-                            </h5>
-                            @if($promedio_general_materias > 0)
-                            <div class="badge bg-success fs-6">
-                                Promedio General: {{ number_format($promedio_general_materias, 1) }}
-                            </div>
-                            @endif
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered mb-0">
+                            <thead class="table-primary">
+                                <tr class="text-center align-middle">
+                                    <th style="width: 20%;" class="fw-bold">Materia</th>
+                                    <th style="width: 20%;" class="fw-bold">Competencia</th>
+                                    <th style="width: 25%;" class="fw-bold">Criterio</th>
+                                    <th style="width: 5%;" class="fw-bold">Bimestre</th>
+                                    <th style="width: 5%;" class="fw-bold">CRIT</th>
+                                    <th style="width: 15%;" class="fw-bold">Calificación</th>
+                                    <th style="width: 10%;" class="fw-bold">Promedio Materia</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php $criterioCounter = 0; $competenciaCounter = 0; @endphp
+                                @foreach($materias_procesadas as $materiaIndex => $materia)
+                                    @php $competenciaInMateriaCounter = 0; @endphp
+                                    @foreach($materia['competencias'] as $competenciaIndex => $competencia)
+                                        @php
+                                            $competenciaCounter++;
+                                            $competenciaInMateriaCounter++;
+                                        @endphp
 
-                        <div class="table-responsive">
-                            <table class="table table-bordered mb-0">
-                                <thead class="table-primary">
-                                    <tr class="text-center align-middle">
-                                        <th style="width: 20%;" class="fw-bold">Materia</th>
-                                        <th style="width: 20%;" class="fw-bold">Competencia</th>
-                                        <th style="width: 25%;" class="fw-bold">Criterio</th>
-                                        <th style="width: 5%;" class="fw-bold">Bimestre</th>
-                                        <th style="width: 5%;" class="fw-bold">CRIT</th>
-                                        <th style="width: 15%;" class="fw-bold">Calificación</th>
-                                        <th style="width: 10%;" class="fw-bold">Promedio Materia</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @php $criterioCounter = 0; $competenciaCounter = 0; @endphp
-                                    @foreach($materias_procesadas as $materiaIndex => $materia)
-                                        @php $competenciaInMateriaCounter = 0; @endphp
-                                        @foreach($materia['competencias'] as $competenciaIndex => $competencia)
-                                            @php
-                                                $competenciaCounter++;
-                                                $competenciaInMateriaCounter++;
-                                            @endphp
+                                        <!-- Mostrar criterios de la competencia -->
+                                        @foreach($competencia['criterios'] as $criterioIndex => $criterio)
+                                            @php $criterioCounter++; @endphp
+                                            <tr>
+                                                <!-- Columna Materia -->
+                                                @if($competenciaIndex === 0 && $criterioIndex === 0)
+                                                <td rowspan="{{ $materia['rowspan'] }}" class="align-middle bg-light text-center">
+                                                    <div class="fw-bold text-primary">
+                                                        {{ $materia['nombre'] }}
+                                                    </div>
+                                                </td>
+                                                @endif
 
-                                            <!-- Mostrar criterios de la competencia -->
-                                            @foreach($competencia['criterios'] as $criterioIndex => $criterio)
-                                                @php $criterioCounter++; @endphp
-                                                <tr>
-                                                    <!-- Columna Materia -->
-                                                    @if($competenciaIndex === 0 && $criterioIndex === 0)
-                                                    <td rowspan="{{ $materia['rowspan'] }}" class="align-middle bg-light text-center">
-                                                        <div class="fw-bold text-primary">
-                                                            {{ $materia['nombre'] }}
+                                                <!-- Columna Competencia -->
+                                                @if($criterioIndex === 0)
+                                                <td rowspan="{{ $competencia['criterios_count'] + 1 }}"
+                                                    class="align-middle bg-success bg-opacity-10">
+                                                    <div class="fw-semibold text-success">
+                                                        {{ $competencia['nombre'] }}
+                                                    </div>
+                                                </td>
+                                                @endif
+
+                                                <!-- Columna Criterio -->
+                                                <td class="align-middle">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bullet-excel me-2">
+                                                            {{ $criterio['criterio_nombre'] }}
                                                         </div>
-                                                    </td>
-                                                    @endif
-
-                                                    <!-- Columna Competencia -->
-                                                    @if($criterioIndex === 0)
-                                                    <td rowspan="{{ $competencia['criterios_count'] + 1 }}"
-                                                        class="align-middle bg-success bg-opacity-10">
-                                                        <div class="fw-semibold text-success">
-                                                            {{ $competencia['nombre'] }}
-                                                        </div>
-                                                    </td>
-                                                    @endif
-
-                                                    <!-- Columna Criterio -->
-                                                    <td class="align-middle">
-                                                        <div class="d-flex align-items-center">
-                                                            <div class="bullet-excel me-2">
-                                                                {{ $criterio['criterio_nombre'] }}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-
-                                                    <!-- Columna Bimestre -->
-                                                    <td class="text-center align-middle">
-                                                        @if($criterio['nota'] && $criterio['nota']['bimestre'])
-                                                        <span class="text-dark">
-                                                            B{{ $criterio['nota']['bimestre'] }}
-                                                        </span>
-                                                        @else
-                                                        <span class="text-muted">-</span>
-                                                        @endif
-                                                    </td>
-
-                                                    <!-- Columna CRIT -->
-                                                    <td class="text-center align-middle fw-bold text-info">
-                                                        C{{ $criterioCounter }}
-                                                    </td>
-
-                                                    <!-- Columna Calificación -->
-                                                    <td class="text-center align-middle fw-bold fs-5">
-                                                        @if($criterio['nota'])
-                                                            <span class="px-3 py-1 nota-valor">
-                                                                {{ $criterio['nota']['valor'] }}
-                                                            </span>
-                                                        @else
-                                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary">
-                                                                N/A
-                                                            </span>
-                                                        @endif
-                                                    </td>
-
-                                                    <!-- Columna Promedio Materia -->
-                                                    @if($competenciaIndex === 0 && $criterioIndex === 0)
-                                                    <td rowspan="{{ $materia['rowspan'] }}" class="text-center align-middle">
-                                                        @if($materia['promedio'] > 0)
-                                                            @php
-                                                                $materiaTextClass = $materia['promedio'] >= 3.5 ? 'text-success' :
-                                                                                    ($materia['promedio'] >= 2.5 ? 'text-warning' : 'text-danger');
-                                                            @endphp
-                                                            <div class="d-flex flex-column align-items-center justify-content-center">
-                                                                <span class="fs-5 px-4 py-2 mb-1 fw-bold nota-promedio {{ $materiaTextClass }}">
-                                                                    {{ number_format($materia['promedio'], 0) }}
-                                                                </span>
-                                                                <small class="text-muted">
-                                                                    <i class="fas fa-calculator me-1"></i>Promedio
-                                                                </small>
-                                                            </div>
-                                                        @else
-                                                            <span class="text-muted">-</span>
-                                                        @endif
-                                                    </td>
-                                                    @endif
-                                                </tr>
-                                            @endforeach
-
-                                            <!-- Fila de Valoración de Competencia -->
-                                            <tr class="bg-warning bg-opacity-10">
-                                                <!-- Columna Criterio (para la fila de valoración) -->
-                                                <td class="align-middle fw-bold text-warning">
-                                                    <i class="fas fa-star me-2"></i>Valoración Competencia
+                                                    </div>
                                                 </td>
 
                                                 <!-- Columna Bimestre -->
                                                 <td class="text-center align-middle">
-                                                    @if($competencia['ultimo_criterio'] && $competencia['ultimo_criterio']['nota'] && $competencia['ultimo_criterio']['nota']['bimestre'])
+                                                    @if($criterio['nota'] && $criterio['nota']['bimestre'])
                                                     <span class="text-dark">
-                                                        B{{ $competencia['ultimo_criterio']['nota']['bimestre'] }}
+                                                        B{{ $criterio['nota']['bimestre'] }}
                                                     </span>
                                                     @else
                                                     <span class="text-muted">-</span>
                                                     @endif
                                                 </td>
 
-                                                <!-- Columna CRIT (muestra N1, N2, etc.) -->
-                                                <td class="text-center align-middle fw-bold text-success">
-                                                    N{{ $competenciaCounter }}
+                                                <!-- Columna CRIT -->
+                                                <td class="text-center align-middle fw-bold text-info">
+                                                    C{{ $criterioCounter }}
                                                 </td>
 
-                                                <!-- Columna Calificación (muestra el promedio) -->
-                                                <td class="text-center align-middle">
-                                                    @if($competencia['promedio'] > 0)
-                                                    @php
-                                                        $compTextClass = $competencia['promedio'] >= 3.5 ? 'text-success' :
-                                                                        ($competencia['promedio'] >= 2.5 ? 'text-warning' : 'text-danger');
-                                                    @endphp
-                                                    <span class="fw-bold fs-5 nota-promedio {{ $compTextClass }}">
-                                                        {{ number_format($competencia['promedio'], 0) }}
-                                                    </span>
+                                                <!-- Columna Calificación -->
+                                                <td class="text-center align-middle fw-bold fs-5">
+                                                    @if($criterio['nota'])
+                                                        <span class="px-3 py-1 nota-valor">
+                                                            {{ $criterio['nota']['valor'] }}
+                                                        </span>
                                                     @else
-                                                    <span class="text-muted">-</span>
+                                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary">
+                                                            N/A
+                                                        </span>
                                                     @endif
                                                 </td>
+
+                                                <!-- Columna Promedio Materia -->
+                                                @if($competenciaIndex === 0 && $criterioIndex === 0)
+                                                <td rowspan="{{ $materia['rowspan'] }}" class="text-center align-middle">
+                                                    @if($materia['promedio'] > 0)
+                                                        @php
+                                                            $materiaTextClass = $materia['promedio'] >= 3.5 ? 'text-success' :
+                                                                                ($materia['promedio'] >= 2.5 ? 'text-warning' : 'text-danger');
+                                                        @endphp
+                                                        <div class="d-flex flex-column align-items-center justify-content-center">
+                                                            <span class="fs-5 px-4 py-2 mb-1 fw-bold nota-promedio {{ $materiaTextClass }}">
+                                                                {{ number_format($materia['promedio'], 0) }}
+                                                            </span>
+                                                            <small class="text-muted">
+                                                                <i class="fas fa-calculator me-1"></i>Promedio
+                                                            </small>
+                                                        </div>
+                                                    @else
+                                                        <span class="text-muted">-</span>
+                                                    @endif
+                                                </td>
+                                                @endif
                                             </tr>
                                         @endforeach
+
+                                        <!-- Fila de Valoración de Competencia -->
+                                        <tr class="bg-warning bg-opacity-10">
+                                            <!-- Columna Criterio (para la fila de valoración) -->
+                                            <td class="align-middle fw-bold text-warning">
+                                                <i class="fas fa-star me-2"></i>Valoración Competencia
+                                            </td>
+
+                                            <!-- Columna Bimestre -->
+                                            <td class="text-center align-middle">
+                                                @if($competencia['ultimo_criterio'] && $competencia['ultimo_criterio']['nota'] && $competencia['ultimo_criterio']['nota']['bimestre'])
+                                                <span class="text-dark">
+                                                    B{{ $competencia['ultimo_criterio']['nota']['bimestre'] }}
+                                                </span>
+                                                @else
+                                                <span class="text-muted">-</span>
+                                                @endif
+                                            </td>
+
+                                            <!-- Columna CRIT (muestra N1, N2, etc.) -->
+                                            <td class="text-center align-middle fw-bold text-success">
+                                                N{{ $competenciaCounter }}
+                                            </td>
+
+                                            <!-- Columna Calificación (muestra el promedio) -->
+                                            <td class="text-center align-middle">
+                                                @if($competencia['promedio'] > 0)
+                                                @php
+                                                    $compTextClass = $competencia['promedio'] >= 3.5 ? 'text-success' :
+                                                                    ($competencia['promedio'] >= 2.5 ? 'text-warning' : 'text-danger');
+                                                @endphp
+                                                <span class="fw-bold fs-5 nota-promedio {{ $compTextClass }}">
+                                                    {{ number_format($competencia['promedio'], 0) }}
+                                                </span>
+                                                @else
+                                                <span class="text-muted">-</span>
+                                                @endif
+                                            </td>
+                                        </tr>
                                     @endforeach
-                                </tbody>
-                                <tfoot class="bg-light">
-                                    <tr>
-                                        <td colspan="7" class="text-center py-3">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div class="text-start">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-info-circle me-1"></i>
-                                                        Escala de calificación: 1-4
-                                                    </small>
-                                                </div>
-                                                <div class="text-end">
-                                                    <small class="text-muted">
-                                                        <i class="fas fa-hashtag me-1"></i>
-                                                        Total CRIT (C): <strong class="text-info">{{ $numero_criterio_global }}</strong> |
-                                                        Total Valoraciones (N): <strong class="text-success">{{ $numero_competencia_global }}</strong>
-                                                    </small>
-                                                </div>
+                                @endforeach
+                            </tbody>
+                            <tfoot class="bg-light">
+                                <tr>
+                                    <td colspan="7" class="text-center py-3">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="text-start">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    Escala de calificación: 1-4
+                                                </small>
                                             </div>
+                                            <div class="text-end">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-hashtag me-1"></i>
+                                                    Total CRIT (C): <strong class="text-info">{{ $numero_criterio_global }}</strong> |
+                                                    Total Valoraciones (N): <strong class="text-success">{{ $numero_competencia_global }}</strong>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                @endif
+
+                <!-- Mostrar Competencias Transversales -->
+                @if(count($competencias_transversales) > 0)
+                <div class="mb-4 border border-1 border-dark rounded-1 p-3">
+                    <!-- Encabezado de Competencias Transversales -->
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2">
+                        <div class="d-flex align-items-center">
+                            <h6 class="fw-bold mb-0">COMPETENCIAS TRANSVERSALES</h6>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-2">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="fw-bold" style="width: 60%">CRITERIO</th>
+                                        <th class="fw-bold text-center" style="width: 20%">BIMESTRE</th>
+                                        <th class="fw-bold text-center" style="width: 20%">NOTA PROMEDIO</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($criterios_transversales as $criterioNombre => $data)
+                                    @php
+                                        $promedioCriterio = $promedios_por_criterio[$criterioNombre] ?? 0;
+                                        $bimestresUnicos = array_unique($data['bimestres']);
+                                        $bimestreTexto = count($bimestresUnicos) > 0 ?
+                                            implode(', ', $bimestresUnicos) : '-';
+                                    @endphp
+                                    <tr>
+                                        <td>
+                                            {{ $criterioNombre }}
+                                        </td>
+                                        <td class="text-center">
+                                            @if($bimestreTexto != '-')
+                                                {{ $bimestreTexto }}
+                                            @else
+                                            <span class="text-muted">-</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center fw-bold">
+                                            @if($promedioCriterio > 0)
+                                                <span class="nota-promedio">
+                                                    {{ number_format($promedioCriterio, 0) }}
+                                                </span>
+                                            <small class="text-muted d-block">
+                                                ({{ count($data['notas']) }} evaluación(es))
+                                            </small>
+                                            @else
+                                            <span class="text-muted">-</span>
+                                            @endif
                                         </td>
                                     </tr>
-                                </tfoot>
+                                    @endforeach
+
+                                    <!-- Fila de Valoración General -->
+                                    <tr class="table-info">
+                                        <td colspan="2" class="fw-bold text-end">
+                                            <i class="fas fa-star-half-alt text-info me-1"></i>Valoración General de Competencias Transversales
+                                        </td>
+                                        <td class="text-center fw-bold">
+                                            <span class="nota-promedio">{{ number_format($promedio_general_transversales, 0) }}</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
                             </table>
                         </div>
                     </div>
-                    @endif
 
-                    <!-- Mostrar Competencias Transversales -->
-                    @if(count($competencias_transversales) > 0)
-                    <div class="mb-4 border border-2 border-info rounded-2 p-3">
-                        <!-- Encabezado de Competencias Transversales -->
-                        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-1 border-info">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-exchange-alt text-info me-2"></i>
-                                <h6 class="fw-bold text-info mb-0">COMPETENCIAS TRANSVERSALES</h6>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered mb-2">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th class="fw-bold" style="width: 60%">CRITERIO</th>
-                                            <th class="fw-bold text-center" style="width: 20%">BIMESTRE</th>
-                                            <th class="fw-bold text-center" style="width: 20%">NOTA PROMEDIO</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($criterios_transversales as $criterioNombre => $data)
-                                        @php
-                                            $promedioCriterio = $promedios_por_criterio[$criterioNombre] ?? 0;
-                                            $bimestresUnicos = array_unique($data['bimestres']);
-                                            $bimestreTexto = count($bimestresUnicos) > 0 ?
-                                                implode(', ', $bimestresUnicos) : '-';
-                                        @endphp
-                                        <tr>
-                                            <td>
-                                                {{ $criterioNombre }}
-                                            </td>
-                                            <td class="text-center">
-                                                @if($bimestreTexto != '-')
-                                                    {{ $bimestreTexto }}
-                                                @else
-                                                <span class="text-muted">-</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center fw-bold">
-                                                @if($promedioCriterio > 0)
-                                                    <span class="nota-promedio">
-                                                        {{ number_format($promedioCriterio, 0) }}
-                                                    </span>
-                                                <small class="text-muted d-block">
-                                                    ({{ count($data['notas']) }} evaluación(es))
-                                                </small>
-                                                @else
-                                                <span class="text-muted">-</span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                        @endforeach
-
-                                        <!-- Fila de Valoración General -->
-                                        <tr class="table-info">
-                                            <td colspan="2" class="fw-bold text-end">
-                                                <i class="fas fa-star-half-alt text-info me-1"></i>Valoración General de Competencias Transversales
-                                            </td>
-                                            <td class="text-center fw-bold">
-                                                <span class="nota-promedio">{{ number_format($promedio_general_transversales, 0) }}</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Detalles de Competencias Transversales -->
-                        <div class="mt-3 pt-3 border-top border-1">
-                            <div class="accordion" id="accordionTransversalesDetalles">
-                                <div class="accordion-item border border-1 border-secondary rounded-2">
-                                    <h2 class="accordion-header" id="headingTransversalesDetalles">
-                                        <button class="accordion-button collapsed bg-light py-2 text-dark fw-bold fs-6" type="button"
-                                                data-bs-toggle="collapse" data-bs-target="#collapseTransversalesDetalles"
-                                                aria-expanded="false" aria-controls="collapseTransversalesDetalles">
-                                                Ver detalles de criterios
-                                        </button>
-                                    </h2>
-                                    <div id="collapseTransversalesDetalles" class="accordion-collapse collapse"
-                                        aria-labelledby="headingTransversalesDetalles" data-bs-parent="#accordionTransversalesDetalles">
-                                        <div class="accordion-body bg-white rounded-2 mt-2 p-3">
-                                            <div class="table-responsive">
-                                                <table class="table table-sm table-bordered mb-0">
-                                                    <thead class="table-light">
+                    <!-- Detalles de Competencias Transversales -->
+                    <div class="mt-3 pt-3 border-top border-1">
+                        <div class="accordion" id="accordionTransversalesDetalles">
+                            <div class="accordion-item border border-1 border-secondary rounded-2">
+                                <h2 class="accordion-header" id="headingTransversalesDetalles">
+                                    <button class="accordion-button collapsed bg-light py-2 text-dark fw-bold fs-6" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#collapseTransversalesDetalles"
+                                            aria-expanded="false" aria-controls="collapseTransversalesDetalles">
+                                            Ver detalles de criterios
+                                    </button>
+                                </h2>
+                                <div id="collapseTransversalesDetalles" class="accordion-collapse collapse"
+                                    aria-labelledby="headingTransversalesDetalles" data-bs-parent="#accordionTransversalesDetalles">
+                                    <div class="accordion-body bg-white rounded-2 mt-2 p-3">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="fw-bold">Materia</th>
+                                                        <th class="fw-bold">Competencia</th>
+                                                        <th class="fw-bold">Criterio</th>
+                                                        <th class="fw-bold text-center">Bimestre</th>
+                                                        <th class="fw-bold text-center">Nota</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($competencias_transversales as $transversal)
+                                                        @foreach($transversal['competencia']['criterios'] as $criterio)
                                                         <tr>
-                                                            <th class="fw-bold">Materia</th>
-                                                            <th class="fw-bold">Competencia</th>
-                                                            <th class="fw-bold">Criterio</th>
-                                                            <th class="fw-bold text-center">Bimestre</th>
-                                                            <th class="fw-bold text-center">Nota</th>
+                                                            <td class="fw-semibold">
+                                                                {{ $transversal['materia_nombre'] }}
+                                                            </td>
+                                                            <td class="text-info">
+                                                                {{ $transversal['competencia']['competencia_nombre'] }}
+                                                            </td>
+                                                            <td>
+                                                                <i class="fas fa-arrow-circle-right text-info me-1" style="font-size: 0.7rem;"></i>
+                                                                {{ $criterio['criterio_nombre'] }}
+                                                            </td>
+                                                            <td class="text-center">
+                                                                @if($criterio['nota'] && $criterio['nota']['bimestre'])
+                                                                    B{{ $criterio['nota']['bimestre'] }}
+                                                                @else
+                                                                <span class="text-muted"> - </span>
+                                                                @endif
+                                                            </td>
+                                                            <td class="text-center fw-bold">
+                                                                @if($criterio['nota'])
+                                                                    <span class="nota-valor">{{ $criterio['nota']['valor'] }}</span>
+                                                                @else
+                                                                <span class="text-muted"> - </span>
+                                                                @endif
+                                                            </td>
                                                         </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach($competencias_transversales as $transversal)
-                                                            @foreach($transversal['competencia']['criterios'] as $criterio)
-                                                            <tr>
-                                                                <td class="fw-semibold">
-                                                                    {{ $transversal['materia_nombre'] }}
-                                                                </td>
-                                                                <td class="text-info">
-                                                                    {{ $transversal['competencia']['competencia_nombre'] }}
-                                                                </td>
-                                                                <td>
-                                                                    <i class="fas fa-arrow-circle-right text-info me-1" style="font-size: 0.7rem;"></i>
-                                                                    {{ $criterio['criterio_nombre'] }}
-                                                                </td>
-                                                                <td class="text-center">
-                                                                    @if($criterio['nota'] && $criterio['nota']['bimestre'])
-                                                                        B{{ $criterio['nota']['bimestre'] }}
-                                                                    @else
-                                                                    <span class="text-muted"> - </span>
-                                                                    @endif
-                                                                </td>
-                                                                <td class="text-center fw-bold">
-                                                                    @if($criterio['nota'])
-                                                                        <span class="nota-valor">{{ $criterio['nota']['valor'] }}</span>
-                                                                    @else
-                                                                    <span class="text-muted"> - </span>
-                                                                    @endif
-                                                                </td>
-                                                            </tr>
-                                                            @endforeach
                                                         @endforeach
-                                                    </tbody>
-                                                </table>
-                                            </div>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Nota sobre Competencias Transversales -->
-                            <div class="alert alert-info mt-3 mb-0">
-                                <i class="fas fa-exclamation-circle me-2"></i>
-                                <small class="mb-0">
-                                    <strong>Nota:</strong> Las competencias transversales se evalúan de forma independiente y
-                                    <strong>no se incluyen</strong> en el cálculo del promedio regular de las materias.
-                                    Su promedio general se calcula únicamente entre las competencias transversales.
-                                </small>
-                            </div>
+                        <!-- Nota sobre Competencias Transversales -->
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <small class="mb-0">
+                                <strong>Nota:</strong> Las competencias transversales se evalúan de forma independiente y
+                                <strong>no se incluyen</strong> en el cálculo del promedio regular de las materias.
+                                Su promedio general se calcula únicamente entre las competencias transversales.
+                            </small>
                         </div>
                     </div>
-                    @endif
                 </div>
+                @endif
             </div>
             @endif
 
             <!-- Sección de Calificaciones de Conducta -->
-            @if($notas_conducta->count() > 0)
+            @if(!empty($conductas_agrupadas))
             <div class="mt-4">
-                <div class="border border-2 border-success rounded-3 p-3">
+                <div class="border border-1 border-dark rounded-1 p-3">
                     <h5 class="mb-3">
                         <i class="fas fa-user-check me-2"></i>Calificaciones de Conducta
                     </h5>
@@ -610,50 +607,19 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @php
-                                    $conductasAgrupadas = [];
-                                    $totalBimestres = 0;
-
-                                    foreach($notas_conducta as $conductasMateria) {
-                                        foreach($conductasMateria as $notaConducta) {
-                                            $conductaId = $notaConducta['conducta_id'];
-                                            $conductaNombre = $notaConducta['conducta_nombre'];
-                                            $bimestre = $notaConducta['bimestre'];
-                                            $valor = $notaConducta['valor'];
-
-                                            if(!isset($conductasAgrupadas[$conductaId])) {
-                                                $conductasAgrupadas[$conductaId] = [
-                                                    'nombre' => $conductaNombre,
-                                                    'total' => 0,
-                                                    'count' => 0,
-                                                    'bimestres' => []
-                                                ];
-                                            }
-
-                                            $conductasAgrupadas[$conductaId]['total'] += $valor;
-                                            $conductasAgrupadas[$conductaId]['count']++;
-                                            $conductasAgrupadas[$conductaId]['bimestres'][$bimestre] = $valor;
-                                            $totalBimestres = max($totalBimestres, $bimestre);
-                                        }
-                                    }
-                                    ksort($conductasAgrupadas);
-                                @endphp
-
-                                @foreach($conductasAgrupadas as $conductaId => $datosConducta)
-                                    @php
-                                        $promedio = $datosConducta['count'] > 0 ?
-                                            round($datosConducta['total'] / $datosConducta['count'], 1) : 0;
-                                    @endphp
+                                @foreach($conductas_agrupadas as $conductaId => $datosConducta)
                                     <tr>
                                         <td class="fw-bold">{{ $datosConducta['nombre'] }}</td>
                                         <td class="text-center">
-                                            @for($i = 1; $i <= $totalBimestres; $i++)
+                                            @for($i = 1; $i <= $total_bimestres_conducta; $i++)
                                                 @if(isset($datosConducta['bimestres'][$i]))
                                                     B{{ $i }}
                                                 @endif
                                             @endfor
                                         </td>
-                                        <td class="text-center fw-bold">{{ $promedio }}</td>
+                                        <td class="text-center fw-bold">
+                                            <span class="nota-promedio" data-original="{{ $datosConducta['promedio'] }}">{{ $datosConducta['promedio'] }}</span>
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -661,6 +627,7 @@
                     </div>
 
                     <!-- Acordeón con detalles -->
+                    @if($notas_conducta && $notas_conducta->count() > 0)
                     <div class="accordion mb-3">
                         <div class="accordion-item">
                             <h2 class="accordion-header">
@@ -694,7 +661,9 @@
                                                             @endif
                                                             <td>{{ $notaConducta['conducta_nombre'] }}</td>
                                                             <td class="text-center">B{{ $notaConducta['bimestre'] }}</td>
-                                                            <td class="text-center fw-bold">{{ $notaConducta['valor'] }}</td>
+                                                            <td class="text-center fw-bold">
+                                                                <span class="nota-valor" data-original="{{ $notaConducta['valor'] }}">{{ $notaConducta['valor'] }}</span>
+                                                            </td>
                                                         </tr>
                                                         @php $materiaIndex++; @endphp
                                                     @endforeach
@@ -706,6 +675,7 @@
                             </div>
                         </div>
                     </div>
+                    @endif
                 </div>
             </div>
             @endif
@@ -713,9 +683,9 @@
             <!-- Sección de Asistencias -->
             @if($asistencias->count() > 0)
             <div class="mt-4">
-                <div class="border border-2 border-warning rounded-3 p-3">
-                    <h5 class="fw-bold text-warning mb-3">
-                        <i class="fas fa-calendar-check me-2"></i>Registro de Asistencias
+                <div class="border border-1 border-dark rounded-1 p-3">
+                    <h5 class="fw-bold text-dark mb-3">
+                        Registro de Asistencias
                     </h5>
 
                     <!-- Resumen de Asistencias -->
@@ -875,6 +845,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const valor = span.getAttribute('data-original');
             span.textContent = esCualitativo ? valorCualitativo(valor) : valor;
+            const mostrado = span.textContent.trim();
+            if (mostrado === 'C' || mostrado === '1') {
+                span.classList.add('text-danger');
+            } else {
+                span.classList.remove('text-danger');
+            }
         });
         document.querySelectorAll('.nota-promedio').forEach(function(span) {
             const original = span.getAttribute('data-original');
@@ -883,6 +859,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const valor = span.getAttribute('data-original');
             span.textContent = esCualitativo ? valorCualitativo(valor) : valor;
+            const mostrado = span.textContent.trim();
+            if (mostrado === 'C' || mostrado === '1') {
+                span.classList.add('text-danger');
+            } else {
+                span.classList.remove('text-danger');
+            }
         });
         labelSwitch.textContent = esCualitativo ? 'Cualitativo' : 'Cuantitativo';
     }
