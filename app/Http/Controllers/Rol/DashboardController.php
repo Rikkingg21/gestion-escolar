@@ -6,6 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Apoderado;
 use App\Models\Docente;
 use App\Models\Estudiante;
+use App\Models\Grado;
+use App\Models\Matricula;
+use App\Models\Periodo;
+use App\Models\Conductanota;
 use App\Models\Auxiliar;
 use App\Models\Nota;
 use Illuminate\Http\Request;
@@ -13,16 +17,16 @@ use Illuminate\Support\Facades\Auth;
 
 use App\Models\User;
 
-class DasboardController extends Controller
+class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
 
         if ($user->hasRole('admin')) {
             return $this->admin();
         } elseif ($user->hasRole('director')) {
-            return $this->director();
+            return $this->director($request);
         } elseif ($user->hasRole('docente')) {
             return $this->docente();
         } elseif ($user->hasRole('auxiliar')) {
@@ -59,111 +63,289 @@ class DasboardController extends Controller
         return view('rol.admin.dashboard', compact('usuarios', 'rolesCount', 'docentesCount', 'estudiantesCount', 'apoderadosCount', 'auxiliaresCount'));
     }
 
-    protected function director()
-    {
-        if (!Auth::user()->hasRole('director')) {
-            abort(403, 'Acceso denegado');
-        }
+protected function director(Request $request)
+{
+    $user = Auth::user();
 
-        $usuarios = User::with('roles')->get();
-        $anio = date('Y');
+    // Obtener periodo seleccionado o el activo por defecto
+    $periodoSeleccionado = null;
 
-        // Obtener solo los grados activos (estado = 1)
-        $grados = \App\Models\Grado::where('estado', 1)->get();
-
-        $progreso = [];
-        $labelsBimestres = ['Bimestre 1', 'Bimestre 2', 'Bimestre 3', 'Bimestre 4'];
-
-        foreach ($grados as $grado) {
-            $progresoGrado = [];
-
-            for ($bimestre = 1; $bimestre <= 4; $bimestre++) {
-                // Obtener notas oficiales o extra oficiales (estados 2 y 3) para este grado y bimestre
-                $notas = \App\Models\Nota::where('bimestre', $bimestre)
-                    ->whereIn('publico', ['2', '3']) // Solo notas oficiales o extra oficiales
-                    ->whereHas('estudiante', function($q) use ($grado) {
-                        $q->where('grado_id', $grado->id)
-                        ->where('estado', '1'); // Solo estudiantes activos
-                    })
-                    ->whereHas('criterio', function($q) use ($anio) {
-                        $q->where('anio', $anio); // Solo criterios del año actual
-                    })
-                    ->pluck('nota');
-
-                // Calcular promedio solo si hay notas
-                $promedio = $notas->count() > 0 ? round($notas->avg(), 2) : null;
-                $progresoGrado[] = $promedio;
-            }
-
-            $progreso[] = [
-                'grado' => $grado->getNombreCompletoAttribute(),
-                'promedios' => $progresoGrado,
-            ];
-        }
-
-        // Estadísticas adicionales para el dashboard
-        $estadisticas = $this->obtenerEstadisticasDirector($anio);
-
-        return view('rol.director.dashboard', compact(
-            'usuarios',
-            'progreso',
-            'labelsBimestres',
-            'estadisticas'
-        ));
+    if ($request->has('periodo_id')) {
+        $periodoSeleccionado = Periodo::find($request->periodo_id);
     }
 
-    /**
-     * Obtener estadísticas adicionales para el dashboard del director
-     */
-    private function obtenerEstadisticasDirector($anio)
-    {
-        // Total de estudiantes activos
-        $totalEstudiantes = \App\Models\Estudiante::where('estado', '1')->count();
+    if (!$periodoSeleccionado) {
+        $periodoSeleccionado = Periodo::where('estado', '1')->first();
+    }
 
-        // Total de docentes activos
-        $totalDocentes = \App\Models\Docente::whereHas('user', function($q) {
-            $q->where('estado', '1');
-        })->count();
+    // Obtener todos los periodos para el selector
+    $periodos = Periodo::orderBy('anio', 'desc')
+        ->orderBy('created_at', 'desc')
+        ->get();
 
-        // Cursos activos este año
-        $totalCursos = \App\Models\Maya\Cursogradosecnivanio::where('anio', $anio)->count();
+    // Si no hay periodo seleccionado, crear objeto vacío
+    if (!$periodoSeleccionado && $periodos->isNotEmpty()) {
+        $periodoSeleccionado = $periodos->first();
+    }
 
-        // Porcentaje de notas publicadas por bimestre
-        $notasPorBimestre = [];
-        for ($bimestre = 1; $bimestre <= 4; $bimestre++) {
-            $totalNotasBimestre = \App\Models\Nota::where('bimestre', $bimestre)
-                ->whereHas('criterio', function($q) use ($anio) {
-                    $q->where('anio', $anio);
-                })
-                ->count();
+    // Inicializar grados vacío si no hay periodo
+    $grados = collect();
+    $estadisticas = [
+        'total_grados' => 0,
+        'total_estudiantes' => 0,
+        'promedio_general' => 0,
+    ];
 
-            $notasPublicadasBimestre = \App\Models\Nota::where('bimestre', $bimestre)
-                ->whereIn('publico', ['2', '3']) // Oficiales o extra oficiales
-                ->whereHas('criterio', function($q) use ($anio) {
-                    $q->where('anio', $anio);
-                })
-                ->count();
+    // Si hay periodo seleccionado, cargar datos
+    if ($periodoSeleccionado) {
+        // Obtener grados con estudiantes matriculados en el periodo
+        $grados = Grado::where('estado', '1')
+            ->with(['matriculas' => function($query) use ($periodoSeleccionado) {
+                $query->where('periodo_id', $periodoSeleccionado->id)
+                      ->where('estado', '1')
+                      ->with(['estudiante']);
+            }])
+            ->get();
 
-            $porcentaje = $totalNotasBimestre > 0
-                ? round(($notasPublicadasBimestre / $totalNotasBimestre) * 100, 1)
-                : 0;
-
-            $notasPorBimestre[$bimestre] = [
-                'total' => $totalNotasBimestre,
-                'publicadas' => $notasPublicadasBimestre,
-                'porcentaje' => $porcentaje
-            ];
+        // Obtener IDs de estudiantes por grado
+        $estudiantesPorGrado = [];
+        foreach ($grados as $grado) {
+            $estudiantesPorGrado[$grado->id] = $grado->matriculas->pluck('estudiante_id')->toArray();
         }
 
-        return [
-            'totalEstudiantes' => $totalEstudiantes,
-            'totalDocentes' => $totalDocentes,
-            'totalCursos' => $totalCursos,
-            'notasPorBimestre' => $notasPorBimestre,
-            'anio' => $anio
+        // Obtener todos los IDs de estudiantes
+        $todosEstudianteIds = collect($estudiantesPorGrado)->flatten()->unique()->toArray();
+
+        // Obtener promedios si hay estudiantes
+        $promediosNotas = [];
+        $promediosConducta = [];
+
+        if (!empty($todosEstudianteIds)) {
+            // Obtener promedios de notas académicas
+            $notasPromedio = Nota::selectRaw('estudiante_id, AVG(nota) as promedio')
+                ->whereIn('estudiante_id', $todosEstudianteIds)
+                ->where('periodo_id', $periodoSeleccionado->id)
+                ->where('publico', 'si')
+                ->groupBy('estudiante_id')
+                ->get()
+                ->keyBy('estudiante_id');
+
+            // Obtener promedios de notas de conducta
+            $conductaPromedio = Conductanota::selectRaw('estudiante_id, AVG(nota) as promedio')
+                ->whereIn('estudiante_id', $todosEstudianteIds)
+                ->where('periodo_id', $periodoSeleccionado->id)
+                ->where('publico', 'si')
+                ->groupBy('estudiante_id')
+                ->get()
+                ->keyBy('estudiante_id');
+
+            // Asignar promedios
+            foreach ($notasPromedio as $estudianteId => $nota) {
+                $promediosNotas[$estudianteId] = round($nota->promedio, 2);
+            }
+
+            foreach ($conductaPromedio as $estudianteId => $nota) {
+                $promediosConducta[$estudianteId] = round($nota->promedio, 2);
+            }
+        }
+
+        // Calcular promedios por grado
+        foreach ($grados as $grado) {
+            $estudianteIds = $estudiantesPorGrado[$grado->id] ?? [];
+            $grado->estudiantes_matriculados = count($estudianteIds);
+
+            if (!empty($estudianteIds)) {
+                $sumaNotas = 0;
+                $sumaConducta = 0;
+                $contador = 0;
+
+                foreach ($estudianteIds as $estudianteId) {
+                    if (isset($promediosNotas[$estudianteId])) {
+                        $sumaNotas += $promediosNotas[$estudianteId];
+                    }
+                    if (isset($promediosConducta[$estudianteId])) {
+                        $sumaConducta += $promediosConducta[$estudianteId];
+                    }
+                    $contador++;
+                }
+
+                $grado->promedio_notas = $contador > 0 ? round($sumaNotas / $contador, 2) : 0;
+                $grado->promedio_conducta = $contador > 0 ? round($sumaConducta / $contador, 2) : 0;
+                $grado->promedio_general = $contador > 0
+                    ? round(($grado->promedio_notas + $grado->promedio_conducta) / 2, 2)
+                    : 0;
+            } else {
+                $grado->promedio_notas = 0;
+                $grado->promedio_conducta = 0;
+                $grado->promedio_general = 0;
+            }
+        }
+
+        // Calcular estadísticas
+        $estadisticas = [
+            'total_grados' => $grados->count(),
+            'total_estudiantes' => $grados->sum('estudiantes_matriculados'),
+            'promedio_general' => $grados->avg('promedio_general') ? round($grados->avg('promedio_general'), 2) : 0,
         ];
     }
 
+    // Si es una petición AJAX, devolver JSON con el HTML completo
+    if ($request->ajax()) {
+        // Generar HTML para la tabla
+        $tablaHTML = '';
+        if ($periodoSeleccionado && $grados->count() > 0) {
+            $tablaHTML = '<table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Grado</th>
+                        <th>Estudiantes</th>
+                        <th>Prom. Académico</th>
+                        <th>Prom. Conducta</th>
+                        <th>Prom. General</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>';
+
+            foreach ($grados as $grado) {
+                $tablaHTML .= '<tr>
+                    <td>
+                        <strong>' . ($grado->nombreCompleto ?? $grado->grado) . '</strong>
+                        <br>
+                        <small class="text-muted">' . $grado->nivel . '</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-info rounded-pill">' . $grado->estudiantes_matriculados . '</span>
+                    </td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar ' . ($grado->promedio_notas >= 12 ? 'bg-success' : 'bg-danger') . '"
+                                 role="progressbar"
+                                 style="width: ' . min($grado->promedio_notas * 5, 100) . '%"
+                                 aria-valuenow="' . $grado->promedio_notas . '"
+                                 aria-valuemin="0"
+                                 aria-valuemax="20">
+                                ' . $grado->promedio_notas . '
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar ' . ($grado->promedio_conducta >= 12 ? 'bg-warning' : 'bg-danger') . '"
+                                 role="progressbar"
+                                 style="width: ' . min($grado->promedio_conducta * 5, 100) . '%"
+                                 aria-valuenow="' . $grado->promedio_conducta . '"
+                                 aria-valuemin="0"
+                                 aria-valuemax="20">
+                                ' . $grado->promedio_conducta . '
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge bg-' . ($grado->promedio_general >= 12 ? 'primary' : 'danger') . ' rounded-pill p-2">
+                            <strong>' . $grado->promedio_general . '</strong>
+                        </span>
+                    </td>
+                    <td>';
+
+                $tablaHTML .= $grado->promedio_general >= 12
+                    ? '<span class="badge bg-success"><i class="fas fa-check"></i> Aprobado</span>'
+                    : '<span class="badge bg-danger"><i class="fas fa-times"></i> Bajo</span>';
+
+                $tablaHTML .= '</td>
+                    <td>
+                        <a href="' . route('director.grado.detalle', ['grado' => $grado->id, 'periodo' => $periodoSeleccionado->id]) . '"
+                           class="btn btn-sm btn-info" title="Ver detalle">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="' . route('director.grado.reporte', ['grado' => $grado->id, 'periodo' => $periodoSeleccionado->id]) . '"
+                           class="btn btn-sm btn-warning" title="Generar reporte">
+                            <i class="fas fa-file-pdf"></i>
+                        </a>
+                    </td>
+                </tr>';
+            }
+
+            $tablaHTML .= '</tbody></table>';
+        } elseif ($periodoSeleccionado) {
+            $tablaHTML = '<div class="text-center py-5">
+                <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                <h5>No hay datos para este periodo</h5>
+                <p class="text-muted">No se encontraron grados con matrículas en el periodo seleccionado.</p>
+            </div>';
+        } else {
+            $tablaHTML = '<div class="text-center py-5">
+                <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                <h5>Seleccione un periodo</h5>
+                <p class="text-muted">Por favor, seleccione un periodo para ver los datos.</p>
+            </div>';
+        }
+
+        // Generar HTML para las cards de estadísticas
+        $cardsHTML = '<div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Grados</h5>
+                        <p class="card-text display-6">' . $estadisticas['total_grados'] . '</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Estudiantes Matriculados</h5>
+                        <p class="card-text display-6">' . $estadisticas['total_estudiantes'] . '</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Promedio General</h5>
+                        <p class="card-text display-6">' . $estadisticas['promedio_general'] . '</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Estado</h5>
+                        <p class="card-text">';
+
+        if ($periodoSeleccionado) {
+            $cardsHTML .= $estadisticas['total_estudiantes'] > 0
+                ? '<span class="badge bg-success">Con Datos</span>'
+                : '<span class="badge bg-warning">Sin Matrículas</span>';
+        } else {
+            $cardsHTML .= '<span class="badge bg-secondary">Sin Periodo</span>';
+        }
+
+        $cardsHTML .= '</p>
+                    </div>
+                </div>
+            </div>
+        </div>';
+
+        return response()->json([
+            'success' => true,
+            'periodo' => $periodoSeleccionado,
+            'grados' => $grados,
+            'estadisticas' => $estadisticas,
+            'html' => $tablaHTML,
+            'cards_html' => $cardsHTML,
+        ]);
+    }
+
+    return view('rol.director.dashboard', [
+        'periodoSeleccionado' => $periodoSeleccionado,
+        'periodos' => $periodos,
+        'grados' => $grados,
+        'estadisticas' => $estadisticas,
+        'user' => $user
+    ]);
+}
     protected function docente()
     {
         if (!Auth::user()->hasRole('docente')) {

@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\SessionSelectionController;
 
-use App\Http\Controllers\Rol\DasboardController;
+use App\Http\Controllers\Rol\DashboardController;
 
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\RoleController;
@@ -67,7 +67,8 @@ Route::middleware('auth')->group(function () {
 
     });
 
-    Route::get('/dashboard', [DasboardController::class, 'index'])->name('dashboard.index');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
+
     Route::get('/colegioconfig/edit', [ColegioController::class, 'edit'])->name('colegioconfig.edit');
     Route::put('/colegioconfig/{colegio}', [ColegioController::class, 'update'])->name('colegioconfig.update');
 
