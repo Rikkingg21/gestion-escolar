@@ -5,6 +5,7 @@ use App\Models\Asistencia\Asistencia;
 use App\Models\Nota;
 use App\Models\Maya\Bimestre;
 use App\Models\Maya\Cursogradosecnivanio;
+use App\Models\User;
 use App\Models\Estudiante;
 use App\Models\Materia;
 use App\Models\Docente;
@@ -18,6 +19,7 @@ use App\Models\Grado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class AsistenciaController extends Controller
 {
@@ -901,6 +903,11 @@ class AsistenciaController extends Controller
             '09' => 'Septiembre', '10' => 'Octubre', '11' => 'Noviembre', '12' => 'Diciembre'
         ];
 
+        // Obtener usuarios con rol admin o director
+        $usuariosAutorizados = User::whereHas('roles', function($query) {
+            $query->whereIn('nombre', ['admin', 'director']);
+        })->where('estado', '1')->with('roles')->get();
+
         // Inicialización de variables
         $asistencias = collect();
         $periodoSeleccionado = null;
@@ -975,7 +982,8 @@ class AsistenciaController extends Controller
             'gradoSeleccionado',
             'periodoAnio',
             'distribucionEstados',
-            'contadoresEstados'
+            'contadoresEstados',
+            'usuariosAutorizados'
         ));
     }
     public function bloquearMasivo(Request $request)
@@ -1242,10 +1250,33 @@ class AsistenciaController extends Controller
         $request->validate([
             'periodo_id' => 'required|exists:periodos,id',
             'mes' => 'required|string|size:2',
-            'grado_id' => 'nullable|exists:grados,id'
+            'grado_id' => 'nullable|exists:grados,id',
+            'usuario_autorizador_id' => 'required|exists:users,id',
+            'password_confirmation' => 'required|string'
         ]);
 
         try {
+            // Validar que el usuario tenga rol de admin o director
+            $usuarioAutorizador = User::with('roles')->find($request->usuario_autorizador_id);
+
+            if (!$usuarioAutorizador) {
+                return back()->withInput()->with('error', 'Usuario autorizador no encontrado.');
+            }
+
+            // Verificar que tenga rol admin o director
+            $tieneRol = $usuarioAutorizador->roles->contains(function($role) {
+                return in_array($role->nombre, ['admin', 'director']);
+            });
+
+            if (!$tieneRol) {
+                return back()->withInput()->with('error', 'El usuario seleccionado no tiene permisos para realizar esta acción.');
+            }
+
+            // Verificar contraseña
+            if (!Hash::check($request->password_confirmation, $usuarioAutorizador->password)) {
+                return back()->withInput()->with('error', 'Contraseña incorrecta.');
+            }
+
             // 1. Obtener los IDs de los registros que cumplen los filtros (estado 2)
             $query = Asistencia::where('periodo_id', $request->periodo_id)
                 ->whereMonth('fecha', $request->mes)
@@ -1311,14 +1342,24 @@ class AsistenciaController extends Controller
             // 4. Actualizar SOLO los registros con esos IDs (2 -> 1)
             $updated = Asistencia::whereIn('id', $ids)->update(['estado' => '1']);
 
+            // Registrar quien realizó la acción
+            \Log::info('LIBERAR DEFINITIVO - Acción realizada por:', [
+                'usuario_id' => $usuarioAutorizador->id,
+                'usuario_nombre' => $usuarioAutorizador->nombre,
+                'registros_afectados' => $updated,
+                'periodo_id' => $request->periodo_id,
+                'mes' => $request->mes
+            ]);
+
             // 5. Redirigir con mensaje de éxito
             return redirect()->route('bloqueo.view', [
                 'periodo_id' => $request->periodo_id,
                 'mes' => $request->mes,
                 'grado_id' => $request->grado_id
-            ])->with('success', "{$updated} asistencias cambiadas a bloqueo temporal");
+            ])->with('success', "{$updated} asistencias cambiadas a bloqueo temporal. Autorizado por: {$usuarioAutorizador->nombre}");
 
         } catch (\Exception $e) {
+            \Log::error('LIBERAR DEFINITIVO MASIVO - Error: ' . $e->getMessage());
             return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
         }
     }

@@ -370,32 +370,97 @@
                         <i class="fas fa-info-circle"></i> Esta acción afectará a
                         <strong>{{ $asistencias->where('estado', 2)->count() }}</strong> registros.
                     </p>
+
+                    <!-- Formulario de validación -->
+                    <div class="mb-3">
+                        <label for="usuario_id" class="form-label">Usuario Autorizador *</label>
+                        <select name="usuario_id" id="usuario_id" class="form-select" required>
+                            <option value="">Seleccionar Usuario</option>
+                            @foreach($usuariosAutorizados as $usuario)
+                                <option value="{{ $usuario->id }}">
+                                    {{ $usuario->nombre }} {{ $usuario->apellido_paterno }}
+                                    ({{ $usuario->nombre_usuario }}) -
+                                    {{ $usuario->roles->pluck('nombre')->implode(', ') }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña *</label>
+                        <input type="password" name="password" id="password" class="form-control" required>
+                        <small class="text-muted">Ingrese la contraseña del usuario seleccionado</small>
+                    </div>
+
                     <form id="formLiberarDefMasivo" action="{{ route('asistencia.liberar-definitivo-masivo') }}" method="POST">
                         @csrf
                         <input type="hidden" name="periodo_id" value="{{ $periodoSeleccionado }}">
                         <input type="hidden" name="mes" value="{{ $mesSeleccionado }}">
-                        @if($gradoSeleccionado)
-                            <input type="hidden" name="grado_id" value="{{ $gradoSeleccionado }}">
-                        @endif
+                        <input type="hidden" name="grado_id" value="{{ $gradoSeleccionado }}">
+                        <input type="hidden" name="usuario_autorizador_id" id="usuario_autorizador_id">
+                        <input type="hidden" name="password_confirmation" id="password_confirmation">
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" form="formLiberarDefMasivo" class="btn btn-info">
-                        <i class="fas fa-unlock-alt"></i> Sí, Liberar
+                    <button type="button" id="btnConfirmarLiberarDef" class="btn btn-info">
+                        <i class="fas fa-unlock-alt"></i> Confirmar y Liberar
                     </button>
                 </div>
             </div>
         </div>
     </div>
-@endsection
 
-@section('scripts')
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        $(document).ready(function() {
+            // Manejar la confirmación para liberar definitivo
+            $('#btnConfirmarLiberarDef').click(function() {
+                const usuarioId = $('#usuario_id').val();
+                const password = $('#password').val();
+
+                if (!usuarioId || !password) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Faltan datos',
+                        text: 'Por favor, seleccione un usuario e ingrese su contraseña.',
+                        confirmButtonText: 'Entendido'
+                    });
+                    return;
+                }
+
+                // Setear los valores en el formulario oculto
+                $('#usuario_autorizador_id').val(usuarioId);
+                $('#password_confirmation').val(password);
+
+                // Confirmar antes de enviar
+                Swal.fire({
+                    title: 'Confirmar Acción',
+                    text: '¿Está seguro de liberar estas asistencias de bloqueo definitivo? Esta acción requiere autorización especial.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#0dcaf0',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, liberar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $('#formLiberarDefMasivo').submit();
+                    }
+                });
+            });
+
+            // Limpiar campos al cerrar el modal
+            $('#modalLiberarDefMasivo').on('hidden.bs.modal', function () {
+                $('#usuario_id').val('');
+                $('#password').val('');
+            });
+        });
+    </script>
 
     <script>
         $(document).ready(function() {
