@@ -111,11 +111,18 @@
                     </button>
                 </div>
 
-                <!-- Botón para Reportes -->
-                <div class="col-12 mt-2">
-                    <a class="btn btn-danger btn-lg rounded-3 shadow w-100" href="{{ route('asistencia.reporte') }}">
-                        <i class="bi bi-box-arrow-in-right me-2"></i> IR A IMPRIMIR REPORTES
-                    </a>
+                <!-- Botones de Reportes -->
+                <div class="row mt-2">
+                    <!-- Botón para Reportes -->
+                    <div class="col-md-6 mb-2">
+                        <a class="btn btn-danger btn-lg rounded-3 shadow w-100" href="{{ route('asistencia.reporte') }}">
+                            <i class="bi bi-printer me-2"></i> IMPRIMIR REPORTES
+                        </a>
+                    </div>
+                    <!-- Botón para Cerrar Reportes (modal) -->
+                    <div class="col-md-6 mb-2">
+                        <a class="btn btn-warning btn-lg rounded-3 shadow w-100" href="{{ route('asistencia.bloqueo') }}"><i class="bi bi-lock me-2"></i>Bloquear Asistencia</a>
+                    </div>
                 </div>
             </div>
         </div>

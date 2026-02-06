@@ -235,9 +235,21 @@ Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstu
     Route::post('/asistencia/marcar-todos-puntualidad', [AsistenciaController::class, 'marcarTodosPuntualidad'])->name('asistencia.marcar-todos-puntualidad');
     Route::get('/asistencia/reporte', [AsistenciaController::class, 'reporteAsistencia'])->name('asistencia.reporte');
     Route::get('/asistencia/estudiantes-por-grado', [AsistenciaController::class, 'estudiantesPorGrado'])->name('asistencia.estudiantes-por-grado');
-    Route::post('/asistencia/bloquear', [AsistenciaController::class, 'bloquear'])
-    ->name('asistencia.bloquear');
-    Route::post('/asistencia/desbloquear', [AsistenciaController::class, 'desbloquear'])
-    ->name('asistencia.desbloquear');
+    Route::get('/asistencia/bloqueo', [AsistenciaController::class, 'bloqueoView'])->name('asistencia.bloqueo');
+    // Rutas para bloqueo masivo de asistencias
+    Route::get('/asistencia/bloqueo-asistencias', [AsistenciaController::class, 'bloqueoView'])
+        ->name('bloqueo.view');
+
+    Route::post('/asistencia/bloquear-masivo', [AsistenciaController::class, 'bloquearMasivo'])
+        ->name('asistencia.bloquear-masivo');
+
+    Route::post('/asistencia/bloquear-definitivo-masivo', [AsistenciaController::class, 'bloquearDefinitivoMasivo'])
+        ->name('asistencia.bloquear-definitivo-masivo');
+
+    Route::post('/asistencia/liberar-masivo', [AsistenciaController::class, 'liberarMasivo'])
+        ->name('asistencia.liberar-masivo');
+
+    Route::post('/asistencia/liberar-definitivo-masivo', [AsistenciaController::class, 'liberarDefinitivoMasivo'])
+        ->name('asistencia.liberar-definitivo-masivo');
     Route::get('/historial-asistencia/{anio?}/{bimestre?}', [AsistenciahistorialController::class, 'calendarioAsistencia'])->name('asistencia.calendario');
 });
