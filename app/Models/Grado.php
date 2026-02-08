@@ -47,6 +47,10 @@ class Grado extends Model
     {
         return $this->hasMany(Matricula::class, 'grado_id');
     }
+    public function cursosMalla()
+    {
+        return $this->hasMany(\App\Models\Maya\Cursogradosecnivanio::class, 'grado_id');
+    }
     public function getGradoSeccionAttribute()
     {
         return $this->grado . $this->seccion;
