@@ -23,4 +23,8 @@ class Periodo extends Model
         'anio',
         'descripcion',
     ];
+    public function matriculas()
+    {
+        return $this->hasMany(Matricula::class, 'periodo_id');
+    }
 }
