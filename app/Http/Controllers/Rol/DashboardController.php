@@ -33,7 +33,7 @@ class DashboardController extends Controller
         } elseif ($user->hasRole('docente')) {
             return $this->docente($request);
         } elseif ($user->hasRole('auxiliar')) {
-            return $this->auxiliar();
+            return $this->auxiliar($request);
         } elseif ($user->hasRole('apoderado')) {
             return $this->apoderado();
         } elseif ($user->hasRole('estudiante')) {
@@ -707,19 +707,36 @@ private function prepararDatosGraficosConducta($progresoConducta)
 
         return $colores[$index % count($colores)] ?? '#999999';
     }
-    protected function auxiliar()
+    protected function auxiliar(Request $request)
     {
         if (!Auth::user()->hasRole('auxiliar')) {
             abort(403, 'Acceso denegado');
         }
 
+        $periodos = Periodo::where('estado', 1)->orderBy('anio', 'desc')->get();
+        $periodoId = $request->input('periodo_id');
+        $periodoSeleccionado = $periodoId
+            ? Periodo::find($periodoId)
+            : $periodos->first();
+
+        if (!$periodoSeleccionado) {
+            return back()->with('error', 'No hay períodos activos disponibles.');
+        }
+
         $usuarios = User::with('roles')->get();
         $anio = date('Y');
 
-        // Obtener todos los grados activos
-        $grados = \App\Models\Grado::where('estado', 1)->get();
+        // Obtener grados con estudiantes matriculados en el periodo seleccionado
+        $grados = Grado::whereHas('matriculas', function ($query) use ($periodoSeleccionado) {
+            $query->where('periodo_id', $periodoSeleccionado->id);
+        })
+        ->withCount(['matriculas' => function ($query) use ($periodoSeleccionado) {
+            $query->where('periodo_id', $periodoSeleccionado->id);
+        }])
+        ->orderBy('grado')
+        ->orderBy('seccion')
+        ->get();
 
-        // Obtener todos los tipos de asistencia
         $tiposAsistencia = \App\Models\Asistencia\Tipoasistencia::all();
 
         $datosAsistencias = [];
@@ -730,20 +747,28 @@ private function prepararDatosGraficosConducta($progresoConducta)
         ];
 
         foreach ($grados as $grado) {
-            // Obtener estudiantes activos del grado, ordenados por apellidos
-            $estudiantes = \App\Models\Estudiante::with(['user', 'asistencias' => function($query) {
-                $query->with('tipoasistencia');
-            }])
-            ->where('grado_id', $grado->id)
+            $estudianteIds = Matricula::where('periodo_id', $periodoSeleccionado->id)
+                ->where('grado_id', $grado->id)
+                ->pluck('estudiante_id')
+                ->toArray();
+
+            if (empty($estudianteIds)) {
+                continue;
+            }
+
+            $estudiantes = Estudiante::with([
+                'user',
+                'asistencias' => function($query) use ($periodoSeleccionado) {
+                    $query->where('periodo_id', $periodoSeleccionado->id)
+                        ->with('tipoasistencia');
+                }
+            ])
+            ->whereIn('id', $estudianteIds)
             ->where('estado', 1)
             ->get()
             ->sortBy(function($estudiante) {
                 return $estudiante->user->apellido_paterno . ' ' . $estudiante->user->apellido_materno;
             });
-
-            if ($estudiantes->isEmpty()) {
-                continue;
-            }
 
             $datosEstudiantes = [];
             $estadisticasGrado = [
@@ -757,15 +782,15 @@ private function prepararDatosGraficosConducta($progresoConducta)
             }
 
             foreach ($estudiantes as $estudiante) {
-                // Obtener todas las asistencias del estudiante
-                $totalAsistencias = $estudiante->asistencias->count();
+                $asistenciasPeriodo = $estudiante->asistencias;
+                $totalAsistencias = $asistenciasPeriodo->count();
                 $estadisticasGrado['totalAsistencias'] += $totalAsistencias;
 
                 $porcentajesPorTipo = [];
                 $conteoTipos = [];
 
                 foreach ($tiposAsistencia as $tipo) {
-                    $countTipo = $estudiante->asistencias->where('tipo_asistencia_id', $tipo->id)->count();
+                    $countTipo = $asistenciasPeriodo->where('tipo_asistencia_id', $tipo->id)->count();
                     $porcentaje = $totalAsistencias > 0 ? round(($countTipo / $totalAsistencias) * 100, 2) : 0;
 
                     $porcentajesPorTipo[$tipo->nombre] = $porcentaje;
@@ -782,9 +807,15 @@ private function prepararDatosGraficosConducta($progresoConducta)
                 ];
             }
 
-            // Calcular porcentajes generales del grado
+            // CALCULO CORREGIDO: Porcentajes generales del grado
             foreach ($tiposAsistencia as $tipo) {
-                $totalTipo = array_sum(array_column($datosEstudiantes, 'conteo_tipos.' . $tipo->nombre));
+                $totalTipo = 0;
+
+                // Sumar manualmente los conteos por tipo
+                foreach ($datosEstudiantes as $estudianteData) {
+                    $totalTipo += $estudianteData['conteo_tipos'][$tipo->nombre] ?? 0;
+                }
+
                 $porcentajeGrado = $estadisticasGrado['totalAsistencias'] > 0
                     ? round(($totalTipo / $estadisticasGrado['totalAsistencias']) * 100, 2)
                     : 0;
@@ -795,14 +826,26 @@ private function prepararDatosGraficosConducta($progresoConducta)
                 'grado' => $grado->getNombreCompletoAttribute(),
                 'estudiantes' => $datosEstudiantes,
                 'estadisticas' => $estadisticasGrado,
-                'tipos_asistencia' => $tiposAsistencia->pluck('nombre')->toArray()
+                'tipos_asistencia' => $tiposAsistencia->pluck('nombre')->toArray(),
+                'grado_id' => $grado->id
             ];
 
-            // Actualizar estadísticas generales
             $estadisticasGenerales['totalEstudiantes'] += $estadisticasGrado['totalEstudiantes'];
             $estadisticasGenerales['totalAsistencias'] += $estadisticasGrado['totalAsistencias'];
         }
 
+        // Calcular porcentaje general de asistencia
+        if ($estadisticasGenerales['totalEstudiantes'] > 0 && $estadisticasGenerales['totalAsistencias'] > 0) {
+            $totalPuntualidad = 0;
+            foreach ($datosAsistencias as $gradoData) {
+                if (isset($gradoData['estadisticas']['porcentajesTipo']['PUNTUALIDAD'])) {
+                    $totalPuntualidad += $gradoData['estadisticas']['porcentajesTipo']['PUNTUALIDAD'];
+                }
+            }
+            $estadisticasGenerales['porcentajeAsistencia'] = count($datosAsistencias) > 0
+                ? round($totalPuntualidad / count($datosAsistencias), 2)
+                : 0;
+        }
 
         $coloresTipos = [
             'PUNTUALIDAD' => ['hex' => '#28a745', 'class' => 'success'],
@@ -813,13 +856,14 @@ private function prepararDatosGraficosConducta($progresoConducta)
         ];
 
         return view('rol.auxiliar.dashboard', compact(
+            'periodos',
+            'periodoSeleccionado',
             'usuarios',
             'datosAsistencias',
             'tiposAsistencia',
             'estadisticasGenerales',
             'coloresTipos'
         ));
-
     }
     protected function getColorHexForTipo($tipoNombre)
     {
@@ -834,10 +878,7 @@ private function prepararDatosGraficosConducta($progresoConducta)
         return $colores[$tipoNombre] ?? '#6c757d';
     }
 
-
-    /**
-     * Obtener clase de color Bootstrap para tipo de asistencia
-     */
+    // Obtener clase de color Bootstrap para tipo de asistencia
     protected function getColorClassForTipo($tipoNombre)
     {
         $clases = [
