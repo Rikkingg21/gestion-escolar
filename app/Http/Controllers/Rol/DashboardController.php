@@ -713,6 +713,7 @@ private function prepararDatosGraficosConducta($progresoConducta)
             abort(403, 'Acceso denegado');
         }
 
+        // Obtener parámetros de filtro
         $periodos = Periodo::where('estado', 1)->orderBy('anio', 'desc')->get();
         $periodoId = $request->input('periodo_id');
         $periodoSeleccionado = $periodoId
@@ -722,6 +723,9 @@ private function prepararDatosGraficosConducta($progresoConducta)
         if (!$periodoSeleccionado) {
             return back()->with('error', 'No hay períodos activos disponibles.');
         }
+
+        $bimestreFiltro = $request->input('bimestre');
+        $mesFiltro = $request->input('mes');
 
         $usuarios = User::with('roles')->get();
         $anio = date('Y');
@@ -743,7 +747,8 @@ private function prepararDatosGraficosConducta($progresoConducta)
         $estadisticasGenerales = [
             'totalEstudiantes' => 0,
             'totalAsistencias' => 0,
-            'porcentajeAsistencia' => 0
+            'porcentajeAsistencia' => 0,
+            'filtros_aplicados' => $this->getTextoFiltros($bimestreFiltro, $mesFiltro)
         ];
 
         foreach ($grados as $grado) {
@@ -756,11 +761,22 @@ private function prepararDatosGraficosConducta($progresoConducta)
                 continue;
             }
 
+            // Obtener estudiantes con asistencias filtradas
             $estudiantes = Estudiante::with([
                 'user',
-                'asistencias' => function($query) use ($periodoSeleccionado) {
+                'asistencias' => function($query) use ($periodoSeleccionado, $bimestreFiltro, $mesFiltro) {
                     $query->where('periodo_id', $periodoSeleccionado->id)
                         ->with('tipoasistencia');
+
+                    // Aplicar filtro de bimestre
+                    if ($bimestreFiltro && $bimestreFiltro !== 'anual') {
+                        $query->where('bimestre', $bimestreFiltro);
+                    }
+
+                    // Aplicar filtro de mes
+                    if ($mesFiltro && is_numeric($mesFiltro)) {
+                        $query->whereMonth('fecha', $mesFiltro);
+                    }
                 }
             ])
             ->whereIn('id', $estudianteIds)
@@ -774,7 +790,8 @@ private function prepararDatosGraficosConducta($progresoConducta)
             $estadisticasGrado = [
                 'totalEstudiantes' => $estudiantes->count(),
                 'totalAsistencias' => 0,
-                'porcentajesTipo' => []
+                'porcentajesTipo' => [],
+                'filtros_aplicados' => $this->getTextoFiltros($bimestreFiltro, $mesFiltro)
             ];
 
             foreach ($tiposAsistencia as $tipo) {
@@ -803,15 +820,15 @@ private function prepararDatosGraficosConducta($progresoConducta)
                                     $estudiante->user->nombre,
                     'total_asistencias' => $totalAsistencias,
                     'porcentajes_tipo' => $porcentajesPorTipo,
-                    'conteo_tipos' => $conteoTipos
+                    'conteo_tipos' => $conteoTipos,
+                    'estudiante_id' => $estudiante->id
                 ];
             }
 
-            // CALCULO CORREGIDO: Porcentajes generales del grado
+            // Calcular porcentajes generales del grado
             foreach ($tiposAsistencia as $tipo) {
                 $totalTipo = 0;
 
-                // Sumar manualmente los conteos por tipo
                 foreach ($datosEstudiantes as $estudianteData) {
                     $totalTipo += $estudianteData['conteo_tipos'][$tipo->nombre] ?? 0;
                 }
@@ -862,8 +879,40 @@ private function prepararDatosGraficosConducta($progresoConducta)
             'datosAsistencias',
             'tiposAsistencia',
             'estadisticasGenerales',
-            'coloresTipos'
+            'coloresTipos',
+            'bimestreFiltro',
+            'mesFiltro'
         ));
+    }
+
+    //Obtener texto descriptivo de los filtros aplicados(Auxiliar)
+    private function getTextoFiltros($bimestreFiltro, $mesFiltro)
+    {
+        $texto = '';
+        $filtros = [];
+
+        if ($bimestreFiltro && $bimestreFiltro !== 'anual') {
+            $filtros[] = "{$bimestreFiltro}° Bimestre";
+        } else {
+            $filtros[] = "Anual";
+        }
+
+        if ($mesFiltro && is_numeric($mesFiltro)) {
+            $meses = [
+                1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+                5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+                9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+            ];
+            if (isset($meses[$mesFiltro])) {
+                $filtros[] = "Mes: " . $meses[$mesFiltro];
+            }
+        }
+
+        if (!empty($filtros)) {
+            $texto = implode(' | ', $filtros);
+        }
+
+        return $texto;
     }
     protected function getColorHexForTipo($tipoNombre)
     {
