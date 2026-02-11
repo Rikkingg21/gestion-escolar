@@ -1021,6 +1021,7 @@ private function prepararDatosGraficosConducta($progresoConducta)
                                     $estudiante->user->apellido_materno . ' ' .
                                     $estudiante->user->nombre,
                     'grado' => $estudiante->grado->getNombreCompletoAttribute() ?? 'Sin grado asignado',
+                    'grado_matricula' => 'No matriculado',
                     'progreso_cursos' => [],
                     'progreso_conducta' => [],
                     'total_cursos' => 0,
@@ -1030,8 +1031,12 @@ private function prepararDatosGraficosConducta($progresoConducta)
                 continue;
             }
 
-            // Obtener las asignaciones de cursos para el grado del estudiante en el período
-            $asignaciones = \App\Models\Maya\Cursogradosecnivanio::where('grado_id', $estudiante->grado_id)
+            // IMPORTANTE: Obtener el grado desde la matrícula, no del estudiante
+            $gradoMatricula = $matricula->grado;
+
+            // Obtener las asignaciones de cursos para el grado de la matrícula en el período
+            // USAR grado_id de la matrícula
+            $asignaciones = \App\Models\Maya\Cursogradosecnivanio::where('grado_id', $matricula->grado_id)
                 ->where('periodo_id', $periodoSeleccionado->id)
                 ->with(['materia', 'grado'])
                 ->get();
@@ -1118,13 +1123,18 @@ private function prepararDatosGraficosConducta($progresoConducta)
             }
 
             // Información del estudiante
+            // IMPORTANTE: Usar el grado de la matrícula, no del estudiante
+            $gradoActual = $estudiante->grado; // Grado actual (opcional, para referencia)
+            $gradoMatriculaNombre = $gradoMatricula ? $gradoMatricula->getNombreCompletoAttribute() : 'Sin grado asignado';
+
             $datosEstudiantes[] = [
                 'estudiante_id' => $estudiante->id,
                 'nombre_completo' => $estudiante->user->apellido_paterno . ' ' .
                                 $estudiante->user->apellido_materno . ' ' .
                                 $estudiante->user->nombre,
-                'grado' => $estudiante->grado->getNombreCompletoAttribute() ?? 'Sin grado asignado',
-                'grado_id' => $estudiante->grado_id,
+                'grado' => $gradoMatriculaNombre, // Grado de la matrícula en el período
+                'grado_actual' => $gradoActual ? $gradoActual->getNombreCompletoAttribute() : 'Sin grado actual', // Opcional
+                'grado_id' => $matricula->grado_id, // ID del grado de la matrícula
                 'progreso_cursos' => $progresoCursos,
                 'progreso_conducta' => $progresoConducta,
                 'total_cursos' => count($progresoCursos),
@@ -1155,7 +1165,6 @@ private function prepararDatosGraficosConducta($progresoConducta)
             'bimestreFiltro'
         ));
     }
-
     protected function estudiante(Request $request)
     {
         if (!Auth::user()->hasRole('estudiante')) {
