@@ -186,50 +186,6 @@
                                             <div class="chart-container" style="height: 400px;">
                                                 <canvas id="chartNotas{{ $asignacion->id }}"></canvas>
                                             </div>
-                                            <div class="mt-3">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="mb-0">Leyenda de Estudiantes</h6>
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input toggle-estudiantes"
-                                                               type="checkbox"
-                                                               id="toggleEstudiantes{{ $asignacion->id }}"
-                                                               checked>
-                                                        <label class="form-check-label" for="toggleEstudiantes{{ $asignacion->id }}">
-                                                            Mostrar todos
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                                <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-2"
-                                                     id="leyenda-notas-{{ $asignacion->id }}">
-                                                    @foreach($datosGraficoNotas['datasets'] as $index => $dataset)
-                                                        <div class="col">
-                                                            <div class="d-flex align-items-center estudiante-leyenda"
-                                                                 data-estudiante-id="{{ $dataset['estudiante_id'] }}"
-                                                                 data-dataset-index="{{ $index }}">
-                                                                <div class="form-check">
-                                                                    <input class="form-check-input toggle-estudiante"
-                                                                           type="checkbox"
-                                                                           id="estudiante{{ $asignacion->id }}_{{ $index }}"
-                                                                           checked
-                                                                           data-chart-id="chartNotas{{ $asignacion->id }}"
-                                                                           data-dataset-index="{{ $index }}">
-                                                                    <label class="form-check-label d-flex align-items-center"
-                                                                           for="estudiante{{ $asignacion->id }}_{{ $index }}">
-                                                                        <div class="color-box me-2"
-                                                                             style="width: 12px; height: 12px; background-color: {{ $dataset['borderColor'] }}; border-radius: 2px;"></div>
-                                                                        <small class="text-truncate" title="{{ $dataset['label'] }}">
-                                                                            {{ $dataset['label'] }}
-                                                                            @if($dataset['dni'])
-                                                                                <br><span class="text-muted">DNI: {{ $dataset['dni'] }}</span>
-                                                                            @endif
-                                                                        </small>
-                                                                    </label>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            </div>
                                         @else
                                             <div class="text-center py-5">
                                                 <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
@@ -243,50 +199,6 @@
                                         @if($datosGraficoConducta && !empty($datosGraficoConducta['datasets']))
                                             <div class="chart-container" style="height: 400px;">
                                                 <canvas id="chartConducta{{ $asignacion->id }}"></canvas>
-                                            </div>
-                                            <div class="mt-3">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="mb-0">Leyenda de Estudiantes</h6>
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input toggle-estudiantes"
-                                                               type="checkbox"
-                                                               id="toggleConductaEstudiantes{{ $asignacion->id }}"
-                                                               checked>
-                                                        <label class="form-check-label" for="toggleConductaEstudiantes{{ $asignacion->id }}">
-                                                            Mostrar todos
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                                <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-2"
-                                                     id="leyenda-conducta-{{ $asignacion->id }}">
-                                                    @foreach($datosGraficoConducta['datasets'] as $index => $dataset)
-                                                        <div class="col">
-                                                            <div class="d-flex align-items-center estudiante-leyenda"
-                                                                 data-estudiante-id="{{ $dataset['estudiante_id'] }}"
-                                                                 data-dataset-index="{{ $index }}">
-                                                                <div class="form-check">
-                                                                    <input class="form-check-input toggle-estudiante"
-                                                                           type="checkbox"
-                                                                           id="conductaEstudiante{{ $asignacion->id }}_{{ $index }}"
-                                                                           checked
-                                                                           data-chart-id="chartConducta{{ $asignacion->id }}"
-                                                                           data-dataset-index="{{ $index }}">
-                                                                    <label class="form-check-label d-flex align-items-center"
-                                                                           for="conductaEstudiante{{ $asignacion->id }}_{{ $index }}">
-                                                                        <div class="color-box me-2"
-                                                                             style="width: 12px; height: 12px; background-color: {{ $dataset['borderColor'] }}; border-radius: 2px;"></div>
-                                                                        <small class="text-truncate" title="{{ $dataset['label'] }}">
-                                                                            {{ $dataset['label'] }}
-                                                                            @if($dataset['dni'])
-                                                                                <br><span class="text-muted">DNI: {{ $dataset['dni'] }}</span>
-                                                                            @endif
-                                                                        </small>
-                                                                    </label>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
                                             </div>
                                         @else
                                             <div class="text-center py-5">
@@ -987,7 +899,14 @@
             // Charts storage
             const charts = {};
 
-            // Inicializar todos los gráficos
+            // Paleta de colores para los estudiantes (la misma del dashboard estudiante)
+            const colores = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                '#9966FF', '#FF9F40', '#8AC926', '#1982C4',
+                '#6A4C93', '#F15BB5', '#00BBF9', '#00F5D4'
+            ];
+
+            // Inicializar todos los gráficos de notas académicas
             @foreach($asignaciones as $asignacion)
                 @if(isset($datosGraficos['estudiantes_lineas'][$asignacion->id]))
                     @php
@@ -999,50 +918,91 @@
                             type: 'line',
                             data: {
                                 labels: @json($graficoNotas['labels']),
-                                datasets: @json($graficoNotas['datasets'])
+                                datasets: @json($graficoNotas['datasets']).map((dataset, index) => ({
+                                    ...dataset,
+                                    borderColor: colores[index % colores.length],
+                                    backgroundColor: colores[index % colores.length] + '40',
+                                    tension: 0.3,
+                                    fill: false,
+                                    pointBackgroundColor: colores[index % colores.length],
+                                    pointBorderColor: '#fff',
+                                    pointRadius: 5,
+                                    pointHoverRadius: 7,
+                                    spanGaps: true
+                                }))
                             },
                             options: {
                                 responsive: true,
                                 maintainAspectRatio: false,
                                 plugins: {
-                                    legend: { display: false },
+                                    title: {
+                                        display: true,
+                                        text: 'Progreso Académico - {{ $graficoNotas['materia'] }} ({{ $graficoNotas['grado'] }})',
+                                        font: {
+                                            size: 14,
+                                            weight: 'bold'
+                                        }
+                                    },
+                                    legend: {
+                                        display: true,
+                                        position: 'top',
+                                        labels: {
+                                            boxWidth: 12,
+                                            padding: 10,
+                                            usePointStyle: true,
+                                            pointStyle: 'circle'
+                                        },
+                                        onClick: function(e, legendItem, legend) {
+                                            const index = legendItem.datasetIndex;
+                                            const ci = this.chart;
+                                            const meta = ci.getDatasetMeta(index);
+                                            meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                                            ci.update();
+                                        }
+                                    },
                                     tooltip: {
-                                        mode: 'index',
-                                        intersect: false,
+                                        mode: 'nearest', // Cambiado de 'index' a 'nearest'
+                                        intersect: true,  // Cambiado de false a true
                                         callbacks: {
                                             label: function(context) {
-                                                let label = context.dataset.label || '';
-                                                if (label) label += ': ';
-                                                if (context.parsed.y !== null) {
-                                                    label += context.parsed.y + ' / 4';
-                                                }
-                                                return label;
+                                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2);
+                                            },
+                                            title: function(tooltipItems) {
+                                                // Mostrar el bimestre como título del tooltip
+                                                const bimestre = tooltipItems[0].label;
+                                                return 'Bimestre: ' + bimestre;
                                             }
-                                        }
+                                        },
+                                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                        titleColor: '#fff',
+                                        bodyColor: '#fff',
+                                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                                        borderWidth: 1,
+                                        padding: 10,
+                                        displayColors: true,
+                                        boxPadding: 5
                                     }
                                 },
                                 scales: {
                                     y: {
-                                        beginAtZero: true,
+                                        beginAtZero: false,
+                                        min: 1,
                                         max: 4,
-                                        min: 0,
+                                        title: {
+                                            display: true,
+                                            text: 'Notas (1-4)'
+                                        },
                                         ticks: {
                                             stepSize: 0.5,
                                             callback: function(value) {
-                                                return value + ' / 4';
+                                                if (value === 2.5) {
+                                                    return value.toFixed(1) + ' (Mínimo)';
+                                                }
+                                                return value.toFixed(1);
                                             }
-                                        },
-                                        title: {
-                                            display: true,
-                                            text: 'Calificación (Escala 1-4)'
                                         },
                                         grid: {
-                                            color: function(context) {
-                                                if (context.tick.value === 0) {
-                                                    return 'rgba(0,0,0,0.1)';
-                                                }
-                                                return 'rgba(0,0,0,0.05)';
-                                            }
+                                            color: 'rgba(0, 0, 0, 0.1)'
                                         }
                                     },
                                     x: {
@@ -1050,21 +1010,29 @@
                                             display: true,
                                             text: 'Bimestres'
                                         },
-                                        grid: { display: false }
+                                        grid: {
+                                            display: false
+                                        }
                                     }
                                 },
                                 interaction: {
-                                    intersect: false,
-                                    mode: 'nearest'
+                                    mode: 'nearest', // También aquí
+                                    intersect: true
                                 },
                                 elements: {
                                     point: {
-                                        radius: 4,
-                                        hoverRadius: 6
+                                        hoverBackgroundColor: '#fff',
+                                        hoverBorderWidth: 2,
+                                        hoverRadius: 8
                                     },
                                     line: {
-                                        tension: 0.2
+                                        borderWidth: 2,
+                                        hoverBorderWidth: 3
                                     }
+                                },
+                                hover: {
+                                    mode: 'nearest',
+                                    intersect: true
                                 }
                             }
                         });
@@ -1081,50 +1049,90 @@
                             type: 'line',
                             data: {
                                 labels: @json($graficoConducta['labels']),
-                                datasets: @json($graficoConducta['datasets'])
+                                datasets: @json($graficoConducta['datasets']).map((dataset, index) => ({
+                                    ...dataset,
+                                    borderColor: colores[index % colores.length],
+                                    backgroundColor: colores[index % colores.length] + '40',
+                                    tension: 0.3,
+                                    fill: false,
+                                    pointBackgroundColor: colores[index % colores.length],
+                                    pointBorderColor: '#fff',
+                                    pointRadius: 5,
+                                    pointHoverRadius: 7,
+                                    spanGaps: true
+                                }))
                             },
                             options: {
                                 responsive: true,
                                 maintainAspectRatio: false,
                                 plugins: {
-                                    legend: { display: false },
+                                    title: {
+                                        display: true,
+                                        text: 'Progreso de Conducta - {{ $graficoConducta['materia'] }} ({{ $graficoConducta['grado'] }})',
+                                        font: {
+                                            size: 14,
+                                            weight: 'bold'
+                                        }
+                                    },
+                                    legend: {
+                                        display: true,
+                                        position: 'top',
+                                        labels: {
+                                            boxWidth: 12,
+                                            padding: 10,
+                                            usePointStyle: true,
+                                            pointStyle: 'circle'
+                                        },
+                                        onClick: function(e, legendItem, legend) {
+                                            const index = legendItem.datasetIndex;
+                                            const ci = this.chart;
+                                            const meta = ci.getDatasetMeta(index);
+                                            meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                                            ci.update();
+                                        }
+                                    },
                                     tooltip: {
-                                        mode: 'index',
-                                        intersect: false,
+                                        mode: 'nearest', // Cambiado de 'index' a 'nearest'
+                                        intersect: true,  // Cambiado de false a true
                                         callbacks: {
                                             label: function(context) {
-                                                let label = context.dataset.label || '';
-                                                if (label) label += ': ';
-                                                if (context.parsed.y !== null) {
-                                                    label += context.parsed.y + ' / 4';
-                                                }
-                                                return label;
+                                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2);
+                                            },
+                                            title: function(tooltipItems) {
+                                                const bimestre = tooltipItems[0].label;
+                                                return 'Bimestre: ' + bimestre;
                                             }
-                                        }
+                                        },
+                                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                        titleColor: '#fff',
+                                        bodyColor: '#fff',
+                                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                                        borderWidth: 1,
+                                        padding: 10,
+                                        displayColors: true,
+                                        boxPadding: 5
                                     }
                                 },
                                 scales: {
                                     y: {
-                                        beginAtZero: true,
+                                        beginAtZero: false,
+                                        min: 1,
                                         max: 4,
-                                        min: 0,
+                                        title: {
+                                            display: true,
+                                            text: 'Notas (1-4)'
+                                        },
                                         ticks: {
                                             stepSize: 0.5,
                                             callback: function(value) {
-                                                return value + ' / 4';
+                                                if (value === 2.5) {
+                                                    return value.toFixed(1) + ' (Mínimo)';
+                                                }
+                                                return value.toFixed(1);
                                             }
-                                        },
-                                        title: {
-                                            display: true,
-                                            text: 'Calificación Conducta (Escala 1-4)'
                                         },
                                         grid: {
-                                            color: function(context) {
-                                                if (context.tick.value === 0) {
-                                                    return 'rgba(0,0,0,0.1)';
-                                                }
-                                                return 'rgba(0,0,0,0.05)';
-                                            }
+                                            color: 'rgba(0, 0, 0, 0.1)'
                                         }
                                     },
                                     x: {
@@ -1132,21 +1140,29 @@
                                             display: true,
                                             text: 'Bimestres'
                                         },
-                                        grid: { display: false }
+                                        grid: {
+                                            display: false
+                                        }
                                     }
                                 },
                                 interaction: {
-                                    intersect: false,
-                                    mode: 'nearest'
+                                    mode: 'nearest', // También aquí
+                                    intersect: true
                                 },
                                 elements: {
                                     point: {
-                                        radius: 4,
-                                        hoverRadius: 6
+                                        hoverBackgroundColor: '#fff',
+                                        hoverBorderWidth: 2,
+                                        hoverRadius: 8
                                     },
                                     line: {
-                                        tension: 0.2
+                                        borderWidth: 2,
+                                        hoverBorderWidth: 3
                                     }
+                                },
+                                hover: {
+                                    mode: 'nearest',
+                                    intersect: true
                                 }
                             }
                         });
@@ -1154,24 +1170,21 @@
                 @endif
             @endforeach
 
-            // Toggle sections
+            // Toggle sections (mantener la misma lógica)
             document.querySelectorAll('.toggle-section').forEach(button => {
                 button.addEventListener('click', function() {
                     const target = this.dataset.target;
                     const section = document.querySelector(target);
 
-                    // Toggle active class
                     document.querySelectorAll('.toggle-section').forEach(btn => {
                         btn.classList.remove('active');
                     });
                     this.classList.add('active');
 
-                    // Hide all sections
                     document.querySelectorAll('.graficos-section, .detalles-section, .estudiantes-section').forEach(sec => {
                         sec.classList.add('d-none');
                     });
 
-                    // Show target section
                     section.classList.remove('d-none');
                 });
             });
@@ -1179,11 +1192,10 @@
             // Toggle between gráficos de notas y conducta
             document.querySelectorAll('.toggle-grafico').forEach(button => {
                 button.addEventListener('click', function() {
-                    const graficoType = this.dataset.grafico.split('-')[0]; // "notas" o "conducta"
-                    const asignacionId = this.dataset.grafico.split('-')[1]; // el ID
+                    const graficoType = this.dataset.grafico.split('-')[0];
+                    const asignacionId = this.dataset.grafico.split('-')[1];
                     const containerId = `grafico-${graficoType}-${asignacionId}`;
 
-                    // Toggle active class
                     const buttonGroup = this.closest('.btn-group');
                     if (buttonGroup) {
                         buttonGroup.querySelectorAll('.toggle-grafico').forEach(btn => {
@@ -1192,28 +1204,23 @@
                         this.classList.add('active');
                     }
 
-                    // Encontrar todos los contenedores de gráficos en esta card
                     const card = this.closest('.card');
                     if (card) {
                         const cardBody = card.querySelector('.card-body');
                         if (cardBody) {
-                            // Hide all gráficos
                             cardBody.querySelectorAll('.grafico-container').forEach(container => {
                                 container.classList.add('d-none');
                             });
 
-                            // Show target gráfico
                             const targetContainer = cardBody.querySelector(`#${containerId}`);
                             if (targetContainer) {
                                 targetContainer.classList.remove('d-none');
 
-                                // Redibujar el gráfico si existe
                                 const canvas = targetContainer.querySelector('canvas');
                                 if (canvas) {
                                     const chartId = canvas.id;
                                     const chart = charts[chartId];
                                     if (chart) {
-                                        // Darle tiempo al DOM para actualizar
                                         setTimeout(() => {
                                             chart.resize();
                                             chart.update();
@@ -1226,65 +1233,17 @@
                 });
             });
 
-            // Toggle individual student visibility in charts
-            document.querySelectorAll('.toggle-estudiante').forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    const chartId = this.dataset.chartId;
-                    const datasetIndex = parseInt(this.dataset.datasetIndex);
-                    const chart = charts[chartId];
-
-                    if (chart) {
-                        // Toggle dataset visibility
-                        chart.setDatasetVisibility(datasetIndex, this.checked);
-                        chart.update();
-
-                        // Update "Mostrar todos" switch
-                        const container = this.closest('.estudiante-leyenda')?.closest('.row');
-                        if (container) {
-                            const allChecked = Array.from(container.querySelectorAll('.toggle-estudiante'))
-                                .every(cb => cb.checked);
-                            const toggleAll = container.parentElement.querySelector('.toggle-estudiantes');
-                            if (toggleAll) {
-                                toggleAll.checked = allChecked;
-                            }
-                        }
-                    }
-                });
-            });
-
-            // Toggle all students visibility
-            document.querySelectorAll('.toggle-estudiantes').forEach(switchEl => {
-                switchEl.addEventListener('change', function() {
-                    const container = this.closest('.card-body') || this.closest('.mt-3');
-                    const checkboxes = container?.querySelectorAll('.toggle-estudiante');
-                    const chartId = checkboxes?.[0]?.dataset.chartId;
-                    const chart = charts[chartId];
-
-                    if (chart && checkboxes) {
-                        checkboxes.forEach((checkbox, index) => {
-                            checkbox.checked = this.checked;
-                            if (chart) {
-                                chart.setDatasetVisibility(index, this.checked);
-                            }
-                        });
-                        if (chart) chart.update();
-                    }
-                });
-            });
-
-            // Toggle student table view
+            // Toggle student table view (mantener esta funcionalidad si la necesitas)
             document.querySelectorAll('.toggle-estudiante-view').forEach(button => {
                 button.addEventListener('click', function() {
                     const view = this.dataset.view;
                     const table = this.closest('.card').querySelector('table');
 
-                    // Toggle active class
                     this.closest('.btn-group').querySelectorAll('.toggle-estudiante-view').forEach(btn => {
                         btn.classList.remove('active');
                     });
                     this.classList.add('active');
 
-                    // Filter rows
                     table.querySelectorAll('.estudiante-row').forEach(row => {
                         const tieneNotas = row.dataset.tieneNotas === '1';
                         const tieneConducta = row.dataset.tieneConducta === '1';
@@ -1298,11 +1257,44 @@
                             case 'con-conducta':
                                 shouldShow = tieneConducta;
                                 break;
-                            // 'todos' shows all
                         }
 
                         row.style.display = shouldShow ? '' : 'none';
                     });
+                });
+            });
+
+            // Función para redimensionar gráficos cuando cambia el tamaño de la ventana
+            window.addEventListener('resize', function() {
+                Object.values(charts).forEach(chart => {
+                    chart.resize();
+                });
+            });
+
+            // Botón para mostrar/ocultar todos los estudiantes (opcional)
+            document.querySelectorAll('.toggle-all-estudiantes').forEach(button => {
+                button.addEventListener('click', function() {
+                    const card = this.closest('.card');
+                    const canvas = card.querySelector('canvas');
+                    if (canvas) {
+                        const chartId = canvas.id;
+                        const chart = charts[chartId];
+
+                        if (chart) {
+                            const allHidden = chart.data.datasets.every((dataset, index) => {
+                                const meta = chart.getDatasetMeta(index);
+                                return meta.hidden === true;
+                            });
+
+                            chart.data.datasets.forEach((dataset, index) => {
+                                const meta = chart.getDatasetMeta(index);
+                                meta.hidden = !allHidden;
+                            });
+
+                            chart.update();
+                            this.textContent = allHidden ? 'Ocultar Todos' : 'Mostrar Todos';
+                        }
+                    }
                 });
             });
         });

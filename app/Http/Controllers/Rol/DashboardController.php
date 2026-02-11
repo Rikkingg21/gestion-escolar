@@ -555,7 +555,7 @@ private function prepararDatosGraficosEstudiantes($progresoEstudiantes)
             $labels = ['Bim. 1', 'Bim. 2', 'Bim. 3', 'Bim. 4'];
             $datasets = [];
 
-            // Colores para diferentes estudiantes
+            // Paleta de colores más grande para más estudiantes
             $colores = [
                 'rgb(54, 162, 235)',    // Azul
                 'rgb(255, 99, 132)',    // Rojo
@@ -567,20 +567,38 @@ private function prepararDatosGraficosEstudiantes($progresoEstudiantes)
                 'rgb(50, 168, 82)',     // Verde
                 'rgb(220, 57, 18)',     // Rojo oscuro
                 'rgb(255, 153, 0)',     // Naranja oscuro
+                'rgb(0, 152, 216)',     // Azul medio
+                'rgb(118, 186, 27)',    // Verde claro
+                'rgb(158, 0, 89)',      // Magenta oscuro
+                'rgb(0, 131, 143)',     // Azul verdoso
+                'rgb(194, 24, 91)',     // Rosa oscuro
+                'rgb(102, 58, 183)',    // Morado oscuro
+                'rgb(230, 124, 0)',     // Naranja oscuro
+                'rgb(27, 94, 32)',      // Verde oscuro
+                'rgb(121, 85, 72)',     // Marrón
+                'rgb(96, 125, 139)',    // Azul grisáceo
+                // Agrega más colores según sea necesario
             ];
+
+            // Generar colores dinámicamente si hay más estudiantes que colores
+            $estudianteCount = count($datosAsignacion['progreso']);
+            if ($estudianteCount > count($colores)) {
+                $colores = $this->generarColoresDinamicos($estudianteCount);
+            }
 
             $colorIndex = 0;
 
             foreach ($datosAsignacion['progreso'] as $estudianteId => $estudianteData) {
-                // Solo incluir estudiantes con datos suficientes
+                // Solo incluir estudiantes con datos suficientes (al menos 1 bimestre con datos)
                 $datosBimestres = array_values($estudianteData['datos']);
                 $datosValidos = array_filter($datosBimestres, function($valor) {
                     return $valor !== null;
                 });
 
-                if (count($datosValidos) >= 2) {
+                // Mostrar todos los estudiantes que tengan al menos 1 dato
+                if (count($datosValidos) >= 1) {
                     $datasets[] = [
-                        'label' => $estudianteData['estudiante'],
+                        'label' => $estudianteData['estudiante'] . ' (' . $estudianteData['dni'] . ')',
                         'data' => $datosBimestres,
                         'borderColor' => $colores[$colorIndex % count($colores)],
                         'backgroundColor' => $colores[$colorIndex % count($colores)] . '20',
@@ -589,14 +607,11 @@ private function prepararDatosGraficosEstudiantes($progresoEstudiantes)
                         'pointRadius' => 6,
                         'pointHoverRadius' => 8,
                         'estudiante_id' => $estudianteId,
-                        'dni' => $estudianteData['dni']
+                        'dni' => $estudianteData['dni'],
+                        'hidden' => $colorIndex >= 10 // Ocultar automáticamente después de 10 estudiantes
                     ];
 
                     $colorIndex++;
-
-                    if ($colorIndex >= 10) {
-                        break;
-                    }
                 }
             }
 
@@ -605,7 +620,8 @@ private function prepararDatosGraficosEstudiantes($progresoEstudiantes)
                     'labels' => $labels,
                     'datasets' => $datasets,
                     'materia' => $datosAsignacion['materia'],
-                    'grado' => $datosAsignacion['grado']
+                    'grado' => $datosAsignacion['grado'],
+                    'total_estudiantes' => count($datasets)
                 ];
             }
         }
@@ -623,7 +639,7 @@ private function prepararDatosGraficosConducta($progresoConducta)
             $labels = ['Bim. 1', 'Bim. 2', 'Bim. 3', 'Bim. 4'];
             $datasets = [];
 
-            // Colores diferentes para conducta (tonos verdes/morados)
+            // Paleta de colores más grande para conducta
             $colores = [
                 'rgb(76, 175, 80)',     // Verde
                 'rgb(139, 195, 74)',    // Verde claro
@@ -635,20 +651,37 @@ private function prepararDatosGraficosConducta($progresoConducta)
                 'rgb(0, 150, 136)',     // Verde azulado
                 'rgb(121, 85, 72)',     // Marrón
                 'rgb(96, 125, 139)',    // Azul grisáceo
+                'rgb(56, 142, 60)',     // Verde oscuro
+                'rgb(104, 159, 56)',    // Verde oliva
+                'rgb(175, 180, 43)',    // Verde amarillento
+                'rgb(106, 27, 154)',    // Morado oscuro
+                'rgb(81, 45, 168)',     // Índigo oscuro
+                'rgb(48, 63, 159)',     // Azul oscuro
+                'rgb(25, 118, 210)',    // Azul medio
+                'rgb(0, 131, 143)',     // Cian oscuro
+                'rgb(0, 105, 92)',      // Verde azulado oscuro
+                'rgb(62, 39, 35)',      // Marrón oscuro
             ];
+
+            // Generar colores dinámicamente si hay más estudiantes que colores
+            $estudianteCount = count($datosAsignacion['progreso']);
+            if ($estudianteCount > count($colores)) {
+                $colores = $this->generarColoresDinamicos($estudianteCount);
+            }
 
             $colorIndex = 0;
 
             foreach ($datosAsignacion['progreso'] as $estudianteId => $estudianteData) {
-                // Solo incluir estudiantes con datos suficientes
+                // Solo incluir estudiantes con datos suficientes (al menos 1 bimestre con datos)
                 $datosBimestres = array_values($estudianteData['datos']);
                 $datosValidos = array_filter($datosBimestres, function($valor) {
                     return $valor !== null;
                 });
 
-                if (count($datosValidos) >= 2) {
+                // Mostrar todos los estudiantes que tengan al menos 1 dato
+                if (count($datosValidos) >= 1) {
                     $datasets[] = [
-                        'label' => $estudianteData['estudiante'],
+                        'label' => $estudianteData['estudiante'] . ' (' . $estudianteData['dni'] . ')',
                         'data' => $datosBimestres,
                         'borderColor' => $colores[$colorIndex % count($colores)],
                         'backgroundColor' => $colores[$colorIndex % count($colores)] . '20',
@@ -657,14 +690,11 @@ private function prepararDatosGraficosConducta($progresoConducta)
                         'pointRadius' => 6,
                         'pointHoverRadius' => 8,
                         'estudiante_id' => $estudianteId,
-                        'dni' => $estudianteData['dni']
+                        'dni' => $estudianteData['dni'],
+                        'hidden' => $colorIndex >= 10 // Ocultar automáticamente después de 10 estudiantes
                     ];
 
                     $colorIndex++;
-
-                    if ($colorIndex >= 10) {
-                        break;
-                    }
                 }
             }
 
@@ -674,13 +704,30 @@ private function prepararDatosGraficosConducta($progresoConducta)
                     'datasets' => $datasets,
                     'materia' => $datosAsignacion['materia'],
                     'grado' => $datosAsignacion['grado'],
-                    'es_conducta' => true
+                    'es_conducta' => true,
+                    'total_estudiantes' => count($datasets)
                 ];
             }
         }
     }
-
     return $datos;
+}
+
+// Nueva función auxiliar para generar colores dinámicamente
+private function generarColoresDinamicos($cantidad)
+{
+    $colores = [];
+
+    for ($i = 0; $i < $cantidad; $i++) {
+        // Generar colores HSL con diferentes matices
+        $hue = ($i * 360 / $cantidad) % 360;
+        $saturation = 70 + (rand(0, 15)); // 70-85%
+        $lightness = 50 + (rand(0, 10));  // 50-60%
+
+        $colores[] = "hsl($hue, $saturation%, $lightness%)";
+    }
+
+    return $colores;
 }
 
     // Función auxiliar para generar colores por bimestre (se mantiene igual)
