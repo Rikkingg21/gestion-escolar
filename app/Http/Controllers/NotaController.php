@@ -37,8 +37,8 @@ class NotaController extends Controller
 
             // Solo verificar asignación de docente si el usuario tiene rol "docente"
             if ($rolUsuario === 'docente') {
-                // Obtener el ID del curso desde la ruta
-                $cursoId = $request->route('curso_grado_sec_niv_anio_id');
+                // Obtener el ID del curso desde la ruta o el request
+                $cursoId = $request->route('curso_grado_sec_niv_anio_id') ?? $request->input('curso_id');
 
                 if ($cursoId) {
                     $curso = Cursogradosecnivanio::with('docente.user')->find($cursoId);

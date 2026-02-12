@@ -144,9 +144,7 @@
                         <label class="btn btn-outline-primary" for="btncualitativo">Cualitativo</label>
 
                         <button type="button" class="btn btn-secondary">PDF</button>
-                        <button type="button" class="btn btn-success" id="btnExportarExcel">
-                            <i class="fas fa-file-excel mr-1"></i>Excel
-                        </button>
+                        <button type="button" class="btn btn-success" id="btnExportarExcel">Excel</button>
                     </div>
                 </div>
                 <span class="text-xs text-gray-600 mr-3">
@@ -634,7 +632,6 @@
 </div>
 @endif
 <script>
-$(document).ready(function() {
     // CONFIGURACIÓN Y CONSTANTES
     const CONFIG = {
         mapeoNotas: {
@@ -645,6 +642,7 @@ $(document).ready(function() {
             'c': '1', 'b': '2', 'a': '3', 'ad': '4'
         }
     };
+
     // VARIABLES DE ESTADO
     let formatoActual = 'cuantitativo';
     let competenciasNoTransversales = window.competenciasNoTransversales || [];
@@ -660,7 +658,6 @@ $(document).ready(function() {
 
     function cambiarFormato(valor, aFormato) {
         if (!valor || valor === '-') return '-';
-
         const valorStr = valor.toString().trim();
         if (aFormato === 'cualitativo') {
             if (!isNaN(parseFloat(valorStr))) {
@@ -678,24 +675,17 @@ $(document).ready(function() {
     // MANEJO DE FORMATO DE TABLA
     function cambiarFormatoTabla(nuevoFormato) {
         formatoActual = nuevoFormato;
-
-        // Actualizar inputs
         $('.nota-input, .conducta-input').each(function() {
             const $input = $(this);
             const original = $input.data('original-value') || $input.val();
             $input.data('original-value', original);
-
             if (original && original !== '-' && original !== '') {
                 $input.val(cambiarFormato(original, nuevoFormato));
             } else {
                 $input.val('');
             }
         });
-
-        // Actualizar promedios SIAGIE
         actualizarTodosLosPromediosSIAGIE();
-
-        // Actualizar celdas de solo lectura
         $('td .font-weight-bold').each(function() {
             const $celda = $(this);
             const texto = $celda.text().trim();
@@ -710,23 +700,18 @@ $(document).ready(function() {
             }
             $celda.data('original-value', texto);
         });
-
-        // Configurar validación según formato
         const config = nuevoFormato === 'cualitativo' ?
             { pattern: '[ABCDad]', maxlength: 2 } :
             { pattern: '[1-4](\.[0-9]+)?', maxlength: 4 };
-
         $('.nota-input, .conducta-input').attr(config);
     }
 
     // CÁLCULO DE PROMEDIOS SIAGIE
     function calcularPromedioSIAGIE(estudianteId, competenciaNT) {
         let suma = 0, count = 0;
-
         $(`.nota-input[data-estudiante="${estudianteId}"]`).each(function() {
             const criterioId = $(this).data('criterio');
             const esDeCompetencia = competenciaNT.criterios.some(c => c.id == criterioId);
-
             if (esDeCompetencia) {
                 let valor = $(this).val();
                 if (formatoActual === 'cualitativo' && valor && valor !== '-') {
@@ -739,7 +724,6 @@ $(document).ready(function() {
                 }
             }
         });
-
         return count > 0 ? (suma / count) : null;
     }
 
@@ -747,17 +731,13 @@ $(document).ready(function() {
         competenciasNoTransversales.forEach(competenciaNT => {
             const promedio = calcularPromedioSIAGIE(estudianteId, competenciaNT);
             const $celda = $(`td[data-estudiante="${estudianteId}"][data-competencia="${competenciaNT.id}"]`);
-
             if ($celda.length) {
                 let valorMostrar = promedio !== null ? promedio.toFixed(1) : '-';
                 if (formatoActual === 'cualitativo' && promedio !== null) {
                     valorMostrar = cambiarFormato(promedio, 'cualitativo');
                 }
-
                 const $span = $celda.find('.promedio-siagie');
                 $span.text(valorMostrar);
-
-                // Aplicar color
                 $span.removeClass('text-success text-warning text-danger');
                 if (promedio !== null) {
                     if (formatoActual === 'cuantitativo') {
@@ -777,7 +757,6 @@ $(document).ready(function() {
         const estudiantesIds = [...new Set($('.nota-input').map(function() {
             return $(this).data('estudiante');
         }).get())];
-
         estudiantesIds.forEach(estudianteId => {
             actualizarPromediosSIAGIE(estudianteId);
         });
@@ -808,34 +787,73 @@ $(document).ready(function() {
         return $input.val();
     }
 
-    // MANEJO DE EVENTOS
-    $(document)
-        .on('change', 'input[name="btnradio"]', function() {
-            cambiarFormatoTabla($(this).val());
-        })
-        .on('input', '.nota-input, .conducta-input', function() {
-            const $input = $(this);
-            const valor = validarInputNota($input, $input.val());
-            $input.data('original-value', valor);
-
-            if ($input.hasClass('nota-input')) {
-                actualizarPromediosSIAGIE($input.data('estudiante'));
+    function verificarCambios() {
+        let tieneCambios = false;
+        $('.nota-input, .conducta-input').each(function() {
+            if ($(this).val() !== $(this).data('original')) {
+                tieneCambios = true;
+                return false;
             }
-            verificarCambios();
-        })
-        .on('click', '.btn-secondary:contains("PDF")', generarPDF)
-        .on('click', '#btnExportarExcel', exportarExcel);
+        });
+        $('#btnGuardarNotas').prop('disabled', !tieneCambios);
+    }
 
+    function mostrarMensaje(tipo, titulo, mensaje, tiempo = 3000) {
+        if (!$('#mensaje-flotante').length) {
+            $('body').append(`
+                <div id="mensaje-flotante" class="position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 9999; display: none;">
+                    <div class="toast" role="alert">
+                        <div class="toast-header">
+                            <strong class="me-auto" id="mensaje-titulo"></strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body" id="mensaje-texto"></div>
+                    </div>
+                </div>
+            `);
+        }
+        const tipos = {
+            'success': { bg: 'bg-success text-white', icon: '✓' },
+            'error': { bg: 'bg-danger text-white', icon: '✗' },
+            'warning': { bg: 'bg-warning', icon: '⚠' },
+            'info': { bg: 'bg-info text-white', icon: 'ℹ' }
+        };
+        const config = tipos[tipo] || tipos.info;
+        $('#mensaje-flotante .toast-header')
+            .removeClass('bg-success bg-danger bg-warning bg-info text-white')
+            .addClass(config.bg);
+        $('#mensaje-titulo').html(`${config.icon} ${titulo}`);
+        $('#mensaje-texto').text(mensaje);
+        $('#mensaje-flotante').fadeIn();
+        setTimeout(() => $('#mensaje-flotante').fadeOut(), tiempo);
+    }
 
-        function generarPDF() {
-        // Crear un iframe temporal para la generación del PDF
+    function mostrarLoading() {
+        if (!$('#loading-overlay').length) {
+            $('body').append(`
+                <div id="loading-overlay" class="position-fixed top-0 left-0 w-100 h-100"
+                    style="z-index: 9998; background: rgba(0,0,0,0.5); display: none;">
+                    <div class="d-flex justify-content-center align-items-center h-100">
+                        <div class="spinner-border text-light" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <span class="ms-3 text-light">Guardando...</span>
+                    </div>
+                </div>
+            `);
+        }
+        $('#loading-overlay').fadeIn();
+    }
+
+    function ocultarLoading() {
+        $('#loading-overlay').fadeOut();
+    }
+
+    function generarPDF() {
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         document.body.appendChild(iframe);
-
         const doc = iframe.contentWindow.document;
-
-        // Escribir el contenido HTML para el PDF
         doc.open();
         doc.write(`
             <!DOCTYPE html>
@@ -864,44 +882,39 @@ $(document).ready(function() {
                 </style>
             </head>
             <body>
+                <div class="header">
+                    <h1>Registro de Notas</h1>
+                    <p>Formato: ${formatoActual === 'cuantitativo' ? 'Cuantitativo (1-4)' : 'Cualitativo (AD, A, B, C)'}</p>
+                    <p>Generado: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+                    <hr>
+                    <div class="leyenda">
+                        <strong>Leyenda:</strong>
+                        <span class="text-success">${formatoActual === 'cuantitativo' ? '3-4' : 'A-AD'} (Satisfactorio)</span> |
+                        <span class="text-warning">${formatoActual === 'cuantitativo' ? '2' : 'B'} (En proceso)</span> |
+                        <span class="text-danger">${formatoActual === 'cuantitativo' ? '1' : 'C'} (En inicio)</span>
+                    </div>
+                </div>
         `);
-
-        // Obtener datos de la página actual
-        const titulo = 'Registro de Notas';
-        const fecha = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString();
-
-        // Clonar la tabla para procesarla
         const tablaOriginal = document.getElementById('tablaNotas');
         const tablaClon = tablaOriginal.cloneNode(true);
-
-        // Remover elementos interactivos
         $(tablaClon).find('input, button, .btn-group, .switch-container').remove();
-
-        // Reemplazar inputs con sus valores
         $(tablaClon).find('.nota-input, .conducta-input').each(function() {
             const valor = $(this).val() || '-';
             $(this).replaceWith('<div>' + valor + '</div>');
         });
-
-        // Aplicar formato actual a todos los valores
         $(tablaClon).find('td .font-weight-bold, td div').each(function() {
             const $celda = $(this);
             const texto = $celda.text().trim();
-            if (texto !== '-') {
+            // Solo aplicar formato si el texto es un número entre 1 y 4
+            if (/^[1-4](\.\d+)?$/.test(texto)) {
                 const valorFormateado = cambiarFormato(texto, formatoActual);
                 $celda.text(valorFormateado);
             }
         });
-
-        // Añadir clases de color según valores
         $(tablaClon).find('td .font-weight-bold, td div').each(function() {
             const $celda = $(this);
             const texto = $celda.text().trim();
-
-            // Remover clases existentes
             $celda.removeClass('text-success text-warning text-danger');
-
-            // Aplicar clases según valor
             if (formatoActual === 'cuantitativo') {
                 const num = parseFloat(texto);
                 if (!isNaN(num)) {
@@ -915,43 +928,19 @@ $(document).ready(function() {
                 else if (texto === 'C') $celda.addClass('text-danger');
             }
         });
-
-        // Crear el contenido del PDF
-        doc.write(`
-            <div class="header">
-                <h1>${titulo}</h1>
-                <p>Formato: ${formatoActual === 'cuantitativo' ? 'Cuantitativo (1-4)' : 'Cualitativo (AD, A, B, C)'}</p>
-                <p>Generado: ${fecha}</p>
-                <hr>
-                <div class="leyenda">
-                    <strong>Leyenda:</strong>
-                    <span class="text-success">${formatoActual === 'cuantitativo' ? '3-4' : 'A-AD'} (Satisfactorio)</span> |
-                    <span class="text-warning">${formatoActual === 'cuantitativo' ? '2' : 'B'} (En proceso)</span> |
-                    <span class="text-danger">${formatoActual === 'cuantitativo' ? '1' : 'C'} (En inicio)</span>
-                </div>
-            </div>
-        `);
-
-        // Añadir la tabla al documento
         doc.write(tablaClon.outerHTML);
-
-        // Pie de página
         doc.write(`
-            <div class="footer">
-                <hr>
-                <p>Sistema de Gestión Académica - Documento generado automáticamente</p>
-            </div>
+                <div class="footer">
+                    <hr>
+                    <p>Sistema de Gestión Académica - Documento generado automáticamente</p>
+                </div>
+            </body>
+            </html>
         `);
-
-        doc.write('</body></html>');
         doc.close();
-
-        // Generar el PDF usando print
         setTimeout(function() {
             iframe.contentWindow.focus();
             iframe.contentWindow.print();
-
-            // Remover el iframe después de un tiempo
             setTimeout(function() {
                 document.body.removeChild(iframe);
             }, 1000);
@@ -975,179 +964,40 @@ $(document).ready(function() {
                     allowOutsideClick: false,
                     didOpen: () => Swal.showLoading()
                 });
-
                 const url = '{{ route("notas.exportar.excel", ["curso_grado_sec_niv_anio_id" => $curso_id, "bimestre" => $bimestre]) }}?formato=' + formato;
                 window.location.href = url;
-
                 setTimeout(() => Swal.close(), 2000);
             }
         });
     }
 
-    function mostrarMensaje(tipo, titulo, mensaje, tiempo = 3000) {
-        // Crear contenedor si no existe
-        if (!$('#mensaje-flotante').length) {
-            $('body').append(`
-                <div id="mensaje-flotante" class="position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 9999; display: none;">
-                    <div class="toast" role="alert">
-                        <div class="toast-header">
-                            <strong class="me-auto" id="mensaje-titulo"></strong>
-                            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-                        </div>
-                        <div class="toast-body" id="mensaje-texto"></div>
-                    </div>
-                </div>
-            `);
-        }
-
-        // Configurar clases según tipo
-        const tipos = {
-            'success': { bg: 'bg-success text-white', icon: '✓' },
-            'error': { bg: 'bg-danger text-white', icon: '✗' },
-            'warning': { bg: 'bg-warning', icon: '⚠' },
-            'info': { bg: 'bg-info text-white', icon: 'ℹ' }
-        };
-
-        const config = tipos[tipo] || tipos.info;
-
-        $('#mensaje-flotante .toast-header')
-            .removeClass('bg-success bg-danger bg-warning bg-info text-white')
-            .addClass(config.bg);
-
-        $('#mensaje-titulo').html(`${config.icon} ${titulo}`);
-        $('#mensaje-texto').text(mensaje);
-
-        // Mostrar mensaje
-        $('#mensaje-flotante').fadeIn();
-
-        // Ocultar automáticamente
-        setTimeout(() => {
-            $('#mensaje-flotante').fadeOut();
-        }, tiempo);
-    }
-
-    // Función para mostrar loading
-    function mostrarLoading() {
-        if (!$('#loading-overlay').length) {
-            $('body').append(`
-                <div id="loading-overlay" class="position-fixed top-0 left-0 w-100 h-100"
-                     style="z-index: 9998; background: rgba(0,0,0,0.5); display: none;">
-                    <div class="d-flex justify-content-center align-items-center h-100">
-                        <div class="spinner-border text-light" role="status">
-                            <span class="visually-hidden">Cargando...</span>
-                        </div>
-                        <span class="ms-3 text-light">Guardando...</span>
-                    </div>
-                </div>
-            `);
-        }
-        $('#loading-overlay').fadeIn();
-    }
-
-    // Función para ocultar loading
-    function ocultarLoading() {
-        $('#loading-overlay').fadeOut();
-    }
-
-    // Guardar notas
-    $('#btnGuardarNotas').click(function() {
-        // Verificar si hay cambios
-        let tieneCambios = false;
+    // INICIALIZACIÓN
+    $(document).ready(function() {
         $('.nota-input, .conducta-input').each(function() {
-            if ($(this).val() !== $(this).data('original')) {
-                tieneCambios = true;
-                return false;
-            }
+            $(this).data('original', $(this).val());
         });
-
-        if (!tieneCambios) {
-            mostrarMensaje('info', 'Sin cambios', 'No hay cambios para guardar');
-            return;
-        }
-
-        // Organizar notas en formato correcto para el controlador
-        const notasCriterios = {};
-        const notasConductas = {};
-
-        // Recolectar notas de criterios
-        $('.nota-input').each(function() {
-            const estudianteId = $(this).data('estudiante');
-            const criterioId = $(this).data('criterio');
-            const nota = $(this).val();
-
-            if (!notasCriterios[estudianteId]) {
-                notasCriterios[estudianteId] = {};
-            }
-
-            notasCriterios[estudianteId][criterioId] = nota !== '' ? parseFloat(nota) : null;
-        });
-
-        // Recolectar notas de conductas
-        $('.conducta-input').each(function() {
-            const estudianteId = $(this).data('estudiante');
-            const conductaId = $(this).data('conducta');
-            const nota = $(this).val();
-
-            if (!notasConductas[estudianteId]) {
-                notasConductas[estudianteId] = {};
-            }
-
-            notasConductas[estudianteId][conductaId] = nota !== '' ? parseFloat(nota) : null;
-        });
-
-        // Mostrar loading
-        mostrarLoading();
-
-        // Enviar datos
-        $.ajax({
-            url: '{{ route("nota.guardarNotas") }}',
-            method: 'POST',
-            data: {
-                _token: '{{ csrf_token() }}',
-                curso_id: {{ $curso_id }},
-                bimestre: {{ $bimestre }},
-                notas: notasCriterios,
-                conductas: notasConductas
-            },
-            success: function(response) {
-                ocultarLoading();
-
-                if(response.success) {
-                    mostrarMensaje('success', '¡Guardado!', response.message);
-
-                    // Recargar página después de 2 segundos
-                    setTimeout(() => {
-                        location.reload();
-                    }, 2000);
-                } else {
-                    mostrarMensaje('error', 'Error', response.message);
-                }
-            },
-            error: function(xhr) {
-                ocultarLoading();
-
-                let message = 'Ocurrió un error al guardar las notas.';
-
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    message = xhr.responseJSON.message;
-                } else if (xhr.status === 0) {
-                    message = 'Error de conexión. Verifique su internet.';
-                } else if (xhr.status === 500) {
-                    message = 'Error interno del servidor.';
-                }
-
-                mostrarMensaje('error', 'Error ' + xhr.status, message);
-            }
-        });
+        verificarCambios();
     });
 
-    // Validar rango de notas en inputs
-    $('.nota-input, .conducta-input').on('blur', function() {
-        const valor = $(this).val();
+    // EVENTOS GLOBALES
+    $(document).on('change', 'input[name="btnradio"]', function() {
+        cambiarFormatoTabla($(this).val());
+    });
 
+    $(document).on('input', '.nota-input, .conducta-input', function() {
+        const $input = $(this);
+        const valor = validarInputNota($input, $input.val());
+        $input.data('original-value', valor);
+        if ($input.hasClass('nota-input')) {
+            actualizarPromediosSIAGIE($input.data('estudiante'));
+        }
+        verificarCambios();
+    });
+
+    $(document).on('blur', '.nota-input, .conducta-input', function() {
+        const valor = $(this).val();
         if (valor !== '') {
             const numValor = parseFloat(valor);
-
             if (numValor < 1) {
                 $(this).val(1);
                 mostrarMensaje('warning', 'Aviso', 'La nota mínima es 1', 2000);
@@ -1155,48 +1005,72 @@ $(document).ready(function() {
                 $(this).val(4);
                 mostrarMensaje('warning', 'Aviso', 'La nota máxima es 4', 2000);
             } else if (![1, 2, 3, 4].includes(numValor)) {
-                // Si no es un número entero válido
                 mostrarMensaje('warning', 'Valor inválido', 'Solo se permiten los valores 1, 2, 3 o 4', 2000);
                 $(this).val('');
             }
         }
     });
 
-    // Validar entrada en tiempo real (solo números 1-4)
-    $('.nota-input, .conducta-input').on('input', function() {
-        const valor = $(this).val();
+    $(document).on('click', '.btn-secondary:contains("PDF")', generarPDF);
+    $(document).on('click', '#btnExportarExcel', exportarExcel);
+</script>
 
-        // Solo permitir números 1-4
-        if (valor && !/^[1-4]$/.test(valor)) {
-            $(this).val(valor.replace(/[^1-4]/g, ''));
-        }
+<script>
+    $(document).on('click', '#btnGuardarNotas', function(e) {
+        e.preventDefault();
+        // Mostrar loading si tienes función
+        mostrarLoading && mostrarLoading();
 
-        // Verificar cambios
-        verificarCambios();
-    });
-
-    // Verificar cambios
-    function verificarCambios() {
-        let tieneCambios = false;
-
-        $('.nota-input, .conducta-input').each(function() {
-            if ($(this).val() !== $(this).data('original')) {
-                tieneCambios = true;
-                return false; // Salir del bucle
-            }
+        // Recolectar notas de criterios
+        let notas = {};
+        $('.nota-input').each(function() {
+            let estudiante = $(this).data('estudiante');
+            let criterio = $(this).data('criterio');
+            let valor = $(this).val();
+            if (!notas[estudiante]) notas[estudiante] = {};
+            notas[estudiante][criterio] = valor;
         });
 
-        $('#btnGuardarNotas').prop('disabled', !tieneCambios);
-    }
+        // Recolectar notas de conductas
+        let conductas = {};
+        $('.conducta-input').each(function() {
+            let estudiante = $(this).data('estudiante');
+            let conducta = $(this).data('conducta');
+            let valor = $(this).val();
+            if (!conductas[estudiante]) conductas[estudiante] = {};
+            conductas[estudiante][conducta] = valor;
+        });
 
-    // Guardar valores originales
-    $('.nota-input, .conducta-input').each(function() {
-        $(this).data('original', $(this).val());
+        // Datos adicionales
+        let curso_id = "{{ $curso_id }}";
+        let bimestre = "{{ $bimestre }}";
+        let token = "{{ csrf_token() }}";
+
+        $.ajax({
+            url: "{{ route('nota.guardarNotas') }}",
+            method: "POST",
+            data: {
+                _token: token,
+                curso_id: curso_id,
+                bimestre: bimestre,
+                notas: notas,
+                conductas: conductas
+            },
+            success: function(response) {
+                ocultarLoading && ocultarLoading();
+                // Recargar la página o mostrar mensaje de éxito
+                location.reload();
+            },
+            error: function(xhr) {
+                ocultarLoading && ocultarLoading();
+                let msg = "Error al guardar las notas.";
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                mostrarMensaje && mostrarMensaje('error', 'Error', msg, 4000);
+            }
+        });
     });
-
-    // Inicializar verificación
-    verificarCambios();
-});
 </script>
 <style>
     .nota-input {
