@@ -487,8 +487,8 @@
                             position: 'top',
                         },
                         tooltip: {
-                            mode: 'index',
-                            intersect: false,
+                            mode: 'nearest',
+                            intersect: true,
                             callbacks: {
                                 label: function(context) {
                                     return `${context.dataset.label}: ${context.parsed.y}%`;
