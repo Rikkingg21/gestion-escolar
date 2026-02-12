@@ -97,6 +97,7 @@ class AsistenciaController extends Controller
         try {
             $fechaFormateada = Carbon::createFromFormat('d-m-Y', $date)->format('Y-m-d');
             $anioFecha = Carbon::createFromFormat('d-m-Y', $date)->year;
+            $mesFecha = Carbon::createFromFormat('d-m-Y', $date)->format('m');
         } catch (\Exception $e) {
             abort(400, 'Formato de fecha inválido. Use dd-mm-yyyy');
         }
@@ -123,6 +124,26 @@ class AsistenciaController extends Controller
             abort(400, "No hay un período activo configurado para el año {$anioFecha}");
         }
 
+        // ========== VALIDACIÓN DE MES BLOQUEADO ==========
+        // Si existe AL MENOS UNA asistencia con estado '1' o '2' en este período, mes y grado
+        // entonces TODO el mes está BLOQUEADO COMPLETAMENTE
+        $mesBloqueado = Asistencia::where('periodo_id', $periodoFecha->id)
+            ->where('grado_id', $grado->id)
+            ->whereMonth('fecha', $mesFecha)
+            ->whereIn('estado', ['1', '2'])
+            ->exists();
+
+        // Contar cuántos registros bloqueados hay (solo para informar)
+        $cantidadBloqueados = 0;
+        if ($mesBloqueado) {
+            $cantidadBloqueados = Asistencia::where('periodo_id', $periodoFecha->id)
+                ->where('grado_id', $grado->id)
+                ->whereMonth('fecha', $mesFecha)
+                ->whereIn('estado', ['1', '2'])
+                ->count();
+        }
+        // =================================================
+
         // Obtener estudiantes usando whereHas para mejor eficiencia
         $estudiantesMatriculadosActivos = Estudiante::with(['user',
             'asistencias' => function ($query) use ($fechaFormateada, $grado) {
@@ -133,7 +154,7 @@ class AsistenciaController extends Controller
         ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
             $query->where('grado_id', $grado->id)
                 ->where('periodo_id', $periodoFecha->id)
-                ->where('estado', '1'); // Activo
+                ->where('estado', '1');
         })
         ->get()
         ->sortBy(function ($estudiante) {
@@ -151,7 +172,7 @@ class AsistenciaController extends Controller
         ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
             $query->where('grado_id', $grado->id)
                 ->where('periodo_id', $periodoFecha->id)
-                ->where('estado', '0'); // Retirado
+                ->where('estado', '0');
         })
         ->get()
         ->sortBy(function ($estudiante) {
@@ -189,10 +210,13 @@ class AsistenciaController extends Controller
             'fechaSeleccionada'                => $date,
             'fechaFormateada'                  => $fechaFormateada,
             'tiposAsistencia'                  => $tiposAsistencia,
-            'existenRegistros'                 => $existenRegistros,
-            'bimestreActual'                   => $bimestreActual,
-            'periodoActual'                    => $periodoFecha,
-            'anioFecha'                        => $anioFecha,
+            'existenRegistros'                => $existenRegistros,
+            'bimestreActual'                  => $bimestreActual,
+            'periodoActual'                   => $periodoFecha,
+            'anioFecha'                       => $anioFecha,
+            // Variables simplificadas para bloqueo
+            'mesBloqueado'                    => $mesBloqueado,
+            'cantidadBloqueados'             => $cantidadBloqueados,
         ]);
     }
     public function guardarMultiple(Request $request, Grado $grado, string $fecha)
@@ -278,7 +302,7 @@ class AsistenciaController extends Controller
                         'hora'               => $hora,
                         'bimestre'           => $bimestre,
                         'registrador_id'     => $userId,
-                        'estado'             => '1',
+                        'estado'             => '0',
                     ]
                 );
 

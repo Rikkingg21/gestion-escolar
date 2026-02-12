@@ -7,14 +7,29 @@
             <h3 class="mb-2">
                 Asistencia: {{ $grado->grado }}° {{ $grado->seccion }} - {{ $grado->nivel }}
             </h3>
-            <div class="d-flex align-items-center">
+            <div class="d-flex align-items-center flex-wrap gap-2">
                 <span class="badge {{ $existenRegistros ? 'bg-success' : 'bg-warning' }} me-2">
                     {{ $existenRegistros ? 'Registrada' : 'Pendiente' }}
                 </span>
+
+                {{-- BADGE DE BLOQUEO SIMPLE --}}
+                @if($mesBloqueado)
+                    <span class="badge bg-danger me-2">
+                        <i class="fas fa-lock me-1"></i>
+                        Mes Bloqueado ({{ $cantidadBloqueados }} registros bloqueados)
+                    </span>
+                @else
+                    <span class="badge bg-success me-2">
+                        <i class="fas fa-unlock me-1"></i>
+                        Mes Libre
+                    </span>
+                @endif
+
                 <small class="text-muted">
                     <i class="far fa-calendar-alt me-1"></i>
                     {{ \Carbon\Carbon::createFromFormat('d-m-Y', $fechaSeleccionada)->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}
                 </small>
+
                 @if(isset($periodoActual))
                 <small class="text-muted ms-2">
                     <i class="fas fa-calendar-alt me-1"></i>
@@ -24,6 +39,20 @@
             </div>
         </div>
     </div>
+
+    {{-- ALERTA DE MES BLOQUEADO  --}}
+    @if($mesBloqueado)
+        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-lock fa-2x me-3"></i>
+                <div>
+                    <strong>Mes bloqueado:</strong> Este mes ya tiene {{ $cantidadBloqueados }} asistencia(s) bloqueada(s).
+                    No se pueden realizar modificaciones ni agregar nuevos registros.
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
     <div>
         @if(session('error'))
@@ -41,13 +70,14 @@
         @endif
     </div>
 
-    <!-- Panel de controles -->
+    {{-- Panel de controles - TOTALMENTE DESHABILITADO SI EL MES ESTÁ BLOQUEADO --}}
     <div class="card mb-4">
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Bimestre:</label>
-                    <select class="form-select" name="bimestre" id="bimestre" required {{ $existenRegistros ? 'disabled' : '' }}>
+                    <select class="form-select" name="bimestre" id="bimestre" required
+                        {{ $existenRegistros || $mesBloqueado ? 'disabled' : '' }}>
                         @if($existenRegistros)
                             <option value="{{ $bimestreActual }}" selected>Bimestre {{ $bimestreActual }}</option>
                         @else
@@ -57,7 +87,13 @@
                             @endfor
                         @endif
                     </select>
+                    @if($mesBloqueado)
+                        <small class="text-danger d-block mt-1">
+                            <i class="fas fa-info-circle"></i> Mes bloqueado - No se puede modificar
+                        </small>
+                    @endif
                 </div>
+
                 <div class="col-md-4">
                     <label class="form-label">Fecha:</label>
                     <div class="input-group">
@@ -73,6 +109,7 @@
                         </button>
                     </div>
                 </div>
+
                 <div class="col-md-4">
                     <label class="form-label">Resumen:</label>
                     <div class="d-flex justify-content-around">
@@ -85,10 +122,6 @@
                             <div class="small text-muted">Tardanza</div>
                         </div>
                         <div class="text-center">
-                            <span class="badge bg-info" id="contadorRetirados">0</span>
-                            <div class="small text-muted">Retirados</div>
-                        </div>
-                        <div class="text-center">
                             <span class="badge bg-secondary" id="contadorTotal">0</span>
                             <div class="small text-muted">Total</div>
                         </div>
@@ -98,7 +131,7 @@
         </div>
     </div>
 
-    <!-- Formulario principal -->
+    {{-- Formulario principal - TOTALMENTE DESHABILITADO SI EL MES ESTÁ BLOQUEADO --}}
     <form id="formAsistencia"
         action="{{ route('asistencia.guardar-multiple', ['grado' => $grado->id, 'fecha' => $fechaFormateada]) }}"
         method="POST">
@@ -107,17 +140,22 @@
         <input type="hidden" name="bimestre" id="bimestreHidden" value="{{ $bimestreActual ?? '' }}">
         <input type="hidden" name="periodo_id" value="{{ $periodoActual->id }}">
 
-        <!-- Sección: Estudiantes Matriculados Activos -->
+        {{-- Sección: Estudiantes Matriculados Activos --}}
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-success text-white">
+            <div class="card-header {{ $mesBloqueado ? 'bg-secondary' : 'bg-success' }} text-white">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-user-check me-1"></i>
                         Estudiantes Matriculados Activos
-                        <span class="badge bg-light text-success ms-2" id="contadorActivos">
+                        <span class="badge bg-light {{ $mesBloqueado ? 'text-secondary' : 'text-success' }} ms-2">
                             {{ $estudiantesMatriculadosActivos->count() }}
                         </span>
                     </h5>
+                    @if($mesBloqueado)
+                        <span class="badge bg-danger">
+                            <i class="fas fa-lock me-1"></i> Solo lectura - Mes bloqueado
+                        </span>
+                    @endif
                 </div>
             </div>
             <div class="card-body p-0">
@@ -127,7 +165,7 @@
                             <tr>
                                 <th width="50">#</th>
                                 <th>Estudiante</th>
-                                <th width="150">Tipo Asistencia</th>
+                                <th width="220">Tipo Asistencia</th> {{-- Aumentado de 150 a 220 --}}
                                 <th width="120">Hora</th>
                                 <th width="100">Estado</th>
                                 <th width="250" class="text-center">Acciones Rápidas</th>
@@ -143,19 +181,18 @@
                                 $badgeClass = $asistenciaActual ? 'bg-success' : 'bg-warning';
                             @endphp
                             <tr id="estudiante-{{ $estudiante->id }}"
-                                class="table-row-activo"
-                                data-estudiante-id="{{ $estudiante->id }}"
-                                data-estado="activo">
+                                class="{{ $mesBloqueado ? 'table-secondary' : '' }}"
+                                data-estudiante-id="{{ $estudiante->id }}">
                                 <td>{{ $loop->iteration }}</td>
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <div>
-                                            <div class="fw-semibold">
+                                            <div class="fw-semibold {{ $mesBloqueado ? 'text-muted' : '' }}">
                                                 {{ $estudiante->user->apellido_paterno ?? '' }}
                                                 {{ $estudiante->user->apellido_materno ?? '' }},
                                                 {{ $estudiante->user->nombre ?? '' }}
                                             </div>
-                                            <small class="text-success">
+                                            <small class="{{ $mesBloqueado ? 'text-muted' : 'text-success' }}">
                                                 <i class="fas fa-check-circle"></i> Matriculado Activo
                                             </small>
                                         </div>
@@ -165,13 +202,16 @@
                                     <select name="asistencias[{{ $estudiante->id }}]"
                                             class="form-select form-select-sm tipo-asistencia-select"
                                             data-estudiante-id="{{ $estudiante->id }}"
-                                            data-estado="activo">
-                                        <option value="">Seleccionar</option>
+                                            style="min-width: 200px; {{ $tipoAsistenciaId ? 'border-left: 5px solid ' . ($tiposAsistencia->firstWhere('id', $tipoAsistenciaId)->color ?? '#6B7280') . ';' : '' }}"
+                                            {{ $mesBloqueado ? 'disabled' : '' }}>
+                                        <option value="">Seleccionar tipo de asistencia</option> {{-- Texto más descriptivo --}}
                                         @foreach($tiposAsistencia as $tipo)
                                         <option value="{{ $tipo->id }}"
                                                 data-color="{{ $tipo->color ?? '#6B7280' }}"
+                                                data-nombre="{{ $tipo->nombre }}"
+                                                style="background-color: {{ $tipo->color }}20; color: {{ $tipo->color }}; font-weight: {{ $tipoAsistenciaId == $tipo->id ? 'bold' : 'normal' }};"
                                                 {{ $tipoAsistenciaId == $tipo->id ? 'selected' : '' }}>
-                                            {{ $tipo->nombre }}
+                                            ● {{ $tipo->nombre }} {{-- Círculo de color --}}
                                         </option>
                                         @endforeach
                                     </select>
@@ -179,13 +219,15 @@
                                 <td>
                                     <div class="input-group input-group-sm">
                                         <input type="time"
-                                               name="horas[{{ $estudiante->id }}]"
-                                               class="form-control hora-input"
-                                               value="{{ $horaActual }}"
-                                               data-estudiante-id="{{ $estudiante->id }}">
+                                            name="horas[{{ $estudiante->id }}]"
+                                            class="form-control hora-input"
+                                            value="{{ $horaActual }}"
+                                            data-estudiante-id="{{ $estudiante->id }}"
+                                            {{ $mesBloqueado ? 'disabled' : '' }}>
                                         <button type="button"
                                                 class="btn btn-outline-secondary btn-sm btn-hora-ahora"
-                                                data-estudiante-id="{{ $estudiante->id }}">
+                                                data-estudiante-id="{{ $estudiante->id }}"
+                                                {{ $mesBloqueado ? 'disabled' : '' }}>
                                             <i class="fas fa-clock"></i>
                                         </button>
                                     </div>
@@ -202,7 +244,7 @@
                                                 data-estudiante-id="{{ $estudiante->id }}"
                                                 data-tipo="5"
                                                 title="Marcar como Puntual"
-                                                data-estado="activo">
+                                                {{ $mesBloqueado ? 'disabled' : '' }}>
                                             <i class="fas fa-check"></i> Puntual
                                         </button>
                                         <button type="button"
@@ -210,7 +252,7 @@
                                                 data-estudiante-id="{{ $estudiante->id }}"
                                                 data-tipo="1"
                                                 title="Marcar como Tardanza"
-                                                data-estado="activo">
+                                                {{ $mesBloqueado ? 'disabled' : '' }}>
                                             <i class="fas fa-clock"></i> Tardanza
                                         </button>
                                     </div>
@@ -232,21 +274,18 @@
             </div>
         </div>
 
-        <!-- Sección: Estudiantes Matriculados Retirados (Solo lectura) -->
+        {{-- Sección: Estudiantes Matriculados Retirados --}}
         @if($estudiantesMatriculadosRetirados->count() > 0)
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-secondary text-white">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-user-slash me-1"></i>
-                        Estudiantes Retirados (Solo consulta)
-                        <span class="badge bg-light text-dark ms-2" id="contadorRetiradosTable">
+                        Estudiantes Retirados
+                        <span class="badge bg-light text-dark ms-2">
                             {{ $estudiantesMatriculadosRetirados->count() }}
                         </span>
                     </h5>
-                    <span class="small">
-                        <i class="fas fa-info-circle"></i> Solo para consulta
-                    </span>
                 </div>
             </div>
             <div class="card-body p-0">
@@ -256,7 +295,7 @@
                             <tr>
                                 <th width="50">#</th>
                                 <th>Estudiante</th>
-                                <th width="150">Tipo Asistencia</th>
+                                <th width="220">Tipo Asistencia</th> {{-- Aumentado de 150 a 220 --}}
                                 <th width="120">Hora</th>
                                 <th width="100">Estado</th>
                                 <th width="250" class="text-center">Acciones</th>
@@ -268,10 +307,10 @@
                                 $asistenciaActual = $estudiante->asistencias->first();
                                 $tipoAsistenciaId = $asistenciaActual ? $asistenciaActual->tipo_asistencia_id : null;
                                 $horaActual = $asistenciaActual ? substr($asistenciaActual->hora, 0, 5) : '--:--';
-                                $estado = $asistenciaActual ? 'Registrado (Retirado)' : 'No aplica (Retirado)';
+                                $estado = $asistenciaActual ? 'Registrado (Retirado)' : 'Sin registro';
                                 $badgeClass = $asistenciaActual ? 'bg-secondary' : 'bg-light text-dark';
                             @endphp
-                            <tr class="table-secondary" data-estado="retirado">
+                            <tr class="table-secondary">
                                 <td>{{ $loop->iteration }}</td>
                                 <td>
                                     <div class="d-flex align-items-center">
@@ -282,27 +321,28 @@
                                                 {{ $estudiante->user->nombre ?? '' }}
                                             </div>
                                             <small class="text-danger">
-                                                <i class="fas fa-user-times"></i> Retirado del período
+                                                <i class="fas fa-user-times"></i> Retirado
                                             </small>
                                         </div>
                                     </div>
                                 </td>
                                 <td>
-                                    <select class="form-select form-select-sm" disabled>
-                                        <option value="">Seleccionar</option>
+                                    <select class="form-select form-select-sm" disabled style="min-width: 200px; background-color: #f8f9fa;">
+                                        <option value="">Seleccionar tipo de asistencia</option>
                                         @foreach($tiposAsistencia as $tipo)
                                         <option value="{{ $tipo->id }}"
+                                                style="background-color: {{ $tipo->color }}20; color: {{ $tipo->color }};"
                                                 {{ $tipoAsistenciaId == $tipo->id ? 'selected' : '' }}>
-                                            {{ $tipo->nombre }}
+                                            ● {{ $tipo->nombre }}
                                         </option>
                                         @endforeach
                                     </select>
                                 </td>
                                 <td>
                                     <input type="time"
-                                           class="form-control form-control-sm"
-                                           value="{{ $horaActual }}"
-                                           disabled>
+                                        class="form-control form-control-sm"
+                                        value="{{ $horaActual }}"
+                                        disabled>
                                 </td>
                                 <td>
                                     <span class="badge {{ $badgeClass }}">
@@ -325,13 +365,6 @@
                     </table>
                 </div>
             </div>
-            <div class="card-footer bg-light">
-                <small class="text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Los estudiantes retirados se muestran solo para referencia histórica.
-                    No pueden ser modificados.
-                </small>
-            </div>
         </div>
         @endif
 
@@ -351,11 +384,12 @@
                         </small>
                     </div>
                     <div class="col-md-6 text-end">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit"
+                                class="btn btn-primary"
+                                {{ $mesBloqueado ? 'disabled' : '' }}>
                             <i class="fas fa-save"></i>
                             {{ $existenRegistros ? 'Actualizar Asistencia' : 'Guardar Asistencia' }}
                         </button>
-
                     </div>
                 </div>
             </div>
@@ -363,309 +397,309 @@
     </form>
 </div>
 
-<!-- Modal de confirmación -->
-<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="confirmModalLabel">Confirmar acción</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="confirmModalBody">
-                <!-- Contenido dinámico -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" id="confirmAction">Confirmar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Elementos del DOM
-    const fechaInput = document.getElementById('fechaInput');
-    const bimestreSelect = document.getElementById('bimestre');
-    const bimestreHidden = document.getElementById('bimestreHidden');
-    const formAsistencia = document.getElementById('formAsistencia');
-    const btnHoy = document.getElementById('btnHoy');
-    const btnMarcarTodos = document.getElementById('btnMarcarTodos');
-    const btnEliminarTodo = document.getElementById('btnEliminarTodo');
-    const formEliminarTodo = document.getElementById('formEliminarTodo');
-    const contadorPuntual = document.getElementById('contadorPuntual');
-    const contadorTardanza = document.getElementById('contadorTardanza');
-    const contadorTotal = document.getElementById('contadorTotal');
+    document.addEventListener('DOMContentLoaded', function() {
+        const MES_BLOQUEADO = {{ $mesBloqueado ? 'true' : 'false' }};
 
-    // Función para actualizar estado de botones rápidos
-    function actualizarEstadoBotonesRapidos() {
-        document.querySelectorAll('.btn-marcar-rapido').forEach(btn => {
-            const estudianteId = btn.dataset.estudianteId;
-            const select = document.querySelector(`select[name="asistencias[${estudianteId}]"]`);
+        // Elementos del DOM - SIEMPRE se inicializan porque el cambio de fecha debe funcionar
+        const fechaInput = document.getElementById('fechaInput');
+        const btnHoy = document.getElementById('btnHoy');
+        const bimestreSelect = document.getElementById('bimestre');
+        const bimestreHidden = document.getElementById('bimestreHidden');
+        const formAsistencia = document.getElementById('formAsistencia');
+        const contadorPuntual = document.getElementById('contadorPuntual');
+        const contadorTardanza = document.getElementById('contadorTardanza');
+        const contadorTotal = document.getElementById('contadorTotal');
 
-            // Si ya tiene registro, deshabilitar
-            if (select && select.value) {
-                btn.disabled = true;
-                btn.classList.add('disabled');
-                btn.title = 'Ya tiene registro de asistencia';
-            }
-        });
-    }
+        // FUNCIONES DE CONSULTA/CAMBIO DE FECHA - SIEMPRE ACTIVAS
+        // Cambiar fecha - SIEMPRE FUNCIONA (navegación)
+        if (fechaInput) {
+            fechaInput.addEventListener('change', function() {
+                const fechaEnFormatoYMD = this.value;
+                if (fechaEnFormatoYMD) {
+                    const partes = fechaEnFormatoYMD.split('-');
+                    const fechaEnFormatoDMY = partes[2] + '-' + partes[1] + '-' + partes[0];
+                    const gradoSeccion = "{{ $grado->grado }}{{ $grado->seccion }}";
+                    const gradoNivel = "{{ strtolower($grado->nivel) }}";
 
-    // Configurar selects con colores
-    document.querySelectorAll('.tipo-asistencia-select').forEach(select => {
-        updateSelectColor(select);
-        select.addEventListener('change', function() {
-            updateSelectColor(this);
-            updateEstado(this.dataset.estudianteId, 'Registrado');
-            updateContadores();
-            actualizarEstadoBotonesRapidos();
-        });
-    });
+                    const nuevaUrl = "{{ route('asistencia.grado', ['grado_grado_seccion' => ':gradoSeccion', 'grado_nivel' => ':gradoNivel', 'date' => ':date']) }}"
+                        .replace(':gradoSeccion', gradoSeccion)
+                        .replace(':gradoNivel', gradoNivel)
+                        .replace(':date', fechaEnFormatoDMY);
 
-    // Cambiar fecha
-    if (fechaInput) {
-        fechaInput.addEventListener('change', function() {
-            const fechaEnFormatoYMD = this.value;
-            if (fechaEnFormatoYMD) {
-                const partes = fechaEnFormatoYMD.split('-');
-                const fechaEnFormatoDMY = partes[2] + '-' + partes[1] + '-' + partes[0];
-                const gradoSeccion = "{{ $grado->grado }}{{ $grado->seccion }}";
-                const gradoNivel = "{{ strtolower($grado->nivel) }}";
-
-                const nuevaUrl = "{{ route('asistencia.grado', ['grado_grado_seccion' => ':gradoSeccion', 'grado_nivel' => ':gradoNivel', 'date' => ':date']) }}"
-                    .replace(':gradoSeccion', gradoSeccion)
-                    .replace(':gradoNivel', gradoNivel)
-                    .replace(':date', fechaEnFormatoDMY);
-
-                window.location.href = nuevaUrl;
-            }
-        });
-    }
-
-    // Botón "Hoy"
-    if (btnHoy) {
-        btnHoy.addEventListener('click', function() {
-            const hoy = new Date().toISOString().split('T')[0];
-            fechaInput.value = hoy;
-            fechaInput.dispatchEvent(new Event('change'));
-        });
-    }
-
-    document.querySelectorAll('.btn-marcar-rapido').forEach(btn => {
-        btn.addEventListener('click', async function(e) {
-            e.preventDefault();
-            if (this.disabled) return;
-
-            const estudianteId = this.dataset.estudianteId;
-            const tipoId = this.dataset.tipo; // 5 = puntual, 1 = tardanza, etc.
-            const fila = document.getElementById(`estudiante-${estudianteId}`);
-            if (!fila) return;
-
-            // Deshabilitar botón mientras se procesa
-            this.disabled = true;
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-            // Verificar si se seleccionó bimestre (solo si no existen registros)
-            const bimestreSelect = document.getElementById('bimestre');
-            const bimestreHidden = document.getElementById('bimestreHidden');
-            let bimestreValue;
-
-            if ('{{ $existenRegistros }}' === '1') {
-                // Si ya existen registros, usar el bimestre actual
-                bimestreValue = bimestreHidden.value;
-            } else {
-                // Si no existen registros, verificar que se seleccionó bimestre
-                if (!bimestreSelect.value) {
-                    alert('Por favor, seleccione un bimestre primero');
-                    this.disabled = false;
-                    this.innerHTML = this.dataset.tipo === '5'
-                        ? '<i class="fas fa-check"></i> Puntual'
-                        : '<i class="fas fa-clock"></i> Tardanza';
-                    return;
+                    window.location.href = nuevaUrl;
                 }
-                bimestreValue = bimestreSelect.value;
+            });
+        }
+
+        // Botón "Hoy" - SIEMPRE FUNCIONA (navegación)
+        if (btnHoy) {
+            btnHoy.addEventListener('click', function() {
+                const hoy = new Date().toISOString().split('T')[0];
+                fechaInput.value = hoy;
+                fechaInput.dispatchEvent(new Event('change'));
+            });
+        }
+
+        // FUNCIONES DE EDICIÓN - SOLO SI EL MES ESTÁ LIBRE
+        if (!MES_BLOQUEADO) {
+            console.log('Mes libre - Modo edición habilitado');
+
+            // Función para actualizar estado de botones rápidos
+            function actualizarEstadoBotonesRapidos() {
+                document.querySelectorAll('.btn-marcar-rapido:not([disabled])').forEach(btn => {
+                    const estudianteId = btn.dataset.estudianteId;
+                    const select = document.querySelector(`select[name="asistencias[${estudianteId}]"]`);
+
+                    if (select && select.value) {
+                        btn.disabled = true;
+                        btn.classList.add('disabled');
+                        btn.title = 'Ya tiene registro de asistencia';
+                    }
+                });
             }
 
-            try {
-                const response = await fetch('{{ route("asistencia.marcar-individual", ":estudiante") }}'
-                    .replace(':estudiante', estudianteId), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    },
-                    body: JSON.stringify({
-                        tipo_asistencia_id: tipoId,
-                        fecha: '{{ $fechaSeleccionada }}',           // d-m-Y
-                        hora: nowFormatted(),                         // función auxiliar abajo
-                        grado_id: '{{ $grado->id }}',
-                        periodo_id: '{{ $periodoActual->id }}',      // ¡NUEVO! Añadir periodo_id
-                        bimestre: bimestreValue,
-                        // Incluir descripción si la tienes
-                        descripcion: null,
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    // Actualizar select
-                    const select = fila.querySelector(`select[name="asistencias[${estudianteId}]"]`);
-                    if (select) {
-                        select.value = data.asistencia.tipo_asistencia_id;
-                        updateSelectColor(select);
-                    }
-
-                    // Actualizar hora (si quieres mostrar la hora real registrada)
-                    const horaInput = fila.querySelector(`input[name="horas[${estudianteId}]"]`);
-                    if (horaInput) {
-                        horaInput.value = data.asistencia.hora;
-                    }
-
-                    // Actualizar estado
-                    updateEstado(estudianteId, data.asistencia.estado);
-
-                    // Opcional: cambiar borde de la fila o mostrar check
-                    fila.classList.add('table-success');
-                    setTimeout(() => fila.classList.remove('table-success'), 1500);
-
+            // Configurar selects con colores
+            document.querySelectorAll('.tipo-asistencia-select:not([disabled])').forEach(select => {
+                updateSelectColor(select);
+                select.addEventListener('change', function() {
+                    updateSelectColor(this);
+                    updateEstado(this.dataset.estudianteId, 'Registrado');
                     updateContadores();
                     actualizarEstadoBotonesRapidos();
+                });
+            });
 
-                    // Mostrar mensaje de éxito breve
-                    showToast('success', data.message || 'Asistencia registrada');
-                } else {
-                    showToast('error', data.message || 'Error al registrar la asistencia');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showToast('error', 'Ocurrió un error al conectar con el servidor');
-            } finally {
-                // Restaurar botón
-                this.disabled = false;
-                this.innerHTML = this.dataset.tipo === '5'
-                    ? '<i class="fas fa-check"></i> Puntual'
-                    : '<i class="fas fa-clock"></i> Tardanza';
+            // Botones de marcado rápido
+            document.querySelectorAll('.btn-marcar-rapido:not([disabled])').forEach(btn => {
+                btn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    if (this.disabled) return;
+
+                    const estudianteId = this.dataset.estudianteId;
+                    const tipoId = this.dataset.tipo;
+                    const fila = document.getElementById(`estudiante-${estudianteId}`);
+                    if (!fila) return;
+
+                    // Deshabilitar botón mientras se procesa
+                    this.disabled = true;
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                    // Verificar bimestre
+                    let bimestreValue;
+                    if ('{{ $existenRegistros }}' === '1') {
+                        bimestreValue = bimestreHidden.value;
+                    } else {
+                        if (!bimestreSelect.value) {
+                            alert('Por favor, seleccione un bimestre primero');
+                            this.disabled = false;
+                            this.innerHTML = originalText;
+                            return;
+                        }
+                        bimestreValue = bimestreSelect.value;
+                    }
+
+                    try {
+                        const response = await fetch('{{ route("asistencia.marcar-individual", ":estudiante") }}'
+                            .replace(':estudiante', estudianteId), {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            },
+                            body: JSON.stringify({
+                                tipo_asistencia_id: tipoId,
+                                fecha: '{{ $fechaSeleccionada }}',
+                                hora: nowFormatted(),
+                                grado_id: '{{ $grado->id }}',
+                                periodo_id: '{{ $periodoActual->id }}',
+                                bimestre: bimestreValue,
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            const select = fila.querySelector(`select[name="asistencias[${estudianteId}]"]`);
+                            if (select) {
+                                select.value = data.asistencia.tipo_asistencia_id;
+                                updateSelectColor(select);
+                            }
+
+                            const horaInput = fila.querySelector(`input[name="horas[${estudianteId}]"]`);
+                            if (horaInput) {
+                                horaInput.value = data.asistencia.hora;
+                            }
+
+                            updateEstado(estudianteId, 'Registrado');
+                            updateContadores();
+                            actualizarEstadoBotonesRapidos();
+
+                            fila.classList.add('table-success');
+                            setTimeout(() => fila.classList.remove('table-success'), 1500);
+                        } else {
+                            alert(data.message || 'Error al registrar la asistencia');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('Ocurrió un error al conectar con el servidor');
+                    } finally {
+                        this.disabled = false;
+                        this.innerHTML = originalText;
+                    }
+                });
+            });
+
+            // Botones de hora actual
+            document.querySelectorAll('.btn-hora-ahora:not([disabled])').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const estudianteId = this.dataset.estudianteId;
+                    const horaInput = document.querySelector(`input[name="horas[${estudianteId}]"]:not([disabled])`);
+                    if (horaInput) {
+                        const ahora = new Date();
+                        const horaFormateada = ahora.getHours().toString().padStart(2, '0') + ':' +
+                                            ahora.getMinutes().toString().padStart(2, '0');
+                        horaInput.value = horaFormateada;
+                    }
+                });
+            });
+
+            // Validar formulario
+            if (formAsistencia) {
+                formAsistencia.addEventListener('submit', function(e) {
+                    if (!bimestreSelect.disabled && !bimestreSelect.value) {
+                        e.preventDefault();
+                        alert('Por favor, seleccione un bimestre');
+                        bimestreSelect.focus();
+                        return;
+                    }
+
+                    if (bimestreSelect.value) {
+                        bimestreHidden.value = bimestreSelect.value;
+                    }
+                });
             }
-        });
-    });
 
-    // Botones de hora actual
-    document.querySelectorAll('.btn-hora-ahora').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const estudianteId = this.dataset.estudianteId;
-            const horaInput = document.querySelector(`input[name="horas[${estudianteId}]"]`);
-            if (horaInput) {
-                const ahora = new Date();
-                const horaFormateada = ahora.getHours().toString().padStart(2, '0') + ':' +
-                                     ahora.getMinutes().toString().padStart(2, '0');
-                horaInput.value = horaFormateada;
-            }
-        });
-    });
-
-    // Validar formulario
-    if (formAsistencia) {
-        formAsistencia.addEventListener('submit', function(e) {
-            if (!bimestreSelect.disabled && !bimestreSelect.value) {
-                e.preventDefault();
-                alert('Por favor, seleccione un bimestre');
-                bimestreSelect.focus();
-                return;
+            // Actualizar bimestre cuando cambie
+            if (bimestreSelect) {
+                bimestreSelect.addEventListener('change', function() {
+                    bimestreHidden.value = this.value;
+                });
             }
 
-            // Actualizar bimestre hidden
-            if (bimestreSelect.value) {
-                bimestreHidden.value = bimestreSelect.value;
-            }
-        });
-    }
+            // Inicializar contadores y botones
+            updateContadores();
+            actualizarEstadoBotonesRapidos();
 
-    // Funciones auxiliares
-    function updateSelectColor(select) {
-        const selectedOption = select.options[select.selectedIndex];
-        const color = selectedOption.getAttribute('data-color') || '#6B7280';
-        select.style.borderColor = color;
-        select.style.color = color;
-        select.style.backgroundColor = color + '10';
-    }
-
-    function updateEstado(estudianteId, estado) {
-        const badge = document.getElementById(`estado-${estudianteId}`);
-        if (badge) {
-            badge.textContent = estado;
-            badge.className = 'badge bg-success';
+        } else {
+            console.log('Mes bloqueado - Modo solo consulta');
+            // SOLO actualizar contadores para visualización, sin permitir edición
+            updateContadores();
         }
-    }
 
-    function updateContadores() {
-        let puntual = 0;
-        let tardanza = 0;
-        let total = 0;
+        // FUNCIONES AUXILIARES - SIEMPRE DISPONIBLES
+        function updateSelectColor(select) {
+            const selectedOption = select.options[select.selectedIndex];
+            const color = selectedOption?.getAttribute('data-color') || '#6B7280';
 
-        document.querySelectorAll('.tipo-asistencia-select').forEach(select => {
+            // Estilo principal del select
+            select.style.borderColor = color;
+            select.style.borderLeft = `5px solid ${color}`;
+            select.style.color = '#212529'; // Color de texto normal
+            select.style.backgroundColor = color + '08'; // Fondo muy sutil
+
+            // Si hay una opción seleccionada, resaltarla visualmente
             if (select.value) {
-                total++;
-                if (select.value === '5') puntual++;
-                if (select.value === '1') tardanza++;
+                select.style.fontWeight = '500';
+            } else {
+                select.style.borderLeft = '1px solid #ced4da';
+                select.style.fontWeight = 'normal';
+                select.style.backgroundColor = 'white';
             }
-        });
+        }
 
-        if (contadorPuntual) contadorPuntual.textContent = puntual;
-        if (contadorTardanza) contadorTardanza.textContent = tardanza;
-        if (contadorTotal) contadorTotal.textContent = total;
-    }
+        function updateEstado(estudianteId, estado) {
+            const badge = document.getElementById(`estado-${estudianteId}`);
+            if (badge) {
+                badge.textContent = estado;
+                badge.className = 'badge bg-success';
+            }
+        }
 
-    // Inicializar contadores
-    updateContadores();
-    actualizarEstadoBotonesRapidos();
+        function updateContadores() {
+            let puntual = 0;
+            let tardanza = 0;
+            let total = 0;
 
-    // Actualizar bimestre cuando cambie
-    if (bimestreSelect) {
-        bimestreSelect.addEventListener('change', function() {
-            bimestreHidden.value = this.value;
-        });
-    }
+            document.querySelectorAll('.tipo-asistencia-select').forEach(select => {
+                if (select.value) {
+                    total++;
+                    if (select.value === '5') puntual++;
+                    if (select.value === '1') tardanza++;
+                }
+            });
 
-    // Función auxiliar para obtener hora actual en formato HH:MM
-    function nowFormatted() {
-        const ahora = new Date();
-        return ahora.getHours().toString().padStart(2, '0') + ':' +
-               ahora.getMinutes().toString().padStart(2, '0');
-    }
-});
+            if (contadorPuntual) contadorPuntual.textContent = puntual;
+            if (contadorTardanza) contadorTardanza.textContent = tardanza;
+            if (contadorTotal) contadorTotal.textContent = total;
+        }
+
+        function nowFormatted() {
+            const ahora = new Date();
+            return ahora.getHours().toString().padStart(2, '0') + ':' +
+                ahora.getMinutes().toString().padStart(2, '0');
+        }
+    });
 </script>
-
 <style>
+    /* Estilos para selects de tipo asistencia */
     .tipo-asistencia-select {
-        transition: all 0.2s ease;
-        font-weight: 500;
+        min-width: 220px;
+        padding: 0.375rem 1.75rem 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 400;
+        line-height: 1.5;
+        background-position: right 0.5rem center;
+        background-size: 16px 12px;
+        border-radius: 0.375rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
     }
 
-    .tipo-asistencia-select:focus {
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    .tipo-asistencia-select option {
+        padding: 8px 12px;
+        font-size: 0.875rem;
     }
 
-    .avatar-sm {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .tipo-asistencia-select option:hover,
+    .tipo-asistencia-select option:focus,
+    .tipo-asistencia-select option:active,
+    .tipo-asistencia-select option:checked {
+        background: linear-gradient(0deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.1) 100%);
     }
 
-    .hora-input {
-        max-width: 100px;
+    /* Mejorar visualización en hover */
+    .tipo-asistencia-select:not([disabled]):hover {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
     }
 
-    .table tbody tr:hover {
-        background-color: rgba(0, 0, 0, 0.02);
+    /* Estilo para cuando el select está deshabilitado */
+    .tipo-asistencia-select[disabled] {
+        background-color: #e9ecef;
+        opacity: 0.8;
     }
 
-    .btn-group-sm > .btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
+    /* Borde izquierdo coloreado para selects con valor seleccionado */
+    .tipo-asistencia-select option[selected] {
+        font-weight: bold;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .tipo-asistencia-select {
+            min-width: 180px;
+        }
     }
 </style>
 @endsection
