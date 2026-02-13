@@ -34,63 +34,407 @@ class AsistenciaController extends Controller
         });
     }
 
-    public function index(Request $request)
-    {
-        // Obtener el año seleccionado (por defecto año actual)
-        $currentYear = $request->get('year', now()->year);
-        $hoy = now()->format('Y-m-d');
+public function index(Request $request)
+{
+    // Obtener el año seleccionado (por defecto año actual)
+    $currentYear = $request->get('year', now()->year);
+    $hoy = now()->format('Y-m-d');
 
-        // Obtener el período activo para el año seleccionado
-        $periodoActual = Periodo::where('anio', $currentYear)
+    // Obtener el período activo para el año seleccionado
+    $periodoActual = Periodo::where('anio', $currentYear)
+        ->where('estado', '1')
+        ->first();
+
+    if (!$periodoActual) {
+        $periodoActual = Periodo::where('estado', '1')
+            ->orderBy('anio', 'desc')
+            ->first();
+        // Si encontramos un período, actualizamos el currentYear
+        if ($periodoActual) {
+            $currentYear = $periodoActual->anio;
+        }
+    }
+
+    // Obtener grados con múltiples conteos
+    $grados = Grado::withCount([
+        // Total de asistencias en el período
+        'asistencias as total_asistencias' => function($query) use ($periodoActual) {
+            $query->where('periodo_id', $periodoActual->id);
+        },
+        // Asistencias de hoy en el período
+        'asistencias as asistencias_hoy' => function($query) use ($periodoActual, $hoy) {
+            $query->where('periodo_id', $periodoActual->id)
+                ->whereDate('fecha', $hoy);
+        },
+        // Estudiantes matriculados activos en este período
+        'matriculas as estudiantes_matriculados' => function($query) use ($periodoActual) {
+            $query->where('periodo_id', $periodoActual->id)
+                ->where('estado', '1');
+        }
+    ])
+    ->orderBy('nivel')
+    ->orderBy('grado')
+    ->orderBy('seccion')
+    ->get();
+
+    // Para cada grado, verificar si tiene registros bloqueados (estado '1' o '2')
+    foreach ($grados as $grado) {
+        $grado->tiene_registros_bloqueados = Asistencia::where('periodo_id', $periodoActual->id)
+            ->where('grado_id', $grado->id)
+            ->whereIn('estado', ['1', '2'])
+            ->exists();
+
+        // Verificar específicamente para la fecha de hoy
+        $grado->tiene_registros_bloqueados_hoy = Asistencia::where('periodo_id', $periodoActual->id)
+            ->where('grado_id', $grado->id)
+            ->whereDate('fecha', $hoy)
+            ->whereIn('estado', ['1', '2'])
+            ->exists();
+    }
+
+    $availableYears = Periodo::where('estado', '1')
+        ->orderBy('anio', 'desc')
+        ->pluck('anio')
+        ->unique()
+        ->toArray();
+
+    if (empty($availableYears)) {
+        $availableYears = [now()->year];
+    }
+
+    // Determinar la fecha por defecto para el calendario
+    $fechaPorDefecto = $hoy; // Por defecto hoy
+
+    // Si el año del período es diferente al año actual, usar el primer día del año del período
+    if ($periodoActual && $periodoActual->anio != now()->year) {
+        $fechaPorDefecto = $periodoActual->anio . '-01-01'; // Primer día del año del período
+    }
+
+    return view('asistencia.index', [
+        'grados' => $grados,
+        'currentYear' => $currentYear,
+        'availableYears' => $availableYears,
+        'periodoActual' => $periodoActual,
+        'fechaHoy' => $hoy,
+        'fechaPorDefecto' => $fechaPorDefecto, // Nueva variable
+    ]);
+}
+public function obtenerBimestreYEstadoPorFecha(Request $request)
+{
+    try {
+        $fecha = Carbon::parse($request->fecha)->format('Y-m-d');
+        $anioFecha = Carbon::parse($request->fecha)->year;
+
+        $periodo = Periodo::where('anio', $anioFecha)
             ->where('estado', '1')
             ->first();
 
-        if (!$periodoActual) {
-            $periodoActual = Periodo::where('estado', '1')
-                ->orderBy('anio', 'desc')
-                ->first();
+        if (!$periodo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay período activo para este año'
+            ]);
         }
 
-        // Obtener grados con múltiples conteos
-        $grados = Grado::withCount([
-            // Total de asistencias en el período
-            'asistencias as total_asistencias' => function($query) use ($periodoActual) {
-                $query->where('periodo_id', $periodoActual->id);
-            },
-            // Asistencias de hoy en el período
-            'asistencias as asistencias_hoy' => function($query) use ($periodoActual, $hoy) {
-                $query->where('periodo_id', $periodoActual->id)
-                    ->whereDate('fecha', $hoy);
-            },
-            // Estudiantes matriculados activos en este período
-            'matriculas as estudiantes_matriculados' => function($query) use ($periodoActual) {
-                $query->where('periodo_id', $periodoActual->id)
-                    ->where('estado', '1');
-            }
-        ])
-        ->orderBy('nivel')
-        ->orderBy('grado')
-        ->orderBy('seccion')
-        ->get();
+        // Buscar si existe algún registro de asistencia para esta fecha
+        $asistencia = Asistencia::where('periodo_id', $periodo->id)
+            ->whereDate('fecha', $fecha)
+            ->first();
 
-        $availableYears = Periodo::where('estado', '1')
-            ->orderBy('anio', 'desc')
-            ->pluck('anio')
-            ->unique()
-            ->toArray();
+        // Verificar si existe algún registro con estado '0' para esta fecha
+        $existeRegistroPendiente = Asistencia::where('periodo_id', $periodo->id)
+            ->whereDate('fecha', $fecha)
+            ->where('estado', '0')
+            ->exists();
 
-        if (empty($availableYears)) {
-            $availableYears = [now()->year];
+        // Verificar si TODOS los estudiantes tienen asistencia (cualquier estado)
+        $totalEstudiantesActivos = Estudiante::whereHas('matriculas', function($query) use ($periodo) {
+            $query->where('periodo_id', $periodo->id)
+                ->where('estado', '1');
+        })->count();
+
+        $totalAsistenciasFecha = Asistencia::where('periodo_id', $periodo->id)
+            ->whereDate('fecha', $fecha)
+            ->count();
+
+        $todosTienenAsistencia = ($totalEstudiantesActivos > 0 &&
+                                  $totalAsistenciasFecha >= $totalEstudiantesActivos);
+
+        $respuesta = [
+            'success' => true,
+            'bimestre' => $asistencia ? $asistencia->bimestre : null,
+            'existe_registro_pendiente' => $existeRegistroPendiente,
+            'todos_tienen_asistencia' => $todosTienenAsistencia,
+            'total_estudiantes' => $totalEstudiantesActivos,
+            'total_asistencias' => $totalAsistenciasFecha,
+            'message' => $asistencia ? 'Bimestre encontrado' : 'No hay registros para esta fecha'
+        ];
+
+        // Si existen registros pendientes, agregar información adicional
+        if ($existeRegistroPendiente) {
+            $totalPendientes = Asistencia::where('periodo_id', $periodo->id)
+                ->whereDate('fecha', $fecha)
+                ->where('estado', '0')
+                ->count();
+
+            $respuesta['total_pendientes'] = $totalPendientes;
+            $respuesta['message'] = "Existen {$totalPendientes} registro(s) pendiente(s) para esta fecha";
         }
 
-        return view('asistencia.index', [
-            'grados' => $grados,
-            'currentYear' => $currentYear,
-            'availableYears' => $availableYears,
-            'periodoActual' => $periodoActual,
-            'fechaHoy' => $hoy,
-        ]);
+        // Mensaje si todos tienen asistencia
+        if ($todosTienenAsistencia && !$existeRegistroPendiente) {
+            $respuesta['message'] = "Todos los estudiantes ya tienen asistencia registrada para esta fecha";
+        }
+
+        return response()->json($respuesta);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error: ' . $e->getMessage()
+        ], 400);
     }
+}
+public function marcarRestoDeEstudiantesConPuntualidad(Request $request)
+{
+    try {
+        $request->validate([
+            'grado_id' => 'required|exists:grados,id',
+            'fecha' => 'required|date',
+            'bimestre' => 'required|integer|between:1,4'
+        ]);
+
+        $fechaCarbon = Carbon::parse($request->fecha)->startOfDay();
+        $grado = Grado::findOrFail($request->grado_id);
+        $userId = Auth::id();
+
+        // Obtener el período basado en la fecha
+        $periodo = Periodo::where('anio', $fechaCarbon->year)
+            ->where('estado', '1')
+            ->first();
+
+        if (!$periodo) {
+            return response()->json([
+                'success' => false,
+                'message' => "No hay un período activo para el año {$fechaCarbon->year}"
+            ], 400);
+        }
+
+        // Verificar si hay registros bloqueados en este grado y fecha
+        $tieneBloqueo = Asistencia::where('periodo_id', $periodo->id)
+            ->where('grado_id', $grado->id)
+            ->whereDate('fecha', $fechaCarbon)
+            ->whereIn('estado', ['1', '2'])
+            ->exists();
+
+        if ($tieneBloqueo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede realizar esta operación porque existen registros confirmados o validados'
+            ], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Obtener todos los estudiantes matriculados activos en este grado
+            $estudiantes = Estudiante::whereHas('matriculas', function ($query) use ($grado, $periodo) {
+                $query->where('grado_id', $grado->id)
+                    ->where('periodo_id', $periodo->id)
+                    ->where('estado', '1');
+            })->get();
+
+            // Obtener estudiantes que YA TIENEN asistencia registrada para esta fecha
+            $estudiantesConAsistencia = Asistencia::where('periodo_id', $periodo->id)
+                ->where('grado_id', $grado->id)
+                ->whereDate('fecha', $fechaCarbon)
+                ->pluck('estudiante_id')
+                ->toArray();
+
+            // Filtrar solo los estudiantes que NO tienen asistencia
+            $estudiantesSinAsistencia = $estudiantes->filter(function($estudiante) use ($estudiantesConAsistencia) {
+                return !in_array($estudiante->id, $estudiantesConAsistencia);
+            });
+
+            if ($estudiantesSinAsistencia->isEmpty()) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Todos los estudiantes ya tienen asistencia registrada para esta fecha'
+                ], 400);
+            }
+
+            // Obtener el tipo de asistencia "Puntual"
+            $tipoPuntual = Tipoasistencia::where('nombre', 'like', '%puntual%')
+                ->orWhere('nombre', 'like', '%presente%')
+                ->first();
+
+            if (!$tipoPuntual) {
+                $tipoPuntual = Tipoasistencia::first();
+            }
+
+            $contador = 0;
+            foreach ($estudiantesSinAsistencia as $estudiante) {
+                Asistencia::create([
+                    'estudiante_id' => $estudiante->id,
+                    'grado_id' => $grado->id,
+                    'periodo_id' => $periodo->id,
+                    'tipo_asistencia_id' => $tipoPuntual->id,
+                    'fecha' => $fechaCarbon,
+                    'hora' => now()->format('H:i'),
+                    'bimestre' => $request->bimestre,
+                    'registrador_id' => $userId,
+                    'descripcion' => 'Marcado masivo - resto de estudiantes',
+                    'estado' => '0'
+                ]);
+                $contador++;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Se marcaron {$contador} estudiantes como puntuales",
+                'contador' => $contador,
+                'total_sin_asistencia' => $estudiantesSinAsistencia->count()
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar: ' . $e->getMessage()
+            ], 500);
+        }
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error en la solicitud: ' . $e->getMessage()
+        ], 400);
+    }
+}
+
+public function marcarRestoDeEstudiantesConTardanza(Request $request)
+{
+    try {
+        $request->validate([
+            'grado_id' => 'required|exists:grados,id',
+            'fecha' => 'required|date',
+            'bimestre' => 'required|integer|between:1,4'
+        ]);
+
+        $fechaCarbon = Carbon::parse($request->fecha)->startOfDay();
+        $grado = Grado::findOrFail($request->grado_id);
+        $userId = Auth::id();
+
+        // Obtener el período basado en la fecha
+        $periodo = Periodo::where('anio', $fechaCarbon->year)
+            ->where('estado', '1')
+            ->first();
+
+        if (!$periodo) {
+            return response()->json([
+                'success' => false,
+                'message' => "No hay un período activo para el año {$fechaCarbon->year}"
+            ], 400);
+        }
+
+        // Verificar si hay registros bloqueados en este grado y fecha
+        $tieneBloqueo = Asistencia::where('periodo_id', $periodo->id)
+            ->where('grado_id', $grado->id)
+            ->whereDate('fecha', $fechaCarbon)
+            ->whereIn('estado', ['1', '2'])
+            ->exists();
+
+        if ($tieneBloqueo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede realizar esta operación porque existen registros confirmados o validados'
+            ], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Obtener todos los estudiantes matriculados activos en este grado
+            $estudiantes = Estudiante::whereHas('matriculas', function ($query) use ($grado, $periodo) {
+                $query->where('grado_id', $grado->id)
+                    ->where('periodo_id', $periodo->id)
+                    ->where('estado', '1');
+            })->get();
+
+            // Obtener estudiantes que YA TIENEN asistencia registrada para esta fecha
+            $estudiantesConAsistencia = Asistencia::where('periodo_id', $periodo->id)
+                ->where('grado_id', $grado->id)
+                ->whereDate('fecha', $fechaCarbon)
+                ->pluck('estudiante_id')
+                ->toArray();
+
+            // Filtrar solo los estudiantes que NO tienen asistencia
+            $estudiantesSinAsistencia = $estudiantes->filter(function($estudiante) use ($estudiantesConAsistencia) {
+                return !in_array($estudiante->id, $estudiantesConAsistencia);
+            });
+
+            if ($estudiantesSinAsistencia->isEmpty()) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Todos los estudiantes ya tienen asistencia registrada para esta fecha'
+                ], 400);
+            }
+
+            // Obtener el tipo de asistencia "Tardanza"
+            $tipoTardanza = Tipoasistencia::where('nombre', 'like', '%tardanza%')
+                ->orWhere('nombre', 'like', '%tarde%')
+                ->first();
+
+            if (!$tipoTardanza) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró un tipo de asistencia para tardanza'
+                ], 400);
+            }
+
+            $contador = 0;
+            foreach ($estudiantesSinAsistencia as $estudiante) {
+                Asistencia::create([
+                    'estudiante_id' => $estudiante->id,
+                    'grado_id' => $grado->id,
+                    'periodo_id' => $periodo->id,
+                    'tipo_asistencia_id' => $tipoTardanza->id,
+                    'fecha' => $fechaCarbon,
+                    'hora' => now()->format('H:i'),
+                    'bimestre' => $request->bimestre,
+                    'registrador_id' => $userId,
+                    'descripcion' => 'Marcado masivo - resto de estudiantes con tardanza',
+                    'estado' => '0'
+                ]);
+                $contador++;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Se marcaron {$contador} estudiantes con tardanza",
+                'contador' => $contador,
+                'total_sin_asistencia' => $estudiantesSinAsistencia->count()
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar: ' . $e->getMessage()
+            ], 500);
+        }
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error en la solicitud: ' . $e->getMessage()
+        ], 400);
+    }
+}
 
     public function showDate($grado_grado_seccion, $grado_nivel, $date)
     {
@@ -665,139 +1009,347 @@ class AsistenciaController extends Controller
             'detalles' => $detalles
         ];
     }
-    public function marcarTodosPuntualidad(Request $request)
-    {
+public function marcarTodosPuntualidad(Request $request)
+{
+    try {
         $request->validate([
             'fecha' => 'required|date',
-            'bimestre' => 'required|integer|between:1,4',
+            'bimestre' => 'required|integer|between:1,4'
         ]);
 
-        $fecha = Carbon::parse($request->fecha)->startOfDay();
-        $anioFecha = $fecha->year;
-        $bimestre = $request->bimestre;
+        $fechaCarbon = Carbon::parse($request->fecha)->startOfDay();
 
-        // Obtener período basado en el año de la fecha
-        $periodo = Periodo::where('anio', $anioFecha)
+        // Obtener el período basado en la fecha
+        $periodoFecha = Periodo::where('anio', $fechaCarbon->year)
             ->where('estado', '1')
             ->first();
 
-        if (!$periodo) {
+        if (!$periodoFecha) {
             return response()->json([
                 'success' => false,
-                'error' => 'No hay un período activo para el año ' . $anioFecha
-            ], 422);
+                'message' => "No hay un período activo configurado para el año {$fechaCarbon->year}"
+            ], 400);
         }
 
-        // Obtener todos los grados activos
-        $gradosActivos = Grado::where('estado', '1')->get();
+        // ========== VALIDACIÓN CRÍTICA: VERIFICAR REGISTROS BLOQUEADOS ==========
+        // Verificar si existe AL MENOS UNA asistencia con estado '1' o '2'
+        // para la fecha seleccionada en CUALQUIER grado
+        $registrosBloqueadosGlobal = Asistencia::where('periodo_id', $periodoFecha->id)
+            ->whereDate('fecha', $fechaCarbon)
+            ->whereIn('estado', ['1', '2'])
+            ->exists();
+
+        if ($registrosBloqueadosGlobal) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede marcar asistencia porque ya existen registros confirmados o validados para esta fecha en algunos grados.',
+                'codigo' => 'REGISTROS_BLOQUEADOS'
+            ], 403);
+        }
+
+        // También verificar si el mes está bloqueado para algún grado
+        $mesFecha = $fechaCarbon->format('m');
+        $mesBloqueadoGlobal = Asistencia::where('periodo_id', $periodoFecha->id)
+            ->whereMonth('fecha', $mesFecha)
+            ->whereIn('estado', ['1', '2'])
+            ->exists();
+
+        if ($mesBloqueadoGlobal) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede marcar asistencia porque el mes ya tiene registros confirmados o validados en algunos grados.',
+                'codigo' => 'MES_BLOQUEADO'
+            ], 403);
+        }
+        // =====================================================================
 
         DB::beginTransaction();
-
         try {
-            $registrosCreados = 0;
-            $registrosOmitidos = 0;
-            $noMatriculados = 0;
-            $retirados = 0;
-            $estudiantesAfectados = [];
+            // Obtener todos los grados activos
+            $grados = Grado::where('estado', '1')->get();
+            $userId = Auth::id();
+            $totalProcesados = 0;
+            $totalGradosProcesados = 0;
+            $gradosSinEstudiantes = [];
+            $resultadosPorGrado = [];
 
-            foreach ($gradosActivos as $grado) {
-                // Obtener estudiantes matriculados ACTIVOS en este grado para el período
-                $matriculasActivas = Matricula::with(['estudiante'])
-                    ->where('grado_id', $grado->id)
-                    ->where('periodo_id', $periodo->id)
-                    ->where('estado', '1') // Solo matriculados activos
-                    ->get();
+            // Obtener el tipo de asistencia "Puntual"
+            $tipoPuntual = Tipoasistencia::where('nombre', 'like', '%puntual%')
+                ->orWhere('nombre', 'like', '%presente%')
+                ->first();
 
-                foreach ($matriculasActivas as $matricula) {
-                    $estudiante = $matricula->estudiante;
-
-                    if (!$estudiante) {
-                        continue; // Si no hay estudiante asociado
-                    }
-
-                    // Verificar si ya existe asistencia para esta fecha, grado y período
-                    $existe = Asistencia::where([
-                        'estudiante_id' => $estudiante->id,
-                        'grado_id' => $grado->id,
-                        'periodo_id' => $periodo->id,
-                        'fecha' => $fecha,
-                    ])->exists();
-
-                    if ($existe) {
-                        $registrosOmitidos++;
-                        continue; // Ya existe registro
-                    }
-
-                    // Crear nuevo registro
-                    Asistencia::create([
-                        'estudiante_id'      => $estudiante->id,
-                        'grado_id'           => $grado->id,
-                        'periodo_id'         => $periodo->id,
-                        'bimestre'           => $bimestre,
-                        'tipo_asistencia_id' => 5, // ID para "Puntual"
-                        'fecha'              => $fecha,
-                        'hora'               => now()->toTimeString(),
-                        'registrador_id'     => auth()->id(),
-                        'descripcion'        => 'Registro automático masivo',
-                        'estado'             => '1',
-                    ]);
-
-                    $registrosCreados++;
-
-                    // Agregar a la lista de afectados
-                    $estudiantesAfectados[] = [
-                        'estudiante_id' => $estudiante->id,
-                        'grado_id' => $grado->id,
-                        'grado' => $grado->grado . '° ' . $grado->seccion,
-                        'nivel' => $grado->nivel,
-                    ];
-                }
-
-                // Contar estudiantes retirados para información
-                $retirados += Matricula::where('grado_id', $grado->id)
-                    ->where('periodo_id', $periodo->id)
-                    ->where('estado', '0') // Retirados
-                    ->count();
+            if (!$tipoPuntual) {
+                $tipoPuntual = Tipoasistencia::first();
             }
 
-            // Contar estudiantes no matriculados en ningún grado del período
-            $totalEstudiantes = Estudiante::count();
-            $matriculadosEnPeriodo = Matricula::where('periodo_id', $periodo->id)->count();
-            $noMatriculados = $totalEstudiantes - $matriculadosEnPeriodo;
+            foreach ($grados as $grado) {
+                // Verificar si este grado específico tiene registros bloqueados
+                $gradoTieneBloqueo = Asistencia::where('periodo_id', $periodoFecha->id)
+                    ->where('grado_id', $grado->id)
+                    ->whereDate('fecha', $fechaCarbon)
+                    ->whereIn('estado', ['1', '2'])
+                    ->exists();
+
+                if ($gradoTieneBloqueo) {
+                    $resultadosPorGrado[] = [
+                        'grado' => "{$grado->grado}° {$grado->seccion}",
+                        'estado' => 'bloqueado',
+                        'mensaje' => 'Tiene registros confirmados'
+                    ];
+                    continue;
+                }
+
+                // Obtener estudiantes matriculados activos en este grado
+                $estudiantes = Estudiante::whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
+                    $query->where('grado_id', $grado->id)
+                        ->where('periodo_id', $periodoFecha->id)
+                        ->where('estado', '1');
+                })->get();
+
+                if ($estudiantes->isEmpty()) {
+                    $gradosSinEstudiantes[] = "{$grado->grado}° {$grado->seccion}";
+                    continue;
+                }
+
+                // Obtener estudiantes que YA TIENEN asistencia registrada para esta fecha en este grado
+                $estudiantesConAsistencia = Asistencia::where('periodo_id', $periodoFecha->id)
+                    ->where('grado_id', $grado->id)
+                    ->whereDate('fecha', $fechaCarbon)
+                    ->pluck('estudiante_id')
+                    ->toArray();
+
+                // Filtrar solo los estudiantes que NO tienen asistencia
+                $estudiantesSinAsistencia = $estudiantes->filter(function($estudiante) use ($estudiantesConAsistencia) {
+                    return !in_array($estudiante->id, $estudiantesConAsistencia);
+                });
+
+                $contadorGrado = 0;
+                foreach ($estudiantesSinAsistencia as $estudiante) {
+                    Asistencia::create([
+                        'estudiante_id' => $estudiante->id,
+                        'grado_id' => $grado->id,
+                        'periodo_id' => $periodoFecha->id,
+                        'tipo_asistencia_id' => $tipoPuntual->id,
+                        'fecha' => $fechaCarbon,
+                        'hora' => now()->format('H:i'),
+                        'bimestre' => $request->bimestre,
+                        'registrador_id' => $userId,
+                        'descripcion' => 'Marcado masivo global - puntual',
+                        'estado' => '0'
+                    ]);
+                    $contadorGrado++;
+                }
+
+                if ($contadorGrado > 0) {
+                    $totalProcesados += $contadorGrado;
+                    $totalGradosProcesados++;
+                    $resultadosPorGrado[] = [
+                        'grado' => "{$grado->grado}° {$grado->seccion}",
+                        'estado' => 'procesado',
+                        'cantidad' => $contadorGrado,
+                        'total_estudiantes' => $estudiantes->count(),
+                        'ya_tenian' => count($estudiantesConAsistencia)
+                    ];
+                } else {
+                    $resultadosPorGrado[] = [
+                        'grado' => "{$grado->grado}° {$grado->seccion}",
+                        'estado' => 'sin_pendientes',
+                        'mensaje' => 'Todos ya tenían asistencia'
+                    ];
+                }
+            }
 
             DB::commit();
 
+            // Construir mensaje detallado
+            $mensaje = "Proceso completado: ";
+            $mensaje .= "{$totalProcesados} estudiantes marcados en {$totalGradosProcesados} grados. ";
+
+            if (!empty($gradosSinEstudiantes)) {
+                $mensaje .= "Grados sin estudiantes: " . implode(', ', $gradosSinEstudiantes) . ". ";
+            }
+
             return response()->json([
                 'success' => true,
-                'total_afectados' => $registrosCreados,
-                'fecha' => $fecha->format('Y-m-d'),
-                'bimestre' => $bimestre,
-                'periodo' => [
-                    'id' => $periodo->id,
-                    'nombre' => $periodo->nombre,
-                    'anio' => $periodo->anio,
-                ],
-                'resumen' => [
-                    'registros_creados' => $registrosCreados,
-                    'registros_omitidos' => $registrosOmitidos,
-                    'estudiantes_retirados' => $retirados,
-                    'estudiantes_no_matriculados' => $noMatriculados,
-                    'grados_activos_procesados' => $gradosActivos->count(),
-                ],
-                'estudiantes_afectados' => $estudiantesAfectados,
-                'mensaje' => $registrosCreados > 0
-                    ? "Se marcaron {$registrosCreados} estudiantes como puntuales en {$gradosActivos->count()} grados activos."
-                    : "No se crearon nuevos registros. Todos los estudiantes matriculados ya tenían asistencia registrada para esta fecha."
+                'message' => $mensaje,
+                'total_afectados' => $totalProcesados,
+                'total_grados_procesados' => $totalGradosProcesados,
+                'detalle_por_grado' => $resultadosPorGrado,
+                'grados_sin_estudiantes' => $gradosSinEstudiantes
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'error' => 'Error al procesar: ' . $e->getMessage()
+                'message' => 'Error al marcar asistencias: ' . $e->getMessage()
             ], 500);
         }
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error en la solicitud: ' . $e->getMessage()
+        ], 400);
     }
+}
+public function marcarTodosTardanza(Request $request)
+{
+    try {
+        $request->validate([
+            'fecha' => 'required|date',
+            'bimestre' => 'required|integer|between:1,4'
+        ]);
+
+        $fechaCarbon = Carbon::parse($request->fecha)->startOfDay();
+
+        $periodoFecha = Periodo::where('anio', $fechaCarbon->year)
+            ->where('estado', '1')
+            ->first();
+
+        if (!$periodoFecha) {
+            return response()->json([
+                'success' => false,
+                'message' => "No hay período activo para el año {$fechaCarbon->year}"
+            ], 400);
+        }
+
+        // Verificar registros bloqueados
+        $registrosBloqueados = Asistencia::where('periodo_id', $periodoFecha->id)
+            ->whereDate('fecha', $fechaCarbon)
+            ->whereIn('estado', ['1', '2'])
+            ->exists();
+
+        if ($registrosBloqueados) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede marcar porque existen registros confirmados'
+            ], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            $grados = Grado::where('estado', '1')->get();
+            $userId = Auth::id();
+            $totalProcesados = 0;
+            $totalGradosProcesados = 0;
+
+            $tipoTardanza = Tipoasistencia::where('nombre', 'like', '%tardanza%')
+                ->orWhere('nombre', 'like', '%tarde%')
+                ->first();
+
+            if (!$tipoTardanza) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró tipo de asistencia para tardanza'
+                ], 400);
+            }
+
+            foreach ($grados as $grado) {
+                $estudiantes = Estudiante::whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
+                    $query->where('grado_id', $grado->id)
+                        ->where('periodo_id', $periodoFecha->id)
+                        ->where('estado', '1');
+                })->get();
+
+                if ($estudiantes->isEmpty()) continue;
+
+                $estudiantesConAsistencia = Asistencia::where('periodo_id', $periodoFecha->id)
+                    ->where('grado_id', $grado->id)
+                    ->whereDate('fecha', $fechaCarbon)
+                    ->pluck('estudiante_id')
+                    ->toArray();
+
+                $estudiantesSinAsistencia = $estudiantes->filter(function($estudiante) use ($estudiantesConAsistencia) {
+                    return !in_array($estudiante->id, $estudiantesConAsistencia);
+                });
+
+                $contadorGrado = 0;
+                foreach ($estudiantesSinAsistencia as $estudiante) {
+                    Asistencia::create([
+                        'estudiante_id' => $estudiante->id,
+                        'grado_id' => $grado->id,
+                        'periodo_id' => $periodoFecha->id,
+                        'tipo_asistencia_id' => $tipoTardanza->id,
+                        'fecha' => $fechaCarbon,
+                        'hora' => now()->format('H:i'),
+                        'bimestre' => $request->bimestre,
+                        'registrador_id' => $userId,
+                        'descripcion' => 'Marcado masivo tardanza',
+                        'estado' => '0'
+                    ]);
+                    $contadorGrado++;
+                }
+
+                if ($contadorGrado > 0) {
+                    $totalProcesados += $contadorGrado;
+                    $totalGradosProcesados++;
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Se marcaron {$totalProcesados} estudiantes con tardanza en {$totalGradosProcesados} grados",
+                'total_afectados' => $totalProcesados,
+                'total_grados_procesados' => $totalGradosProcesados
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error: ' . $e->getMessage()
+        ], 500);
+    }
+}
+// En tu AsistenciaController.php, agrega este método:
+public function verificarBloqueoFecha(Request $request)
+{
+    try {
+        $fecha = Carbon::parse($request->fecha)->format('Y-m-d');
+        $anioFecha = Carbon::parse($request->fecha)->year;
+
+        $periodo = Periodo::where('anio', $anioFecha)
+            ->where('estado', '1')
+            ->first();
+
+        if (!$periodo) {
+            return response()->json([
+                'bloqueada' => false,
+                'mensaje' => 'No hay período activo para este año'
+            ]);
+        }
+
+        // Verificar si existe algún registro bloqueado en esta fecha
+        $gradosBloqueados = Grado::whereHas('asistencias', function($query) use ($periodo, $fecha) {
+            $query->where('periodo_id', $periodo->id)
+                ->whereDate('fecha', $fecha)
+                ->whereIn('estado', ['1', '2']);
+        })->get();
+
+        $bloqueada = $gradosBloqueados->count() > 0;
+
+        return response()->json([
+            'bloqueada' => $bloqueada,
+            'grados_bloqueados' => $bloqueada ? $gradosBloqueados->pluck('nombre_completo', 'id') : [],
+            'fecha' => $fecha,
+            'fecha_formateada' => Carbon::parse($fecha)->format('d/m/Y'),
+            'total_grados' => $gradosBloqueados->count()
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'bloqueada' => false,
+            'error' => $e->getMessage()
+        ], 400);
+    }
+}
     public function reporteAsistencia(Request $request)
     {
         // Obtener períodos activos para el filtro

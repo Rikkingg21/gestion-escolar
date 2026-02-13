@@ -231,9 +231,12 @@ Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstu
         ]);
     Route::post('marcar-individual/{estudiante}', [AsistenciaController::class, 'marcarIndividual'])->name('asistencia.marcar-individual');
     Route::post('asistencia/{grado}/{fecha}/guardar', [AsistenciaController::class, 'guardarMultiple'])->name('asistencia.guardar-multiple');
-    Route::post('/asistencia', [AsistenciaController::class, 'store'])->name('asistencia.store');
-    Route::put('/asistencia', [AsistenciaController::class, 'update'])->name('asistencia.update');
     Route::post('/asistencia/marcar-todos-puntualidad', [AsistenciaController::class, 'marcarTodosPuntualidad'])->name('asistencia.marcar-todos-puntualidad');
+    Route::post('/asistencia/marcar-todos-tardanza', [App\Http\Controllers\AsistenciaController::class, 'marcarTodosTardanza'])->name('asistencia.marcar-todos-tardanza');
+    Route::get('/asistencia/verificar-bloqueo-fecha', [AsistenciaController::class, 'verificarBloqueoFecha'])->name('asistencia.verificar-bloqueo-fecha');
+    Route::get('/asistencia/obtener-bimestre-y-estado-por-fecha', [AsistenciaController::class, 'obtenerBimestreYEstadoPorFecha'])->name('asistencia.obtener-bimestre-y-estado-por-fecha');
+    Route::post('/asistencia/marcar-resto-puntualidad', [App\Http\Controllers\AsistenciaController::class, 'marcarRestoDeEstudiantesConPuntualidad'])->name('asistencia.marcar-resto-puntualidad');
+    Route::post('/asistencia/marcar-resto-tardanza', [App\Http\Controllers\AsistenciaController::class, 'marcarRestoDeEstudiantesConTardanza'])->name('asistencia.marcar-resto-tardanza');
     Route::get('/asistencia/reporte', [AsistenciaController::class, 'reporteAsistencia'])->name('asistencia.reporte');
     Route::get('/asistencia/estudiantes-por-grado', [AsistenciaController::class, 'estudiantesPorGrado'])->name('asistencia.estudiantes-por-grado');
     Route::get('/asistencia/bloqueo', [AsistenciaController::class, 'bloqueoView'])->name('asistencia.bloqueo');
