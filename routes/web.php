@@ -97,6 +97,9 @@ Route::middleware('auth')->group(function () {
     Route::put('/periodo/{id}', [PeriodoController::class, 'update'])->name('periodo.update');
     Route::delete('/periodo/{id}', [PeriodoController::class, 'destroy'])->name('periodo.destroy');
 
+    Route::get('/matricula', function() {
+        return redirect()->route('matricula.index', ['nombre' => 'anioActual']);
+    });
     Route::get('/matricula/{nombre}', [MatriculaController::class, 'index'])->name('matricula.index');
     Route::get('/matricula/create', [MatriculaController::class, 'create'])->name('matricula.create');
 
