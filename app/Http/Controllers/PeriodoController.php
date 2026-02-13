@@ -8,10 +8,15 @@ use App\Models\Matricula;
 
 class PeriodoController extends Controller
 {
-    //moduleID  = Periodo
+    //moduleID 18 = Periodo
     public function __construct()
     {
-
+        $this->middleware(function ($request, $next) {
+            if (!auth()->user()->canAccessModule('18')) {
+                abort(403, 'No tienes permiso para acceder a este módulo.');
+            }
+            return $next($request);
+        });
     }
     public function index()
     {

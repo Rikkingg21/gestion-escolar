@@ -10,10 +10,15 @@ use App\Models\Estudiante;
 
 class MatriculaController extends Controller
 {
-    //moduleID  = Matricula
+    //moduleID 17 = Matricula
     public function __construct()
     {
-
+        $this->middleware(function ($request, $next) {
+            if (!auth()->user()->canAccessModule('17')) {
+                abort(403, 'No tienes permiso para acceder a este módulo.');
+            }
+            return $next($request);
+        });
     }
     public function index($nombre)
     {
