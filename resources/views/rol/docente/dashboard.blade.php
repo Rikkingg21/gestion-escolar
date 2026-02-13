@@ -103,23 +103,14 @@
     </div>
 
     @if($periodoSeleccionado)
-        <!-- Contenedor principal agrupado por asignación -->
-        <div id="asignacionesContainer">
-            @foreach($asignaciones as $asignacion)
-                @php
-                    $progreso = $progresoEstudiantes[$asignacion->id] ?? null;
-                    $progresoCond = $progresoConducta[$asignacion->id] ?? null;
-                    $estudiantesGrado = $estudiantesPorGrado->get($asignacion->grado_id, collect());
+    <!-- Contenedor principal agrupado por asignación -->
+    <div id="asignacionesContainer">
+        @foreach($asignaciones as $asignacion)
+            @php
+                $data = $asignacionesData[$asignacion->id] ?? null;
+            @endphp
 
-                    $estudiantesConNotas = $progreso ? count($progreso['progreso'] ?? []) : 0;
-                    $estudiantesConConducta = $progresoCond ? count($progresoCond['progreso'] ?? []) : 0;
-                    $totalEstudiantes = $estudiantesGrado->count();
-
-                    // Obtener datos para gráficos
-                    $datosGraficoNotas = $datosGraficos['estudiantes_lineas'][$asignacion->id] ?? null;
-                    $datosGraficoConducta = $datosGraficosConducta['conducta_lineas'][$asignacion->id] ?? null;
-                @endphp
-
+            @if($data)
                 <div class="asignacion-group mb-5" id="asignacion-{{ $asignacion->id }}">
                     <!-- Cabecera de la asignación -->
                     <div class="row mb-4">
@@ -130,13 +121,13 @@
                                         <div>
                                             <h4 class="mb-0 text-primary">
                                                 <i class="fas fa-book-open me-2"></i>
-                                                {{ $asignacion->materia->nombre }}
-                                                <small class="text-muted">- {{ $asignacion->grado->nombreCompleto }}</small>
+                                                {{ $data['materia_nombre'] }}
+                                                <small class="text-muted">- {{ $data['grado_nombre'] }}</small>
                                             </h4>
                                             <p class="mb-0 text-muted">
                                                 <small>
-                                                    <i class="fas fa-calendar me-1"></i> {{ $periodoSeleccionado->anio }}
-                                                    | <i class="fas fa-users me-1"></i> {{ $totalEstudiantes }} estudiantes
+                                                    <i class="fas fa-calendar me-1"></i> {{ $data['periodo_anio'] }}
+                                                    | <i class="fas fa-users me-1"></i> {{ $data['total_estudiantes'] }} estudiantes
                                                 </small>
                                             </p>
                                         </div>
@@ -182,7 +173,7 @@
                                 <div class="card-body">
                                     <!-- Gráfico de Notas Académicas -->
                                     <div id="grafico-notas-{{ $asignacion->id }}" class="grafico-container">
-                                        @if($datosGraficoNotas)
+                                        @if($data['datos_grafico_notas'])
                                             <div class="chart-container" style="height: 400px;">
                                                 <canvas id="chartNotas{{ $asignacion->id }}"></canvas>
                                             </div>
@@ -196,7 +187,7 @@
 
                                     <!-- Gráfico de Conducta -->
                                     <div id="grafico-conducta-{{ $asignacion->id }}" class="grafico-container d-none">
-                                        @if($datosGraficoConducta && !empty($datosGraficoConducta['datasets']))
+                                        @if($data['datos_grafico_conducta'] && !empty($data['datos_grafico_conducta']['datasets']))
                                             <div class="chart-container" style="height: 400px;">
                                                 <canvas id="chartConducta{{ $asignacion->id }}"></canvas>
                                             </div>
@@ -204,13 +195,6 @@
                                             <div class="text-center py-5">
                                                 <i class="fas fa-heart fa-3x text-muted mb-3"></i>
                                                 <p class="text-muted">No hay suficientes datos para generar el gráfico de conducta.</p>
-                                                <!-- DEBUG: Agregar información -->
-                                                <small class="text-muted">
-                                                    Datos disponibles: {{ isset($datosGraficoConducta) ? 'Sí' : 'No' }}
-                                                    @if(isset($datosGraficoConducta))
-                                                        | Estudiantes: {{ count($datosGraficoConducta['datasets'] ?? []) }}
-                                                    @endif
-                                                </small>
                                             </div>
                                         @endif
                                     </div>
@@ -225,75 +209,13 @@
                             <div class="card">
                                 <div class="card-header bg-white">
                                     <h5 class="card-title mb-0">
-                                        <i class="fas fa-chart-bar me-2"></i>Estadísticas Detalladas - {{ $asignacion->materia->nombre }}
+                                        <i class="fas fa-chart-bar me-2"></i>Estadísticas Detalladas - {{ $data['materia_nombre'] }}
                                     </h5>
                                 </div>
                                 <div class="card-body">
-                                    @php
-                                        // Calcular estadísticas por bimestre para notas
-                                        $estadisticasBimestres = [];
-                                        $resumenNotas = ['total_estudiantes' => 0, 'suma_promedios' => 0, 'con_datos' => 0];
-                                        $resumenConducta = ['total_estudiantes' => 0, 'suma_promedios' => 0, 'con_datos' => 0];
-
-                                        for ($bimestre = 1; $bimestre <= 4; $bimestre++) {
-                                            $notasBimestre = [];
-                                            $conductasBimestre = [];
-
-                                            if ($progreso && isset($progreso['progreso'])) {
-                                                foreach ($progreso['progreso'] as $estudianteData) {
-                                                    if (isset($estudianteData['datos'][$bimestre]) && $estudianteData['datos'][$bimestre] !== null) {
-                                                        $notasBimestre[] = $estudianteData['datos'][$bimestre];
-                                                    }
-                                                }
-                                            }
-
-                                            if ($progresoCond && isset($progresoCond['progreso'])) {
-                                                foreach ($progresoCond['progreso'] as $estudianteData) {
-                                                    if (isset($estudianteData['datos'][$bimestre]) && $estudianteData['datos'][$bimestre] !== null) {
-                                                        $conductasBimestre[] = $estudianteData['datos'][$bimestre];
-                                                    }
-                                                }
-                                            }
-
-                                            // Notas
-                                            $estadisticasBimestres['notas'][$bimestre] = [
-                                                'total' => count($notasBimestre),
-                                                'promedio' => count($notasBimestre) > 0 ? round(array_sum($notasBimestre) / count($notasBimestre), 2) : null,
-                                                'min' => count($notasBimestre) > 0 ? min($notasBimestre) : null,
-                                                'max' => count($notasBimestre) > 0 ? max($notasBimestre) : null
-                                            ];
-
-                                            // Conducta
-                                            $estadisticasBimestres['conducta'][$bimestre] = [
-                                                'total' => count($conductasBimestre),
-                                                'promedio' => count($conductasBimestre) > 0 ? round(array_sum($conductasBimestre) / count($conductasBimestre), 2) : null,
-                                                'min' => count($conductasBimestre) > 0 ? min($conductasBimestre) : null,
-                                                'max' => count($conductasBimestre) > 0 ? max($conductasBimestre) : null
-                                            ];
-
-                                            // Resumen para promedios generales
-                                            if ($estadisticasBimestres['notas'][$bimestre]['promedio'] !== null) {
-                                                $resumenNotas['suma_promedios'] += $estadisticasBimestres['notas'][$bimestre]['promedio'];
-                                                $resumenNotas['con_datos']++;
-                                            }
-
-                                            if ($estadisticasBimestres['conducta'][$bimestre]['promedio'] !== null) {
-                                                $resumenConducta['suma_promedios'] += $estadisticasBimestres['conducta'][$bimestre]['promedio'];
-                                                $resumenConducta['con_datos']++;
-                                            }
-                                        }
-
-                                        $resumenNotas['total_estudiantes'] = $totalEstudiantes;
-                                        $resumenConducta['total_estudiantes'] = $totalEstudiantes;
-
-                                        $promedioGeneralNotas = $resumenNotas['con_datos'] > 0 ?
-                                            round($resumenNotas['suma_promedios'] / $resumenNotas['con_datos'], 2) : null;
-                                        $promedioGeneralConducta = $resumenConducta['con_datos'] > 0 ?
-                                            round($resumenConducta['suma_promedios'] / $resumenConducta['con_datos'], 2) : null;
-                                    @endphp
-
-                                    <!-- Tabla de Resumen General -->
+                                    <!--Resumen general-->
                                     <div class="row mb-4">
+
                                         <div class="col-12">
                                             <div class="card border">
                                                 <div class="card-header bg-light">
@@ -315,11 +237,11 @@
                                                                     <td class="fw-semibold">Estudiantes</td>
                                                                     <td>
                                                                         <span class="badge bg-light text-dark">
-                                                                            {{ $estudiantesConNotas }}/{{ $totalEstudiantes }}
+                                                                            {{ $data['estudiantes_con_notas'] }}/{{ $data['total_estudiantes'] }}
                                                                         </span>
                                                                         <small class="text-muted ms-2">
-                                                                            @if($totalEstudiantes > 0)
-                                                                                {{ round(($estudiantesConNotas / $totalEstudiantes) * 100, 1) }}%
+                                                                            @if($data['total_estudiantes'] > 0)
+                                                                                {{ round(($data['estudiantes_con_notas'] / $data['total_estudiantes']) * 100, 1) }}%
                                                                             @else
                                                                                 0%
                                                                             @endif
@@ -327,43 +249,44 @@
                                                                     </td>
                                                                     <td>
                                                                         <span class="badge bg-light text-dark">
-                                                                            {{ $estudiantesConConducta }}/{{ $totalEstudiantes }}
+                                                                            {{ $data['estudiantes_con_conducta'] }}/{{ $data['total_estudiantes'] }}
                                                                         </span>
                                                                         <small class="text-muted ms-2">
-                                                                            @if($totalEstudiantes > 0)
-                                                                                {{ round(($estudiantesConConducta / $totalEstudiantes) * 100, 1) }}%
+                                                                            @if($data['total_estudiantes'] > 0)
+                                                                                {{ round(($data['estudiantes_con_conducta'] / $data['total_estudiantes']) * 100, 1) }}%
                                                                             @else
                                                                                 0%
                                                                             @endif
                                                                         </small>
                                                                     </td>
                                                                     <td class="fw-bold">
-                                                                        {{ $totalEstudiantes }} estudiantes
+                                                                        {{ $data['total_estudiantes'] }} estudiantes
                                                                     </td>
                                                                 </tr>
+
                                                                 <tr>
                                                                     <td class="fw-semibold">Promedio General</td>
                                                                     <td>
-                                                                        @if($promedioGeneralNotas !== null)
+                                                                        @if($data['promedio_general_notas'] !== null)
                                                                             @php
-                                                                                $colorNota = $promedioGeneralNotas >= 3 ? 'text-success' :
-                                                                                            ($promedioGeneralNotas >= 2 ? 'text-warning' : 'text-danger');
+                                                                                $colorNota = $data['promedio_general_notas'] >= 3 ? 'text-success' :
+                                                                                            ($data['promedio_general_notas'] >= 2 ? 'text-warning' : 'text-danger');
                                                                             @endphp
                                                                             <span class="fw-bold {{ $colorNota }}">
-                                                                                {{ $promedioGeneralNotas }} / 4
+                                                                                {{ $data['promedio_general_notas'] }} / 4
                                                                             </span>
                                                                         @else
                                                                             <span class="text-muted">--</span>
                                                                         @endif
                                                                     </td>
                                                                     <td>
-                                                                        @if($promedioGeneralConducta !== null)
+                                                                        @if($data['promedio_general_conducta'] !== null)
                                                                             @php
-                                                                                $colorConducta = $promedioGeneralConducta >= 3 ? 'text-success' :
-                                                                                            ($promedioGeneralConducta >= 2 ? 'text-warning' : 'text-danger');
+                                                                                $colorConducta = $data['promedio_general_conducta'] >= 3 ? 'text-success' :
+                                                                                                ($data['promedio_general_conducta'] >= 2 ? 'text-warning' : 'text-danger');
                                                                             @endphp
                                                                             <span class="fw-bold {{ $colorConducta }}">
-                                                                                {{ $promedioGeneralConducta }} / 4
+                                                                                {{ $data['promedio_general_conducta'] }} / 4
                                                                             </span>
                                                                         @else
                                                                             <span class="text-muted">--</span>
@@ -371,52 +294,109 @@
                                                                     </td>
                                                                     <td>
                                                                         @php
-                                                                            $totalRegistros = $estudiantesConNotas + $estudiantesConConducta;
-                                                                            $maxRegistros = $totalEstudiantes * 2;
-                                                                            $porcentajeCompletitud = $maxRegistros > 0 ?
-                                                                                round(($totalRegistros / $maxRegistros) * 100, 1) : 0;
-                                                                            $completitudClass = $porcentajeCompletitud >= 80 ? 'text-success' :
-                                                                                ($porcentajeCompletitud >= 50 ? 'text-warning' : 'text-danger');
+                                                                            $promedioGeneral = null;
+                                                                            $conteoPromedios = 0;
+
+                                                                            if ($data['promedio_general_notas'] !== null) {
+                                                                                $promedioGeneral = $data['promedio_general_notas'];
+                                                                                $conteoPromedios++;
+                                                                            }
+                                                                            if ($data['promedio_general_conducta'] !== null) {
+                                                                                $promedioGeneral = $promedioGeneral ?
+                                                                                    ($promedioGeneral + $data['promedio_general_conducta']) :
+                                                                                    $data['promedio_general_conducta'];
+                                                                                $conteoPromedios++;
+                                                                            }
+
+                                                                            $promedioTotal = $conteoPromedios > 0 ?
+                                                                                round($promedioGeneral / $conteoPromedios, 2) : null;
                                                                         @endphp
-                                                                        <span class="fw-bold {{ $completitudClass }}">
-                                                                            {{ $porcentajeCompletitud }}% completitud
-                                                                        </span>
-                                                                        <br>
-                                                                        <small class="text-muted">
-                                                                            {{ $totalRegistros }}/{{ $maxRegistros }} registros
-                                                                        </small>
+
+                                                                        @if($promedioTotal !== null)
+                                                                            <span class="fw-bold {{ $promedioTotal >= 3 ? 'text-success' : ($promedioTotal >= 2 ? 'text-warning' : 'text-danger') }}">
+                                                                                {{ $promedioTotal }} / 4
+                                                                            </span>
+                                                                            <br>
+                                                                            <small class="text-muted">Promedio general</small>
+                                                                        @else
+                                                                            <span class="text-muted">--</span>
+                                                                        @endif
                                                                     </td>
                                                                 </tr>
+
                                                                 <tr>
-                                                                    <td class="fw-semibold">Progreso</td>
-                                                                    <td colspan="3">
-                                                                        <div class="d-flex align-items-center">
-                                                                            <div class="flex-grow-1 me-3">
-                                                                                <div class="progress" style="height: 12px;">
-                                                                                    @if($totalEstudiantes > 0)
-                                                                                        <div class="progress-bar bg-success"
-                                                                                            style="width: {{ ($estudiantesConNotas / $totalEstudiantes) * 100 }}%"
-                                                                                            title="Notas: {{ $estudiantesConNotas }}/{{ $totalEstudiantes }}">
-                                                                                            <small>Notas</small>
-                                                                                        </div>
-                                                                                        <div class="progress-bar bg-info"
-                                                                                            style="width: {{ ($estudiantesConConducta / $totalEstudiantes) * 100 }}%"
-                                                                                            title="Conducta: {{ $estudiantesConConducta }}/{{ $totalEstudiantes }}">
-                                                                                            <small>Conducta</small>
-                                                                                        </div>
-                                                                                    @endif
-                                                                                </div>
-                                                                            </div>
-                                                                            <div class="flex-shrink-0">
-                                                                                <small class="text-muted">
-                                                                                    @if($totalEstudiantes > 0)
-                                                                                        {{ $estudiantesConNotas + $estudiantesConConducta }}/{{ $totalEstudiantes * 2 }} registros
-                                                                                    @else
-                                                                                        0/0 registros
-                                                                                    @endif
-                                                                                </small>
-                                                                            </div>
-                                                                        </div>
+                                                                    <td class="fw-semibold">Registros Completados</td>
+                                                                    <td>
+                                                                        @php
+                                                                            $totalRegistrosNotas = 0;
+                                                                            $totalPosiblesNotas = 0;
+                                                                            foreach($data['estadisticas_bimestres']['notas'] as $stats) {
+                                                                                $totalRegistrosNotas += $stats['total_notas_registradas'] ?? 0;
+                                                                                $totalPosiblesNotas += $stats['total_notas_posibles'] ?? 0;
+                                                                            }
+                                                                            $porcentajeNotas = $totalPosiblesNotas > 0 ?
+                                                                                round(($totalRegistrosNotas / $totalPosiblesNotas) * 100, 1) : 0;
+                                                                        @endphp
+                                                                        <span class="fw-bold {{ $porcentajeNotas >= 80 ? 'text-success' : ($porcentajeNotas >= 50 ? 'text-warning' : 'text-danger') }}">
+                                                                            {{ $porcentajeNotas }}%
+                                                                        </span>
+                                                                        <br>
+                                                                        <small class="text-muted">{{ number_format($totalRegistrosNotas) }}/{{ number_format($totalPosiblesNotas) }} registros</small>
+                                                                    </td>
+                                                                    <td>
+                                                                        @php
+                                                                            $totalRegistrosConducta = 0;
+                                                                            $totalPosiblesConducta = 0;
+                                                                            foreach($data['estadisticas_bimestres']['conducta'] as $stats) {
+                                                                                $totalRegistrosConducta += $stats['total_conductas_registradas'] ?? 0;
+                                                                                $totalPosiblesConducta += $stats['total_conductas_posibles'] ?? 0;
+                                                                            }
+                                                                            $porcentajeConducta = $totalPosiblesConducta > 0 ?
+                                                                                round(($totalRegistrosConducta / $totalPosiblesConducta) * 100, 1) : 0;
+                                                                        @endphp
+                                                                        <span class="fw-bold {{ $porcentajeConducta >= 80 ? 'text-success' : ($porcentajeConducta >= 50 ? 'text-warning' : 'text-danger') }}">
+                                                                            {{ $porcentajeConducta }}%
+                                                                        </span>
+                                                                        <br>
+                                                                        <small class="text-muted">{{ number_format($totalRegistrosConducta) }}/{{ number_format($totalPosiblesConducta) }} registros</small>
+                                                                    </td>
+                                                                    <td>
+                                                                        @php
+                                                                            $totalRegistros = $totalRegistrosNotas + $totalRegistrosConducta;
+                                                                            $totalPosibles = $totalPosiblesNotas + $totalPosiblesConducta;
+                                                                            $porcentajeTotal = $totalPosibles > 0 ?
+                                                                                round(($totalRegistros / $totalPosibles) * 100, 1) : 0;
+                                                                        @endphp
+                                                                        <span class="fw-bold {{ $porcentajeTotal >= 80 ? 'text-success' : ($porcentajeTotal >= 50 ? 'text-warning' : 'text-danger') }}">
+                                                                            {{ $porcentajeTotal }}%
+                                                                        </span>
+                                                                        <br>
+                                                                        <small class="text-muted">{{ number_format($totalRegistros) }}/{{ number_format($totalPosibles) }} total</small>
+                                                                    </td>
+                                                                </tr>
+
+                                                                <tr>
+                                                                    <td class="fw-semibold">Bimestres con Datos</td>
+                                                                    <td class="text-center">
+                                                                        <span class="badge bg-info">
+                                                                            {{ $data['resumen_notas']['con_datos'] }}/4 bimestres
+                                                                        </span>
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                        <span class="badge bg-info">
+                                                                            {{ $data['resumen_conducta']['con_datos'] }}/4 bimestres
+                                                                        </span>
+                                                                    </td>
+                                                                    <td class="text-center">
+                                                                        @php
+                                                                            $bimestresConDatos = max(
+                                                                                $data['resumen_notas']['con_datos'],
+                                                                                $data['resumen_conducta']['con_datos']
+                                                                            );
+                                                                        @endphp
+                                                                        <span class="badge bg-info">
+                                                                            {{ $bimestresConDatos }}/4 bimestres
+                                                                        </span>
                                                                     </td>
                                                                 </tr>
                                                             </tbody>
@@ -426,8 +406,7 @@
                                             </div>
                                         </div>
                                     </div>
-
-                                    <!-- Tablas de Estadísticas por Bimestre -->
+                                    <!-- Tabla de Notas y Conducta por Bimestre -->
                                     <div class="row">
                                         <!-- Tabla de Notas por Bimestre -->
                                         <div class="col-lg-6 mb-4">
@@ -443,82 +422,88 @@
                                                         <table class="table table-bordered table-sm mb-0">
                                                             <thead class="bg-light">
                                                                 <tr>
-                                                                    <th style="width: 15%">Bimestre</th>
-                                                                    <th style="width: 20%">Estudiantes</th>
-                                                                    <th style="width: 20%">Promedio</th>
-                                                                    <th style="width: 25%">Rango (Min-Max)</th>
-                                                                    <th style="width: 20%">Estado</th>
+                                                                    <th style="width: 8%">Bim.</th>
+                                                                    <th style="width: 12%">Estudiantes</th>
+                                                                    <th style="width: 10%">Promedio</th>
+                                                                    <th style="width: 10%">Criterios</th>
+                                                                    <th style="width: 12%">Notas Regist.</th>
+                                                                    <th style="width: 12%">Notas Posibles</th>
+                                                                    <th style="width: 12%">% Avance</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
-                                                                @for($bimestre = 1; $bimestre <= 4; $bimestre++)
+                                                                @foreach($data['estadisticas_bimestres']['notas'] as $bimestre => $stats)
                                                                     @php
-                                                                        $stats = $estadisticasBimestres['notas'][$bimestre] ?? null;
                                                                         $promedio = $stats['promedio'] ?? null;
-                                                                        $porcentaje = $totalEstudiantes > 0 ?
-                                                                            round(($stats['total'] ?? 0) / $totalEstudiantes * 100, 1) : 0;
+                                                                        $porcentajeAvance = $stats['porcentaje_avance'] ?? 0;
+                                                                        $porcentajeEstudiantes = $data['total_estudiantes'] > 0 ?
+                                                                            round(($stats['total_estudiantes_con_notas'] ?? 0) / $data['total_estudiantes'] * 100, 1) : 0;
+
                                                                         $colorClass = $promedio >= 3 ? 'text-success' :
                                                                                     ($promedio >= 2 ? 'text-warning' : 'text-danger');
-                                                                        $badgeClass = $promedio >= 3 ? 'bg-success' :
-                                                                                    ($promedio >= 2 ? 'bg-warning' : 'bg-danger');
-                                                                        $estadoClass = ($stats['total'] ?? 0) == $totalEstudiantes ? 'bg-success' :
-                                                                                    (($stats['total'] ?? 0) > 0 ? 'bg-warning' : 'bg-danger');
+
+                                                                        $colorAvance = $porcentajeAvance >= 80 ? 'text-success' :
+                                                                                    ($porcentajeAvance >= 50 ? 'text-warning' : 'text-danger');
                                                                     @endphp
                                                                     <tr>
-                                                                        <td class="fw-bold text-center">
-                                                                            B{{ $bimestre }}
-                                                                        </td>
+                                                                        <td class="fw-bold text-center">B{{ $bimestre }}</td>
                                                                         <td>
                                                                             <div class="d-flex justify-content-between align-items-center">
                                                                                 <span class="badge bg-light text-dark">
-                                                                                    {{ $stats['total'] ?? 0 }}/{{ $totalEstudiantes }}
+                                                                                    {{ $stats['total_estudiantes_con_notas'] ?? 0 }}/{{ $data['total_estudiantes'] }}
                                                                                 </span>
-                                                                                <small class="text-muted">
-                                                                                    {{ $porcentaje }}%
-                                                                                </small>
+                                                                                <small class="text-muted">{{ $porcentajeEstudiantes }}%</small>
                                                                             </div>
                                                                         </td>
                                                                         <td class="{{ $colorClass }} fw-bold text-center">
                                                                             {{ $promedio ?? '--' }}
                                                                         </td>
                                                                         <td class="text-center">
-                                                                            @if($stats && $stats['min'] !== null && $stats['max'] !== null)
-                                                                                <span class="text-success">{{ $stats['min'] }}</span>
-                                                                                <i class="fas fa-arrow-right mx-1 text-muted"></i>
-                                                                                <span class="text-danger">{{ $stats['max'] }}</span>
-                                                                            @else
-                                                                                <span class="text-muted">--</span>
-                                                                            @endif
+                                                                            <span class="badge bg-info">{{ $stats['criterios_en_bimestre'] ?? 0 }}</span>
+                                                                        </td>
+                                                                        <td class="text-center fw-bold">
+                                                                            {{ number_format($stats['total_notas_registradas'] ?? 0) }}
+                                                                        </td>
+                                                                        <td class="text-center fw-bold">
+                                                                            {{ number_format($stats['total_notas_posibles'] ?? 0) }}
                                                                         </td>
                                                                         <td class="text-center">
-                                                                            @if($stats && $stats['total'] > 0)
-                                                                                @if($stats['total'] == $totalEstudiantes)
-                                                                                    <span class="badge bg-success">Completo</span>
-                                                                                @else
-                                                                                    <span class="badge bg-warning">Parcial</span>
-                                                                                @endif
-                                                                            @else
-                                                                                <span class="badge bg-danger">Sin datos</span>
-                                                                            @endif
+                                                                            <span class="fw-bold {{ $colorAvance }}">
+                                                                                {{ $porcentajeAvance }}%
+                                                                            </span>
+                                                                            <div class="progress mt-1" style="height: 4px;">
+                                                                                <div class="progress-bar {{ $porcentajeAvance >= 80 ? 'bg-success' : ($porcentajeAvance >= 50 ? 'bg-warning' : 'bg-danger') }}"
+                                                                                    style="width: {{ $porcentajeAvance }}%"></div>
+                                                                            </div>
                                                                         </td>
                                                                     </tr>
-                                                                @endfor
+                                                                @endforeach
                                                             </tbody>
                                                             <tfoot class="bg-light">
+                                                                @php
+                                                                    $totalNotasRegistradas = 0;
+                                                                    $totalNotasPosibles = 0;
+                                                                    foreach($data['estadisticas_bimestres']['notas'] as $stats) {
+                                                                        $totalNotasRegistradas += $stats['total_notas_registradas'] ?? 0;
+                                                                        $totalNotasPosibles += $stats['total_notas_posibles'] ?? 0;
+                                                                    }
+                                                                    $porcentajeGeneral = $totalNotasPosibles > 0 ? round(($totalNotasRegistradas / $totalNotasPosibles) * 100, 1) : 0;
+                                                                @endphp
                                                                 <tr>
-                                                                    <td class="fw-bold">Total</td>
+                                                                    <td class="fw-bold">Totales</td>
                                                                     <td>
                                                                         <span class="badge bg-light text-dark">
-                                                                            {{ $estudiantesConNotas }}/{{ $totalEstudiantes }}
+                                                                            {{ $data['estudiantes_con_notas'] }}/{{ $data['total_estudiantes'] }}
                                                                         </span>
                                                                     </td>
-                                                                    <td class="fw-bold text-center">
-                                                                        {{ $promedioGeneralNotas ?? '--' }}
-                                                                    </td>
-                                                                    <td colspan="2" class="text-center">
-                                                                        <small class="text-muted">
-                                                                            Promedio de {{ $resumenNotas['con_datos'] }}/4 bimestres
-                                                                        </small>
+                                                                    <td class="fw-bold text-center">{{ $data['promedio_general_notas'] ?? '--' }}</td>
+                                                                    <td class="fw-bold text-center">{{ $data['total_criterios'] }}</td>
+                                                                    <td class="fw-bold text-center">{{ number_format($totalNotasRegistradas) }}</td>
+                                                                    <td class="fw-bold text-center">{{ number_format($totalNotasPosibles) }}</td>
+                                                                    <td class="text-center">
+                                                                        <span class="fw-bold {{ $porcentajeGeneral >= 80 ? 'text-success' : ($porcentajeGeneral >= 50 ? 'text-warning' : 'text-danger') }}">
+                                                                            {{ $porcentajeGeneral }}%
+                                                                        </span>
                                                                     </td>
                                                                 </tr>
                                                             </tfoot>
@@ -542,43 +527,54 @@
                                                         <table class="table table-bordered table-sm mb-0">
                                                             <thead class="bg-light">
                                                                 <tr>
-                                                                    <th style="width: 15%">Bimestre</th>
-                                                                    <th style="width: 20%">Estudiantes</th>
-                                                                    <th style="width: 20%">Promedio</th>
-                                                                    <th style="width: 25%">Rango (Min-Max)</th>
-                                                                    <th style="width: 20%">Estado</th>
+                                                                    <th style="width: 8%">Bim.</th>
+                                                                    <th style="width: 12%">Estudiantes</th>
+                                                                    <th style="width: 10%">Promedio</th>
+                                                                    <th style="width: 12%">Conductas Regist.</th>
+                                                                    <th style="width: 12%">Conductas Posibles</th>
+                                                                    <th style="width: 12%">% Avance</th>
+                                                                    <th style="width: 15%">Rango (Min-Max)</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
-                                                                @for($bimestre = 1; $bimestre <= 4; $bimestre++)
+                                                                @foreach($data['estadisticas_bimestres']['conducta'] as $bimestre => $stats)
                                                                     @php
-                                                                        $stats = $estadisticasBimestres['conducta'][$bimestre] ?? null;
                                                                         $promedio = $stats['promedio'] ?? null;
-                                                                        $porcentaje = $totalEstudiantes > 0 ?
-                                                                            round(($stats['total'] ?? 0) / $totalEstudiantes * 100, 1) : 0;
+                                                                        $porcentajeAvance = $stats['porcentaje_avance'] ?? 0;
+
                                                                         $colorClass = $promedio >= 3 ? 'text-success' :
                                                                                     ($promedio >= 2 ? 'text-warning' : 'text-danger');
-                                                                        $badgeClass = $promedio >= 3 ? 'bg-success' :
-                                                                                    ($promedio >= 2 ? 'bg-warning' : 'bg-danger');
-                                                                        $estadoClass = ($stats['total'] ?? 0) == $totalEstudiantes ? 'bg-success' :
-                                                                                    (($stats['total'] ?? 0) > 0 ? 'bg-warning' : 'bg-danger');
+
+                                                                        $colorAvance = $porcentajeAvance >= 80 ? 'text-success' :
+                                                                                    ($porcentajeAvance >= 50 ? 'text-warning' : 'text-danger');
                                                                     @endphp
                                                                     <tr>
-                                                                        <td class="fw-bold text-center">
-                                                                            B{{ $bimestre }}
-                                                                        </td>
+                                                                        <td class="fw-bold text-center">B{{ $bimestre }}</td>
                                                                         <td>
                                                                             <div class="d-flex justify-content-between align-items-center">
                                                                                 <span class="badge bg-light text-dark">
-                                                                                    {{ $stats['total'] ?? 0 }}/{{ $totalEstudiantes }}
+                                                                                    {{ $stats['total_estudiantes_con_conducta'] ?? 0 }}/{{ $data['total_estudiantes'] }}
                                                                                 </span>
-                                                                                <small class="text-muted">
-                                                                                    {{ $porcentaje }}%
-                                                                                </small>
+                                                                                <small class="text-muted">{{ $stats['porcentaje_estudiantes'] ?? 0 }}%</small>
                                                                             </div>
                                                                         </td>
                                                                         <td class="{{ $colorClass }} fw-bold text-center">
                                                                             {{ $promedio ?? '--' }}
+                                                                        </td>
+                                                                        <td class="text-center fw-bold">
+                                                                            {{ number_format($stats['total_conductas_registradas'] ?? 0) }}
+                                                                        </td>
+                                                                        <td class="text-center fw-bold">
+                                                                            {{ number_format($stats['total_conductas_posibles'] ?? 0) }}
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="fw-bold {{ $colorAvance }}">
+                                                                                {{ $porcentajeAvance }}%
+                                                                            </span>
+                                                                            <div class="progress mt-1" style="height: 4px;">
+                                                                                <div class="progress-bar {{ $porcentajeAvance >= 80 ? 'bg-success' : ($porcentajeAvance >= 50 ? 'bg-warning' : 'bg-danger') }}"
+                                                                                    style="width: {{ $porcentajeAvance }}%"></div>
+                                                                            </div>
                                                                         </td>
                                                                         <td class="text-center">
                                                                             @if($stats && $stats['min'] !== null && $stats['max'] !== null)
@@ -589,146 +585,39 @@
                                                                                 <span class="text-muted">--</span>
                                                                             @endif
                                                                         </td>
-                                                                        <td class="text-center">
-                                                                            @if($stats && $stats['total'] > 0)
-                                                                                @if($stats['total'] == $totalEstudiantes)
-                                                                                    <span class="badge bg-success">Completo</span>
-                                                                                @else
-                                                                                    <span class="badge bg-warning">Parcial</span>
-                                                                                @endif
-                                                                            @else
-                                                                                <span class="badge bg-danger">Sin datos</span>
-                                                                            @endif
-                                                                        </td>
                                                                     </tr>
-                                                                @endfor
+                                                                @endforeach
                                                             </tbody>
                                                             <tfoot class="bg-light">
+                                                                @php
+                                                                    $totalConductasRegistradas = 0;
+                                                                    $totalConductasPosibles = 0;
+                                                                    foreach($data['estadisticas_bimestres']['conducta'] as $stats) {
+                                                                        $totalConductasRegistradas += $stats['total_conductas_registradas'] ?? 0;
+                                                                        $totalConductasPosibles += $stats['total_conductas_posibles'] ?? 0;
+                                                                    }
+                                                                    $porcentajeGeneralConducta = $totalConductasPosibles > 0 ? round(($totalConductasRegistradas / $totalConductasPosibles) * 100, 1) : 0;
+                                                                @endphp
                                                                 <tr>
-                                                                    <td class="fw-bold">Total</td>
+                                                                    <td class="fw-bold">Totales</td>
                                                                     <td>
                                                                         <span class="badge bg-light text-dark">
-                                                                            {{ $estudiantesConConducta }}/{{ $totalEstudiantes }}
+                                                                            {{ $data['estudiantes_con_conducta'] }}/{{ $data['total_estudiantes'] }}
                                                                         </span>
                                                                     </td>
-                                                                    <td class="fw-bold text-center">
-                                                                        {{ $promedioGeneralConducta ?? '--' }}
+                                                                    <td class="fw-bold text-center">{{ $data['promedio_general_conducta'] ?? '--' }}</td>
+                                                                    <td class="fw-bold text-center">{{ number_format($totalConductasRegistradas) }}</td>
+                                                                    <td class="fw-bold text-center">{{ number_format($totalConductasPosibles) }}</td>
+                                                                    <td class="text-center">
+                                                                        <span class="fw-bold {{ $porcentajeGeneralConducta >= 80 ? 'text-success' : ($porcentajeGeneralConducta >= 50 ? 'text-warning' : 'text-danger') }}">
+                                                                            {{ $porcentajeGeneralConducta }}%
+                                                                        </span>
                                                                     </td>
-                                                                    <td colspan="2" class="text-center">
-                                                                        <small class="text-muted">
-                                                                            Promedio de {{ $resumenConducta['con_datos'] }}/4 bimestres
-                                                                        </small>
+                                                                    <td class="text-center">
+                                                                        <small class="text-muted">{{ $data['resumen_conducta']['con_datos'] }}/4 bim.</small>
                                                                     </td>
                                                                 </tr>
                                                             </tfoot>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Resumen Comparativo -->
-                                    <div class="row mt-3">
-                                        <div class="col-12">
-                                            <div class="card border">
-                                                <div class="card-header bg-light">
-                                                    <h6 class="mb-0"><i class="fas fa-balance-scale me-1"></i>Comparación Notas vs Conducta</h6>
-                                                </div>
-                                                <div class="card-body">
-                                                    <div class="table-responsive">
-                                                        <table class="table table-bordered table-sm mb-0">
-                                                            <thead class="bg-light">
-                                                                <tr>
-                                                                    <th style="width: 25%">Indicador</th>
-                                                                    <th style="width: 25%">Notas Académicas</th>
-                                                                    <th style="width: 25%">Conducta</th>
-                                                                    <th style="width: 25%">Diferencia</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                <tr>
-                                                                    <td class="fw-semibold">Completitud</td>
-                                                                    <td>
-                                                                        @if($totalEstudiantes > 0)
-                                                                            {{ round(($estudiantesConNotas / $totalEstudiantes) * 100, 1) }}%
-                                                                        @else
-                                                                            0%
-                                                                        @endif
-                                                                    </td>
-                                                                    <td>
-                                                                        @if($totalEstudiantes > 0)
-                                                                            {{ round(($estudiantesConConducta / $totalEstudiantes) * 100, 1) }}%
-                                                                        @else
-                                                                            0%
-                                                                        @endif
-                                                                    </td>
-                                                                    <td class="text-center">
-                                                                        @if($totalEstudiantes > 0)
-                                                                            @php
-                                                                                $diferencia = round((($estudiantesConNotas - $estudiantesConConducta) / $totalEstudiantes) * 100, 1);
-                                                                                $diffClass = $diferencia > 0 ? 'text-success' :
-                                                                                            ($diferencia < 0 ? 'text-danger' : 'text-muted');
-                                                                            @endphp
-                                                                            <span class="{{ $diffClass }}">
-                                                                                {{ $diferencia > 0 ? '+' : '' }}{{ $diferencia }}%
-                                                                            </span>
-                                                                        @else
-                                                                            <span class="text-muted">--</span>
-                                                                        @endif
-                                                                    </td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td class="fw-semibold">Promedio General</td>
-                                                                    <td>{{ $promedioGeneralNotas ?? '--' }}</td>
-                                                                    <td>{{ $promedioGeneralConducta ?? '--' }}</td>
-                                                                    <td class="text-center">
-                                                                        @if($promedioGeneralNotas !== null && $promedioGeneralConducta !== null)
-                                                                            @php
-                                                                                $diferencia = round($promedioGeneralNotas - $promedioGeneralConducta, 2);
-                                                                                $diffClass = $diferencia > 0 ? 'text-success' :
-                                                                                            ($diferencia < 0 ? 'text-danger' : 'text-muted');
-                                                                            @endphp
-                                                                            <span class="{{ $diffClass }}">
-                                                                                {{ $diferencia > 0 ? '+' : '' }}{{ $diferencia }}
-                                                                            </span>
-                                                                        @else
-                                                                            <span class="text-muted">--</span>
-                                                                        @endif
-                                                                    </td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td class="fw-semibold">Consistencia</td>
-                                                                    <td>
-                                                                        @if($resumenNotas['con_datos'] > 0)
-                                                                            {{ $resumenNotas['con_datos'] }}/4 bimestres
-                                                                        @else
-                                                                            Sin datos
-                                                                        @endif
-                                                                    </td>
-                                                                    <td>
-                                                                        @if($resumenConducta['con_datos'] > 0)
-                                                                            {{ $resumenConducta['con_datos'] }}/4 bimestres
-                                                                        @else
-                                                                            Sin datos
-                                                                        @endif
-                                                                    </td>
-                                                                    <td class="text-center">
-                                                                        @if($resumenNotas['con_datos'] !== null && $resumenConducta['con_datos'] !== null)
-                                                                            @php
-                                                                                $diferencia = $resumenNotas['con_datos'] - $resumenConducta['con_datos'];
-                                                                                $diffClass = $diferencia > 0 ? 'text-success' :
-                                                                                            ($diferencia < 0 ? 'text-danger' : 'text-muted');
-                                                                            @endphp
-                                                                            <span class="{{ $diffClass }}">
-                                                                                {{ $diferencia > 0 ? '+' : '' }}{{ $diferencia }} bimestres
-                                                                            </span>
-                                                                        @else
-                                                                            <span class="text-muted">--</span>
-                                                                        @endif
-                                                                    </td>
-                                                                </tr>
-                                                            </tbody>
                                                         </table>
                                                     </div>
                                                 </div>
@@ -739,7 +628,6 @@
                             </div>
                         </div>
                     </div>
-
                     <!-- Lista de Estudiantes -->
                     <div class="row estudiantes-section d-none" id="estudiantes-{{ $asignacion->id }}">
                         <div class="col-12">
@@ -747,7 +635,7 @@
                                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                                     <h5 class="card-title mb-0">
                                         <i class="fas fa-users me-2"></i>Lista de Estudiantes
-                                        <small class="text-muted">({{ $totalEstudiantes }} estudiantes)</small>
+                                        <small class="text-muted">({{ $data['total_estudiantes'] }} estudiantes)</small>
                                     </h5>
                                     <div class="btn-group btn-group-sm" role="group">
                                         <button type="button" class="btn btn-outline-primary toggle-estudiante-view active"
@@ -772,101 +660,217 @@
                                                     <th>#</th>
                                                     <th>DNI</th>
                                                     <th>Nombre Completo</th>
-                                                    <th class="text-center">Notas</th>
-                                                    <th class="text-center">Conducta</th>
-                                                    <th class="text-center">Prom. Notas</th>
-                                                    <th class="text-center">Prom. Conducta</th>
+                                                    <th class="text-center" colspan="5">Notas Académicas por Bimestre</th>
+                                                    <th class="text-center" colspan="5">Conducta por Bimestre</th>
+                                                    <th class="text-center">Estado</th>
+                                                </tr>
+                                                <tr>
+                                                    <th></th>
+                                                    <th></th>
+                                                    <th></th>
+                                                    {{-- Notas por bimestre --}}
+                                                    <th class="text-center bg-light">B1</th>
+                                                    <th class="text-center bg-light">B2</th>
+                                                    <th class="text-center bg-light">B3</th>
+                                                    <th class="text-center bg-light">B4</th>
+                                                    <th class="text-center bg-light">Prom.</th>
+                                                    {{-- Conducta por bimestre --}}
+                                                    <th class="text-center bg-info bg-opacity-25">B1</th>
+                                                    <th class="text-center bg-info bg-opacity-25">B2</th>
+                                                    <th class="text-center bg-info bg-opacity-25">B3</th>
+                                                    <th class="text-center bg-info bg-opacity-25">B4</th>
+                                                    <th class="text-center bg-info bg-opacity-25">Prom.</th>
                                                     <th class="text-center">Estado</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach($estudiantesGrado as $index => $estudiante)
+                                                @foreach($data['estudiantes'] as $estudiante)
                                                     @php
-                                                        $progresoEst = $progreso['progreso'][$estudiante->id] ?? null;
-                                                        $progresoCondEst = $progresoCond['progreso'][$estudiante->id] ?? null;
+                                                        // Obtener datos completos del progreso para este estudiante
+                                                        $progresoEst = $data['progreso']['progreso'][$estudiante['id']] ?? null;
+                                                        $progresoCondEst = $data['progreso_cond']['progreso'][$estudiante['id']] ?? null;
 
-                                                        $tieneNotas = $progresoEst ? ($progresoEst['total_bimestres_con_datos'] ?? 0) > 0 : false;
-                                                        $tieneConducta = $progresoCondEst ? ($progresoCondEst['total_bimestres_con_datos'] ?? 0) > 0 : false;
+                                                        // Obtener criterios por bimestre (notas posibles)
+                                                        $criteriosPorBimestre = $data['criterios_por_bimestre'] ?? [1=>0,2=>0,3=>0,4=>0];
 
-                                                        $promedioNotas = $progresoEst['promedio_general'] ?? null;
-                                                        $promedioConducta = $progresoCondEst['promedio_general'] ?? null;
+                                                        // Calcular notas posibles para este estudiante
+                                                        $notasPosibles = [];
+                                                        $notasRegistradas = [];
+                                                        $conductasPosibles = $data['total_estudiantes'] > 0 ? 4 : 0; // 4 bimestres posibles
+                                                        $conductasRegistradas = 0;
 
-                                                        $colorNota = $promedioNotas >= 3 ? 'text-success' :
-                                                                    ($promedioNotas >= 2 ? 'text-warning' : 'text-danger');
-                                                        $colorConducta = $promedioConducta >= 3 ? 'text-success' :
-                                                                       ($promedioConducta >= 2 ? 'text-warning' : 'text-danger');
+                                                        for($b = 1; $b <= 4; $b++) {
+                                                            // Notas posibles = criterios en este bimestre
+                                                            $notasPosibles[$b] = $criteriosPorBimestre[$b] ?? 0;
 
-                                                        $estadoClass = $tieneNotas && $tieneConducta ? 'table-success' :
-                                                                      ($tieneNotas || $tieneConducta ? 'table-warning' : 'table-danger');
+                                                            // Notas registradas = criterios que tiene el estudiante en este bimestre
+                                                            $notasRegistradas[$b] = $progresoEst['criterios_por_bimestre'][$b] ?? 0;
+
+                                                            // Conducta
+                                                            if($progresoCondEst && isset($progresoCondEst['conductas_por_bimestre'][$b])) {
+                                                                $conductasRegistradas += $progresoCondEst['conductas_por_bimestre'][$b];
+                                                            }
+                                                        }
+
+                                                        $totalNotasPosibles = array_sum($notasPosibles);
+                                                        $totalNotasRegistradas = array_sum($notasRegistradas);
+                                                        $porcentajeNotas = $totalNotasPosibles > 0 ?
+                                                            round(($totalNotasRegistradas / $totalNotasPosibles) * 100, 1) : 0;
+
+                                                        $porcentajeConducta = $conductasPosibles > 0 ?
+                                                            round(($conductasRegistradas / $conductasPosibles) * 100, 1) : 0;
                                                     @endphp
-                                                    <tr class="estudiante-row {{ $estadoClass }}"
-                                                        data-tiene-notas="{{ $tieneNotas ? '1' : '0' }}"
-                                                        data-tiene-conducta="{{ $tieneConducta ? '1' : '0' }}">
-                                                        <td class="text-muted">{{ $index + 1 }}</td>
+
+                                                    <tr class="estudiante-row {{ $estudiante['estado_clase'] }}"
+                                                        data-tiene-notas="{{ $estudiante['tiene_notas'] ? '1' : '0' }}"
+                                                        data-tiene-conducta="{{ $estudiante['tiene_conducta'] ? '1' : '0' }}">
+
+                                                        <td class="text-muted">{{ $estudiante['index'] }}</td>
+                                                        <td><code>{{ $estudiante['dni'] }}</code></td>
                                                         <td>
-                                                            <code>{{ $estudiante->user->dni ?? 'N/A' }}</code>
+                                                            <strong>{{ $estudiante['nombre_completo'] }}</strong>
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                Notas: {{ $totalNotasRegistradas }}/{{ $totalNotasPosibles }}
+                                                                ({{ $porcentajeNotas }}%)
+                                                            </small>
                                                         </td>
-                                                        <td>
-                                                            <strong>{{ $estudiante->user->nombre }}</strong>
-                                                            {{ $estudiante->user->apellido_paterno }}
-                                                            @if($estudiante->user->apellido_materno)
-                                                                {{ $estudiante->user->apellido_materno }}
-                                                            @endif
-                                                        </td>
+
+                                                        {{-- Notas por bimestre --}}
+                                                        @for($b = 1; $b <= 4; $b++)
+                                                            <td class="text-center">
+                                                                @if(isset($progresoEst['datos'][$b]) && $progresoEst['datos'][$b] !== null)
+                                                                    @php
+                                                                        $nota = $progresoEst['datos'][$b];
+                                                                        $colorNota = $nota >= 3 ? 'text-success' : ($nota >= 2 ? 'text-warning' : 'text-danger');
+                                                                        $registradas = $progresoEst['criterios_por_bimestre'][$b] ?? 0;
+                                                                        $posibles = $criteriosPorBimestre[$b] ?? 0;
+                                                                    @endphp
+                                                                    <span class="fw-bold {{ $colorNota }}">{{ $nota }}</span>
+                                                                    <br>
+                                                                    <small class="text-muted" title="Criterios registrados/posibles">
+                                                                        {{ $registradas }}/{{ $posibles }}
+                                                                    </small>
+                                                                @else
+                                                                    <span class="text-muted">--</span>
+                                                                    <br>
+                                                                    <small class="text-muted">0/{{ $criteriosPorBimestre[$b] ?? 0 }}</small>
+                                                                @endif
+                                                            </td>
+                                                        @endfor
+
+                                                        {{-- Promedio de notas --}}
                                                         <td class="text-center">
-                                                            @if($tieneNotas)
-                                                                <span class="badge bg-success">
-                                                                    <i class="fas fa-check"></i>
-                                                                    {{ $progresoEst['total_bimestres_con_datos'] ?? 0 }}/4
+                                                            @if($estudiante['promedio_notas'] !== null)
+                                                                <span class="fw-bold {{ $estudiante['color_nota'] }}">
+                                                                    {{ $estudiante['promedio_notas'] }}
                                                                 </span>
-                                                            @else
-                                                                <span class="badge bg-danger">
-                                                                    <i class="fas fa-times"></i> 0/4
-                                                                </span>
-                                                            @endif
-                                                        </td>
-                                                        <td class="text-center">
-                                                            @if($tieneConducta)
-                                                                <span class="badge bg-success">
-                                                                    <i class="fas fa-check"></i>
-                                                                    {{ $progresoCondEst['total_bimestres_con_datos'] ?? 0 }}/4
-                                                                </span>
-                                                            @else
-                                                                <span class="badge bg-danger">
-                                                                    <i class="fas fa-times"></i> 0/4
-                                                                </span>
-                                                            @endif
-                                                        </td>
-                                                        <td class="text-center">
-                                                            @if($promedioNotas !== null)
-                                                                <span class="fw-bold {{ $colorNota }}">
-                                                                    {{ $promedioNotas }}
-                                                                </span>
+                                                                <br>
+                                                                <small class="text-muted">
+                                                                    {{ $estudiante['bimestres_notas'] }}/4 bim.
+                                                                </small>
                                                             @else
                                                                 <span class="text-muted">--</span>
                                                             @endif
                                                         </td>
+
+                                                        {{-- Conducta por bimestre --}}
+                                                        @for($b = 1; $b <= 4; $b++)
+                                                            <td class="text-center">
+                                                                @if(isset($progresoCondEst['datos'][$b]) && $progresoCondEst['datos'][$b] !== null)
+                                                                    @php
+                                                                        $conducta = $progresoCondEst['datos'][$b];
+                                                                        $colorConducta = $conducta >= 3 ? 'text-success' : ($conducta >= 2 ? 'text-warning' : 'text-danger');
+                                                                        $registradas = $progresoCondEst['conductas_por_bimestre'][$b] ?? 0;
+
+                                                                    @endphp
+                                                                    <span class="fw-bold {{ $colorConducta }}">{{ $conducta }}</span>
+                                                                    <br>
+                                                                    <small class="text-muted" title="Conductas registradas">
+                                                                        {{ $registradas }} cond.
+                                                                    </small>
+                                                                @else
+                                                                    <span class="text-muted">--</span>
+                                                                    <br>
+                                                                    <small class="text-muted">0 cond.</small>
+                                                                @endif
+                                                            </td>
+                                                        @endfor
+
+                                                        {{-- Promedio de conducta --}}
                                                         <td class="text-center">
-                                                            @if($promedioConducta !== null)
-                                                                <span class="fw-bold {{ $colorConducta }}">
-                                                                    {{ $promedioConducta }}
+                                                            @if($estudiante['promedio_conducta'] !== null)
+                                                                <span class="fw-bold {{ $estudiante['color_conducta'] }}">
+                                                                    {{ $estudiante['promedio_conducta'] }}
                                                                 </span>
+                                                                <br>
+                                                                <small class="text-muted">
+                                                                    {{ $estudiante['bimestres_conducta'] }}/4 bim.
+                                                                </small>
                                                             @else
                                                                 <span class="text-muted">--</span>
                                                             @endif
                                                         </td>
+
+                                                        {{-- Estado --}}
                                                         <td class="text-center">
-                                                            @if($tieneNotas && $tieneConducta)
-                                                                <span class="badge bg-success">Completo</span>
-                                                            @elseif($tieneNotas || $tieneConducta)
-                                                                <span class="badge bg-warning">Parcial</span>
-                                                            @else
-                                                                <span class="badge bg-danger">Sin datos</span>
-                                                            @endif
+                                                            <span class="badge bg-{{ $estudiante['estado_texto'] == 'Completo' ? 'success' : ($estudiante['estado_texto'] == 'Parcial' ? 'warning' : 'danger') }}">
+                                                                {{ $estudiante['estado_texto'] }}
+                                                            </span>
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                {{ $porcentajeNotas }}% | {{ $porcentajeConducta }}%
+                                                            </small>
                                                         </td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>
+                                            <tfoot class="bg-light">
+                                                @php
+                                                    // Calcular totales para el footer
+                                                    $totalEstudiantes = count($data['estudiantes']);
+                                                    $totalNotasRegistradasGeneral = 0;
+                                                    $totalNotasPosiblesGeneral = 0;
+                                                    $totalConductasRegistradasGeneral = 0;
+                                                    $totalConductasPosiblesGeneral = $totalEstudiantes * 4; // 4 bimestres posibles por estudiante
+
+                                                    foreach($data['estudiantes'] as $estudiante) {
+                                                        $progresoEst = $data['progreso']['progreso'][$estudiante['id']] ?? null;
+                                                        $progresoCondEst = $data['progreso_cond']['progreso'][$estudiante['id']] ?? null;
+
+                                                        for($b = 1; $b <= 4; $b++) {
+                                                            $totalNotasRegistradasGeneral += $progresoEst['criterios_por_bimestre'][$b] ?? 0;
+                                                            $totalNotasPosiblesGeneral += $data['criterios_por_bimestre'][$b] ?? 0;
+                                                            $totalConductasRegistradasGeneral += $progresoCondEst['conductas_por_bimestre'][$b] ?? 0;
+                                                        }
+                                                    }
+
+                                                    $porcentajeNotasGeneral = $totalNotasPosiblesGeneral > 0 ?
+                                                        round(($totalNotasRegistradasGeneral / $totalNotasPosiblesGeneral) * 100, 1) : 0;
+                                                    $porcentajeConductaGeneral = $totalConductasPosiblesGeneral > 0 ?
+                                                        round(($totalConductasRegistradasGeneral / $totalConductasPosiblesGeneral) * 100, 1) : 0;
+                                                @endphp
+                                                <tr>
+                                                    <td colspan="3" class="fw-bold text-end">Totales:</td>
+                                                    <td colspan="5" class="text-center">
+                                                        <span class="fw-bold {{ $porcentajeNotasGeneral >= 80 ? 'text-success' : ($porcentajeNotasGeneral >= 50 ? 'text-warning' : 'text-danger') }}">
+                                                            {{ $totalNotasRegistradasGeneral }}/{{ $totalNotasPosiblesGeneral }} registros
+                                                            ({{ $porcentajeNotasGeneral }}%)
+                                                        </span>
+                                                    </td>
+                                                    <td colspan="5" class="text-center">
+                                                        <span class="fw-bold {{ $porcentajeConductaGeneral >= 80 ? 'text-success' : ($porcentajeConductaGeneral >= 50 ? 'text-warning' : 'text-danger') }}">
+                                                            {{ $totalConductasRegistradasGeneral }}/{{ $totalConductasPosiblesGeneral }} registros
+                                                            ({{ $porcentajeConductaGeneral }}%)
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <span class="badge bg-info">
+                                                            {{ round(($porcentajeNotasGeneral + $porcentajeConductaGeneral) / 2, 1) }}% total
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
                                         </table>
                                     </div>
                                 </div>
@@ -874,22 +878,10 @@
                         </div>
                     </div>
                 </div>
-            @endforeach
-        </div>
-    @else
-        <!-- Mensaje cuando no hay periodo seleccionado -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body text-center py-5">
-                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                        <h4 class="text-muted">No hay periodos académicos activos</h4>
-                        <p class="text-muted">Contacta con la administración para más información.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
+            @endif
+        @endforeach
+    </div>
+@endif
 </div>
 
 @if($periodoSeleccionado)
