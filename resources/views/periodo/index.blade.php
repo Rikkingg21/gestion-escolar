@@ -69,7 +69,9 @@
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="#" class="btn btn-outline-primary" title="Ver Matrículas">
+                                                        <a href="{{ url('matricula/' . $periodo->anio) }}"
+                                                        class="btn btn-outline-{{ $periodo->estado == 1 ? 'primary' : 'secondary' }}"
+                                                        title="Ver Matrículas">
                                                             <i class="bi bi-folder2-open"></i>
                                                             Ver
                                                         </a>
@@ -138,7 +140,9 @@
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="#" class="btn btn-outline-secondary" title="Ver Matrículas">
+                                                        <a href="{{ url('matricula/' . $periodo->anio) }}"
+                                                        class="btn btn-outline-{{ $periodo->estado == 1 ? 'primary' : 'secondary' }}"
+                                                        title="Ver Matrículas">
                                                             <i class="bi bi-folder2-open"></i>
                                                             Ver
                                                         </a>
