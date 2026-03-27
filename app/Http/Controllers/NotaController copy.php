@@ -37,8 +37,8 @@ class NotaController extends Controller
 
             // Solo verificar asignación de docente si el usuario tiene rol "docente"
             if ($rolUsuario === 'docente') {
-                // Obtener el ID del curso desde la ruta o el request
-                $cursoId = $request->route('curso_grado_sec_niv_anio_id') ?? $request->input('curso_id');
+                // Obtener el ID del curso desde la ruta
+                $cursoId = $request->route('curso_grado_sec_niv_anio_id');
 
                 if ($cursoId) {
                     $curso = Cursogradosecnivanio::with('docente.user')->find($cursoId);
@@ -188,6 +188,9 @@ class NotaController extends Controller
         $notasExistentes = $this->cargarNotasExistentes($curso_grado_sec_niv_anio_id, $bimestre, $competencias, $estudiantes);
         $conductaNotas = $this->cargarConductaNotas($curso_grado_sec_niv_anio_id, $bimestre, $estudiantes);
 
+        //Datos de SIAGIE - Promedios de lo que está llamando
+        // (Los cálculos se harán en la vista o en un método adicional según sea necesario)
+
         return view('nota.index', [
             'user' => $user,
             'estadosNotas' => $estadosNotasConfig,
@@ -208,8 +211,8 @@ class NotaController extends Controller
             'grado' => $curso->grado,
             'docente' => $curso->docente,
             'competencias' => $competencias,
-            'estudiantesMatriculadosActivos' => $estudiantes['activos'],
-            'estudiantesMatriculadosRetirados' => $estudiantes['retirados'],
+            'estudiantesActivos' => $estudiantes['activos'],
+            'estudiantesInactivos' => $estudiantes['inactivos'],
             'notasExistentes' => $notasExistentes,
             'estadoActual' => $estadoActual,
             'conductas' => $conductas,
@@ -229,13 +232,13 @@ class NotaController extends Controller
     private function cargarEstudiantes($curso, $bimestre)
     {
         return [
-            'activos' => $this->cargarEstudiantesMatriculadosActivos($curso),
-            'retirados' => $this->cargarEstudiantesMatriculadosRetirados($curso, $bimestre)
+            'activos' => $this->cargarEstudiantesActivos($curso),
+            'inactivos' => $this->cargarEstudiantesInactivos($curso, $bimestre)
         ];
     }
 
     //Cargar estudiantes activos
-    private function cargarEstudiantesMatriculadosActivos($curso)
+    private function cargarEstudiantesActivos($curso)
     {
         return Estudiante::with(['user'])
             ->where('estado', '1') // Estado activo del estudiante
@@ -252,34 +255,32 @@ class NotaController extends Controller
             ->get();
     }
 
-    private function cargarEstudiantesMatriculadosRetirados($curso, $bimestre)
+    private function cargarEstudiantesInactivos($curso, $bimestre)
     {
-        // Obtenemos estudiantes que fueron matriculados pero retirados en este periodo
-        return Estudiante::with(['user'])
+        // Primero obtenemos estudiantes que fueron matriculados pero retirados
+        $estudiantesRetirados = Estudiante::with(['user'])
             ->whereHas('matriculas', function($query) use ($curso) {
                 $query->where('estado', '0') // Matrícula retirada
                     ->where('grado_id', $curso->grado_id)
                     ->where('periodo_id', $curso->periodo_id);
             })
-            ->where(function($query) use ($curso, $bimestre) {
-                // Estudiantes que tienen notas en este bimestre y materia
-                $query->whereHas('notas', function($q) use ($curso, $bimestre) {
-                    $q->where('bimestre', $bimestre)
-                        ->where('periodo_id', $curso->periodo_id) // Asegurar mismo periodo
-                        ->whereHas('criterio', function($criteriaQuery) use ($curso) {
-                            $criteriaQuery->where('materia_id', $curso->materia_id);
-                        });
-                })
-                // O estudiantes que están inactivos (estado 0)
-                ->orWhere('estado', '0');
+            ->whereHas('notas', function($query) use ($curso, $bimestre) {
+                $query->where('bimestre', $bimestre)
+                    ->whereHas('criterio', function($q) use ($curso) {
+                        $q->where('materia_id', $curso->materia_id);
+                    });
             })
             ->orderByRaw("
                 (SELECT apellido_paterno FROM users WHERE users.id = estudiantes.user_id),
                 (SELECT apellido_materno FROM users WHERE users.id = estudiantes.user_id),
                 (SELECT nombre FROM users WHERE users.id = estudiantes.user_id)
             ")
-            ->get()
-            ->unique('id'); // Evitar duplicados
+            ->get();
+
+        // Opcional: Si quieres filtrar también por estudiantes inactivos
+        // return $estudiantesRetirados->where('estado', '0');
+
+        return $estudiantesRetirados;
     }
 
     //Cargar competencias y criterios para el bimestre específico
@@ -300,22 +301,22 @@ class NotaController extends Controller
     private function cargarNotasExistentes($curso_id, $bimestre, $competencias, $estudiantes)
     {
         $criteriosIds = $competencias->flatMap->criterios->pluck('id');
-        $estudianteIds = $estudiantes['activos']->pluck('id')
-            ->merge($estudiantes['retirados']->pluck('id'));
 
-        $notas = Nota::where('bimestre', $bimestre)
+        $estudianteIds = $estudiantes['activos']->pluck('id')
+            ->merge($estudiantes['inactivos']->pluck('id'));
+
+        return Nota::where('bimestre', $bimestre)
             ->whereIn('materia_criterio_id', $criteriosIds)
             ->whereIn('estudiante_id', $estudianteIds)
-            ->get();
-
-        return $notas->mapWithKeys(function ($item) {
-            return [
-                $item['estudiante_id'].'-'.$item['materia_criterio_id'] => [
-                    'nota' => $item['nota'],
-                    'publico' => $item['publico']
-                ]
-            ];
-        });
+            ->get()
+            ->mapWithKeys(function ($item) {
+                return [
+                    $item['estudiante_id'].'-'.$item['materia_criterio_id'] => [
+                        'nota' => $item['nota'],
+                        'publico' => $item['publico']
+                    ]
+                ];
+            });
     }
 
     //Cargar conductas activas
@@ -327,88 +328,60 @@ class NotaController extends Controller
     }
 
     //Cargar notas de conducta existentes
-    private function cargarConductaNotas($curso_grado_sec_niv_anio_id, $bimestre, $estudiantes)
+    private function cargarConductaNotas($curso_id, $bimestre, $estudiantes)
     {
         $estudianteIds = $estudiantes['activos']->pluck('id')
-            ->merge($estudiantes['retirados']->pluck('id'));
+            ->merge($estudiantes['inactivos']->pluck('id'));
 
-        // Si no hay estudiantes, retornar colección vacía
-        if ($estudianteIds->isEmpty()) {
-            return collect();
-        }
+        // Obtener el periodo_id del curso
+        $periodo_id = Cursogradosecnivanio::find($curso_id)?->periodo_id;
 
         return Conductanota::where('bimestre', $bimestre)
-            ->where('curso_grado_sec_niv_anio_id', $curso_grado_sec_niv_anio_id)
+            ->where('periodo_id', $periodo_id)
             ->whereIn('estudiante_id', $estudianteIds)
             ->get()
             ->mapWithKeys(function ($item) {
-                // Clave: solo estudiante-conducta (sin curso)
                 return [
-                    $item->estudiante_id . '-' . $item->conducta_id => [
-                        'nota' => $item->nota ?? 0,
-                        'publico' => $item->publico ?? false
+                    $item['estudiante_id'].'-'.$item['conducta_id'] => [
+                        'nota' => $item['nota'],
+                        'publico' => $item['publico']
                     ]
                 ];
             });
     }
+
     //Obtener estado actual de las notas
     private function obtenerEstadoActual($curso_id, $bimestre)
     {
-        // Obtener el curso para tener el periodo_id
-        $curso = CursoGradoSecNivAnio::find($curso_id);
-        if (!$curso) {
+        // Primero verificar si existen notas para este curso y bimestre
+        $existenNotas = Nota::whereHas('criterio', function($query) use ($curso_id) {
+                $query->whereHas('materiaCompetencia.materia', function($q) use ($curso_id) {
+                    $q->whereHas('cursoGradoSecNivAnio', function($cq) use ($curso_id) {
+                        $cq->where('id', $curso_id);
+                    });
+                });
+            })
+            ->where('bimestre', $bimestre)
+            ->exists();
+
+        if (!$existenNotas) {
             return '0';
         }
 
-        $periodo_id = $curso->periodo_id;
-
-        // Cargar estudiantes
-        $estudiantes = $this->cargarEstudiantes($curso, $bimestre);
-        $estudianteIds = $estudiantes['activos']->pluck('id')
-            ->merge($estudiantes['retirados']->pluck('id'));
-
-        // Cargar competencias para obtener criterios
-        $competencias = $this->cargarCompetencias($curso, $bimestre);
-        $criteriosIds = $competencias->flatMap->criterios->pluck('id');
-
-        // Verificar si existen notas de materia
-        $existenNotasMateria = Nota::where('bimestre', $bimestre)
-            ->whereIn('materia_criterio_id', $criteriosIds)
-            ->whereIn('estudiante_id', $estudianteIds)
-            ->where('periodo_id', $periodo_id)
-            ->exists();
-
-        // Verificar si existen notas de conducta
-        $existenNotasConducta = Conductanota::where('bimestre', $bimestre)
-            ->where('periodo_id', $periodo_id)
-            ->whereIn('estudiante_id', $estudianteIds)
-            ->exists();
-
-        // Si no hay notas de ningún tipo, retornar '0'
-        if (!$existenNotasMateria && !$existenNotasConducta) {
-            return '0';
-        }
-
-        // Obtener el estado más alto de las notas de materia
-        $estadoMateria = Nota::where('bimestre', $bimestre)
-            ->whereIn('materia_criterio_id', $criteriosIds)
-            ->whereIn('estudiante_id', $estudianteIds)
-            ->where('periodo_id', $periodo_id)
+        // Obtener el estado más alto de las notas para este curso y bimestre
+        $notaEstado = Nota::whereHas('criterio', function($query) use ($curso_id) {
+                $query->whereHas('materiaCompetencia.materia', function($q) use ($curso_id) {
+                    $q->whereHas('cursoGradoSecNivAnio', function($cq) use ($curso_id) {
+                        $cq->where('id', $curso_id);
+                    });
+                });
+            })
+            ->where('bimestre', $bimestre)
             ->max('publico');
 
-        // Obtener el estado más alto de las notas de conducta
-        $estadoConducta = Conductanota::where('bimestre', $bimestre)
-            ->where('periodo_id', $periodo_id)
-            ->whereIn('estudiante_id', $estudianteIds)
-            ->max('publico');
+        $estado = $notaEstado ? (string)$notaEstado : '0';
 
-        // Tomar el estado más alto entre materia y conducta
-        $estadoFinal = max(
-            $estadoMateria ? (int)$estadoMateria : 0,
-            $estadoConducta ? (int)$estadoConducta : 0
-        );
-
-        return (string)$estadoFinal;
+        return $estado;
     }
 
     public function publicar(Request $request, $curso_grado_sec_niv_anio_id, $bimestre)
@@ -417,18 +390,11 @@ class NotaController extends Controller
             DB::beginTransaction();
 
             $user = auth()->user();
-
-            // OBTENER EL CURSO PARA TENER EL PERIODO_ID
-            $curso = CursoGradoSecNivAnio::find($curso_grado_sec_niv_anio_id);
-            if (!$curso) {
-                throw new \Exception('Curso no encontrado.');
-            }
-
-            $periodo_id = $curso->periodo_id;
             $estadoActual = $this->obtenerEstadoActual($curso_grado_sec_niv_anio_id, $bimestre);
 
             // Determinar el nuevo estado según el rol y estado actual
             if ($user->hasRole('admin')) {
+                // Admin puede avanzar a cualquier estado
                 if ($estadoActual == '0') {
                     $nuevoEstado = '1';
                 } elseif ($estadoActual == '1') {
@@ -439,6 +405,7 @@ class NotaController extends Controller
                     throw new \Exception('Estado actual no válido para publicación.');
                 }
             } elseif ($user->hasRole('director') || $user->hasRole('docente')) {
+                // Director puede avanzar hasta estado '2'
                 if ($estadoActual == '0') {
                     $nuevoEstado = '1';
                 } elseif ($estadoActual == '1') {
@@ -450,27 +417,47 @@ class NotaController extends Controller
                 throw new \Exception('No tiene permisos para publicar notas.');
             }
 
-            // Cargar estudiantes (activos y retirados)
-            $estudiantes = $this->cargarEstudiantes($curso, $bimestre);
-            $estudianteIds = $estudiantes['activos']->pluck('id')
-                ->merge($estudiantes['retirados']->pluck('id'));
+            // Verificar si existen notas antes de actualizar - CORREGIDO
+            $notasCount = Nota::whereHas('criterio', function($query) use ($curso_grado_sec_niv_anio_id) {
+                $query->whereHas('materiaCompetencia.materia', function($q) use ($curso_grado_sec_niv_anio_id) {
+                    $q->whereHas('cursoGradoSecNivAnio', function($cq) use ($curso_grado_sec_niv_anio_id) {
+                        $cq->where('id', $curso_grado_sec_niv_anio_id);
+                    });
+                });
+            })
+            ->where('bimestre', $bimestre)
+            ->count();
 
-            // Cargar competencias para obtener criterios
-            $competencias = $this->cargarCompetencias($curso, $bimestre);
-            $criteriosIds = $competencias->flatMap->criterios->pluck('id');
+            // CORREGIDO: Usar el nombre correcto de la tabla
+            $conductaCount = Conductanota::whereIn('estudiante_id', function($query) use ($curso_grado_sec_niv_anio_id) {
+                $query->select('estudiantes.id')
+                    ->from('estudiantes')
+                    ->join('maya_curso_grado_sec_niv_anios', 'estudiantes.grado_id', '=', 'maya_curso_grado_sec_niv_anios.grado_id')
+                    ->where('maya_curso_grado_sec_niv_anios.id', $curso_grado_sec_niv_anio_id);
+            })
+            ->where('bimestre', $bimestre)
+            ->count();
 
             // Actualizar notas de materia
-            $updatedNotas = Nota::where('bimestre', $bimestre)
-                ->whereIn('materia_criterio_id', $criteriosIds)
-                ->whereIn('estudiante_id', $estudianteIds)
-                ->where('periodo_id', $periodo_id)
-                ->update(['publico' => $nuevoEstado]);
+            $updatedNotas = Nota::whereHas('criterio', function($query) use ($curso_grado_sec_niv_anio_id) {
+                $query->whereHas('materiaCompetencia.materia', function($q) use ($curso_grado_sec_niv_anio_id) {
+                    $q->whereHas('cursoGradoSecNivAnio', function($cq) use ($curso_grado_sec_niv_anio_id) {
+                        $cq->where('id', $curso_grado_sec_niv_anio_id);
+                    });
+                });
+            })
+            ->where('bimestre', $bimestre)
+            ->update(['publico' => $nuevoEstado]);
 
-            // Actualizar notas de conducta
-            $updatedConducta = Conductanota::where('bimestre', $bimestre)
-                ->where('periodo_id', $periodo_id)
-                ->whereIn('estudiante_id', $estudianteIds)
-                ->update(['publico' => $nuevoEstado]);
+            // Actualizar notas de conducta - CORREGIDO
+            $updatedConducta = Conductanota::whereIn('estudiante_id', function($query) use ($curso_grado_sec_niv_anio_id) {
+                $query->select('estudiantes.id')
+                    ->from('estudiantes')
+                    ->join('maya_curso_grado_sec_niv_anios', 'estudiantes.grado_id', '=', 'maya_curso_grado_sec_niv_anios.grado_id')
+                    ->where('maya_curso_grado_sec_niv_anios.id', $curso_grado_sec_niv_anio_id);
+            })
+            ->where('bimestre', $bimestre)
+            ->update(['publico' => $nuevoEstado]);
 
             DB::commit();
 
@@ -534,15 +521,9 @@ class NotaController extends Controller
                     ->withInput();
             }
 
+
             DB::beginTransaction();
 
-            // OBTENER EL CURSO PARA TENER EL PERIODO_ID
-            $curso = CursoGradoSecNivAnio::find($curso_grado_sec_niv_anio_id);
-            if (!$curso) {
-                throw new \Exception('Curso no encontrado.');
-            }
-
-            $periodo_id = $curso->periodo_id;
             $estadoActual = $this->obtenerEstadoActual($curso_grado_sec_niv_anio_id, $bimestre);
 
             // Determinar el estado anterior según la lógica de reversión
@@ -556,32 +537,30 @@ class NotaController extends Controller
                 throw new \Exception('No se puede revertir desde el estado actual: ' . $estadoActual);
             }
 
-            // Cargar estudiantes (activos y retirados)
-            $estudiantes = $this->cargarEstudiantes($curso, $bimestre);
-            $estudianteIds = $estudiantes['activos']->pluck('id')
-                ->merge($estudiantes['retirados']->pluck('id'));
+            // Actualizar notas de materia
+            Nota::whereHas('criterio', function($query) use ($curso_grado_sec_niv_anio_id) {
+                $query->whereHas('materiaCompetencia.materia', function($q) use ($curso_grado_sec_niv_anio_id) {
+                    $q->whereHas('cursoGradoSecNivAnio', function($cq) use ($curso_grado_sec_niv_anio_id) {
+                        $cq->where('id', $curso_grado_sec_niv_anio_id);
+                    });
+                });
+            })
+            ->where('bimestre', $bimestre)
+            ->update(['publico' => $nuevoEstado]);
 
-            // Cargar competencias para obtener criterios
-            $competencias = $this->cargarCompetencias($curso, $bimestre);
-            $criteriosIds = $competencias->flatMap->criterios->pluck('id');
-
-            // Revertir notas de materia
-            $updatedNotas = Nota::where('bimestre', $bimestre)
-                ->whereIn('materia_criterio_id', $criteriosIds)
-                ->whereIn('estudiante_id', $estudianteIds)
-                ->where('periodo_id', $periodo_id)
-                ->update(['publico' => $nuevoEstado]);
-
-            // Revertir notas de conducta
-            $updatedConducta = Conductanota::where('bimestre', $bimestre)
-                ->where('periodo_id', $periodo_id)
-                ->whereIn('estudiante_id', $estudianteIds)
-                ->update(['publico' => $nuevoEstado]);
+            // Actualizar notas de conducta - CORREGIDO
+            Conductanota::whereIn('estudiante_id', function($query) use ($curso_grado_sec_niv_anio_id) {
+                $query->select('estudiantes.id')
+                    ->from('estudiantes')
+                    ->join('maya_curso_grado_sec_niv_anios', 'estudiantes.grado_id', '=', 'maya_curso_grado_sec_niv_anios.grado_id')
+                    ->where('maya_curso_grado_sec_niv_anios.id', $curso_grado_sec_niv_anio_id);
+            })
+            ->where('bimestre', $bimestre)
+            ->update(['publico' => $nuevoEstado]);
 
             DB::commit();
 
             $estados = ['0' => 'Privado', '1' => 'Publicado', '2' => 'Oficial', '3' => 'Extra Oficial'];
-
             return redirect()
                 ->route('nota.index', [
                     'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
@@ -610,16 +589,9 @@ class NotaController extends Controller
             $notas_criterios = $request->notas ?? [];
             $notas_conductas = $request->conductas ?? [];
             $estadoActual = $this->obtenerEstadoActual($curso_id, $bimestre);
+            $periodo_id = Cursogradosecnivanio::find($curso_id)->periodo_id;
 
-            // Obtener el curso para extraer periodo_id y asegurar que existe
-            $curso = Cursogradosecnivanio::find($curso_id);
-            if (!$curso) {
-                throw new \Exception('Curso no encontrado');
-            }
-
-            $periodo_id = $curso->periodo_id;
-
-            // 1. Procesar notas de criterios (esta parte se mantiene igual)
+            // 1. Procesar notas de criterios
             foreach ($notas_criterios as $estudiante_id => $criterios) {
                 foreach ($criterios as $criterio_id => $nota) {
                     // Solo procesar si la nota tiene valor (no vacío)
@@ -676,7 +648,7 @@ class NotaController extends Controller
                 }
             }
 
-            // 2. Procesar notas de conductas (ACTUALIZADO con curso_grado_sec_niv_anio_id)
+            // 2. Procesar notas de conductas
             foreach ($notas_conductas as $estudiante_id => $conductas) {
                 foreach ($conductas as $conducta_id => $nota) {
                     // Solo procesar si la nota tiene valor (no vacío)
@@ -689,11 +661,10 @@ class NotaController extends Controller
                         }
 
                         // Buscar si ya existe una nota de conducta
-                        // CAMBIO IMPORTANTE: Ahora también filtramos por curso_grado_sec_niv_anio_id
                         $notaConductaExistente = Conductanota::where('estudiante_id', $estudiante_id)
                             ->where('conducta_id', $conducta_id)
-                            ->where('curso_grado_sec_niv_anio_id', $curso_id) // NUEVO FILTRO
                             ->where('bimestre', $bimestre)
+                            ->where('periodo_id', $periodo_id)
                             ->first();
 
                         if ($notaConductaExistente) {
@@ -701,7 +672,6 @@ class NotaController extends Controller
                             if ($this->puedeEditarNota($estadoActual)) {
                                 $notaConductaExistente->update([
                                     'nota' => $nota,
-                                    'periodo_id' => $periodo_id, // Actualizar periodo_id por si acaso
                                 ]);
                             }
                         } else {
@@ -710,7 +680,6 @@ class NotaController extends Controller
                                 Conductanota::create([
                                     'estudiante_id' => $estudiante_id,
                                     'conducta_id' => $conducta_id,
-                                    'curso_grado_sec_niv_anio_id' => $curso_id, // NUEVO CAMPO
                                     'periodo_id' => $periodo_id,
                                     'bimestre' => $bimestre,
                                     'nota' => $nota,
@@ -723,8 +692,8 @@ class NotaController extends Controller
                         if ($this->puedeEditarNota($estadoActual)) {
                             $notaConductaExistente = Conductanota::where('estudiante_id', $estudiante_id)
                                 ->where('conducta_id', $conducta_id)
-                                ->where('curso_grado_sec_niv_anio_id', $curso_id) // NUEVO FILTRO
                                 ->where('bimestre', $bimestre)
+                                ->where('periodo_id', $periodo_id)
                                 ->first();
 
                             if ($notaConductaExistente) {
@@ -821,7 +790,7 @@ class NotaController extends Controller
             'competenciasNoTransversales' => $competenciasNoTransversales,
             'competenciaTransversal' => $competenciaTransversal,
             'estudiantesActivos' => $estudiantes['activos'],
-            'estudiantesInactivos' => $estudiantes['retirados'],
+            'estudiantesInactivos' => $estudiantes['inactivos'],
             'notasExistentes' => $notasExistentes,
             'conductas' => $conductas,
             'conductaNotas' => $conductaNotas,

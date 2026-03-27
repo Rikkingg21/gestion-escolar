@@ -20,13 +20,13 @@ class GradoController extends Controller
     }
     public function index()
     {
-        $gradosActivos = Grado::where('estado', 1)
+        $gradosActivos = Grado::where('estado', '1')
             ->orderBy('nivel')
             ->orderBy('grado')
             ->orderBy('seccion')
             ->paginate(5, ['*'], 'activos');
 
-        $gradosInactivos = Grado::where('estado', 0)
+        $gradosInactivos = Grado::where('estado', '0')
             ->orderBy('nivel')
             ->orderBy('grado')
             ->orderBy('seccion')
@@ -95,7 +95,7 @@ class GradoController extends Controller
         $grado = Grado::findOrFail($id);
 
         // Verificar si el grado está activo
-        if ($grado->estado == 1) {
+        if ($grado->estado == '1') {
             return redirect()->route('grado.index')->with('error', 'No se puede eliminar el grado porque está activo.');
         }
 
@@ -109,7 +109,7 @@ class GradoController extends Controller
         $grado = Grado::findOrFail($id);
 
         $estudiantes = Estudiante::where('grado_id', $id)
-            ->where('estado', 1)
+            ->where('estado', '1')
             ->with(['user', 'apoderado.user'])
             ->get();
 
@@ -132,7 +132,7 @@ class GradoController extends Controller
                 'seccion' => $request->nueva_seccion,
                 'nivel' => $request->nuevo_nivel
             ],
-            ['estado' => 1]
+            ['estado' => '1']
         );
 
         // Actualizar los estudiantes seleccionados

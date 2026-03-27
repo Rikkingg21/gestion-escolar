@@ -294,157 +294,275 @@ public function store(Request $request)
         $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
         return view('materia.materiacriterio.importar', compact('materias'));
     }
-public function importarCriterio(Request $request)
-{
-    $request->validate([
-        'archivo_excel' => 'required|file|mimes:xlsx,xls|max:2048',
-    ]);
+    public function importarCriterio(Request $request)
+    {
+        // Paso 1: Validar si es solo validación o procesamiento final
+        if ($request->has('accion')) {
+            $accion = $request->input('accion');
 
-    try {
-        $spreadsheet = IOFactory::load($request->file('archivo_excel'));
-        $sheet = $spreadsheet->getActiveSheet();
-        $rows = $sheet->toArray();
+            if ($accion === 'cancelar') {
+                // Limpiar sesión y cancelar
+                session()->forget('import_data');
 
-        $exitosos = 0;
-        $errores = [];
-        $duplicados = [];
-        $criteriosProcesados = [];
+                return redirect()->route('materiacriterio.importar')
+                    ->with('info', 'Importación cancelada.');
+            }
 
-        // Saltar la primera fila (encabezados)
-        for ($i = 1; $i < count($rows); $i++) {
-            $row = $rows[$i];
-            $numeroFila = $i + 1;
-
-            try {
-                // Validar que todos los campos necesarios estén presentes
-                if (empty($row[0]) || empty($row[1]) || empty($row[2]) || empty($row[4]) || empty($row[5]) || empty($row[6]) || empty($row[7]) || empty($row[8])) {
-                    $errores[] = "Fila $numeroFila: Faltan campos obligatorios (Materia, Competencia, Nombre, Grado, Sección, Nivel, Año y Bimestre son requeridos)";
-                    continue;
-                }
-
-                $materiaNombre = trim($row[0]);
-                $competenciaNombre = trim($row[1]);
-                $criterioNombre = trim($row[2]);
-                $criterioDescripcion = trim($row[3] ?? '');
-                $gradoNumero = trim($row[4]);
-                $seccion = trim($row[5]);
-                $nivel = trim($row[6]);
-                $anio = trim($row[7]);
-                $bimestre = trim($row[8]);
-
-                // Validar formato del año
-                if (!is_numeric($anio) || strlen($anio) != 4) {
-                    $errores[] = "Fila $numeroFila: El año '$anio' no tiene un formato válido (debe ser 4 dígitos)";
-                    continue;
-                }
-
-                // Validar formato del grado
-                if (!is_numeric($gradoNumero)) {
-                    $errores[] = "Fila $numeroFila: El grado '$gradoNumero' debe ser un número";
-                    continue;
-                }
-
-                // Validar bimestre (1, 2, 3, 4)
-                $bimestresValidos = ['1', '2', '3', '4'];
-                if (!in_array($bimestre, $bimestresValidos)) {
-                    $errores[] = "Fila $numeroFila: El bimestre '$bimestre' no es válido. Debe ser: 1, 2, 3 o 4";
-                    continue;
-                }
-
-                // Buscar la materia por nombre
-                $materia = Materia::where('nombre', $materiaNombre)
-                    ->where('estado', '1')
-                    ->first();
-
-                if (!$materia) {
-                    $errores[] = "Fila $numeroFila: La materia '$materiaNombre' no existe o no está activa";
-                    continue;
-                }
-
-                // Buscar la competencia por nombre y materia
-                $competencia = Materiacompetencia::where('nombre', $competenciaNombre)
-                    ->where('materia_id', $materia->id)
-                    ->where('estado', '1')
-                    ->first();
-
-                if (!$competencia) {
-                    $errores[] = "Fila $numeroFila: La competencia '$competenciaNombre' no existe en la materia '$materiaNombre' o no está activa";
-                    continue;
-                }
-
-                // Buscar el grado por grado, sección y nivel
-                $grado = Grado::where('grado', $gradoNumero)
-                    ->where('seccion', $seccion)
-                    ->where('nivel', $nivel)
-                    ->where('estado', '1')
-                    ->first();
-
-                if (!$grado) {
-                    $errores[] = "Fila $numeroFila: El grado " . $gradoNumero . "° '" . $seccion . "' - " . $nivel . " no existe o no está activo";
-                    continue;
-                }
-
-                // Verificar si ya existe este criterio en la misma competencia, grado, año y bimestre
-                $criterioExistente = Materiacriterio::where('materia_competencia_id', $competencia->id)
-                    ->where('grado_id', $grado->id)
-                    ->where('anio', $anio)
-                    ->where('bimestre', $bimestre)
-                    ->where('nombre', $criterioNombre)
-                    ->first();
-
-                if ($criterioExistente) {
-                    $duplicados[] = "Fila $numeroFila: El criterio '$criterioNombre' ya existe para la competencia '$competenciaNombre', grado " . $grado->nombreCompleto . ", año '$anio' y bimestre '$bimestre'";
-                    continue;
-                }
-
-                // Verificar duplicados dentro del mismo archivo
-                $claveCriterio = $competencia->id . '-' . $grado->id . '-' . $anio . '-' . $bimestre . '-' . $criterioNombre;
-                if (in_array($claveCriterio, $criteriosProcesados)) {
-                    $duplicados[] = "Fila $numeroFila: Criterio duplicado en el archivo - '$criterioNombre' para competencia '$competenciaNombre', grado " . $grado->nombreCompleto . ", año '$anio' y bimestre '$bimestre'";
-                    continue;
-                }
-
-                // Crear el criterio
-                Materiacriterio::create([
-                    'materia_competencia_id' => $competencia->id,
-                    'materia_id' => $materia->id,
-                    'grado_id' => $grado->id,
-                    'anio' => $anio,
-                    'bimestre' => $bimestre,
-                    'nombre' => $criterioNombre,
-                    'descripcion' => $criterioDescripcion,
-                ]);
-
-                $criteriosProcesados[] = $claveCriterio;
-                $exitosos++;
-
-            } catch (\Exception $e) {
-                $errores[] = "Fila $numeroFila: " . $e->getMessage();
+            if ($accion === 'procesar') {
+                return $this->procesarImportacion($request);
             }
         }
 
-        // Preparar mensajes para el usuario
-        $mensaje = "Importación completada: $exitosos criterios importados exitosamente.";
+        // Paso 1: Validación inicial del archivo
+        $request->validate([
+            'archivo_excel' => 'required|file|mimes:xlsx,xls|max:2048',
+        ]);
 
-        if (count($duplicados) > 0) {
-            $mensaje .= " Se encontraron " . count($duplicados) . " criterios duplicados.";
+        try {
+            $spreadsheet = IOFactory::load($request->file('archivo_excel'));
+            $sheet = $spreadsheet->getActiveSheet();
+            $rows = $sheet->toArray();
+
+            $totalRegistros = count($rows) - 1;
+            $errores = [];
+            $duplicados = [];
+            $registrosValidos = [];
+            $criteriosProcesados = [];
+
+            // Validar cada fila
+            for ($i = 1; $i < count($rows); $i++) {
+                $row = $rows[$i];
+                $numeroFila = $i + 1;
+
+                try {
+                    // Validar campos obligatorios
+                    if (empty($row[0]) || empty($row[1]) || empty($row[2]) || empty($row[4]) ||
+                        empty($row[5]) || empty($row[6]) || empty($row[7]) || empty($row[8])) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'error' => "Faltan campos obligatorios (Materia, Competencia, Nombre, Grado, Sección, Nivel, Año y Bimestre son requeridos)"
+                        ];
+                        continue;
+                    }
+
+                    $materiaNombre = trim($row[0]);
+                    $competenciaNombre = trim($row[1]);
+                    $criterioNombre = trim($row[2]);
+                    $criterioDescripcion = trim($row[3] ?? '');
+                    $gradoNumero = trim($row[4]);
+                    $seccion = trim($row[5]);
+                    $nivel = trim($row[6]);
+                    $anio = trim($row[7]);
+                    $bimestre = trim($row[8]);
+
+                    // Validar formato del año
+                    if (!is_numeric($anio) || strlen($anio) != 4) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'error' => "El año '$anio' no tiene un formato válido (debe ser 4 dígitos)"
+                        ];
+                        continue;
+                    }
+
+                    // Validar formato del grado
+                    if (!is_numeric($gradoNumero)) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'error' => "El grado '$gradoNumero' debe ser un número"
+                        ];
+                        continue;
+                    }
+
+                    // Validar bimestre
+                    $bimestresValidos = ['1', '2', '3', '4'];
+                    if (!in_array($bimestre, $bimestresValidos)) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'error' => "El bimestre '$bimestre' no es válido. Debe ser: 1, 2, 3 o 4"
+                        ];
+                        continue;
+                    }
+
+                    // Buscar la materia
+                    $materia = Materia::where('nombre', $materiaNombre)
+                        ->where('estado', '1')
+                        ->first();
+
+                    if (!$materia) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'error' => "La materia '$materiaNombre' no existe o no está activa"
+                        ];
+                        continue;
+                    }
+
+                    // Buscar la competencia
+                    $competencia = Materiacompetencia::where('nombre', $competenciaNombre)
+                        ->where('materia_id', $materia->id)
+                        ->where('estado', '1')
+                        ->first();
+
+                    if (!$competencia) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'error' => "La competencia '$competenciaNombre' no existe en la materia '$materiaNombre' o no está activa"
+                        ];
+                        continue;
+                    }
+
+                    // Buscar el grado
+                    $grado = Grado::where('grado', $gradoNumero)
+                        ->where('seccion', $seccion)
+                        ->where('nivel', $nivel)
+                        ->where('estado', '1')
+                        ->first();
+
+                    if (!$grado) {
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'error' => "El grado " . $gradoNumero . "° '" . $seccion . "' - " . $nivel . " no existe o no está activo"
+                        ];
+                        continue;
+                    }
+
+                    // Verificar duplicados en base de datos
+                    $criterioExistente = Materiacriterio::where('materia_competencia_id', $competencia->id)
+                        ->where('grado_id', $grado->id)
+                        ->where('anio', $anio)
+                        ->where('bimestre', $bimestre)
+                        ->where('nombre', $criterioNombre)
+                        ->first();
+
+                    if ($criterioExistente) {
+                        $duplicados[] = [
+                            'fila' => $numeroFila,
+                            'error' => "El criterio '$criterioNombre' ya existe para la competencia '$competenciaNombre', grado " . $grado->nombreCompleto . ", año '$anio' y bimestre '$bimestre'"
+                        ];
+                        continue;
+                    }
+
+                    // Verificar duplicados dentro del archivo
+                    $claveCriterio = $competencia->id . '-' . $grado->id . '-' . $anio . '-' . $bimestre . '-' . $criterioNombre;
+                    if (in_array($claveCriterio, $criteriosProcesados)) {
+                        $duplicados[] = [
+                            'fila' => $numeroFila,
+                            'error' => "Criterio duplicado en el archivo - '$criterioNombre' para competencia '$competenciaNombre', grado " . $grado->nombreCompleto . ", año '$anio' y bimestre '$bimestre'"
+                        ];
+                        continue;
+                    }
+
+                    // Agregar a registros válidos
+                    $registrosValidos[] = [
+                        'fila' => $numeroFila,
+                        'datos' => [
+                            'materia' => $materiaNombre,
+                            'competencia' => $competenciaNombre,
+                            'criterio' => $criterioNombre,
+                            'descripcion' => $criterioDescripcion,
+                            'grado' => $grado->nombreCompleto ?? ($gradoNumero . '° ' . $seccion . ' - ' . $nivel),
+                            'anio' => $anio,
+                            'bimestre' => $bimestre,
+                            'materia_id' => $materia->id,
+                            'competencia_id' => $competencia->id,
+                            'grado_id' => $grado->id
+                        ]
+                    ];
+
+                    $criteriosProcesados[] = $claveCriterio;
+
+                } catch (\Exception $e) {
+                    $errores[] = [
+                        'fila' => $numeroFila,
+                        'error' => $e->getMessage()
+                    ];
+                }
+            }
+
+            // Guardar datos en sesión para el próximo paso
+            session()->put('import_data', [
+                'registros_validos' => $registrosValidos,
+                'total_registros' => $totalRegistros,
+                'errores' => $errores,
+                'duplicados' => $duplicados,
+                'archivo_temp' => $request->file('archivo_excel')->getRealPath()
+            ]);
+
+            // Devolver a la vista con datos de validación
+            return redirect()->route('materiacriterio.importar')
+                ->with('validacion_completa', true)
+                ->with('total_registros', $totalRegistros)
+                ->with('registros_validos', count($registrosValidos))
+                ->with('errores_validacion', $errores)
+                ->with('duplicados_validacion', $duplicados)
+                ->with('datos_validos', $registrosValidos);
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al procesar el archivo: ' . $e->getMessage())
+                ->withInput();
         }
-
-        if (count($errores) > 0) {
-            $mensaje .= " Se produjeron " . count($errores) . " errores.";
-        }
-
-        $tipoMensaje = (count($errores) > 0) ? 'warning' : 'success';
-
-        return redirect()->route('materiacriterio.importar')
-            ->with($tipoMensaje, $mensaje)
-            ->with('duplicados', $duplicados)
-            ->with('errores', $errores);
-
-    } catch (\Exception $e) {
-        return redirect()->back()
-            ->with('error', 'Error al procesar el archivo: ' . $e->getMessage())
-            ->withInput();
     }
-}
+
+    // Método privado para procesar la importación
+    private function procesarImportacion(Request $request)
+    {
+        try {
+            $importData = session()->get('import_data');
+
+            if (!$importData) {
+                return redirect()->route('materiacriterio.importar')
+                    ->with('error', 'No hay datos de importación para procesar. Por favor, valide el archivo nuevamente.');
+            }
+
+            $registrosValidos = $importData['registros_validos'];
+            $exitosos = 0;
+            $erroresProceso = [];
+
+            // Procesar cada registro válido
+            foreach ($registrosValidos as $registro) {
+                try {
+                    Materiacriterio::create([
+                        'materia_competencia_id' => $registro['datos']['competencia_id'],
+                        'materia_id' => $registro['datos']['materia_id'],
+                        'grado_id' => $registro['datos']['grado_id'],
+                        'anio' => $registro['datos']['anio'],
+                        'bimestre' => $registro['datos']['bimestre'],
+                        'nombre' => $registro['datos']['criterio'],
+                        'descripcion' => $registro['datos']['descripcion'],
+                    ]);
+
+                    $exitosos++;
+
+                } catch (\Exception $e) {
+                    $erroresProceso[] = [
+                        'fila' => $registro['fila'],
+                        'error' => 'Error al crear criterio: ' . $e->getMessage()
+                    ];
+                }
+            }
+
+            // Limpiar sesión
+            session()->forget('import_data');
+
+            // Preparar mensaje final
+            $mensaje = "Importación completada: $exitosos criterios importados exitosamente.";
+            $tipoMensaje = 'success';
+
+            if (count($erroresProceso) > 0) {
+                $mensaje .= " Se produjeron " . count($erroresProceso) . " errores durante el procesamiento.";
+                $tipoMensaje = 'warning';
+
+                // Guardar errores de proceso en sesión
+                session()->flash('errores_proceso', $erroresProceso);
+            }
+
+            return redirect()->route('materiacriterio.importar')
+                ->with($tipoMensaje, $mensaje)
+                ->with('exitosos', $exitosos);
+
+        } catch (\Exception $e) {
+            return redirect()->route('materiacriterio.importar')
+                ->with('error', 'Error durante el procesamiento: ' . $e->getMessage());
+        }
+    }
 }

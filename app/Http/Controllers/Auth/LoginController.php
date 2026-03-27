@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Colegio;
 use App\Models\User;
 
 
@@ -12,7 +13,9 @@ class LoginController extends Controller
 {
     public function index()
     {
-        return view('auth.login');
+        return view('auth.login',[
+            'colegio' => Colegio::configuracion()
+        ]);
     }
     //verificar si hay alguna sessión activa en el dispositivo, si hay que regrese al ultimo enlace que estaba
 

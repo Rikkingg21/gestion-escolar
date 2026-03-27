@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 use App\Models\Nota;
+use App\Models\Grado;
+
 
 class Estudiante extends Model
 {
@@ -47,4 +49,17 @@ class Estudiante extends Model
         return $this->hasMany(Nota::class, 'estudiante_id');
     }
 
+    public function matriculas()
+    {
+        return $this->hasMany(Matricula::class);
+    }
+    public function matriculaActiva()
+    {
+        return $this->hasOne(Matricula::class)
+            ->where('estado', '1')
+            ->whereHas('periodo', function($query) {
+                // Si necesitas filtrar por periodo actual
+                $query->where('estado', '1'); // o por periodo específico
+            });
+    }
 }

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 use App\Models\Materia;
-use App\Models\Materia\MateriaCriterio;
+use App\Models\Materia\Materiacriterio;
 
 class Materiacompetencia extends Model
 {

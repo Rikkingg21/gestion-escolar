@@ -148,6 +148,24 @@ class MateriaCompetenciaController extends Controller
     }
     public function importarCompetencia(Request $request)
     {
+        // Paso 1: Validar si es solo validación o procesamiento final
+        if ($request->has('accion')) {
+            $accion = $request->input('accion');
+
+            if ($accion === 'cancelar') {
+                // Limpiar sesión y cancelar
+                session()->forget('import_competencia_data');
+
+                return redirect()->route('materiacompetencia.importar')
+                    ->with('info', 'Importación cancelada.');
+            }
+
+            if ($accion === 'procesar') {
+                return $this->procesarImportacionCompetencia($request);
+            }
+        }
+
+        // Paso 1: Validación inicial del archivo
         $request->validate([
             'archivo_excel' => 'required|file|mimes:xlsx,xls|max:2048',
         ]);
@@ -157,20 +175,24 @@ class MateriaCompetenciaController extends Controller
             $sheet = $spreadsheet->getActiveSheet();
             $rows = $sheet->toArray();
 
-            $exitosos = 0;
+            $totalRegistros = count($rows) - 1;
             $errores = [];
             $duplicados = [];
+            $registrosValidos = [];
             $competenciasProcesadas = [];
 
-            // Saltar la primera fila (encabezados)
+            // Validar cada fila
             for ($i = 1; $i < count($rows); $i++) {
                 $row = $rows[$i];
                 $numeroFila = $i + 1;
 
                 try {
-                    // Validar que todos los campos necesarios estén presentes
+                    // Validar campos obligatorios
                     if (empty($row[0]) || empty($row[1])) {
-                        $errores[] = "Fila $numeroFila: Faltan campos obligatorios (Materia y Nombre de competencia son requeridos)";
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'error' => "Faltan campos obligatorios (Materia y Nombre de competencia son requeridos)"
+                        ];
                         continue;
                     }
 
@@ -178,13 +200,16 @@ class MateriaCompetenciaController extends Controller
                     $competenciaNombre = trim($row[1]);
                     $competenciaDescripcion = trim($row[2] ?? '');
 
-                    // Buscar la materia por nombre
+                    // Buscar la materia
                     $materia = Materia::where('nombre', $materiaNombre)
                         ->where('estado', '1')
                         ->first();
 
                     if (!$materia) {
-                        $errores[] = "Fila $numeroFila: La materia '$materiaNombre' no existe o no está activa";
+                        $errores[] = [
+                            'fila' => $numeroFila,
+                            'error' => "La materia '$materiaNombre' no existe o no está activa"
+                        ];
                         continue;
                     }
 
@@ -194,55 +219,126 @@ class MateriaCompetenciaController extends Controller
                         ->first();
 
                     if ($competenciaExistente) {
-                        $duplicados[] = "Fila $numeroFila: La competencia '$competenciaNombre' ya existe en la materia '$materiaNombre'";
+                        $duplicados[] = [
+                            'fila' => $numeroFila,
+                            'error' => "La competencia '$competenciaNombre' ya existe en la materia '$materiaNombre'"
+                        ];
                         continue;
                     }
 
                     // Verificar duplicados dentro del mismo archivo
                     $claveCompetencia = $materia->id . '-' . $competenciaNombre;
                     if (in_array($claveCompetencia, $competenciasProcesadas)) {
-                        $duplicados[] = "Fila $numeroFila: Competencia duplicada en el archivo - '$competenciaNombre' en '$materiaNombre'";
+                        $duplicados[] = [
+                            'fila' => $numeroFila,
+                            'error' => "Competencia duplicada en el archivo - '$competenciaNombre' en '$materiaNombre'"
+                        ];
                         continue;
                     }
 
-                    // Crear la competencia
-                    Materiacompetencia::create([
-                        'materia_id' => $materia->id,
-                        'nombre' => $competenciaNombre,
-                        'descripcion' => $competenciaDescripcion,
-                        'estado' => '1',
-                    ]);
+                    // Agregar a registros válidos
+                    $registrosValidos[] = [
+                        'fila' => $numeroFila,
+                        'datos' => [
+                            'materia' => $materiaNombre,
+                            'competencia' => $competenciaNombre,
+                            'descripcion' => $competenciaDescripcion,
+                            'materia_id' => $materia->id
+                        ]
+                    ];
 
                     $competenciasProcesadas[] = $claveCompetencia;
-                    $exitosos++;
 
                 } catch (\Exception $e) {
-                    $errores[] = "Fila $numeroFila: " . $e->getMessage();
+                    $errores[] = [
+                        'fila' => $numeroFila,
+                        'error' => $e->getMessage()
+                    ];
                 }
             }
 
-            // Preparar mensajes para el usuario
-            $mensaje = "Importación completada: $exitosos competencias importadas exitosamente.";
+            // Guardar datos en sesión para el próximo paso
+            session()->put('import_competencia_data', [
+                'registros_validos' => $registrosValidos,
+                'total_registros' => $totalRegistros,
+                'errores' => $errores,
+                'duplicados' => $duplicados,
+                'archivo_temp' => $request->file('archivo_excel')->getRealPath()
+            ]);
 
-            if (count($duplicados) > 0) {
-                $mensaje .= " Se encontraron " . count($duplicados) . " competencias duplicadas.";
-            }
-
-            if (count($errores) > 0) {
-                $mensaje .= " Se produjeron " . count($errores) . " errores.";
-            }
-
-            $tipoMensaje = (count($errores) > 0) ? 'warning' : 'success';
-
+            // Devolver a la vista con datos de validación
             return redirect()->route('materiacompetencia.importar')
-                ->with($tipoMensaje, $mensaje)
-                ->with('duplicados', $duplicados)
-                ->with('errores', $errores);
+                ->with('validacion_completa', true)
+                ->with('total_registros', $totalRegistros)
+                ->with('registros_validos', count($registrosValidos))
+                ->with('errores_validacion', $errores)
+                ->with('duplicados_validacion', $duplicados)
+                ->with('datos_validos', $registrosValidos);
 
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Error al procesar el archivo: ' . $e->getMessage())
                 ->withInput();
+        }
+    }
+
+    // Método privado para procesar la importación
+    private function procesarImportacionCompetencia(Request $request)
+    {
+        try {
+            $importData = session()->get('import_competencia_data');
+
+            if (!$importData) {
+                return redirect()->route('materiacompetencia.importar')
+                    ->with('error', 'No hay datos de importación para procesar. Por favor, valide el archivo nuevamente.');
+            }
+
+            $registrosValidos = $importData['registros_validos'];
+            $exitosos = 0;
+            $erroresProceso = [];
+
+            // Procesar cada registro válido
+            foreach ($registrosValidos as $registro) {
+                try {
+                    Materiacompetencia::create([
+                        'materia_id' => $registro['datos']['materia_id'],
+                        'nombre' => $registro['datos']['competencia'],
+                        'descripcion' => $registro['datos']['descripcion'],
+                        'estado' => '1',
+                    ]);
+
+                    $exitosos++;
+
+                } catch (\Exception $e) {
+                    $erroresProceso[] = [
+                        'fila' => $registro['fila'],
+                        'error' => 'Error al crear competencia: ' . $e->getMessage()
+                    ];
+                }
+            }
+
+            // Limpiar sesión
+            session()->forget('import_competencia_data');
+
+            // Preparar mensaje final
+            $mensaje = "Importación completada: $exitosos competencias importadas exitosamente.";
+            $tipoMensaje = 'success';
+
+            if (count($erroresProceso) > 0) {
+                $mensaje .= " Se produjeron " . count($erroresProceso) . " errores durante el procesamiento.";
+                $tipoMensaje = 'warning';
+
+                // Guardar errores de proceso en sesión
+                session()->flash('errores_proceso', $erroresProceso);
+            }
+
+            return redirect()->route('materiacompetencia.importar')
+                ->with($tipoMensaje, $mensaje)
+                ->with('exitosos', $exitosos);
+
+        } catch (\Exception $e) {
+            return redirect()->route('materiacompetencia.importar')
+                ->with('error', 'Error durante el procesamiento: ' . $e->getMessage());
         }
     }
 }

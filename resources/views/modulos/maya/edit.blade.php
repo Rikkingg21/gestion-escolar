@@ -48,6 +48,18 @@
             <input type="number" name="anio" id="anio" class="form-control" value="{{ $maya->anio }}" required>
         </div>
 
+        <div class="mb-3">
+            <label for="periodo" class="form-label">Periodo</label>
+            <select name="periodo_id" id="periodo" class="form-select" required>
+                <option value="">Seleccione un periodo</option>
+                @foreach($periodos as $periodo)
+                    <option value="{{ $periodo->id }}" {{ $maya->periodo_id == $periodo->id ? 'selected' : '' }}>
+                        {{ $periodo->nombre ?? $periodo->id }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
         <button type="submit" class="btn btn-primary">Actualizar</button>
         <a href="{{ route('maya.index', ['anio' => $maya->anio]) }}" class="btn btn-secondary">Cancelar</a>
     </form>

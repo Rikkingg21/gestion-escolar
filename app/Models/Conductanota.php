@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Conducta;
 use App\Models\Materia\Materiacompetencia;
 use App\Models\Maya\Bimestre;
+use App\Models\Maya\Cursogradosecnivanio;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -19,6 +20,8 @@ class Conductanota extends Model
     protected $fillable = [
         'estudiante_id',
         'conducta_id',
+        'periodo_id',
+        'curso_grado_sec_niv_anio_id',
         'bimestre',
         'publico',
         'nota',
@@ -34,5 +37,13 @@ class Conductanota extends Model
     public function conducta()
     {
         return $this->belongsTo(Conducta::class, 'conducta_id');
+    }
+    public function periodo()
+    {
+        return $this->belongsTo(Periodo::class, 'periodo_id');
+    }
+    public function curso_grado_sec_niv_anio()
+    {
+        return $this->belongsTo(Cursogradosecnivanio::class, 'curso_grado_sec_niv_anio_id');
     }
 }

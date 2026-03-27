@@ -32,23 +32,10 @@
             height: 38px;
         }
 
-        .select2-container--default .select2-selection--single .select2-selection__rendered {
-            line-height: 36px;
-        }
-
-        .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 36px;
-        }
-
         .form-control {
             border: 1px solid #ced4da;
             padding: 8px 12px;
             height: 38px;
-        }
-
-        .btn {
-            padding: 8px 16px;
-            border: 1px solid transparent;
         }
 
         .table {
@@ -62,18 +49,9 @@
             padding: 10px;
         }
 
-        .table td {
-            border: 1px solid #dee2e6;
-            padding: 8px 10px;
-        }
-
         .badge {
             padding: 4px 8px;
             font-size: 12px;
-        }
-
-        .alert {
-            border: 1px solid transparent;
         }
 
         /* Estilos para impresión */
@@ -128,14 +106,6 @@
                 gap: 8px;
             }
 
-            .print-info-item {
-                margin-bottom: 3px;
-            }
-
-            .print-info-label {
-                font-weight: 600;
-            }
-
             .table {
                 font-size: 10px;
             }
@@ -172,6 +142,20 @@
         .print-header, .print-info, .print-footer {
             display: none;
         }
+
+        .estadisticas-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .estadisticas-item {
+            border-right: 1px solid rgba(255,255,255,0.2);
+            padding: 10px;
+        }
+
+        .estadisticas-item:last-child {
+            border-right: none;
+        }
     </style>
 </head>
 <body>
@@ -193,7 +177,7 @@
             </div>
         </div>
 
-        <!-- Filtros (no se imprimen) -->
+        <!-- Filtros -->
         <div class="row no-print">
             <div class="col-12">
                 <div class="card">
@@ -203,6 +187,18 @@
                     <div class="card-body">
                         <form id="formReporte" method="GET" action="{{ route('asistencia.reporte') }}">
                             <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="periodo_id" class="form-label">Período *</label>
+                                    <select name="periodo_id" id="periodo_id" class="form-select" required>
+                                        <option value="">Seleccionar Período</option>
+                                        @foreach($periodos as $periodo)
+                                            <option value="{{ $periodo->id }}"
+                                                {{ request('periodo_id') == $periodo->id ? 'selected' : '' }}>
+                                                {{ $periodo->nombre }} ({{ $periodo->anio }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
                                 <div class="col-md-6">
                                     <label for="grado_id" class="form-label">Grado *</label>
                                     <select name="grado_id" id="grado_id" class="form-select" required>
@@ -215,17 +211,22 @@
                                         @endforeach
                                     </select>
                                 </div>
+                            </div>
+
+                            <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="estudiante_id" class="form-label">Estudiante (Opcional)</label>
                                     <select name="estudiante_id" id="estudiante_id" class="form-select"
                                         {{ !request('grado_id') ? 'disabled' : '' }}>
                                         <option value="">Todos los estudiantes</option>
-                                        @if(request('grado_id'))
+                                        @if(request('grado_id') && request('periodo_id'))
                                             @php
-                                                $estudiantesFiltro = \App\Models\Estudiante::where('grado_id', request('grado_id'))
-                                                    ->where('estado', 1)
-                                                    ->with('user')
-                                                    ->get();
+                                                $estudiantesFiltro = \App\Models\Matricula::where('grado_id', request('grado_id'))
+                                                    ->where('periodo_id', request('periodo_id'))
+                                                    ->where('estado', '1')
+                                                    ->with('estudiante.user')
+                                                    ->get()
+                                                    ->pluck('estudiante');
                                             @endphp
                                             @foreach($estudiantesFiltro as $estudiante)
                                                 @php
@@ -241,32 +242,6 @@
                                         @endif
                                     </select>
                                 </div>
-                            </div>
-
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="fecha_inicio" class="form-label">Fecha Inicio *</label>
-                                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control"
-                                        value="{{ request('fecha_inicio') }}" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="fecha_fin" class="form-label">Fecha Fin *</label>
-                                    <input type="date" name="fecha_fin" id="fecha_fin" class="form-control"
-                                        value="{{ request('fecha_fin') }}" required>
-                                </div>
-                            </div>
-
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="bimestre" class="form-label">Bimestre (Opcional)</label>
-                                    <select name="bimestre" id="bimestre" class="form-select">
-                                        <option value="">Todos los bimestres</option>
-                                        <option value="1" {{ request('bimestre') == '1' ? 'selected' : '' }}>Bimestre 1</option>
-                                        <option value="2" {{ request('bimestre') == '2' ? 'selected' : '' }}>Bimestre 2</option>
-                                        <option value="3" {{ request('bimestre') == '3' ? 'selected' : '' }}>Bimestre 3</option>
-                                        <option value="4" {{ request('bimestre') == '4' ? 'selected' : '' }}>Bimestre 4</option>
-                                    </select>
-                                </div>
                                 <div class="col-md-6">
                                     <label for="tipo_asistencia_id" class="form-label">Tipo de Asistencia (Opcional)</label>
                                     <select name="tipo_asistencia_id" id="tipo_asistencia_id" class="form-select">
@@ -277,6 +252,29 @@
                                                 {{ $tipo->nombre }}
                                             </option>
                                         @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label for="fecha_inicio" class="form-label">Fecha Inicio *</label>
+                                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control"
+                                        value="{{ request('fecha_inicio') }}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="fecha_fin" class="form-label">Fecha Fin *</label>
+                                    <input type="date" name="fecha_fin" id="fecha_fin" class="form-control"
+                                        value="{{ request('fecha_fin') }}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="bimestre" class="form-label">Bimestre (Opcional)</label>
+                                    <select name="bimestre" id="bimestre" class="form-select">
+                                        <option value="">Todos los bimestres</option>
+                                        <option value="1" {{ request('bimestre') == '1' ? 'selected' : '' }}>Bimestre 1</option>
+                                        <option value="2" {{ request('bimestre') == '2' ? 'selected' : '' }}>Bimestre 2</option>
+                                        <option value="3" {{ request('bimestre') == '3' ? 'selected' : '' }}>Bimestre 3</option>
+                                        <option value="4" {{ request('bimestre') == '4' ? 'selected' : '' }}>Bimestre 4</option>
                                     </select>
                                 </div>
                             </div>
@@ -298,7 +296,7 @@
         </div>
 
         <!-- Resultados -->
-        @if(request()->has('grado_id'))
+        @if(request()->has('grado_id') && request()->has('periodo_id'))
         <div class="row mt-3">
             <div class="col-12">
                 <div class="card">
@@ -315,21 +313,55 @@
                     </div>
                     <div class="card-body">
                         @if($asistencias->count() > 0)
+                            <!-- Estadísticas -->
+                            @if(isset($estadisticas))
+                            <div class="row mb-4 no-print">
+                                <div class="col-12">
+                                    <div class="card estadisticas-card">
+                                        <div class="card-body">
+                                            <div class="row text-center">
+                                                <div class="col-md-3 estadisticas-item">
+                                                    <h3 class="mb-0">{{ $estadisticas['total_asistencias'] }}</h3>
+                                                    <small>Total Asistencias</small>
+                                                </div>
+                                                <div class="col-md-3 estadisticas-item">
+                                                    <h3 class="mb-0">{{ $estadisticas['total_estudiantes'] }}</h3>
+                                                    <small>Estudiantes Registrados</small>
+                                                </div>
+                                                <div class="col-md-3 estadisticas-item">
+                                                    <h3 class="mb-0">{{ \Carbon\Carbon::parse($estadisticas['fecha_primera'])->format('d/m/Y') }}</h3>
+                                                    <small>Primer Registro</small>
+                                                </div>
+                                                <div class="col-md-3 estadisticas-item">
+                                                    <h3 class="mb-0">{{ \Carbon\Carbon::parse($estadisticas['fecha_ultima'])->format('d/m/Y') }}</h3>
+                                                    <small>Último Registro</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
                             <!-- Información del filtro para impresión -->
                             <div class="print-info">
                                 <div class="print-info-grid">
+                                    @php
+                                        $periodoSeleccionado = $periodos->firstWhere('id', request('periodo_id'));
+                                        $gradoSeleccionado = $grados->firstWhere('id', request('grado_id'));
+                                    @endphp
+                                    <div class="print-info-item">
+                                        <span class="print-info-label">Período:</span>
+                                        {{ $periodoSeleccionado->nombre ?? 'N/A' }} ({{ $periodoSeleccionado->anio ?? 'N/A' }})
+                                    </div>
                                     <div class="print-info-item">
                                         <span class="print-info-label">Grado:</span>
-                                        {{ $grados->firstWhere('id', request('grado_id'))->nivel ?? 'N/A' }} -
-                                        {{ $grados->firstWhere('id', request('grado_id'))->grado ?? '' }}
-                                        {{ $grados->firstWhere('id', request('grado_id'))->seccion ?? '' }}
+                                        {{ $gradoSeleccionado->nivel ?? 'N/A' }} -
+                                        {{ $gradoSeleccionado->grado ?? '' }}{{ $gradoSeleccionado->seccion ?? '' }}
                                     </div>
                                     <div class="print-info-item">
-                                        <span class="print-info-label">Fecha Inicio:</span>
-                                        {{ \Carbon\Carbon::parse(request('fecha_inicio'))->format('d/m/Y') }}
-                                    </div>
-                                    <div class="print-info-item">
-                                        <span class="print-info-label">Fecha Fin:</span>
+                                        <span class="print-info-label">Rango Fechas:</span>
+                                        {{ \Carbon\Carbon::parse(request('fecha_inicio'))->format('d/m/Y') }} -
                                         {{ \Carbon\Carbon::parse(request('fecha_fin'))->format('d/m/Y') }}
                                     </div>
                                     <div class="print-info-item">
@@ -360,6 +392,16 @@
                                         {{ $tiposAsistencia->firstWhere('id', request('tipo_asistencia_id'))->nombre ?? 'N/A' }}
                                     </div>
                                     @endif
+                                    @if(isset($estadisticas))
+                                    <div class="print-info-item">
+                                        <span class="print-info-label">Total Registros:</span>
+                                        {{ $estadisticas['total_asistencias'] }}
+                                    </div>
+                                    <div class="print-info-item">
+                                        <span class="print-info-label">Total Estudiantes:</span>
+                                        {{ $estadisticas['total_estudiantes'] }}
+                                    </div>
+                                    @endif
                                 </div>
                             </div>
 
@@ -368,9 +410,8 @@
                                 <div class="col-12">
                                     <div class="alert alert-info">
                                         <strong>Filtros aplicados:</strong>
-                                        Grado: {{ $grados->firstWhere('id', request('grado_id'))->nivel ?? 'N/A' }} -
-                                        {{ $grados->firstWhere('id', request('grado_id'))->grado ?? '' }}
-                                        {{ $grados->firstWhere('id', request('grado_id'))->seccion ?? '' }} |
+                                        Período: {{ $periodoSeleccionado->nombre ?? 'N/A' }} ({{ $periodoSeleccionado->anio ?? 'N/A' }}) |
+                                        Grado: {{ $gradoSeleccionado->nivel ?? 'N/A' }} - {{ $gradoSeleccionado->grado ?? '' }}{{ $gradoSeleccionado->seccion ?? '' }} |
                                         Fechas: {{ \Carbon\Carbon::parse(request('fecha_inicio'))->format('d/m/Y') }} -
                                         {{ \Carbon\Carbon::parse(request('fecha_fin'))->format('d/m/Y') }} |
                                         Registros: {{ $asistencias->count() }}
@@ -385,11 +426,12 @@
                                             <th width="50">#</th>
                                             <th width="100">Fecha</th>
                                             <th>Estudiante</th>
-                                            <th width="120">Grado</th>
+                                            <th width="100">Grado</th>
                                             <th width="120">Tipo Asistencia</th>
                                             <th width="80">Bimestre</th>
                                             <th width="80">Hora</th>
                                             <th>Descripción</th>
+                                            <th width="100">Período</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -412,6 +454,11 @@
                                             <td>{{ $asistencia->bimestre }}</td>
                                             <td>{{ $asistencia->hora ?? 'N/A' }}</td>
                                             <td>{{ $asistencia->descripcion ?? 'Sin descripción' }}</td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    {{ $asistencia->periodo->nombre ?? 'N/A' }}
+                                                </small>
+                                            </td>
                                         </tr>
                                         @endforeach
                                     </tbody>
@@ -444,14 +491,15 @@
     <script>
         $(document).ready(function() {
             // Inicializar Select2
-            $('#grado_id, #estudiante_id, #bimestre, #tipo_asistencia_id').select2();
+            $('#periodo_id, #grado_id, #estudiante_id, #bimestre, #tipo_asistencia_id').select2();
 
-            // Cargar estudiantes cuando se seleccione un grado
-            $('#grado_id').change(function() {
-                var gradoId = $(this).val();
+            // Cargar estudiantes cuando se seleccionen grado y período
+            function cargarEstudiantes() {
+                var gradoId = $('#grado_id').val();
+                var periodoId = $('#periodo_id').val();
                 var estudianteSelect = $('#estudiante_id');
 
-                if (gradoId) {
+                if (gradoId && periodoId) {
                     estudianteSelect.prop('disabled', false);
 
                     // Limpiar opciones actuales
@@ -461,12 +509,13 @@
                     estudianteSelect.prop('disabled', true);
                     estudianteSelect.html('<option value="">Cargando estudiantes...</option>');
 
-                    // Cargar estudiantes del grado seleccionado
+                    // Cargar estudiantes del grado y período seleccionados
                     $.ajax({
                         url: '{{ route("asistencia.estudiantes-por-grado") }}',
                         type: 'GET',
                         data: {
-                            grado_id: gradoId
+                            grado_id: gradoId,
+                            periodo_id: periodoId
                         },
                         success: function(data) {
                             estudianteSelect.empty().append('<option value="">Todos los estudiantes</option>');
@@ -489,7 +538,10 @@
                     estudianteSelect.prop('disabled', true);
                     estudianteSelect.empty().append('<option value="">Todos los estudiantes</option>');
                 }
-            });
+            }
+
+            // Eventos para cargar estudiantes
+            $('#grado_id, #periodo_id').change(cargarEstudiantes);
 
             // Validar fechas
             $('#fecha_inicio, #fecha_fin').change(function() {
@@ -502,9 +554,9 @@
                 }
             });
 
-            // Si ya hay un grado seleccionado al cargar la página, cargar estudiantes
-            @if(request('grado_id'))
-                $('#grado_id').trigger('change');
+            // Si ya hay un grado y período seleccionado al cargar la página, cargar estudiantes
+            @if(request('grado_id') && request('periodo_id'))
+                cargarEstudiantes();
             @endif
 
             // Atajo de teclado Ctrl + P

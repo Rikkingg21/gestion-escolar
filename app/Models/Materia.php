@@ -19,7 +19,7 @@ class Materia extends Model
     ];
     public function materiaCriterio()
     {
-        return $this->hasMany(Materia\MateriaCriterio::class, 'materia_id');
+        return $this->hasMany(Materia\Materiacriterio::class, 'materia_id');
     }
     public function materiaCompetencia()
     {

@@ -38,7 +38,7 @@
                 <option value="">Seleccione un docente</option>
                 @foreach($docentes as $docente)
                     <option value="{{ $docente->id }}">
-                        {{ $docente->user->nombre ?? '' }} {{ $docente->user->apellido_paterno ?? '' }} {{ $docente->user->apellido_materno ?? '' }} - {{ $docente->user->dni ?? '' }}
+                        {{ $docente->user->apellido_paterno ?? '' }} {{ $docente->user->apellido_materno ?? '' }} {{ $docente->user->nombre ?? '' }}- {{ $docente->user->dni ?? '' }}
                     </option>
                 @endforeach
             </select>
@@ -61,6 +61,17 @@
             <input type="number" name="anio" id="anio" class="form-control" required>
         </div>
 
+        <div class="mb-3">
+            <label for="periodo" class="form-label">Periodo</label>
+            <select name="periodo_id" id="periodo" class="form-select" required>
+                <option value="">Seleccione un periodo</option>
+                @foreach($periodos as $periodo)
+                    <option value="{{ $periodo->id }}">{{ $periodo->nombre ?? $periodo->id }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <button type="button" class="btn btn-secondary" onclick="window.history.back()">Regresar</button>
         <button type="submit" class="btn btn-primary">Guardar</button>
     </form>
 </div>

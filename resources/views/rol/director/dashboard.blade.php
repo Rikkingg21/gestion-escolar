@@ -2,316 +2,417 @@
 
 @section('content')
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="fas fa-tachometer-alt"></i> Dashboard Director
-        </h1>
-        <div class="text-muted">
-            Año Académico: {{ $estadisticas['anio'] }}
-        </div>
-    </div>
+    <h2>Dashboard Director</h2>
 
-    <!-- Estadísticas rápidas -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Estudiantes Activos
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ $estadisticas['totalEstudiantes'] }}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-users fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Docentes Activos
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ $estadisticas['totalDocentes'] }}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-chalkboard-teacher fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Cursos Activos
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ $estadisticas['totalCursos'] }}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-book fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Notas Oficializadas
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ collect($estadisticas['notasPorBimestre'])->avg('porcentaje') }}%
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gráfico principal -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">
-                <i class="fas fa-chart-line"></i> Progreso Académico por Grado
-            </h6>
-        </div>
+    <!-- Selector de Periodo -->
+    <div class="card mb-4">
         <div class="card-body">
-            @if(empty($progreso) || collect($progreso)->flatMap->promedios->filter()->isEmpty())
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i>
-                    No hay datos suficientes de notas oficializadas para mostrar el gráfico.
-                    <br><small>Los datos se mostrarán cuando las notas estén en estado "Oficial" o "Extra Oficial".</small>
+            <form id="periodoForm" method="GET" action="{{ route('dashboard.index') }}">
+                <div class="row align-items-end">
+                    <div class="col-md-4">
+                        <label for="periodo_id" class="form-label">Seleccionar Periodo</label>
+                        <select name="periodo_id" id="periodo_id" class="form-select">
+                            <option value="">-- Seleccione un periodo --</option>
+                            @foreach($periodos as $periodo)
+                                <option value="{{ $periodo->id }}"
+                                    {{ $periodoSeleccionado && $periodoSeleccionado->id == $periodo->id ? 'selected' : '' }}>
+                                    {{ $periodo->nombre }} ({{ $periodo->anio }})
+                                    @if($periodo->estado == '1')
+                                        <span class="badge bg-success ms-2">Activo</span>
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> Filtrar
+                        </button>
+                        @if($periodoSeleccionado)
+                            <a href="{{ route('dashboard.index') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Limpiar
+                            </a>
+                        @endif
+                    </div>
                 </div>
-            @else
-                <div style="height: 500px;">
-                    <canvas id="progresoGradosChart"></canvas>
+            </form>
+        </div>
+    </div>
+
+    @if($periodoSeleccionado)
+        <div class="alert alert-info" id="periodoAlert">
+            <strong>Periodo seleccionado:</strong> {{ $periodoSeleccionado->nombre }} ({{ $periodoSeleccionado->anio }})
+            @if($periodoSeleccionado->descripcion)
+                - {{ $periodoSeleccionado->descripcion }}
+            @endif
+        </div>
+    @else
+        <div class="alert alert-warning" id="periodoAlert">
+            <strong>No hay periodo seleccionado.</strong> Por favor, seleccione un periodo para ver los datos.
+        </div>
+    @endif
+
+    <!-- Cards de Estadísticas -->
+    <div id="cardsContainer">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Grados</h5>
+                        <p class="card-text display-6">{{ $estadisticas['total_grados'] }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Estudiantes Matriculados</h5>
+                        <p class="card-text display-6">{{ $estadisticas['total_estudiantes'] }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Promedio General</h5>
+                        <p class="card-text display-6">{{ $estadisticas['promedio_general'] }}</p>
+                        <small class="text-muted">
+                            Escala: 1.0 - 4.0
+                            @if($estadisticas['promedio_general'] >= 3.0)
+                                <span class="badge bg-success">Excelente</span>
+                            @elseif($estadisticas['promedio_general'] >= 2.5)
+                                <span class="badge bg-primary">Bueno</span>
+                            @elseif($estadisticas['promedio_general'] >= 2.0)
+                                <span class="badge bg-warning">Regular</span>
+                            @else
+                                <span class="badge bg-danger">Bajo</span>
+                            @endif
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Estado</h5>
+                        <p class="card-text">
+                            @if($periodoSeleccionado)
+                                @if($estadisticas['total_estudiantes'] > 0)
+                                    <span class="badge bg-success">Con Datos</span>
+                                @else
+                                    <span class="badge bg-warning">Sin Matrículas</span>
+                                @endif
+                            @else
+                                <span class="badge bg-secondary">Sin Periodo</span>
+                            @endif
+                        </p>
+                        @if($periodoSeleccionado && $estadisticas['total_estudiantes'] > 0)
+                            <small class="text-muted">
+                                {{ $estadisticas['total_grados'] }} grados con {{ $estadisticas['total_estudiantes'] }} estudiantes
+                            </small>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Grados -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Rendimiento por Grado - Periodo:
+                @if($periodoSeleccionado)
+                    {{ $periodoSeleccionado->nombre }} ({{ $periodoSeleccionado->anio }})
+                @else
+                    Sin periodo seleccionado
+                @endif
+            </h4>
+            @if($periodoSeleccionado && $grados->count() > 0)
+                <div class="text-end">
+                    <small class="text-muted me-3">
+                        <i class="fas fa-info-circle"></i> Escala de notas: 1.0 - 4.0
+                    </small>
                 </div>
             @endif
         </div>
-    </div>
-
-    <!-- Tabla de progreso por bimestre -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">
-                <i class="fas fa-table"></i> Progreso Detallado por Bimestre
-            </h6>
-        </div>
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>Grado</th>
-                            @foreach($labelsBimestres as $bimestre)
-                            <th class="text-center">{{ $bimestre }}</th>
-                            @endforeach
-                            <th class="text-center">Promedio Anual</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($progreso as $gradoData)
-                        @php
-                            $promediosValidos = array_filter($gradoData['promedios'], function($valor) {
-                                return $valor !== null;
-                            });
-                            $promedioAnual = count($promediosValidos) > 0
-                                ? round(array_sum($promediosValidos) / count($promediosValidos), 2)
-                                : null;
-                        @endphp
-                        <tr>
-                            <td><strong>{{ $gradoData['grado'] }}</strong></td>
-                            @foreach($gradoData['promedios'] as $promedio)
-                            <td class="text-center">
-                                @if($promedio !== null)
-                                    <span class="badge bg-{{ $promedio >= 3 ? 'success' : ($promedio >= 2 ? 'warning' : 'danger') }}">
-                                        {{ $promedio }}
-                                    </span>
-                                @else
-                                    <span class="text-muted">-</span>
-                                @endif
-                            </td>
-                            @endforeach
-                            <td class="text-center">
-                                @if($promedioAnual !== null)
-                                    <span class="badge bg-{{ $promedioAnual >= 3 ? 'success' : ($promedioAnual >= 2 ? 'warning' : 'danger') }}">
-                                        {{ $promedioAnual }}
-                                    </span>
-                                @else
-                                    <span class="text-muted">-</span>
-                                @endif
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+            <div id="tablaContainer">
+                @if($periodoSeleccionado && $grados->count() > 0)
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Grado</th>
+                                    <th>Estudiantes</th>
+                                    <th>Prom. Académico</th>
+                                    <th>Prom. Conducta</th>
+                                    <th>Prom. General</th>
+                                    <th>Estado</th>
+                                    <th>Nivel</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($grados as $grado)
+                                <tr>
+                                    <td>
+                                        <strong>{{ $grado->nombreCompleto ?? $grado->grado }}</strong>
+                                        <br>
+                                        <small class="text-muted">Código: {{ $grado->codigo ?? 'N/A' }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info rounded-pill p-2">
+                                            <i class="fas fa-users"></i> {{ $grado->estudiantes_matriculados }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1" style="height: 20px;">
+                                                @php
+                                                    $porcentajeNotas = min(($grado->promedio_notas / 4) * 100, 100);
+                                                    $colorNotas = $grado->promedio_notas >= 3.0 ? 'bg-success' :
+                                                                ($grado->promedio_notas >= 2.5 ? 'bg-primary' :
+                                                                ($grado->promedio_notas >= 2.0 ? 'bg-warning' : 'bg-danger'));
+                                                @endphp
+                                                <div class="progress-bar {{ $colorNotas }}"
+                                                     role="progressbar"
+                                                     style="width: {{ $porcentajeNotas }}%"
+                                                     aria-valuenow="{{ $grado->promedio_notas }}"
+                                                     aria-valuemin="1"
+                                                     aria-valuemax="4">
+                                                </div>
+                                            </div>
+                                            <div class="ms-3">
+                                                <span class="fw-bold">{{ number_format($grado->promedio_notas, 2) }}</span>
+                                                <br>
+                                                <small class="text-muted">
+                                                    @if($grado->promedio_notas >= 3.0)
+                                                        <i class="fas fa-star text-warning"></i> Excelente
+                                                    @elseif($grado->promedio_notas >= 2.5)
+                                                        <i class="fas fa-check-circle text-primary"></i> Bueno
+                                                    @elseif($grado->promedio_notas >= 2.0)
+                                                        <i class="fas fa-exclamation-circle text-warning"></i> Regular
+                                                    @else
+                                                        <i class="fas fa-times-circle text-danger"></i> Bajo
+                                                    @endif
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1" style="height: 20px;">
+                                                @php
+                                                    $porcentajeConducta = min(($grado->promedio_conducta / 4) * 100, 100);
+                                                    $colorConducta = $grado->promedio_conducta >= 3.0 ? 'bg-success' :
+                                                                   ($grado->promedio_conducta >= 2.5 ? 'bg-warning' :
+                                                                   ($grado->promedio_conducta >= 2.0 ? 'bg-info' : 'bg-danger'));
+                                                @endphp
+                                                <div class="progress-bar {{ $colorConducta }}"
+                                                     role="progressbar"
+                                                     style="width: {{ $porcentajeConducta }}%"
+                                                     aria-valuenow="{{ $grado->promedio_conducta }}"
+                                                     aria-valuemin="1"
+                                                     aria-valuemax="4">
+                                                </div>
+                                            </div>
+                                            <div class="ms-3">
+                                                <span class="fw-bold">{{ number_format($grado->promedio_conducta, 2) }}</span>
+                                                <br>
+                                                <small class="text-muted">
+                                                    @if($grado->promedio_conducta >= 3.0)
+                                                        <i class="fas fa-smile text-success"></i> Excelente
+                                                    @elseif($grado->promedio_conducta >= 2.5)
+                                                        <i class="fas fa-meh text-warning"></i> Bueno
+                                                    @elseif($grado->promedio_conducta >= 2.0)
+                                                        <i class="fas fa-frown text-warning"></i> Regular
+                                                    @else
+                                                        <i class="fas fa-angry text-danger"></i> Bajo
+                                                    @endif
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @php
+                                            $colorGeneral = $grado->promedio_general >= 3.0 ? 'bg-success' :
+                                                          ($grado->promedio_general >= 2.5 ? 'bg-primary' :
+                                                          ($grado->promedio_general >= 2.0 ? 'bg-warning' : 'bg-danger'));
+                                            $iconoGeneral = $grado->promedio_general >= 3.0 ? 'fa-trophy' :
+                                                          ($grado->promedio_general >= 2.5 ? 'fa-medal' :
+                                                          ($grado->promedio_general >= 2.0 ? 'fa-certificate' : 'fa-exclamation-triangle'));
+                                        @endphp
+                                        <div class="text-center">
+                                            <span class="badge {{ $colorGeneral }} rounded-pill p-3">
+                                                <i class="fas {{ $iconoGeneral }} me-1"></i>
+                                                <strong>{{ number_format($grado->promedio_general, 2) }}</strong>
+                                            </span>
+                                            <br>
+                                            <small class="text-muted mt-1 d-block">
+                                                @if($grado->promedio_general >= 3.0)
+                                                    <span class="text-success">Destacado</span>
+                                                @elseif($grado->promedio_general >= 2.5)
+                                                    <span class="text-primary">Satisfactorio</span>
+                                                @elseif($grado->promedio_general >= 2.0)
+                                                    <span class="text-warning">Aceptable</span>
+                                                @else
+                                                    <span class="text-danger">Necesita mejorar</span>
+                                                @endif
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if($grado->promedio_general >= 3.0)
+                                            <span class="badge bg-success p-2">
+                                                <i class="fas fa-trophy"></i> Excelente
+                                            </span>
+                                        @elseif($grado->promedio_general >= 2.5)
+                                            <span class="badge bg-primary p-2">
+                                                <i class="fas fa-check-circle"></i> Bueno
+                                            </span>
+                                        @elseif($grado->promedio_general >= 2.0)
+                                            <span class="badge bg-warning p-2">
+                                                <i class="fas fa-exclamation-circle"></i> Regular
+                                            </span>
+                                        @else
+                                            <span class="badge bg-danger p-2">
+                                                <i class="fas fa-times-circle"></i> Bajo
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <span class="badge
+                                            @if($grado->nivel == 'Primaria') bg-info
+                                            @elseif($grado->nivel == 'Secundaria') bg-secondary
+                                            @elseif($grado->nivel == 'Inicial') bg-pink
+                                            @else bg-light text-dark @endif">
+                                            {{ $grado->nivel }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-light">
+                                    <td><strong>Promedios Totales</strong></td>
+                                    <td>
+                                        <strong>{{ $estadisticas['total_estudiantes'] }}</strong>
+                                    </td>
+                                    <td>
+                                        <strong>{{ number_format($grados->avg('promedio_notas'), 2) }}</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            Promedio académico
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ number_format($grados->avg('promedio_conducta'), 2) }}</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            Promedio conducta
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ number_format($estadisticas['promedio_general'], 2) }}</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            Promedio general
+                                        </small>
+                                    </td>
+                                    <td colspan="2">
+                                        @php
+                                            $promedioFinal = $estadisticas['promedio_general'];
+                                            $estadoFinal = $promedioFinal >= 3.0 ? 'Excelente' :
+                                                         ($promedioFinal >= 2.5 ? 'Bueno' :
+                                                         ($promedioFinal >= 2.0 ? 'Regular' : 'Bajo'));
+                                            $colorFinal = $promedioFinal >= 3.0 ? 'success' :
+                                                        ($promedioFinal >= 2.5 ? 'primary' :
+                                                        ($promedioFinal >= 2.0 ? 'warning' : 'danger'));
+                                        @endphp
+                                        <span class="badge bg-{{ $colorFinal }} p-2">
+                                            <i class="fas fa-chart-line"></i> {{ $estadoFinal }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
 
-    <!-- Estadísticas de notas por bimestre -->
-    <div class="row">
-        @foreach($estadisticas['notasPorBimestre'] as $bimestre => $datos)
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-{{ $datos['porcentaje'] >= 80 ? 'success' : ($datos['porcentaje'] >= 50 ? 'warning' : 'danger') }} shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #{{ $datos['porcentaje'] >= 80 ? '1cc88a' : ($datos['porcentaje'] >= 50 ? 'f6c23e' : 'e74a3b') }}">
-                                Bimestre {{ $bimestre }} - Oficializadas
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ $datos['porcentaje'] }}%
-                            </div>
-                            <div class="text-xs text-muted">
-                                {{ $datos['publicadas'] }} / {{ $datos['total'] }} notas
+                    <!-- Gráfico de resumen -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Distribución de Niveles</h6>
+                                </div>
+                                <div class="card-body">
+                                    @php
+                                        $niveles = $grados->groupBy('nivel');
+                                    @endphp
+                                    <div class="d-flex flex-wrap gap-3">
+                                        @foreach($niveles as $nivel => $gradosNivel)
+                                            <div class="text-center">
+                                                <div class="display-6">{{ $gradosNivel->count() }}</div>
+                                                <small class="text-muted">{{ $nivel }}</small>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-{{ $datos['porcentaje'] >= 80 ? 'check-circle' : ($datos['porcentaje'] >= 50 ? 'exclamation-circle' : 'times-circle') }} fa-2x text-gray-300"></i>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Rendimiento General</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="text-center">
+                                        <div class="display-4 text-{{ $colorFinal }}">
+                                            {{ number_format($estadisticas['promedio_general'], 2) }}
+                                        </div>
+                                        <small class="text-muted">Promedio general en escala 1.0 - 4.0</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
+                @elseif($periodoSeleccionado)
+                    <div class="text-center py-5">
+                        <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                        <h5>No hay datos para este periodo</h5>
+                        <p class="text-muted">No se encontraron grados con matrículas en el periodo seleccionado.</p>
+                    </div>
+                @else
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                        <h5>Seleccione un periodo</h5>
+                        <p class="text-muted">Por favor, seleccione un periodo para ver los datos.</p>
+                    </div>
+                @endif
             </div>
         </div>
-        @endforeach
     </div>
 </div>
-
-@if(!empty($progreso) && !collect($progreso)->flatMap->promedios->filter()->isEmpty())
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const labels = @json($labelsBimestres);
-        const datosProgreso = @json($progreso);
-
-        // Colores predefinidos para mejor consistencia
-        const colores = [
-            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
-            '#9966FF', '#FF9F40', '#8AC926', '#1982C4',
-            '#6A4C93', '#F15BB5'
-        ];
-
-        const datasets = datosProgreso.map((grado, index) => {
-            const color = colores[index % colores.length];
-
-            return {
-                label: grado.grado || 'Grado sin nombre',
-                data: grado.promedios.map(promedio => promedio !== null ? promedio : null),
-                fill: false,
-                borderColor: color,
-                backgroundColor: color + '80',
-                tension: 0.3,
-                pointBackgroundColor: color,
-                pointBorderColor: '#fff',
-                pointRadius: 5,
-                pointHoverRadius: 7,
-                spanGaps: true, // Permitir líneas discontinuas para datos faltantes
-                // Solo mostrar en legend si tiene datos
-                hidden: grado.promedios.every(p => p === null || p === 0)
-            };
-        });
-
-        // Crear el gráfico
-        const ctx = document.getElementById('progresoGradosChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels || [],
-                datasets: datasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Progreso Académico por Grado - Año {{ $estadisticas["anio"] }} (Notas Oficializadas)',
-                        font: {
-                            size: 16
-                        }
-                    },
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    },
-                    tooltip: {
-                        mode: 'nearest',
-                        intersect: false,
-                        filter: function(tooltipItem) {
-                            return tooltipItem.parsed.y !== null && tooltipItem.parsed.y !== 0;
-                        },
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed.y !== null) {
-                                    label += context.parsed.y.toFixed(2);
-                                }
-                                return label;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: false,
-                        suggestedMin: 0,
-                        suggestedMax: 4,
-                        title: {
-                            display: true,
-                            text: 'Promedio de Notas'
-                        },
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Bimestres'
-                        },
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
-                    }
-                },
-                interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
-                }
-            }
-        });
+$(document).ready(function() {
+    // Actualizar select de periodo automáticamente
+    $('#periodo_id').change(function() {
+        if ($(this).val()) {
+            $('#periodoForm').submit();
+        }
     });
+
+    // Tooltips
+    $('[data-bs-toggle="tooltip"]').tooltip();
+
+    // Efectos visuales en las tablas
+    $('table tbody tr').hover(
+        function() {
+            $(this).addClass('shadow-sm');
+        },
+        function() {
+            $(this).removeClass('shadow-sm');
+        }
+    );
+});
 </script>
-@endif
 @endsection

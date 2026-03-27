@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\SessionSelectionController;
 
-use App\Http\Controllers\Rol\DasboardController;
+use App\Http\Controllers\Rol\DashboardController;
 
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\RoleController;
@@ -14,8 +14,11 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ColegioController;
 use App\Http\Controllers\DocenteController;
 use App\Http\Controllers\AuxiliarController;
-use App\Http\Controllers\ApoceradoController;
-use App\Http\Controllers\EsstudianteController;
+use App\Http\Controllers\EstudianteController;
+use App\Http\Controllers\ApoderadoController;
+
+use App\Http\Controllers\PeriodoController;
+use App\Http\Controllers\MatriculaController;
 
 use App\Http\Controllers\Maya\MayaController;
 use App\Http\Controllers\Maya\BimestreController;
@@ -30,6 +33,7 @@ use App\Http\Controllers\ConductaController;
 use App\Http\Controllers\LibretaController;
 
 use App\Http\Controllers\AsistenciaController;
+use App\Http\Controllers\AsistenciahistorialController;
 
 use App\Http\Controllers\GradoController;
 use App\Http\Controllers\MateriaController;
@@ -38,8 +42,7 @@ use App\Http\Controllers\Materia\MateriaCriterioController;
 
 use App\Http\Controllers\ReporteController;
 
-use App\Http\Controllers\EstudianteController;
-use App\Http\Controllers\ApoderadoController;
+
 use App\Models\Apoderado;
 use App\Models\Estudiante;
 use App\Models\Materia\Materiacompetencia;
@@ -64,7 +67,8 @@ Route::middleware('auth')->group(function () {
 
     });
 
-    Route::get('/dashboard', [DasboardController::class, 'index'])->name('dashboard.index');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
+
     Route::get('/colegioconfig/edit', [ColegioController::class, 'edit'])->name('colegioconfig.edit');
     Route::put('/colegioconfig/{colegio}', [ColegioController::class, 'update'])->name('colegioconfig.update');
 
@@ -86,6 +90,27 @@ Route::middleware('auth')->group(function () {
     Route::put('/module/{id}', [ModuleController::class, 'update'])->name('module.update');
     Route::delete('/module/{id}', [ModuleController::class, 'destroy'])->name('module.destroy');
 
+    Route::get('/periodo', [PeriodoController::class, 'index'])->name('periodo.index');
+    Route::get('/periodo/create', [PeriodoController::class, 'create'])->name('periodo.create');
+    Route::post('/periodo', [PeriodoController::class, 'store'])->name('periodo.store');
+    Route::get('/periodo/{id}/edit', [PeriodoController::class, 'edit'])->name('periodo.edit');
+    Route::put('/periodo/{id}', [PeriodoController::class, 'update'])->name('periodo.update');
+    Route::delete('/periodo/{id}', [PeriodoController::class, 'destroy'])->name('periodo.destroy');
+
+    Route::get('/matricula', function() {
+        return redirect()->route('matricula.index', ['nombre' => 'anioActual']);
+    });
+    Route::get('/matricula/{nombre}', [MatriculaController::class, 'index'])->name('matricula.index');
+    Route::get('/matricula/create', [MatriculaController::class, 'create'])->name('matricula.create');
+
+    Route::get('/matricula/{id}/edit', [MatriculaController::class, 'edit'])->name('matricula.edit');
+    Route::put('/matricula/{id}', [MatriculaController::class, 'update'])->name('matricula.update');
+    Route::delete('/matricula/{id}', [MatriculaController::class, 'destroy'])->name('matricula.destroy');
+    Route::get('/matricula/grado/{nombre}/{grado_id}', [MatriculaController::class, 'grado'])->name('matricula.grado');
+    Route::post('/matricula', [MatriculaController::class, 'store'])->name('matricula.store');
+    Route::post('/matricula/masiva', [MatriculaController::class, 'matricularMasivamente'])->name('matricula.masiva');
+    Route::put('/matricula/{matricula}/estado', [MatriculaController::class, 'cambiarEstado'])->name('matricula.estado');
+
     Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
     Route::get('/maya/create', [MayaController::class, 'create'])->name('maya.create');
     Route::post('/maya', [MayaController::class, 'store'])->name('maya.store');
@@ -96,14 +121,18 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/nota/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'index'])->name('nota.index');
     Route::get('/nota/create', [NotaController::class, 'create'])->name('nota.create');
-    Route::post('/nota', [NotaController::class, 'store'])->name('nota.store');
-    Route::post('/nota-conducta', [NotaController::class, 'storeConductaNotas'])->name('nota.storeConductaNotas');
+    Route::post('/nota-guardar', [NotaController::class, 'guardarNotas'])->name('nota.guardarNotas');
     Route::get('/nota/{id}/edit', [NotaController::class, 'edit'])->name('nota.edit');
     Route::put('/nota/{id}', [NotaController::class, 'update'])->name('nota.update');
     Route::delete('/nota/{id}', [NotaController::class, 'destroy'])->name('nota.destroy');
     Route::post('nota/publicar/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'publicar'])->name('nota.publicar');
     Route::post('nota/revertir/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'revertir'])->name('nota.revertir');
     Route::get('nota/revertir-form/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'showRevertirForm'])->name('nota.revertir.form');
+
+    Route::get('/notas/exportar-excel/{curso_grado_sec_niv_anio_id}/{bimestre}',
+    [NotaController::class, 'exportarExcel'])
+    ->name('notas.exportar.excel')
+    ->middleware('auth');
 
     Route::get('/user', [UserController::class, 'index'])->name('user.index');
     Route::get('/user/create', [UserController::class, 'create'])->name('user.create');
@@ -123,10 +152,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/apoderados/search', [ApoderadoController::class, 'search'])->name('apoderados.search');
 
     Route::get('/user/importar', [UserController::class, 'importar'])->name('user.importar');
-    Route::post('/importar/validar-apoderados', [UserController::class, 'validarApoderados'])->name('importar.validar-apoderados');
-    Route::post('/importar/apoderados', [UserController::class, 'importarApoderados'])->name('importar.apoderados');
-    Route::post('/importar/validar-estudiantes', [UserController::class, 'validarEstudiantes'])->name('importar.validar-estudiantes');
-    Route::post('/importar/estudiantes', [UserController::class, 'importarEstudiantes'])->name('importar.estudiantes');
+    // Para apoderados
+Route::post('/users/importar/apoderados', [UserController::class, 'importarApoderados'])
+    ->name('importar.apoderados');
+
+// Para estudiantes (cuando lo implementes)
+Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstudiantes'])
+    ->name('importar.estudiantes');
 
     Route::get('/grado', [GradoController::class, 'index'])->name('grado.index');
 
@@ -200,9 +232,31 @@ Route::middleware('auth')->group(function () {
             'grado_nivel' => '[a-zA-Z]+', // Solo letras para el nivel
             'date' => '\d{2}-\d{2}-\d{4}' // Formato dd-mm-yyyy
         ]);
-    Route::post('/asistencia', [AsistenciaController::class, 'store'])->name('asistencia.store');
-    Route::put('/asistencia', [AsistenciaController::class, 'update'])->name('asistencia.update');
+    Route::post('marcar-individual/{estudiante}', [AsistenciaController::class, 'marcarIndividual'])->name('asistencia.marcar-individual');
+    Route::post('asistencia/{grado}/{fecha}/guardar', [AsistenciaController::class, 'guardarMultiple'])->name('asistencia.guardar-multiple');
     Route::post('/asistencia/marcar-todos-puntualidad', [AsistenciaController::class, 'marcarTodosPuntualidad'])->name('asistencia.marcar-todos-puntualidad');
+    Route::post('/asistencia/marcar-todos-tardanza', [App\Http\Controllers\AsistenciaController::class, 'marcarTodosTardanza'])->name('asistencia.marcar-todos-tardanza');
+    Route::get('/asistencia/verificar-bloqueo-fecha', [AsistenciaController::class, 'verificarBloqueoFecha'])->name('asistencia.verificar-bloqueo-fecha');
+    Route::get('/asistencia/obtener-bimestre-y-estado-por-fecha', [AsistenciaController::class, 'obtenerBimestreYEstadoPorFecha'])->name('asistencia.obtener-bimestre-y-estado-por-fecha');
+    Route::post('/asistencia/marcar-resto-puntualidad', [App\Http\Controllers\AsistenciaController::class, 'marcarRestoDeEstudiantesConPuntualidad'])->name('asistencia.marcar-resto-puntualidad');
+    Route::post('/asistencia/marcar-resto-tardanza', [App\Http\Controllers\AsistenciaController::class, 'marcarRestoDeEstudiantesConTardanza'])->name('asistencia.marcar-resto-tardanza');
     Route::get('/asistencia/reporte', [AsistenciaController::class, 'reporteAsistencia'])->name('asistencia.reporte');
     Route::get('/asistencia/estudiantes-por-grado', [AsistenciaController::class, 'estudiantesPorGrado'])->name('asistencia.estudiantes-por-grado');
+    Route::get('/asistencia/bloqueo', [AsistenciaController::class, 'bloqueoView'])->name('asistencia.bloqueo');
+    // Rutas para bloqueo masivo de asistencias
+    Route::get('/asistencia/bloqueo-asistencias', [AsistenciaController::class, 'bloqueoView'])
+        ->name('bloqueo.view');
+
+    Route::post('/asistencia/bloquear-masivo', [AsistenciaController::class, 'bloquearMasivo'])
+        ->name('asistencia.bloquear-masivo');
+
+    Route::post('/asistencia/bloquear-definitivo-masivo', [AsistenciaController::class, 'bloquearDefinitivoMasivo'])
+        ->name('asistencia.bloquear-definitivo-masivo');
+
+    Route::post('/asistencia/liberar-masivo', [AsistenciaController::class, 'liberarMasivo'])
+        ->name('asistencia.liberar-masivo');
+
+    Route::post('/asistencia/liberar-definitivo-masivo', [AsistenciaController::class, 'liberarDefinitivoMasivo'])
+        ->name('asistencia.liberar-definitivo-masivo');
+    Route::get('/historial-asistencia/{anio?}/{bimestre?}', [AsistenciahistorialController::class, 'calendarioAsistencia'])->name('asistencia.calendario');
 });

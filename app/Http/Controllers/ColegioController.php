@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\File;
 
 
 class ColegioController extends Controller
@@ -24,15 +25,12 @@ class ColegioController extends Controller
 
     public function edit(Colegio $colegio)
     {
-
         $colegio = Colegio::configuracion();
         return view('rol.admin.colegioconfig.edit', compact('colegio'));
     }
 
     public function update(Request $request, Colegio $colegio)
     {
-
-        //dd($request->all());
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
             'direccion' => 'required|string',
@@ -48,20 +46,46 @@ class ColegioController extends Controller
         // Manejo del logo
         if ($request->hasFile('logo')) {
             $file = $request->file('logo');
-            $rutaImagen = $file->store('logo', ['disk' => 'public']);
+            $extension = $file->getClientOriginalExtension();
+            $nombreArchivo = 'logo-actual.' . $extension;
 
-            // Solo eliminar si ya existe un logo
-            if ($colegio->logo_path && Storage::disk('public')->exists($colegio->logo_path)) {
-                Storage::disk('public')->delete($colegio->logo_path);
+            // Ruta destino: public/storage/logo/
+            $directorio = public_path('storage/logo');
+
+            // Crear directorio si no existe
+            if (!is_dir($directorio)) {
+                mkdir($directorio, 0755, true);
             }
 
-            $colegio->logo_path = $rutaImagen;
+            // Eliminar logo anterior si existe
+            $archivos = glob($directorio . '/logo-actual.*');
+            foreach ($archivos as $archivo) {
+                if (is_file($archivo)) {
+                    unlink($archivo);
+                }
+            }
+
+            // Mover nuevo logo
+            $file->move($directorio, $nombreArchivo);
+
+            // Guardar ruta en BD
+            $colegio->logo_path = 'logo/' . $nombreArchivo;
         }
 
-        // Actualizar datos
-        $colegio->update($validated);
+        // Eliminar logo si se marca la casilla
+        if ($request->has('eliminar_logo') && $colegio->logo_path) {
+            $rutaArchivo = public_path($colegio->logo_path);
+            if (file_exists($rutaArchivo)) {
+                unlink($rutaArchivo);
+            }
+            $colegio->logo_path = null;
+        }
 
-        return redirect()->route('colegioconfig.edit')
+        // Actualizar otros campos
+        $colegio->fill($validated);
+        $colegio->save();
+
+        return redirect()->route('colegioconfig.edit', $colegio)
             ->with('success', 'Configuración del colegio actualizada correctamente');
     }
 }
