@@ -58,7 +58,6 @@
                                 <th width="200">Fecha Inicio</th>
                                 <th width="200">Fecha Fin</th>
                                 <th>Duración</th>
-                                <th>Estado</th>
                                 <th width="120" class="text-center">Acciones</th>
                             </tr>
                         </thead>
@@ -94,13 +93,6 @@
                                                 ->diffInDays(\Carbon\Carbon::parse($bimestre->fecha_fin)) + 1;
                                         @endphp
                                         <span class="badge bg-info">{{ $dias }} días</span>
-                                    </td>
-                                    <td>
-                                        @if($bimestre->estado == '1')
-                                            <span class="badge bg-success">Activo</span>
-                                        @else
-                                            <span class="badge bg-secondary">Inactivo</span>
-                                        @endif
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm">
