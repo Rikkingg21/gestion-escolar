@@ -18,6 +18,7 @@ use App\Http\Controllers\EstudianteController;
 use App\Http\Controllers\ApoderadoController;
 
 use App\Http\Controllers\PeriodoController;
+use App\Http\Controllers\PeriodobimestreController;
 use App\Http\Controllers\MatriculaController;
 
 use App\Http\Controllers\Maya\MayaController;
@@ -96,6 +97,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/periodo/{id}/edit', [PeriodoController::class, 'edit'])->name('periodo.edit');
     Route::put('/periodo/{id}', [PeriodoController::class, 'update'])->name('periodo.update');
     Route::delete('/periodo/{id}', [PeriodoController::class, 'destroy'])->name('periodo.destroy');
+
+    Route::get('/periodo/{nombre_periodo}/bimestres', [PeriodobimestreController::class, 'index'])->name('periodobimestre.index');
+    Route::get('/periodo/{nombre_periodo}/bimestres/create', [PeriodobimestreController::class, 'create'])->name('periodobimestre.create');
+    Route::post('/periodo/{nombre_periodo}/bimestres', [PeriodobimestreController::class, 'store'])->name('periodobimestre.store');
+    Route::get('/periodo/{nombre_periodo}/bimestres/{id}/edit', [PeriodobimestreController::class, 'edit'])->name('periodobimestre.edit');
+    Route::put('/periodo/{nombre_periodo}/bimestres/{id}', [PeriodobimestreController::class, 'update'])->name('periodobimestre.update');
+    Route::delete('/periodo/{nombre_periodo}/bimestres/{id}', [PeriodobimestreController::class, 'destroy'])->name('periodobimestre.destroy');
 
     Route::get('/matricula', function() {
         return redirect()->route('matricula.index', ['nombre' => 'anioActual']);

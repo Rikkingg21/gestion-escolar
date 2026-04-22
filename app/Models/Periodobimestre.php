@@ -8,26 +8,24 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 
-class Periodo extends Model
+class Periodobimestre extends Model
 {
     use HasFactory;
     use SoftDeletes;
 
-    protected $table = 'periodos';
+    protected $table = 'periodo_bimestres';
     public $timestamps = true;
     protected $primaryKey = 'id';
 
     protected $fillable = [
-        'nombre',
-        'estado',
-        'anio',
+        'periodo_id',
+        'bimestre',
         'fecha_inicio',
         'fecha_fin',
-        'tipo_periodo',
-        'descripcion',
+        'tipo_bimestre', //('A' es academico, 'R' es recuperación)
     ];
-    public function matriculas()
+    public function periodo()
     {
-        return $this->hasMany(Matricula::class, 'periodo_id');
+        return $this->belongsTo(Periodo::class, 'periodo_id');
     }
 }

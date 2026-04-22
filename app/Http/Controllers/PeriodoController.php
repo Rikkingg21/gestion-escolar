@@ -20,34 +20,41 @@ class PeriodoController extends Controller
     }
     public function index()
     {
-        // Usar paginate() en lugar de get()
         $periodosActivos = Periodo::where('estado', '1')
             ->orderBy('anio', 'desc')
-            ->paginate(10, ['*'], 'activos_page'); // Nombre personalizado para la paginación
+            ->orderBy('fecha_inicio', 'desc')
+            ->paginate(10, ['*'], 'activos_page');
 
         $periodosInactivos = Periodo::where('estado', '0')
             ->orderBy('anio', 'desc')
-            ->paginate(10, ['*'], 'inactivos_page'); // Nombre personalizado para la paginación
+            ->orderBy('fecha_inicio', 'desc')
+            ->paginate(10, ['*'], 'inactivos_page');
 
         return view('periodo.index', compact('periodosActivos', 'periodosInactivos'));
     }
+
     public function create()
     {
         return view('periodo.create');
     }
+
     public function store(Request $request)
     {
         $validatedData = $request->validate([
             'nombre' => 'required|string|max:50',
-            'estado' => 'required|string|max:1',
-            'anio' => 'required|integer',
+            'estado' => 'required|in:0,1',
+            'anio' => 'required|integer|min:2000|max:2100',
+            'tipo_periodo' => 'required|in:año escolar,recuperación',
+            'fecha_inicio' => 'required|date',
+            'fecha_fin' => 'required|date|after:fecha_inicio',
             'descripcion' => 'nullable|string|max:250',
         ]);
 
         $periodo = Periodo::create($validatedData);
 
-        return redirect()->route('periodo.index')->with('success', 'Periodo creado con exito.');
+        return redirect()->route('periodo.index')->with('success', 'Periodo creado con éxito.');
     }
+
     public function edit($id)
     {
         $periodo = Periodo::find($id);
@@ -56,22 +63,25 @@ class PeriodoController extends Controller
         }
         return view('periodo.edit', compact('periodo'));
     }
+
     public function update(Request $request, $id)
     {
         $periodo = Periodo::findOrFail($id);
 
         $request->validate([
+            'nombre' => 'sometimes|string|max:50',
             'estado' => 'required|boolean',
+            'anio' => 'sometimes|integer|min:2000|max:2100',
+            'tipo_periodo' => 'sometimes|in:año escolar,recuperación',
+            'fecha_inicio' => 'sometimes|date',
+            'fecha_fin' => 'sometimes|date|after:fecha_inicio',
             'descripcion' => 'nullable|string|max:250',
         ]);
 
-        $periodo->update([
-            'estado' => $request->estado,
-            'descripcion' => $request->descripcion,
-        ]);
+        $periodo->update($request->only(['estado', 'nombre', 'descripcion', 'fecha_inicio', 'fecha_fin', 'anio', 'tipo_periodo']));
 
         return redirect()->route('periodo.index')
-            ->with('success', 'Estado y descripción del periodo actualizados correctamente.');
+            ->with('success', 'Periodo actualizado correctamente.');
     }
 
     public function destroy($id)
@@ -80,13 +90,19 @@ class PeriodoController extends Controller
         if (!$periodo) {
             return redirect()->route('periodo.index')->with('error', 'Periodo no encontrado.');
         }
+
+        // Verificar si tiene matrículas asociadas
+        if ($periodo->matriculas()->count() > 0) {
+            return redirect()->route('periodo.index')->with('error', 'No se puede eliminar el periodo porque tiene matrículas asociadas.');
+        }
+
         $periodo->delete();
-        return redirect()->route('periodo.index')->with('success', 'Periodo eliminado con exito.');
+        return redirect()->route('periodo.index')->with('success', 'Periodo eliminado con éxito.');
     }
 
     public function show($id)
     {
-        $periodo = Periodo::find($id);
+        $periodo = Periodo::with('matriculas.estudiante')->find($id);
         if (!$periodo) {
             return response()->json(['message' => 'Periodo not found'], 404);
         }

@@ -2,6 +2,13 @@
 @section('title', 'Periodos')
 @section('content')
     <div class="container py-4">
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
         <div class="card shadow">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h4 class="mb-0">
@@ -13,14 +20,6 @@
             </div>
 
             <div class="card-body">
-                @if(session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="fas fa-check-circle me-2"></i>
-                        {{ session('success') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                @endif
-
                 <!-- Pestañas -->
                 <ul class="nav nav-tabs nav-underline mb-4" role="tablist">
                     <li class="nav-item" role="presentation">
@@ -48,6 +47,8 @@
                                             <th width="80">ID</th>
                                             <th>Nombre</th>
                                             <th width="100">Año</th>
+                                            <th width="120">Tipo</th>
+                                            <th width="150">Fechas</th>
                                             <th>Descripción</th>
                                             <th width="200" class="text-center">Acciones</th>
                                         </tr>
@@ -64,18 +65,36 @@
                                                 <td>
                                                     <span class="badge bg-info">{{ $periodo->anio }}</span>
                                                 </td>
+                                                <td>
+                                                    <span class="badge {{ $periodo->tipo_periodo == 'año escolar' ? 'bg-primary' : 'bg-warning' }}">
+                                                        {{ ucfirst($periodo->tipo_periodo) }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <small>
+                                                        <i class="fas fa-calendar-alt text-muted me-1"></i>
+                                                        {{ \Carbon\Carbon::parse($periodo->fecha_inicio)->format('d/m/Y') }}
+                                                        <br>
+                                                        <i class="fas fa-calendar-check text-muted me-1"></i>
+                                                        {{ \Carbon\Carbon::parse($periodo->fecha_fin)->format('d/m/Y') }}
+                                                    </small>
+                                                </td>
                                                 <td class="text-truncate" style="max-width: 250px;">
                                                     {{ $periodo->descripcion ?: 'Sin descripción' }}
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="{{ url('matricula/' . $periodo->anio) }}"
+                                                        <a href="{{ url('matricula/' . $periodo->nombre) }}"
                                                         class="btn btn-outline-{{ $periodo->estado == 1 ? 'primary' : 'secondary' }}"
                                                         title="Ver Matrículas">
                                                             <i class="bi bi-folder2-open"></i>
                                                             Ver
                                                         </a>
-
+                                                        <a href="{{ route('periodobimestre.index', $periodo->nombre) }}"
+                                                           class="btn btn-outline-info" title="Ver Bimestres">
+                                                            <i class="bi bi-calendar3"></i>
+                                                            Bimestres
+                                                        </a>
                                                         <a href="{{ route('periodo.edit', $periodo->id) }}"
                                                         class="btn btn-outline-warning" title="Editar">
                                                             <i class="bi bi-pencil-square"></i>
@@ -121,6 +140,8 @@
                                             <th width="80">ID</th>
                                             <th>Nombre</th>
                                             <th width="100">Año</th>
+                                            <th width="120">Tipo</th>
+                                            <th width="150">Fechas</th>
                                             <th>Descripción</th>
                                             <th width="200" class="text-center">Acciones</th>
                                         </tr>
@@ -135,16 +156,35 @@
                                                     </div>
                                                 </td>
                                                 <td>{{ $periodo->anio }}</td>
+                                                <td>
+                                                    <span class="badge {{ $periodo->tipo_periodo == 'año escolar' ? 'bg-primary' : 'bg-warning' }}">
+                                                        {{ ucfirst($periodo->tipo_periodo) }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <small>
+                                                        <i class="fas fa-calendar-alt text-muted me-1"></i>
+                                                        {{ \Carbon\Carbon::parse($periodo->fecha_inicio)->format('d/m/Y') }}
+                                                        <br>
+                                                        <i class="fas fa-calendar-check text-muted me-1"></i>
+                                                        {{ \Carbon\Carbon::parse($periodo->fecha_fin)->format('d/m/Y') }}
+                                                    </small>
+                                                </td>
                                                 <td class="text-truncate" style="max-width: 250px;">
                                                     {{ $periodo->descripcion ?: 'Sin descripción' }}
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="{{ url('matricula/' . $periodo->anio) }}"
+                                                        <a href="{{ url('matricula/' . $periodo->nombre) }}"
                                                         class="btn btn-outline-{{ $periodo->estado == 1 ? 'primary' : 'secondary' }}"
                                                         title="Ver Matrículas">
                                                             <i class="bi bi-folder2-open"></i>
                                                             Ver
+                                                        </a>
+                                                        <a href="{{ route('periodobimestre.index', $periodo->nombre) }}"
+                                                           class="btn btn-outline-info" title="Ver Bimestres">
+                                                            <i class="bi bi-calendar3"></i>
+                                                            Bimestres
                                                         </a>
                                                         <a href="{{ route('periodo.edit', $periodo->id) }}"
                                                            class="btn btn-outline-warning" title="Editar">
