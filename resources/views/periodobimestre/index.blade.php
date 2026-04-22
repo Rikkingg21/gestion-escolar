@@ -63,7 +63,7 @@
                         </thead>
                         <tbody>
                             @foreach($bimestres as $bimestre)
-                                <tr class="{{ $bimestre->estado == '1' ? '' : 'text-muted' }}">
+                                <tr>
                                     <td class="fw-bold">#{{ $bimestre->id }}</td>
                                     <td>
                                         <strong>{{ $bimestre->bimestre }}</strong>
