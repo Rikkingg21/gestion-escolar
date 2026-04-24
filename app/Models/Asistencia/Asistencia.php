@@ -5,7 +5,8 @@ namespace App\Models\Asistencia;
 use App\Models\Asistencia\Tipoasistencia;
 use App\Models\Grado;
 use App\Models\Estudiante;
-use App\Models\Maya\Bimestre;
+//use App\Models\Maya\Bimestre;
+use App\Models\Periodobimestre;
 use App\Models\Periodo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,9 +22,10 @@ class Asistencia extends Model
     protected $fillable = [
         'estudiante_id',
         'grado_id',
-        'bimestre',
+        //'bimestre',
         'tipo_asistencia_id',
         'periodo_id',
+        'periodobimestre_id',
         'fecha',
         'hora',
         'registrador_id',
@@ -43,12 +45,17 @@ class Asistencia extends Model
     {
         return $this->belongsTo(Tipoasistencia::class, 'tipo_asistencia_id');
     }
+    /*
     public function bimestre()
     {
         return $this->belongsTo(Bimestre::class, 'bimestre');
-    }
+    }*/
     public function periodo()
     {
         return $this->belongsTo(Periodo::class, 'periodo_id');
+    }
+    public function periodobimestre()
+    {
+        return $this->belongsTo(Periodobimestre::class, 'periodobimestre_id');
     }
 }

@@ -35,6 +35,7 @@ use App\Http\Controllers\LibretaController;
 
 use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\AsistenciahistorialController;
+use App\Http\Controllers\AsistenciabloqueoController;
 
 use App\Http\Controllers\GradoController;
 use App\Http\Controllers\MateriaController;
@@ -233,6 +234,16 @@ Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstu
     Route::post('/libreta/{anio}/{bimestre}/pdf', [LibretaController::class, 'pdf'])->name('libreta.pdf');
 
     Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asistencia.index');
+    Route::get('/asistencia/bimestres-por-periodo/{periodo_id}', [AsistenciaController::class, 'getBimestresByPeriodo'])->name('asistencia.bimestres-por-periodo');
+    Route::get('/asistencia/obtener-info-fecha', [AsistenciaController::class, 'obtenerInfoFecha'])->name('asistencia.obtener-info-fecha');
+    Route::post('/asistencia/marcar-todos-puntualidad', [AsistenciaController::class, 'marcarTodosPuntualidad'])->name('asistencia.marcar-todos-puntualidad');
+    Route::post('/asistencia/marcar-todos-tardanza', [AsistenciaController::class, 'marcarTodosTardanza'])->name('asistencia.marcar-todos-tardanza');
+    Route::get('/asistencia/verificar-bloqueo-fecha', [AsistenciaController::class, 'verificarBloqueoFecha'])->name('asistencia.verificar-bloqueo-fecha');
+    Route::get('/asistencia/obtener-bimestre-y-estado-por-fecha', [AsistenciaController::class, 'obtenerBimestreYEstadoPorFecha'])->name('asistencia.obtener-bimestre-y-estado-por-fecha');
+    Route::post('/asistencia/marcar-resto-puntualidad', [AsistenciaController::class, 'marcarRestoDeEstudiantesConPuntualidad'])->name('asistencia.marcar-resto-puntualidad');
+    Route::post('/asistencia/marcar-resto-tardanza', [AsistenciaController::class, 'marcarRestoDeEstudiantesConTardanza'])->name('asistencia.marcar-resto-tardanza');
+
+
     Route::get('/asistencia/{grado_grado_seccion}/{grado_nivel}/{date}', [AsistenciaController::class, 'showDate'])
         ->name('asistencia.grado')
         ->where([
@@ -242,29 +253,18 @@ Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstu
         ]);
     Route::post('marcar-individual/{estudiante}', [AsistenciaController::class, 'marcarIndividual'])->name('asistencia.marcar-individual');
     Route::post('asistencia/{grado}/{fecha}/guardar', [AsistenciaController::class, 'guardarMultiple'])->name('asistencia.guardar-multiple');
-    Route::post('/asistencia/marcar-todos-puntualidad', [AsistenciaController::class, 'marcarTodosPuntualidad'])->name('asistencia.marcar-todos-puntualidad');
-    Route::post('/asistencia/marcar-todos-tardanza', [App\Http\Controllers\AsistenciaController::class, 'marcarTodosTardanza'])->name('asistencia.marcar-todos-tardanza');
-    Route::get('/asistencia/verificar-bloqueo-fecha', [AsistenciaController::class, 'verificarBloqueoFecha'])->name('asistencia.verificar-bloqueo-fecha');
-    Route::get('/asistencia/obtener-bimestre-y-estado-por-fecha', [AsistenciaController::class, 'obtenerBimestreYEstadoPorFecha'])->name('asistencia.obtener-bimestre-y-estado-por-fecha');
-    Route::post('/asistencia/marcar-resto-puntualidad', [App\Http\Controllers\AsistenciaController::class, 'marcarRestoDeEstudiantesConPuntualidad'])->name('asistencia.marcar-resto-puntualidad');
-    Route::post('/asistencia/marcar-resto-tardanza', [App\Http\Controllers\AsistenciaController::class, 'marcarRestoDeEstudiantesConTardanza'])->name('asistencia.marcar-resto-tardanza');
+
+
     Route::get('/asistencia/reporte', [AsistenciaController::class, 'reporteAsistencia'])->name('asistencia.reporte');
     Route::get('/asistencia/estudiantes-por-grado', [AsistenciaController::class, 'estudiantesPorGrado'])->name('asistencia.estudiantes-por-grado');
-    Route::get('/asistencia/bloqueo', [AsistenciaController::class, 'bloqueoView'])->name('asistencia.bloqueo');
-    // Rutas para bloqueo masivo de asistencias
-    Route::get('/asistencia/bloqueo-asistencias', [AsistenciaController::class, 'bloqueoView'])
-        ->name('bloqueo.view');
 
-    Route::post('/asistencia/bloquear-masivo', [AsistenciaController::class, 'bloquearMasivo'])
-        ->name('asistencia.bloquear-masivo');
+    Route::get('/asistencia/bloqueo', [AsistenciabloqueoController::class, 'bloqueoView'])->name('asistencia.bloqueo');
+    Route::get('/asistencia/bloqueo-asistencias', [AsistenciabloqueoController::class, 'bloqueoView'])->name('bloqueo.view');
+    Route::post('/asistencia/bloquear-masivo', [AsistenciabloqueoController::class, 'bloquearMasivo'])->name('asistencia.bloquear-masivo');
+    Route::post('/asistencia/bloquear-definitivo-masivo', [AsistenciabloqueoController::class, 'bloquearDefinitivoMasivo'])->name('asistencia.bloquear-definitivo-masivo');
+    Route::post('/asistencia/liberar-masivo', [AsistenciabloqueoController::class, 'liberarMasivo'])->name('asistencia.liberar-masivo');
+    Route::post('/asistencia/liberar-definitivo-masivo', [AsistenciabloqueoController::class, 'liberarDefinitivoMasivo'])->name('asistencia.liberar-definitivo-masivo');
+    Route::get('/historial-asistencia/{anio?}/{bimestre?}', [AsistenciabloqueoController::class, 'calendarioAsistencia'])->name('asistencia.calendario');
 
-    Route::post('/asistencia/bloquear-definitivo-masivo', [AsistenciaController::class, 'bloquearDefinitivoMasivo'])
-        ->name('asistencia.bloquear-definitivo-masivo');
 
-    Route::post('/asistencia/liberar-masivo', [AsistenciaController::class, 'liberarMasivo'])
-        ->name('asistencia.liberar-masivo');
-
-    Route::post('/asistencia/liberar-definitivo-masivo', [AsistenciaController::class, 'liberarDefinitivoMasivo'])
-        ->name('asistencia.liberar-definitivo-masivo');
-    Route::get('/historial-asistencia/{anio?}/{bimestre?}', [AsistenciahistorialController::class, 'calendarioAsistencia'])->name('asistencia.calendario');
 });

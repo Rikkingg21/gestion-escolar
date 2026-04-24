@@ -8,119 +8,140 @@
         </h2>
     </div>
 
-    <!-- Información del Período -->
-    @if(isset($periodoActual))
-    <div class="alert alert-info mb-4">
-        <div class="d-flex align-items-center">
-            <i class="bi bi-calendar-check fs-4 me-3"></i>
-            <div>
-                <h5 class="mb-1">Período Activo: <strong>{{ $periodoActual->nombre }}</strong></h5>
-                <div class="d-flex flex-wrap gap-3">
-                    <span class="badge bg-dark">
-                        <i class="bi bi-calendar3 me-1"></i> Año: {{ $periodoActual->anio }}
-                    </span>
-                    @if($periodoActual->descripcion)
-                    <span class="text-muted">
-                        <i class="bi bi-info-circle me-1"></i> {{ $periodoActual->descripcion }}
-                    </span>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-    @else
-    <div class="alert alert-warning mb-4">
-        <i class="bi bi-exclamation-triangle me-2"></i>
-        No hay períodos activos configurados. Por favor, contacte al administrador.
-    </div>
-    @endif
-
-    <!-- Filtro de Año y Sección de Asistencia Rápida -->
+    <!-- FILTROS: Período, Bimestre y Fecha -->
     <div class="row mb-4">
-        <!-- Selector de Años -->
-        <div class="col-12 mb-4">
-            <div class="card shadow-sm border rounded-3">
-                <div class="card-body p-3">
-                    <h6 class="card-title mb-3 text-secondary fw-normal">
-                        <i class="bi bi-calendar me-2"></i> Cambiar Año / Período
-                    </h6>
-                    <form method="GET" action="{{ route('asistencia.index') }}" id="yearForm">
-                        <div class="input-group">
-                            <span class="input-group-text bg-light">
-                                <i class="bi bi-filter"></i>
-                            </span>
-                            <select name="year" class="form-select" onchange="this.form.submit()">
-                                @foreach($availableYears as $year)
-                                    <option value="{{ $year }}" {{ $currentYear == $year ? 'selected' : '' }}>
-                                        Año {{ $year }} @if($year == now()->year)(Actual)@endif
-                                    </option>
-                                @endforeach
-                            </select>
-                            <button type="submit" class="btn btn-outline-secondary">
-                                <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
-                            </button>
-                        </div>
-                        <small class="text-muted mt-2 d-block">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Selecciona un año para ver los grados y asistencias de ese período.
-                        </small>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sección de Control de Asistencia -->
         <div class="col-12">
             <div class="card shadow-sm border rounded-3">
-                <div class="card-body p-3">
+                <div class="card-body p-4">
                     <h6 class="card-title mb-3 text-secondary fw-normal">
-                        <i class="bi bi-clock-history me-2"></i> Control de Asistencia por Fecha
+                        <i class="bi bi-funnel me-2"></i> Filtros de Asistencia
                     </h6>
 
-                    <!-- Fila de controles principales -->
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-3">
-                            <label class="form-label small text-secondary mb-1">Bimestre</label>
-                            <select class="form-select" name="bimestre" id="bimestre" required>
-                                <option value="" disabled selected>Seleccionar bimestre</option>
-                                <option value="1">Bimestre 1</option>
-                                <option value="2">Bimestre 2</option>
-                                <option value="3">Bimestre 3</option>
-                                <option value="4">Bimestre 4</option>
-                            </select>
-                        </div>
+                    <form method="GET" action="{{ route('asistencia.index') }}" id="filtroForm">
+                        <div class="row g-3">
+                            <!-- Selector de Período -->
+                            <div class="col-md-4">
+                                <label class="form-label small text-secondary mb-1">
+                                    <i class="bi bi-calendar3 me-1"></i> Período Académico
+                                </label>
+                                <select name="periodo_id" id="periodo_id" class="form-select">
+                                    <option value="">Todos los períodos</option>
+                                    @foreach($periodos as $periodo)
+                                        <option value="{{ $periodo->id }}"
+                                            {{ $periodoActual && $periodoActual->id == $periodo->id ? 'selected' : '' }}>
+                                            {{ $periodo->nombre }} ({{ $periodo->anio }})
+                                            @if($periodo->tipo_periodo == 'año escolar')
+                                                - Año Escolar
+                                            @else
+                                                - Recuperación
+                                            @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label small text-secondary mb-1">Fecha</label>
-                            <input type="date"
-                                name="fecha"
-                                id="fechaInput"
-                                class="form-control"
-                                value="{{ $fechaPorDefecto }}"
-                                min="{{ $periodoActual ? $periodoActual->anio . '-01-01' : '2000-01-01' }}"
-                                max="{{ $periodoActual ? $periodoActual->anio . '-12-31' : now()->format('Y-m-d') }}">
-                            <small class="text-muted">
-                                Año {{ $periodoActual ? $periodoActual->anio : 'actual' }}
-                            </small>
-                        </div>
+                            <!-- Selector de Bimestre -->
+                            <div class="col-md-3">
+                                <label class="form-label small text-secondary mb-1">
+                                    <i class="bi bi-layers me-1"></i> Bimestre
+                                </label>
+                                <select name="periodobimestre_id" id="periodobimestre_id" class="form-select" {{ !$periodoActual ? 'disabled' : '' }}>
+                                    <option value="">Seleccionar bimestre</option>
+                                    @if($bimestres && $bimestres->count() > 0)
+                                        @foreach($bimestres as $bimestre)
+                                            <option value="{{ $bimestre->id }}"
+                                                {{ $bimestreActual && $bimestreActual->id == $bimestre->id ? 'selected' : '' }}
+                                                data-fecha-inicio="{{ $bimestre->fecha_inicio }}"
+                                                data-fecha-fin="{{ $bimestre->fecha_fin }}">
+                                                {{ $bimestre->bimestre }}
+                                                @if($bimestre->tipo_bimestre == 'A')
+                                                    (Académico)
+                                                @else
+                                                    (Recuperación)
+                                                @endif
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label small text-secondary mb-1">&nbsp;</label>
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-success flex-fill" id="btnAsistenciaAutomatica">
-                                    <i class="bi bi-check-circle me-2"></i> Marcar todos puntual
-                                </button>
-                                <button type="button" class="btn btn-warning flex-fill" id="btnTardanzaAutomatica">
-                                    <i class="bi bi-clock me-2"></i> Marcar todos tardanza
+                            <!-- Selector de Fecha -->
+                            <div class="col-md-3">
+                                <label class="form-label small text-secondary mb-1">
+                                    <i class="bi bi-calendar-date me-1"></i> Fecha
+                                </label>
+                                <input type="date"
+                                       name="fecha"
+                                       id="fechaInput"
+                                       class="form-control"
+                                       value="{{ $fechaSeleccionada }}"
+                                       min="{{ $bimestreActual ? $bimestreActual->fecha_inicio : ($periodoActual ? $periodoActual->fecha_inicio : '2000-01-01') }}"
+                                       max="{{ $bimestreActual ? $bimestreActual->fecha_fin : ($periodoActual ? $periodoActual->fecha_fin : now()->format('Y-m-d')) }}">
+                            </div>
+
+                            <!-- Botón de filtro -->
+                            <div class="col-md-2">
+                                <label class="form-label small text-secondary mb-1">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-search me-2"></i> Filtrar
                                 </button>
                             </div>
                         </div>
+                    </form>
+
+                    <!-- Información adicional del período y bimestre -->
+                    @if($periodoActual)
+                    <div class="alert alert-info mt-3 mb-0">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap">
+                            <div>
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>{{ $periodoActual->nombre }}</strong>
+                                ({{ \Carbon\Carbon::parse($periodoActual->fecha_inicio)->format('d/m/Y') }} -
+                                {{ \Carbon\Carbon::parse($periodoActual->fecha_fin)->format('d/m/Y') }})
+                            </div>
+                            @if($bimestreActual)
+                            <div>
+                                <span class="badge bg-primary">
+                                    <i class="bi bi-layers me-1"></i> {{ $bimestreActual->bimestre }}
+                                </span>
+                                <span class="badge {{ $bimestreActual->tipo_bimestre == 'A' ? 'bg-success' : 'bg-warning' }} ms-2">
+                                    {{ $bimestreActual->tipo_bimestre == 'A' ? 'Académico' : 'Recuperación' }}
+                                </span>
+                                <span class="badge bg-secondary ms-2">
+                                    {{ \Carbon\Carbon::parse($bimestreActual->fecha_inicio)->format('d/m/Y') }} -
+                                    {{ \Carbon\Carbon::parse($bimestreActual->fecha_fin)->format('d/m/Y') }}
+                                </span>
+                            </div>
+                            @endif
+                        </div>
                     </div>
+                    @endif
 
                     <!-- Mensaje de estado de la fecha -->
-                    <div id="fechaHelpText" class="small text-muted mt-2"></div>
+                    <div id="fechaHelpText" class="small mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                    <!-- Botones de Reportes -->
+    <!-- Botones de acción rápida -->
+    @if($periodoActual && $bimestreActual)
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border rounded-3">
+                <div class="card-body p-3">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-success w-100" id="btnAsistenciaAutomatica">
+                                <i class="bi bi-check-circle me-2"></i> Marcar todos puntual
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-warning w-100" id="btnTardanzaAutomatica">
+                                <i class="bi bi-clock me-2"></i> Marcar todos tardanza
+                            </button>
+                        </div>
+                    </div>
                     <hr class="my-3">
                     <div class="row g-2">
                         <div class="col-md-6">
@@ -138,26 +159,21 @@
             </div>
         </div>
     </div>
+    @endif
 
     @php
-        // Separamos los grados activos (estado == 1) e inactivos (estado == 0)
         $gradosActivos = collect($grados)->filter(fn($g) => ($g->estado ?? 0) == 1);
         $gradosInactivos = collect($grados)->filter(fn($g) => ($g->estado ?? 0) == 0);
-
-        // Verificar si la fecha de hoy tiene registros bloqueados en algún grado
-        $fechaHoyBloqueada = $gradosActivos->contains(function($grado) {
-            return $grado->tiene_registros_bloqueados_hoy ?? false;
-        });
     @endphp
 
-    <!-- 1. TABLA DE GRADOS ACTIVOS (ESTADO 1) -->
+    <!-- TABLA DE GRADOS ACTIVOS -->
     <div class="card shadow-lg border-0 rounded-4 mb-5">
         <div class="card-header bg-success text-white">
             <div class="d-flex justify-content-between align-items-center">
                 <h4 class="mb-0">
                     <i class="bi bi-check-circle-fill me-2"></i> Grados Activos ({{ $gradosActivos->count() }})
                 </h4>
-                @if(isset($periodoActual))
+                @if($periodoActual)
                 <span class="badge bg-light text-success fs-6">
                     <i class="bi bi-calendar me-1"></i> {{ $periodoActual->nombre }}
                 </span>
@@ -180,7 +196,6 @@
                     <tbody>
                         @forelse($gradosActivos as $grado)
                         @php
-                            // Calcular porcentaje de asistencia de hoy
                             $porcentaje = $grado->estudiantes_matriculados > 0
                                 ? round(($grado->asistencias_hoy / $grado->estudiantes_matriculados) * 100, 1)
                                 : 0;
@@ -215,9 +230,13 @@
                             </td>
                             <td class="px-4 text-center">
                                 @if($tieneBloqueo)
-                                    <button class="btn btn-sm btn-secondary rounded-3" disabled>
-                                        <i class="bi bi-lock me-1"></i> Bloqueado
-                                    </button>
+                                    <a href="{{ route('asistencia.grado', [
+                                        'grado_grado_seccion' => $grado->grado . $grado->seccion,
+                                        'grado_nivel' => strtolower($grado->nivel),
+                                        'date' => \Carbon\Carbon::parse($fechaSeleccionada)->format('d-m-Y') ]) }}"
+                                        class="btn btn-outline-primary rounded-3">
+                                        <i class="bi bi-eye"></i> Ver
+                                    </a>
                                     <small class="d-block text-muted mt-1">
                                         Registros confirmados
                                     </small>
@@ -226,8 +245,8 @@
                                         <a href="{{ route('asistencia.grado', [
                                             'grado_grado_seccion' => $grado->grado . $grado->seccion,
                                             'grado_nivel' => strtolower($grado->nivel),
-                                            'date' => now()->format('d-m-Y')
-                                        ]) }}" class="btn btn-outline-primary rounded-3">
+                                            'date' => \Carbon\Carbon::parse($fechaSeleccionada)->format('d-m-Y') ]) }}"
+                                           class="btn btn-outline-primary rounded-3">
                                             <i class="bi bi-pencil-square me-1"></i> Individual
                                         </a>
 
@@ -261,7 +280,7 @@
         </div>
     </div>
 
-    <!-- 2. TABLA DE GRADOS INACTIVOS (ESTADO 0) - Solo si existen -->
+    <!-- TABLA DE GRADOS INACTIVOS -->
     @if($gradosInactivos->count() > 0)
     <div class="card shadow-lg border-0 rounded-4">
         <div class="card-header bg-secondary text-white">
@@ -311,91 +330,118 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const periodoSelect = document.getElementById('periodo_id');
+    const periodobimestreSelect = document.getElementById('periodobimestre_id');
+    const fechaInput = document.getElementById('fechaInput');
     const btnAsistenciaAutomatica = document.getElementById('btnAsistenciaAutomatica');
     const btnTardanzaAutomatica = document.getElementById('btnTardanzaAutomatica');
-    const bimestreSelect = document.getElementById('bimestre');
-    const fechaInput = document.getElementById('fechaInput');
-    const periodoAnio = {{ $periodoActual ? $periodoActual->anio : 'null' }};
-    const currentYear = {{ $currentYear }};
-
-    // Elemento para mostrar mensajes de estado
     const fechaHelpText = document.getElementById('fechaHelpText');
 
-    // Crear contenedor de toasts si no existe
-    let toastContainer = document.querySelector('.toast-container');
-    if (!toastContainer) {
-        toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-        document.body.appendChild(toastContainer);
+    // Función para cargar bimestres por período (AJAX)
+    function cargarBimestres(periodoId, periodobimestreSeleccionado = null) {
+        if (!periodoId) {
+            periodobimestreSelect.innerHTML = '<option value="">Primero seleccione período</option>';
+            periodobimestreSelect.disabled = true;
+            return;
+        }
+
+        fetch(`/asistencia/bimestres-por-periodo/${periodoId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.bimestres.length > 0) {
+                    let options = '<option value="">Seleccionar bimestre</option>';
+                    data.bimestres.forEach(bimestre => {
+                        const selected = periodobimestreSeleccionado && periodobimestreSeleccionado == bimestre.id ? 'selected' : '';
+                        options += `<option value="${bimestre.id}" ${selected}
+                            data-fecha-inicio="${bimestre.fecha_inicio}"
+                            data-fecha-fin="${bimestre.fecha_fin}">
+                            ${bimestre.bimestre}
+                            (${bimestre.fecha_inicio} - ${bimestre.fecha_fin})
+                            ${bimestre.tipo_bimestre == 'A' ? '- Académico' : '- Recuperación'}
+                        </option>`;
+                    });
+                    periodobimestreSelect.innerHTML = options;
+                    periodobimestreSelect.disabled = false;
+
+                    if (periodobimestreSeleccionado) {
+                        actualizarRangosFecha();
+                    }
+                } else {
+                    periodobimestreSelect.innerHTML = '<option value="">No hay bimestres disponibles</option>';
+                    periodobimestreSelect.disabled = true;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                periodobimestreSelect.innerHTML = '<option value="">Error al cargar bimestres</option>';
+                periodobimestreSelect.disabled = true;
+            });
     }
 
-    // Función para mostrar notificaciones toast
-    function mostrarNotificacion(titulo, mensaje, tipo = 'success') {
-        const toastId = 'toast-' + Date.now();
-        const toastHtml = `
-            <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="toast-header bg-${tipo} text-white">
-                    <strong class="me-auto">${titulo}</strong>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-                <div class="toast-body">
-                    ${mensaje}
-                </div>
-            </div>
-        `;
+    // Función para actualizar rangos de fecha según bimestre seleccionado
+    function actualizarRangosFecha() {
+        const selectedOption = periodobimestreSelect.options[periodobimestreSelect.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            const fechaInicio = selectedOption.dataset.fechaInicio;
+            const fechaFin = selectedOption.dataset.fechaFin;
 
-        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-        const toastElement = document.getElementById(toastId);
-        const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 5000 });
-        toast.show();
+            if (fechaInicio && fechaFin) {
+                fechaInput.min = fechaInicio;
+                fechaInput.max = fechaFin;
 
-        toastElement.addEventListener('hidden.bs.toast', function() {
-            this.remove();
-        });
-    }
-
-    // Función para verificar si una fecha está dentro del año del período
-    function fechaEnPeriodo(fecha) {
-        if (!fecha || !periodoAnio) return true;
-        const añoFecha = new Date(fecha).getFullYear();
-        return añoFecha === periodoAnio;
-    }
-
-    // Función para actualizar el estado de los botones y mostrar mensajes
-    function actualizarEstadoBotones(data) {
-        // Ambos botones SIEMPRE están habilitados, solo cambian los mensajes
-        [btnAsistenciaAutomatica, btnTardanzaAutomatica].forEach(btn => {
-            btn.disabled = false;
-            btn.classList.remove('btn-secondary');
-        });
-
-        btnAsistenciaAutomatica.classList.add('btn-success');
-        btnTardanzaAutomatica.classList.add('btn-warning');
-        btnAsistenciaAutomatica.title = 'Marcar todos como puntuales';
-        btnTardanzaAutomatica.title = 'Marcar todos con tardanza';
-
-        if (data.existe_registro_pendiente) {
-            fechaHelpText.innerHTML = `Atención: Ya existen ${data.total_pendientes || ''} registro(s) pendiente(s) para esta fecha. Se marcarán SOLO los estudiantes restantes.`;
-            fechaHelpText.className = 'small mt-2 text-warning';
-        } else if (data.bimestre) {
-            fechaHelpText.innerHTML = `Fecha disponible. Bimestre ${data.bimestre} detectado.`;
-            fechaHelpText.className = 'small mt-2 text-success';
-        } else {
-            fechaHelpText.innerHTML = `Fecha disponible. No hay registros previos.`;
-            fechaHelpText.className = 'small mt-2 text-info';
+                const fechaActual = fechaInput.value;
+                if (fechaActual < fechaInicio || fechaActual > fechaFin) {
+                    fechaInput.value = fechaInicio;
+                }
+            }
         }
     }
 
-    // Función para verificar el estado de la fecha
+    // Evento: cambio de período
+    periodoSelect.addEventListener('change', function() {
+        const periodoId = this.value;
+        if (periodoId) {
+            cargarBimestres(periodoId, null);
+            periodobimestreSelect.value = '';
+            setTimeout(() => {
+                if (fechaInput.value) verificarEstadoFecha();
+            }, 500);
+        } else {
+            periodobimestreSelect.innerHTML = '<option value="">Seleccionar bimestre</option>';
+            periodobimestreSelect.disabled = true;
+        }
+    });
+
+    // Evento: cambio de bimestre
+    periodobimestreSelect.addEventListener('change', function() {
+        actualizarRangosFecha();
+        if (fechaInput.value) {
+            verificarEstadoFecha();
+        }
+    });
+
+    // Evento: cambio de fecha
+    fechaInput.addEventListener('change', verificarEstadoFecha);
+    fechaInput.addEventListener('input', function() {
+        if (this.value.length === 10) verificarEstadoFecha();
+    });
+
+    // Función para verificar estado de la fecha
     function verificarEstadoFecha() {
+        const periodoId = periodoSelect.value;
+        const periodobimestreId = periodobimestreSelect.value;
         const fecha = fechaInput.value;
-        if (!fecha || !periodoAnio) return;
 
-        // Mostrar indicador de carga
-        fechaHelpText.innerHTML = 'Verificando fecha...';
-        fechaHelpText.className = 'small mt-2 text-muted';
+        if (!periodoId || !periodobimestreId || !fecha) {
+            if (fechaHelpText) {
+                fechaHelpText.innerHTML = '';
+            }
+            if (btnAsistenciaAutomatica) btnAsistenciaAutomatica.disabled = false;
+            if (btnTardanzaAutomatica) btnTardanzaAutomatica.disabled = false;
+            return;
+        }
 
-        fetch(`{{ route("asistencia.obtener-bimestre-y-estado-por-fecha") }}?fecha=${fecha}`, {
+        fetch(`/asistencia/obtener-info-fecha?periodo_id=${periodoId}&periodobimestre_id=${periodobimestreId}&fecha=${fecha}`, {
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Accept': 'application/json'
@@ -403,108 +449,81 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                // Auto-seleccionar bimestre si existe
-                if (data.bimestre) {
-                    bimestreSelect.value = data.bimestre;
-                } else {
-                    bimestreSelect.value = '';
-                }
-
-                // Actualizar estado de los botones
-                actualizarEstadoBotones(data);
-
-                // Actualizar títulos de botones de resto
-                actualizarTitulosBotones();
+            if (data.success && data.fecha_valida) {
+                fechaHelpText.innerHTML = `<i class="bi bi-check-circle-fill text-success me-1"></i> ${data.message}`;
+                fechaHelpText.className = 'small mt-2 text-success';
+                if (btnAsistenciaAutomatica) btnAsistenciaAutomatica.disabled = false;
+                if (btnTardanzaAutomatica) btnTardanzaAutomatica.disabled = false;
             } else {
-                // Si hay error, resetear todo
-                bimestreSelect.value = '';
-                [btnAsistenciaAutomatica, btnTardanzaAutomatica].forEach(btn => {
-                    btn.disabled = false;
-                    btn.classList.remove('btn-secondary');
-                });
-                btnAsistenciaAutomatica.classList.add('btn-success');
-                btnTardanzaAutomatica.classList.add('btn-warning');
-                btnAsistenciaAutomatica.title = 'Marcar todos como puntuales';
-                btnTardanzaAutomatica.title = 'Marcar todos con tardanza';
-
-                fechaHelpText.innerHTML = data.message;
+                fechaHelpText.innerHTML = `<i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> ${data.message}`;
                 fechaHelpText.className = 'small mt-2 text-danger';
+                if (btnAsistenciaAutomatica) btnAsistenciaAutomatica.disabled = true;
+                if (btnTardanzaAutomatica) btnTardanzaAutomatica.disabled = true;
             }
         })
         .catch(error => {
-            console.error('Error al verificar fecha:', error);
-            fechaHelpText.innerHTML = 'Error al verificar la fecha';
+            console.error('Error:', error);
+            fechaHelpText.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Error al verificar la fecha';
             fechaHelpText.className = 'small mt-2 text-danger';
         });
     }
 
-    // Validar que la fecha seleccionada esté dentro del año del período
-    fechaInput.addEventListener('change', function() {
-        const fecha = this.value;
-
-        if (!fechaEnPeriodo(fecha)) {
-            mostrarNotificacion(
-                'Fecha no válida',
-                `La fecha debe estar dentro del año ${periodoAnio}.`,
-                'warning'
-            );
-
-            // Restaurar la fecha anterior o establecer una por defecto
-            if (periodoAnio === new Date().getFullYear()) {
-                this.value = new Date().toISOString().split('T')[0];
-            } else {
-                this.value = `${periodoAnio}-01-01`;
-            }
-        }
-
-        // Verificar estado de la nueva fecha
-        verificarEstadoFecha();
-    });
-
-    // También verificar cuando se escribe manualmente
-    fechaInput.addEventListener('input', function() {
-        if (this.value.length === 10) { // Cuando la fecha está completa (YYYY-MM-DD)
-            verificarEstadoFecha();
-        }
-    });
-
-    // Verificar estado al cargar la página
-    if (fechaInput.value) {
-        verificarEstadoFecha();
+    // Inicializar
+    if (periodoSelect && periodoSelect.value) {
+        const periodobimestreInicial = '{{ $bimestreActual ? $bimestreActual->id : '' }}';
+        cargarBimestres(periodoSelect.value, periodobimestreInicial);
     }
 
-    // Función genérica para marcar todos los estudiantes (puntual o tardanza)
+    if (fechaInput && fechaInput.value) {
+        setTimeout(verificarEstadoFecha, 500);
+    }
+
+    // Contenedor de toasts
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(toastContainer);
+    }
+
+    function mostrarNotificacion(titulo, mensaje, tipo = 'success') {
+        const toastId = 'toast-' + Date.now();
+        const toastHtml = `
+            <div id="${toastId}" class="toast" role="alert">
+                <div class="toast-header bg-${tipo} text-white">
+                    <strong class="me-auto">${titulo}</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">${mensaje}</div>
+            </div>
+        `;
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 5000 });
+        toast.show();
+        toastElement.addEventListener('hidden.bs.toast', function() { this.remove(); });
+    }
+
+    // Marcar todos los estudiantes
     function marcarTodos(tipo, boton) {
-        // Validar que la fecha esté dentro del año del período
-        if (!fechaEnPeriodo(fechaInput.value)) {
-            mostrarNotificacion(
-                'Fecha no válida',
-                `La fecha debe estar dentro del año ${periodoAnio}.`,
-                'warning'
-            );
+        if (!periodoSelect.value) {
+            mostrarNotificacion('Período requerido', 'Debe seleccionar un período', 'warning');
             return;
         }
-
-        if (!bimestreSelect.value) {
-            mostrarNotificacion(
-                'Bimestre requerido',
-                'Por favor, seleccione un bimestre',
-                'warning'
-            );
+        if (!periodobimestreSelect.value) {
+            mostrarNotificacion('Bimestre requerido', 'Debe seleccionar un bimestre', 'warning');
+            return;
+        }
+        if (!fechaInput.value) {
+            mostrarNotificacion('Fecha requerida', 'Debe seleccionar una fecha', 'warning');
             return;
         }
 
         const tipoTexto = tipo === 'puntual' ? 'puntuales' : 'con tardanza';
-        if (!confirm(`¿Estás seguro de marcar a TODOS los estudiantes como ${tipoTexto}?\n\n` +
-                     '• Se procesarán TODOS los grados activos\n' +
-                     '• Solo se marcarán estudiantes SIN asistencia\n' +
-                     '• Los registros existentes NO se sobrescribirán')) {
-            return;
-        }
+        if (!confirm(`¿Estás seguro de marcar a TODOS los estudiantes como ${tipoTexto}?`)) return;
 
         const originalText = boton.innerHTML;
-        boton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span> Procesando...';
+        boton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Procesando...';
         boton.disabled = true;
 
         const url = tipo === 'puntual'
@@ -519,113 +538,47 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({
                 fecha: fechaInput.value,
-                bimestre: bimestreSelect.value
+                periodobimestre_id: periodobimestreSelect.value,
+                periodo_id: periodoSelect.value
             })
         })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(data => {
-                    throw new Error(data.message || 'Error en la solicitud');
-                });
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Mostrar notificación
-                mostrarNotificacion(
-                    'Operación exitosa',
-                    data.message,
-                    'success'
-                );
-
-                // Actualizar el texto de ayuda
-                fechaHelpText.innerHTML = `${data.total_afectados} estudiantes marcados en ${data.total_grados_procesados} grados`;
-                fechaHelpText.className = 'small mt-2 text-success';
-
-                // Recargar después de 2 segundos
-                setTimeout(() => {
-                    location.reload();
-                }, 2000);
+                mostrarNotificacion('Operación exitosa', data.message, 'success');
+                setTimeout(() => location.reload(), 2000);
             } else {
                 throw new Error(data.message || 'Error desconocido');
             }
         })
         .catch(error => {
-            mostrarNotificacion(
-                'Error',
-                error.message || 'Error al procesar la solicitud',
-                'danger'
-            );
-            console.error('Error:', error);
-
-            // Restaurar el estado del botón
+            mostrarNotificacion('Error', error.message, 'danger');
             boton.innerHTML = originalText;
             boton.disabled = false;
-
-            // Verificar nuevamente el estado
-            verificarEstadoFecha();
         });
     }
 
-    // Event listeners para botones de marcado masivo
-    btnAsistenciaAutomatica.addEventListener('click', function() {
-        marcarTodos('puntual', this);
-    });
-
-    btnTardanzaAutomatica.addEventListener('click', function() {
-        marcarTodos('tardanza', this);
-    });
-
-    // Función para marcar resto de estudiantes (por grado)
+    // Marcar resto de estudiantes
     function marcarRestoEstudiantes(gradoId, gradoNombre, tipo, boton) {
-        const fecha = fechaInput.value;
-        const bimestre = bimestreSelect.value;
-        const todosTienen = boton.dataset.todosTienen === 'true';
-
-        if (!fecha) {
-            mostrarNotificacion('Error', 'Debe seleccionar una fecha primero', 'warning');
+        if (!periodoSelect.value) {
+            mostrarNotificacion('Período requerido', 'Debe seleccionar un período', 'warning');
             return;
         }
-
-        if (!bimestre) {
-            mostrarNotificacion('Error', 'Debe seleccionar un bimestre primero', 'warning');
+        if (!periodobimestreSelect.value) {
+            mostrarNotificacion('Bimestre requerido', 'Debe seleccionar un bimestre', 'warning');
             return;
         }
-
-        // Verificar si la fecha está en el período
-        if (!fechaEnPeriodo(fecha)) {
-            mostrarNotificacion(
-                'Fecha no válida',
-                `La fecha debe estar dentro del año ${periodoAnio}.`,
-                'warning'
-            );
-            return;
-        }
-
-        // Verificar si ya todos tienen asistencia
-        if (todosTienen) {
-            mostrarNotificacion(
-                'Grado completo',
-                `Todos los estudiantes de ${gradoNombre} ya tienen asistencia registrada para hoy.`,
-                'info'
-            );
+        if (!fechaInput.value) {
+            mostrarNotificacion('Fecha requerida', 'Debe seleccionar una fecha', 'warning');
             return;
         }
 
         const tipoTexto = tipo === 'puntual' ? 'PUNTUALES' : 'con TARDANZA';
-        const mensajeConfirmacion = `¿Estás seguro de marcar al RESTO de estudiantes de ${gradoNombre} como ${tipoTexto}?\n\n` +
-            '• Solo se marcarán estudiantes SIN asistencia\n' +
-            '• Los registros existentes NO se sobrescribirán';
+        if (!confirm(`¿Marcar al RESTO de estudiantes de ${gradoNombre} como ${tipoTexto}?`)) return;
 
-        if (!confirm(mensajeConfirmacion)) {
-            return;
-        }
-
-        // Deshabilitar botón
         const originalText = boton.innerHTML;
         boton.disabled = true;
-        boton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span> Procesando...';
+        boton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>';
 
         const url = tipo === 'puntual'
             ? '{{ route("asistencia.marcar-resto-puntualidad") }}'
@@ -639,95 +592,46 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({
                 grado_id: gradoId,
-                fecha: fecha,
-                bimestre: bimestre
+                fecha: fechaInput.value,
+                periodobimestre_id: periodobimestreSelect.value,
+                periodo_id: periodoSelect.value
             })
         })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(data => {
-                    throw new Error(data.message || 'Error en la solicitud');
-                });
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
             if (data.success) {
-                mostrarNotificacion(
-                    'Éxito',
-                    `${data.message} en ${gradoNombre}`,
-                    'success'
-                );
-
-                // Recargar después de 2 segundos
-                setTimeout(() => {
-                    location.reload();
-                }, 2000);
+                mostrarNotificacion('Éxito', `${data.message} en ${gradoNombre}`, 'success');
+                setTimeout(() => location.reload(), 2000);
             } else {
                 throw new Error(data.message || 'Error desconocido');
             }
         })
         .catch(error => {
-            mostrarNotificacion(
-                'Error',
-                error.message || 'Error al procesar la solicitud',
-                'danger'
-            );
-            console.error('Error:', error);
-
-            // Restaurar botón
+            mostrarNotificacion('Error', error.message, 'danger');
             boton.disabled = false;
             boton.innerHTML = originalText;
         });
     }
 
-    // Función para actualizar títulos y estados de botones de resto
-    function actualizarTitulosBotones() {
-        const fecha = fechaInput.value;
-        const bimestre = bimestreSelect.value;
-        const fechaValida = fecha && fechaEnPeriodo(fecha);
-
-        document.querySelectorAll('.btn-resto-puntualidad, .btn-resto-tardanza').forEach(btn => {
-            const todosTienen = btn.dataset.todosTienen === 'true';
-
-            if (!fechaValida || !bimestre) {
-                btn.disabled = true;
-                btn.title = 'Seleccione fecha y bimestre válidos primero';
-            } else if (todosTienen) {
-                btn.disabled = true;
-                btn.title = 'Todos los estudiantes ya tienen asistencia';
-            } else {
-                btn.disabled = false;
-                btn.title = btn.classList.contains('btn-resto-puntualidad')
-                    ? 'Marcar al resto como puntuales'
-                    : 'Marcar al resto con tardanza';
-            }
-        });
+    // Event listeners
+    if (btnAsistenciaAutomatica) {
+        btnAsistenciaAutomatica.addEventListener('click', function() { marcarTodos('puntual', this); });
+    }
+    if (btnTardanzaAutomatica) {
+        btnTardanzaAutomatica.addEventListener('click', function() { marcarTodos('tardanza', this); });
     }
 
-    // Agregar event listeners a los botones de resto de estudiantes
     document.querySelectorAll('.btn-resto-puntualidad').forEach(btn => {
         btn.addEventListener('click', function() {
-            const gradoId = this.dataset.gradoId;
-            const gradoNombre = this.dataset.gradoNombre;
-            marcarRestoEstudiantes(gradoId, gradoNombre, 'puntual', this);
+            marcarRestoEstudiantes(this.dataset.gradoId, this.dataset.gradoNombre, 'puntual', this);
         });
     });
 
     document.querySelectorAll('.btn-resto-tardanza').forEach(btn => {
         btn.addEventListener('click', function() {
-            const gradoId = this.dataset.gradoId;
-            const gradoNombre = this.dataset.gradoNombre;
-            marcarRestoEstudiantes(gradoId, gradoNombre, 'tardanza', this);
+            marcarRestoEstudiantes(this.dataset.gradoId, this.dataset.gradoNombre, 'tardanza', this);
         });
     });
-
-    // Escuchar cambios en fecha y bimestre
-    fechaInput.addEventListener('change', actualizarTitulosBotones);
-    bimestreSelect.addEventListener('change', actualizarTitulosBotones);
-
-    // Inicializar títulos
-    actualizarTitulosBotones();
 });
 </script>
 @endsection

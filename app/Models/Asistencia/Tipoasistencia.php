@@ -18,6 +18,7 @@ class Tipoasistencia extends Model
     public $timestamps = true;
     protected $fillable = [
         'nombre',
+        'color_hex',
     ];
     public function asistencias()
     {
