@@ -150,7 +150,7 @@
                             </a>
                         </div>
                         <div class="col-md-6">
-                            <a class="btn btn-outline-secondary w-100" href="{{ route('asistencia.bloqueo') }}">
+                            <a class="btn btn-outline-secondary w-100" href="{{ route('bloqueo.view') }}">
                                 <i class="bi bi-lock me-2"></i> Bloquear Asistencia
                             </a>
                         </div>

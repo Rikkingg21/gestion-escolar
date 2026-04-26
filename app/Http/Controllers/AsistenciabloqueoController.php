@@ -35,7 +35,8 @@ class AsistenciabloqueoController extends Controller
             return $next($request);
         });
     }
-        public function bloqueoView(Request $request)
+
+    public function bloqueoView(Request $request)
     {
         // Obtener todos los periodos activos
         $periodos = Periodo::where('estado', '1')->get();

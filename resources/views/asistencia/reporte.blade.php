@@ -9,49 +9,21 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <style>
         body {
-            font-family: Arial, sans-serif;
             background-color: #f8f9fa;
         }
 
         .card {
             border: 1px solid #dee2e6;
-            box-shadow: none;
             margin-bottom: 20px;
         }
 
         .card-header {
             background-color: #e9ecef;
-            border-bottom: 1px solid #dee2e6;
             font-weight: bold;
-            padding: 12px 15px;
-        }
-
-        .select2-container--default .select2-selection--single,
-        .select2-container--default .select2-selection--multiple {
-            border: 1px solid #ced4da;
-            height: 38px;
-        }
-
-        .form-control {
-            border: 1px solid #ced4da;
-            padding: 8px 12px;
-            height: 38px;
-        }
-
-        .table {
-            border: 1px solid #dee2e6;
         }
 
         .table th {
             background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            font-weight: 600;
-            padding: 10px;
-        }
-
-        .badge {
-            padding: 4px 8px;
-            font-size: 12px;
         }
 
         /* Estilos para impresión */
@@ -59,25 +31,20 @@
             .no-print {
                 display: none !important;
             }
-
             body {
                 background: white !important;
                 font-size: 12px;
             }
-
             .container-fluid {
                 padding: 0 !important;
             }
-
             .card {
                 border: none !important;
                 margin: 0 !important;
             }
-
             .card-body {
                 padding: 0 !important;
             }
-
             .print-header {
                 display: block !important;
                 text-align: center;
@@ -85,46 +52,19 @@
                 padding-bottom: 15px;
                 border-bottom: 2px solid #000;
             }
-
-            .print-header h2 {
-                margin-bottom: 5px;
-                font-size: 18px;
-            }
-
             .print-info {
                 display: block !important;
                 background: #f8f9fa;
-                padding: 12px;
+                padding: 10px;
                 margin-bottom: 15px;
-                border-left: 4px solid #007bff;
                 font-size: 11px;
             }
-
-            .print-info-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 8px;
-            }
-
             .table {
                 font-size: 10px;
             }
-
-            .table th {
-                background: #f8f9fa !important;
-                color: #000;
-                padding: 6px;
+            .table th, .table td {
+                padding: 4px;
             }
-
-            .table td {
-                padding: 5px;
-            }
-
-            .badge {
-                font-size: 9px;
-                padding: 2px 6px;
-            }
-
             .print-footer {
                 display: block !important;
                 text-align: center;
@@ -133,28 +73,13 @@
                 border-top: 1px solid #ccc;
                 font-size: 9px;
             }
-
-            tr {
-                page-break-inside: avoid;
+            .select2-container {
+                display: none !important;
             }
         }
 
         .print-header, .print-info, .print-footer {
             display: none;
-        }
-
-        .estadisticas-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .estadisticas-item {
-            border-right: 1px solid rgba(255,255,255,0.2);
-            padding: 10px;
-        }
-
-        .estadisticas-item:last-child {
-            border-right: none;
         }
     </style>
 </head>
@@ -162,9 +87,7 @@
     <!-- Encabezado para impresión -->
     <div class="print-header">
         <h2>REPORTE DE ASISTENCIA</h2>
-        <div style="font-size: 11px;">
-            Generado el: {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}
-        </div>
+        <div>Generado el: {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}</div>
     </div>
 
     <div class="container-fluid py-3">
@@ -172,7 +95,7 @@
         <div class="row mb-3 no-print">
             <div class="col-12">
                 <a href="{{ route('asistencia.index') }}" class="btn btn-secondary btn-sm">
-                    <i class="fas fa-arrow-left me-1"></i> Volver a Asistencias
+                    ← Volver a Asistencias
                 </a>
             </div>
         </div>
@@ -186,8 +109,8 @@
                     </div>
                     <div class="card-body">
                         <form id="formReporte" method="GET" action="{{ route('asistencia.reporte') }}">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
                                     <label for="periodo_id" class="form-label">Período *</label>
                                     <select name="periodo_id" id="periodo_id" class="form-select" required>
                                         <option value="">Seleccionar Período</option>
@@ -199,7 +122,8 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-md-6">
+
+                                <div class="col-md-4 mb-3">
                                     <label for="grado_id" class="form-label">Grado *</label>
                                     <select name="grado_id" id="grado_id" class="form-select" required>
                                         <option value="">Seleccionar Grado</option>
@@ -211,39 +135,45 @@
                                         @endforeach
                                     </select>
                                 </div>
-                            </div>
 
-                            <div class="row mb-3">
-                                <div class="col-md-6">
+                                <div class="col-md-4 mb-3">
                                     <label for="estudiante_id" class="form-label">Estudiante (Opcional)</label>
-                                    <select name="estudiante_id" id="estudiante_id" class="form-select"
-                                        {{ !request('grado_id') ? 'disabled' : '' }}>
+                                    <select name="estudiante_id" id="estudiante_id" class="form-select" style="width: 100%;" disabled>
                                         <option value="">Todos los estudiantes</option>
-                                        @if(request('grado_id') && request('periodo_id'))
-                                            @php
-                                                $estudiantesFiltro = \App\Models\Matricula::where('grado_id', request('grado_id'))
-                                                    ->where('periodo_id', request('periodo_id'))
-                                                    ->where('estado', '1')
-                                                    ->with('estudiante.user')
-                                                    ->get()
-                                                    ->pluck('estudiante');
-                                            @endphp
-                                            @foreach($estudiantesFiltro as $estudiante)
-                                                @php
-                                                    $apellidos = trim($estudiante->user->apellido_paterno . ' ' . $estudiante->user->apellido_materno);
-                                                    $nombres = $estudiante->user->nombre;
-                                                    $nombreCompleto = $apellidos . ', ' . $nombres;
-                                                @endphp
-                                                <option value="{{ $estudiante->id }}"
-                                                    {{ request('estudiante_id') == $estudiante->id ? 'selected' : '' }}>
-                                                    {{ $nombreCompleto }}
-                                                </option>
-                                            @endforeach
-                                        @endif
                                     </select>
                                 </div>
-                                <div class="col-md-6">
-                                    <label for="tipo_asistencia_id" class="form-label">Tipo de Asistencia (Opcional)</label>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <label for="periodobimestre_id" class="form-label">Bimestre (Opcional)</label>
+                                    <select name="periodobimestre_id" id="periodobimestre_id" class="form-select">
+                                        <option value="">Todos los bimestres</option>
+                                        @foreach($bimestres as $bimestre)
+                                            <option value="{{ $bimestre->id }}"
+                                                data-fecha-inicio="{{ $bimestre->fecha_inicio }}"
+                                                data-fecha-fin="{{ $bimestre->fecha_fin }}"
+                                                {{ request('periodobimestre_id') == $bimestre->id ? 'selected' : '' }}>
+                                                {{ $bimestre->bimestre }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <label for="fecha_inicio" class="form-label">Fecha Inicio *</label>
+                                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control"
+                                        value="{{ request('fecha_inicio') }}" required>
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <label for="fecha_fin" class="form-label">Fecha Fin *</label>
+                                    <input type="date" name="fecha_fin" id="fecha_fin" class="form-control"
+                                        value="{{ request('fecha_fin') }}" required>
+                                </div>
+
+                                <div class="col-md-3 mb-3">
+                                    <label for="tipo_asistencia_id" class="form-label">Tipo Asistencia (Opcional)</label>
                                     <select name="tipo_asistencia_id" id="tipo_asistencia_id" class="form-select">
                                         <option value="">Todos los tipos</option>
                                         @foreach($tiposAsistencia as $tipo)
@@ -256,37 +186,10 @@
                                 </div>
                             </div>
 
-                            <div class="row mb-3">
-                                <div class="col-md-4">
-                                    <label for="fecha_inicio" class="form-label">Fecha Inicio *</label>
-                                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control"
-                                        value="{{ request('fecha_inicio') }}" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="fecha_fin" class="form-label">Fecha Fin *</label>
-                                    <input type="date" name="fecha_fin" id="fecha_fin" class="form-control"
-                                        value="{{ request('fecha_fin') }}" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="bimestre" class="form-label">Bimestre (Opcional)</label>
-                                    <select name="bimestre" id="bimestre" class="form-select">
-                                        <option value="">Todos los bimestres</option>
-                                        <option value="1" {{ request('bimestre') == '1' ? 'selected' : '' }}>Bimestre 1</option>
-                                        <option value="2" {{ request('bimestre') == '2' ? 'selected' : '' }}>Bimestre 2</option>
-                                        <option value="3" {{ request('bimestre') == '3' ? 'selected' : '' }}>Bimestre 3</option>
-                                        <option value="4" {{ request('bimestre') == '4' ? 'selected' : '' }}>Bimestre 4</option>
-                                    </select>
-                                </div>
-                            </div>
-
                             <div class="row">
                                 <div class="col-12">
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-search me-1"></i> Generar Reporte
-                                    </button>
-                                    <a href="{{ route('asistencia.reporte') }}" class="btn btn-outline-secondary">
-                                        <i class="fas fa-broom me-1"></i> Limpiar Filtros
-                                    </a>
+                                    <button type="submit" class="btn btn-primary">Generar Reporte</button>
+                                    <a href="{{ route('asistencia.reporte') }}" class="btn btn-outline-secondary">Limpiar Filtros</a>
                                 </div>
                             </div>
                         </form>
@@ -303,135 +206,45 @@
                     <div class="card-header d-flex justify-content-between align-items-center no-print">
                         <h5 class="mb-0">Resultados del Reporte</h5>
                         <div>
-                            <span class="badge bg-secondary me-2">
-                                {{ $asistencias->count() }} registros
-                            </span>
-                            <button class="btn btn-outline-primary btn-sm" onclick="window.print()">
-                                <i class="fas fa-print me-1"></i> Imprimir
-                            </button>
+                            <span class="badge bg-secondary">{{ $asistencias->count() }} registros</span>
+                            <button class="btn btn-outline-primary btn-sm ms-2" onclick="window.print()">Imprimir</button>
                         </div>
                     </div>
                     <div class="card-body">
                         @if($asistencias->count() > 0)
-                            <!-- Estadísticas -->
-                            @if(isset($estadisticas))
-                            <div class="row mb-4 no-print">
-                                <div class="col-12">
-                                    <div class="card estadisticas-card">
-                                        <div class="card-body">
-                                            <div class="row text-center">
-                                                <div class="col-md-3 estadisticas-item">
-                                                    <h3 class="mb-0">{{ $estadisticas['total_asistencias'] }}</h3>
-                                                    <small>Total Asistencias</small>
-                                                </div>
-                                                <div class="col-md-3 estadisticas-item">
-                                                    <h3 class="mb-0">{{ $estadisticas['total_estudiantes'] }}</h3>
-                                                    <small>Estudiantes Registrados</small>
-                                                </div>
-                                                <div class="col-md-3 estadisticas-item">
-                                                    <h3 class="mb-0">{{ \Carbon\Carbon::parse($estadisticas['fecha_primera'])->format('d/m/Y') }}</h3>
-                                                    <small>Primer Registro</small>
-                                                </div>
-                                                <div class="col-md-3 estadisticas-item">
-                                                    <h3 class="mb-0">{{ \Carbon\Carbon::parse($estadisticas['fecha_ultima'])->format('d/m/Y') }}</h3>
-                                                    <small>Último Registro</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            @endif
-
                             <!-- Información del filtro para impresión -->
                             <div class="print-info">
-                                <div class="print-info-grid">
-                                    @php
-                                        $periodoSeleccionado = $periodos->firstWhere('id', request('periodo_id'));
-                                        $gradoSeleccionado = $grados->firstWhere('id', request('grado_id'));
-                                    @endphp
-                                    <div class="print-info-item">
-                                        <span class="print-info-label">Período:</span>
-                                        {{ $periodoSeleccionado->nombre ?? 'N/A' }} ({{ $periodoSeleccionado->anio ?? 'N/A' }})
-                                    </div>
-                                    <div class="print-info-item">
-                                        <span class="print-info-label">Grado:</span>
-                                        {{ $gradoSeleccionado->nivel ?? 'N/A' }} -
-                                        {{ $gradoSeleccionado->grado ?? '' }}{{ $gradoSeleccionado->seccion ?? '' }}
-                                    </div>
-                                    <div class="print-info-item">
-                                        <span class="print-info-label">Rango Fechas:</span>
-                                        {{ \Carbon\Carbon::parse(request('fecha_inicio'))->format('d/m/Y') }} -
-                                        {{ \Carbon\Carbon::parse(request('fecha_fin'))->format('d/m/Y') }}
-                                    </div>
-                                    <div class="print-info-item">
-                                        <span class="print-info-label">Estudiante:</span>
-                                        @if(request('estudiante_id'))
-                                            @php
-                                                $estudianteSeleccionado = \App\Models\Estudiante::with('user')
-                                                    ->find(request('estudiante_id'));
-                                                if ($estudianteSeleccionado) {
-                                                    $apellidos = trim($estudianteSeleccionado->user->apellido_paterno . ' ' . $estudianteSeleccionado->user->apellido_materno);
-                                                    $nombres = $estudianteSeleccionado->user->nombre;
-                                                    echo $apellidos . ', ' . $nombres;
-                                                }
-                                            @endphp
-                                        @else
-                                            Todos los estudiantes
-                                        @endif
-                                    </div>
-                                    @if(request('bimestre'))
-                                    <div class="print-info-item">
-                                        <span class="print-info-label">Bimestre:</span>
-                                        {{ request('bimestre') }}
-                                    </div>
-                                    @endif
-                                    @if(request('tipo_asistencia_id'))
-                                    <div class="print-info-item">
-                                        <span class="print-info-label">Tipo Asistencia:</span>
-                                        {{ $tiposAsistencia->firstWhere('id', request('tipo_asistencia_id'))->nombre ?? 'N/A' }}
-                                    </div>
-                                    @endif
-                                    @if(isset($estadisticas))
-                                    <div class="print-info-item">
-                                        <span class="print-info-label">Total Registros:</span>
-                                        {{ $estadisticas['total_asistencias'] }}
-                                    </div>
-                                    <div class="print-info-item">
-                                        <span class="print-info-label">Total Estudiantes:</span>
-                                        {{ $estadisticas['total_estudiantes'] }}
-                                    </div>
-                                    @endif
-                                </div>
+                                <strong>Filtros aplicados:</strong><br>
+                                @php
+                                    $periodoSeleccionado = $periodos->firstWhere('id', request('periodo_id'));
+                                    $gradoSeleccionado = $grados->firstWhere('id', request('grado_id'));
+                                @endphp
+                                Período: {{ $periodoSeleccionado->nombre ?? 'N/A' }} ({{ $periodoSeleccionado->anio ?? 'N/A' }}) |
+                                Grado: {{ $gradoSeleccionado->nivel ?? 'N/A' }} - {{ $gradoSeleccionado->grado ?? '' }}{{ $gradoSeleccionado->seccion ?? '' }} |
+                                Fechas: {{ \Carbon\Carbon::parse(request('fecha_inicio'))->format('d/m/Y') }} - {{ \Carbon\Carbon::parse(request('fecha_fin'))->format('d/m/Y') }} |
+                                Registros: {{ $asistencias->count() }}
                             </div>
 
                             <!-- Información del filtro para pantalla -->
-                            <div class="row mb-3 no-print">
-                                <div class="col-12">
-                                    <div class="alert alert-info">
-                                        <strong>Filtros aplicados:</strong>
-                                        Período: {{ $periodoSeleccionado->nombre ?? 'N/A' }} ({{ $periodoSeleccionado->anio ?? 'N/A' }}) |
-                                        Grado: {{ $gradoSeleccionado->nivel ?? 'N/A' }} - {{ $gradoSeleccionado->grado ?? '' }}{{ $gradoSeleccionado->seccion ?? '' }} |
-                                        Fechas: {{ \Carbon\Carbon::parse(request('fecha_inicio'))->format('d/m/Y') }} -
-                                        {{ \Carbon\Carbon::parse(request('fecha_fin'))->format('d/m/Y') }} |
-                                        Registros: {{ $asistencias->count() }}
-                                    </div>
-                                </div>
+                            <div class="alert alert-info no-print">
+                                <strong>Filtros aplicados:</strong>
+                                Período: {{ $periodoSeleccionado->nombre ?? 'N/A' }} |
+                                Grado: {{ $gradoSeleccionado->nivel ?? 'N/A' }} - {{ $gradoSeleccionado->grado ?? '' }}{{ $gradoSeleccionado->seccion ?? '' }} |
+                                Fechas: {{ \Carbon\Carbon::parse(request('fecha_inicio'))->format('d/m/Y') }} - {{ \Carbon\Carbon::parse(request('fecha_fin'))->format('d/m/Y') }}
                             </div>
 
                             <div class="table-responsive">
-                                <table class="table table-bordered">
+                                <table class="table table-bordered table-striped">
                                     <thead>
                                         <tr>
-                                            <th width="50">#</th>
-                                            <th width="100">Fecha</th>
+                                            <th>#</th>
+                                            <th>Fecha</th>
                                             <th>Estudiante</th>
-                                            <th width="100">Grado</th>
-                                            <th width="120">Tipo Asistencia</th>
-                                            <th width="80">Bimestre</th>
-                                            <th width="80">Hora</th>
-                                            <th>Descripción</th>
-                                            <th width="100">Período</th>
+                                            <th>Grado</th>
+                                            <th>Tipo Asistencia</th>
+                                            <th>Bimestre</th>
+                                            <th>Hora</th>
+                                            <th>Período</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -447,18 +260,17 @@
                                             <td>{{ $nombreCompleto }}</td>
                                             <td>{{ $asistencia->grado->nivel ?? 'N/A' }} - {{ $asistencia->grado->grado ?? '' }}{{ $asistencia->grado->seccion ?? '' }}</td>
                                             <td>
-                                                <span class="badge bg-secondary">
-                                                    {{ $asistencia->tipoasistencia->nombre ?? 'N/A' }}
-                                                </span>
+                                                <span class="badge bg-secondary">{{ $asistencia->tipoasistencia->nombre ?? 'N/A' }}</span>
                                             </td>
-                                            <td>{{ $asistencia->bimestre }}</td>
-                                            <td>{{ $asistencia->hora ?? 'N/A' }}</td>
-                                            <td>{{ $asistencia->descripcion ?? 'Sin descripción' }}</td>
                                             <td>
-                                                <small class="text-muted">
-                                                    {{ $asistencia->periodo->nombre ?? 'N/A' }}
-                                                </small>
-                                            </td>
+                                                @if($asistencia->periodobimestre)
+                                                    {{ $asistencia->periodobimestre->bimestre }}
+                                                @else
+                                                    N/A
+                                                @endif
+                                             </td>
+                                            <td>{{ $asistencia->hora ?? 'N/A' }}</td>
+                                            <td>{{ $asistencia->periodo->nombre ?? 'N/A' }}</td>
                                         </tr>
                                         @endforeach
                                     </tbody>
@@ -466,7 +278,6 @@
                             </div>
                         @else
                             <div class="alert alert-warning text-center">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
                                 <strong>No se encontraron registros</strong>
                                 <p class="mb-0 mt-1">No hay registros de asistencia que coincidan con los filtros seleccionados.</p>
                             </div>
@@ -486,12 +297,15 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="https://kit.fontawesome.com/6d4a4c422c.js" crossorigin="anonymous"></script>
 
     <script>
         $(document).ready(function() {
-            // Inicializar Select2
-            $('#periodo_id, #grado_id, #estudiante_id, #bimestre, #tipo_asistencia_id').select2();
+            // Inicializar Select2 solo para estudiantes
+            $('#estudiante_id').select2({
+                placeholder: "Buscar estudiante...",
+                allowClear: true,
+                width: '100%'
+            });
 
             // Cargar estudiantes cuando se seleccionen grado y período
             function cargarEstudiantes() {
@@ -501,71 +315,102 @@
 
                 if (gradoId && periodoId) {
                     estudianteSelect.prop('disabled', false);
+                    estudianteSelect.empty().append('<option value="">Cargando...</option>');
+                    estudianteSelect.trigger('change');
 
-                    // Limpiar opciones actuales
-                    estudianteSelect.empty().append('<option value="">Todos los estudiantes</option>');
-
-                    // Mostrar loading
-                    estudianteSelect.prop('disabled', true);
-                    estudianteSelect.html('<option value="">Cargando estudiantes...</option>');
-
-                    // Cargar estudiantes del grado y período seleccionados
                     $.ajax({
                         url: '{{ route("asistencia.estudiantes-por-grado") }}',
                         type: 'GET',
-                        data: {
-                            grado_id: gradoId,
-                            periodo_id: periodoId
-                        },
+                        data: { grado_id: gradoId, periodo_id: periodoId },
                         success: function(data) {
                             estudianteSelect.empty().append('<option value="">Todos los estudiantes</option>');
                             $.each(data, function(key, estudiante) {
-                                estudianteSelect.append(
-                                    '<option value="' + estudiante.id + '">' +
-                                    estudiante.nombres_completos +
-                                    '</option>'
-                                );
+                                estudianteSelect.append('<option value="' + estudiante.id + '">' + estudiante.nombres_completos + '</option>');
                             });
-                            estudianteSelect.prop('disabled', false);
+                            estudianteSelect.trigger('change');
                         },
                         error: function() {
-                            alert('Error al cargar los estudiantes');
-                            estudianteSelect.empty().append('<option value="">Todos los estudiantes</option>');
-                            estudianteSelect.prop('disabled', false);
+                            estudianteSelect.empty().append('<option value="">Error al cargar estudiantes</option>');
+                            estudianteSelect.trigger('change');
                         }
                     });
                 } else {
                     estudianteSelect.prop('disabled', true);
-                    estudianteSelect.empty().append('<option value="">Todos los estudiantes</option>');
+                    estudianteSelect.empty().append('<option value="">Seleccione grado y período primero</option>');
+                    estudianteSelect.trigger('change');
                 }
             }
 
-            // Eventos para cargar estudiantes
-            $('#grado_id, #periodo_id').change(cargarEstudiantes);
+            // Cargar bimestres y establecer fechas
+            function cargarBimestresYEstandarizarFechas() {
+                var periodoId = $('#periodo_id').val();
+                var bimestreSelect = $('#periodobimestre_id');
+
+                if (periodoId) {
+                    $.ajax({
+                        url: '/asistencia/bimestres-por-periodo/' + periodoId,
+                        type: 'GET',
+                        success: function(data) {
+                            bimestreSelect.html('<option value="">Todos los bimestres</option>');
+                            if (data.success && data.bimestres.length > 0) {
+                                $.each(data.bimestres, function(key, bimestre) {
+                                    bimestreSelect.append(
+                                        '<option value="' + bimestre.id + '" data-fecha-inicio="' + bimestre.fecha_inicio + '" data-fecha-fin="' + bimestre.fecha_fin + '">' +
+                                        bimestre.bimestre + '</option>'
+                                    );
+                                });
+                                bimestreSelect.prop('disabled', false);
+                            } else {
+                                bimestreSelect.append('<option value="">No hay bimestres disponibles</option>');
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Al seleccionar un bimestre, actualizar fechas
+            $('#periodobimestre_id').change(function() {
+                var selectedOption = $(this).find('option:selected');
+                var fechaInicio = selectedOption.data('fecha-inicio');
+                var fechaFin = selectedOption.data('fecha-fin');
+
+                if (fechaInicio && fechaFin) {
+                    $('#fecha_inicio').val(fechaInicio);
+                    $('#fecha_fin').val(fechaFin);
+                }
+            });
+
+            // Eventos
+            $('#periodo_id').change(function() {
+                cargarBimestresYEstandarizarFechas();
+                cargarEstudiantes();
+            });
+
+            $('#grado_id').change(cargarEstudiantes);
 
             // Validar fechas
             $('#fecha_inicio, #fecha_fin').change(function() {
                 var fechaInicio = $('#fecha_inicio').val();
                 var fechaFin = $('#fecha_fin').val();
-
                 if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
                     alert('La fecha de inicio no puede ser mayor a la fecha fin');
                     $('#fecha_fin').val('');
                 }
             });
 
-            // Si ya hay un grado y período seleccionado al cargar la página, cargar estudiantes
-            @if(request('grado_id') && request('periodo_id'))
-                cargarEstudiantes();
+            // Cargar datos iniciales
+            @if(request('periodo_id'))
+                cargarBimestresYEstandarizarFechas();
+                @if(request('grado_id') && request('periodo_id'))
+                    cargarEstudiantes();
+                    // Restaurar valor seleccionado de estudiante si existe
+                    @if(request('estudiante_id'))
+                        setTimeout(function() {
+                            $('#estudiante_id').val('{{ request('estudiante_id') }}').trigger('change');
+                        }, 500);
+                    @endif
+                @endif
             @endif
-
-            // Atajo de teclado Ctrl + P
-            $(document).on('keydown', function(e) {
-                if (e.ctrlKey && e.key === 'p') {
-                    e.preventDefault();
-                    window.print();
-                }
-            });
         });
     </script>
 </body>

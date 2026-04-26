@@ -254,17 +254,16 @@ Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstu
     Route::post('marcar-individual/{estudiante}', [AsistenciaController::class, 'marcarIndividual'])->name('asistencia.marcar-individual');
     Route::post('asistencia/{grado}/{fecha}/guardar', [AsistenciaController::class, 'guardarMultiple'])->name('asistencia.guardar-multiple');
 
-
     Route::get('/asistencia/reporte', [AsistenciaController::class, 'reporteAsistencia'])->name('asistencia.reporte');
     Route::get('/asistencia/estudiantes-por-grado', [AsistenciaController::class, 'estudiantesPorGrado'])->name('asistencia.estudiantes-por-grado');
 
-    Route::get('/asistencia/bloqueo', [AsistenciabloqueoController::class, 'bloqueoView'])->name('asistencia.bloqueo');
     Route::get('/asistencia/bloqueo-asistencias', [AsistenciabloqueoController::class, 'bloqueoView'])->name('bloqueo.view');
     Route::post('/asistencia/bloquear-masivo', [AsistenciabloqueoController::class, 'bloquearMasivo'])->name('asistencia.bloquear-masivo');
     Route::post('/asistencia/bloquear-definitivo-masivo', [AsistenciabloqueoController::class, 'bloquearDefinitivoMasivo'])->name('asistencia.bloquear-definitivo-masivo');
     Route::post('/asistencia/liberar-masivo', [AsistenciabloqueoController::class, 'liberarMasivo'])->name('asistencia.liberar-masivo');
     Route::post('/asistencia/liberar-definitivo-masivo', [AsistenciabloqueoController::class, 'liberarDefinitivoMasivo'])->name('asistencia.liberar-definitivo-masivo');
-    Route::get('/historial-asistencia/{anio?}/{bimestre?}', [AsistenciabloqueoController::class, 'calendarioAsistencia'])->name('asistencia.calendario');
 
 
+    Route::get('/historial-asistencia/bimestres-por-periodo/{periodo_id}', [AsistenciahistorialController::class, 'getBimestresByPeriodo'])->name('historial.bimestres-por-periodo');
+    Route::get('/historial-asistencia/{periodo_id?}/{periodobimestre_id?}', [AsistenciahistorialController::class, 'calendarioAsistencia'])->name('asistencia.calendario');
 });

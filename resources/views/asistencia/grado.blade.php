@@ -37,6 +37,11 @@
                 @endif
             </div>
         </div>
+        <div>
+            <a href="{{ route('asistencia.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Volver
+            </a>
+        </div>
     </div>
 
     @if($mesBloqueado)
@@ -123,19 +128,45 @@
 
                 <div class="col-md-4">
                     <label class="form-label">Resumen:</label>
-                    <div class="d-flex justify-content-around">
-                        <div class="text-center">
-                            <span class="badge bg-success" id="contadorPuntual">0</span>
-                            <div class="small text-muted">Puntual</div>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0 p-2">
+                                <div class="row text-center">
+                                    <div class="col-6 border-end">
+                                        <span class="badge bg-primary fs-6">{{ $totalRegistrados }}/{{ $totalEstudiantes }}</span>
+                                        <div class="small">Registrados</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <span class="badge bg-success fs-6">{{ $porcentajeRegistrados }}%</span>
+                                        <div class="small">Completado</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="text-center">
-                            <span class="badge bg-danger" id="contadorTardanza">0</span>
-                            <div class="small text-muted">Tardanza</div>
-                        </div>
-                        <div class="text-center">
-                            <span class="badge bg-secondary" id="contadorTotal">0</span>
-                            <div class="small text-muted">Total</div>
-                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Tarjeta de resumen por tipo de asistencia --}}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Resumen por Tipo de Asistencia</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-3 justify-content-center">
+                        @foreach($resumenAsistencias as $resumen)
+                            <div class="text-center p-2 rounded" style="min-width: 100px; background-color: {{ $resumen['color_hex'] }}10; border-left: 3px solid {{ $resumen['color_hex'] }};">
+                                <span class="badge" style="background-color: {{ $resumen['color_hex'] }}; color: white;">
+                                    {{ $resumen['nombre'] }}
+                                </span>
+                                <h5 class="mt-2 mb-0">{{ $resumen['cantidad'] }}</h5>
+                                <small class="text-muted">estudiantes</small>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -387,6 +418,7 @@
 </div>
 
 <script>
+// El JavaScript se mantiene igual que antes
 document.addEventListener('DOMContentLoaded', function() {
     const MES_BLOQUEADO = {{ $mesBloqueado ? 'true' : 'false' }};
 
@@ -411,7 +443,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Cambiar fecha - navegación SIN parámetros en URL
     if (fechaInput) {
         fechaInput.addEventListener('change', function() {
             const fechaEnFormatoYMD = this.value;
@@ -421,7 +452,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const gradoSeccion = "{{ $grado->grado }}{{ $grado->seccion }}";
                 const gradoNivel = "{{ strtolower($grado->nivel) }}";
 
-                // Construir URL sin parámetros adicionales
                 const nuevaUrl = "{{ route('asistencia.grado', ['grado_grado_seccion' => ':gradoSeccion', 'grado_nivel' => ':gradoNivel', 'date' => ':date']) }}"
                     .replace(':gradoSeccion', gradoSeccion)
                     .replace(':gradoNivel', gradoNivel)
@@ -432,7 +462,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Botón "Hoy"
     if (btnHoy) {
         btnHoy.addEventListener('click', function() {
             const hoy = new Date().toISOString().split('T')[0];
@@ -443,7 +472,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Cuando cambia el bimestre, actualizar rangos de fecha
     if (periodobimestreSelect && !MES_BLOQUEADO) {
         periodobimestreSelect.addEventListener('change', function() {
             actualizarRangosFecha();
@@ -452,12 +480,10 @@ document.addEventListener('DOMContentLoaded', function() {
         actualizarRangosFecha();
     }
 
-    // FUNCIONES DE EDICIÓN - SOLO SI EL MES ESTÁ LIBRE
     if (!MES_BLOQUEADO) {
         function updateSelectColor(select) {
             const selectedOption = select.options[select.selectedIndex];
             const color = selectedOption?.getAttribute('data-color') || '#6B7280';
-
             select.style.borderColor = color;
             select.style.borderLeft = `4px solid ${color}`;
             select.style.backgroundColor = color + '10';
@@ -501,7 +527,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return ahora.getHours().toString().padStart(2, '0') + ':' + ahora.getMinutes().toString().padStart(2, '0');
         }
 
-        // Configurar selects
         document.querySelectorAll('.tipo-asistencia-select:not([disabled])').forEach(select => {
             updateSelectColor(select);
             select.addEventListener('change', function() {
@@ -512,7 +537,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        // Botones de marcado rápido
         document.querySelectorAll('.btn-marcar-rapido:not([disabled])').forEach(btn => {
             btn.addEventListener('click', async function(e) {
                 e.preventDefault();
@@ -581,7 +605,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        // Botones de hora actual
         document.querySelectorAll('.btn-hora-ahora:not([disabled])').forEach(btn => {
             btn.addEventListener('click', function() {
                 const estudianteId = this.dataset.estudianteId;
@@ -593,7 +616,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        // Validar formulario
         if (formAsistencia) {
             formAsistencia.addEventListener('submit', function(e) {
                 if (!periodobimestreSelect.disabled && !periodobimestreSelect.value && !periodobimestreHidden.value) {
@@ -606,11 +628,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Inicializar
         updateContadores();
         actualizarEstadoBotonesRapidos();
     } else {
-        // Solo actualizar contadores para visualización
         function updateContadoresReadOnly() {
             let puntual = 0, tardanza = 0, total = 0;
             document.querySelectorAll('.tipo-asistencia-select').forEach(select => {
@@ -628,30 +648,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
-<style>
-    .tipo-asistencia-select {
-        min-width: 230px;
-        padding: 0.375rem 1.75rem 0.375rem 0.75rem;
-        font-size: 0.875rem;
-        border-radius: 0.375rem;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    }
-
-    .tipo-asistencia-select:not([disabled]):hover {
-        border-color: #86b7fe;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
-    }
-
-    .tipo-asistencia-select[disabled] {
-        background-color: #e9ecef;
-        opacity: 0.8;
-    }
-
-    @media (max-width: 768px) {
-        .tipo-asistencia-select {
-            min-width: 180px;
-        }
-    }
-</style>
 @endsection
