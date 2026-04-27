@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'Crear Criterios de Evaluación')
 @section('content')
 <div class="container-fluid">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
@@ -13,7 +13,7 @@
 
     @if($errors->any())
     <div class="alert alert-danger">
-        <ul>
+        <ul class="mb-0">
             @foreach($errors->all() as $error)
                 <li>{{ $error }}</li>
             @endforeach
@@ -61,6 +61,22 @@
                     </div>
                 </div>
 
+                {{-- Selección de Período --}}
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <label class="form-label text-danger">Período Escolar *</label>
+                        <select id="periodo_id" name="periodo_id" class="form-select" required>
+                            <option value="">Seleccione un período escolar</option>
+                            @foreach($periodos as $periodo)
+                                <option value="{{ $periodo->id }}">
+                                    {{ $periodo->nombre }} ({{ $periodo->anio }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Selecciona el período escolar para todos los criterios</small>
+                    </div>
+                </div>
+
                 {{-- Criterios Dinámicos --}}
                 <div id="criterios-container">
                     {{-- Primer criterio --}}
@@ -73,86 +89,22 @@
                         </div>
                         <div class="card-body">
                             <div class="row mb-3">
-                                <div class="col-md-6">
+                                <div class="col-md-12">
                                     <label for="criterios[0][nombre]" class="form-label">Nombre del Criterio *</label>
                                     <input type="text" class="form-control"
                                            name="criterios[0][nombre]"
                                            value="{{ old('criterios.0.nombre') }}"
                                            required>
                                 </div>
-                                <div class="col-md-6">
-                                    <label for="criterios[0][anio]" class="form-label">Año *</label>
-                                    <select class="form-select" name="criterios[0][anio]" required>
-                                        @foreach($anios as $anio)
-                                            <option value="{{ $anio }}" {{ old('criterios.0.anio', date('Y')) == $anio ? 'selected' : '' }}>
-                                                {{ $anio }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
                             </div>
 
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Bimestres *</label>
-                                    <div class="border rounded p-3 bg-light">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <div class="form-check">
-                                                    <input class="form-check-input bimestre-checkbox"
-                                                           type="checkbox"
-                                                           name="criterios[0][bimestres][]"
-                                                           value="1"
-                                                           id="bimestre1_0"
-                                                           {{ is_array(old('criterios.0.bimestres')) && in_array('1', old('criterios.0.bimestres')) ? 'checked' : '' }}>
-                                                    <label class="form-check-label" for="bimestre1_0">
-                                                        Bimestre 1
-                                                    </label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input bimestre-checkbox"
-                                                           type="checkbox"
-                                                           name="criterios[0][bimestres][]"
-                                                           value="2"
-                                                           id="bimestre2_0"
-                                                           {{ is_array(old('criterios.0.bimestres')) && in_array('2', old('criterios.0.bimestres')) ? 'checked' : '' }}>
-                                                    <label class="form-check-label" for="bimestre2_0">
-                                                        Bimestre 2
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="form-check">
-                                                    <input class="form-check-input bimestre-checkbox"
-                                                           type="checkbox"
-                                                           name="criterios[0][bimestres][]"
-                                                           value="3"
-                                                           id="bimestre3_0"
-                                                           {{ is_array(old('criterios.0.bimestres')) && in_array('3', old('criterios.0.bimestres')) ? 'checked' : '' }}>
-                                                    <label class="form-check-label" for="bimestre3_0">
-                                                        Bimestre 3
-                                                    </label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input bimestre-checkbox"
-                                                           type="checkbox"
-                                                           name="criterios[0][bimestres][]"
-                                                           value="4"
-                                                           id="bimestre4_0"
-                                                           {{ is_array(old('criterios.0.bimestres')) && in_array('4', old('criterios.0.bimestres')) ? 'checked' : '' }}>
-                                                    <label class="form-check-label" for="bimestre4_0">
-                                                        Bimestre 4
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="mt-2">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary select-all-bimestres" data-index="0">
-                                                <i class="bi bi-check-all me-1"></i> Seleccionar todos
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary clear-bimestres" data-index="0">
-                                                <i class="bi bi-x-circle me-1"></i> Limpiar
-                                            </button>
+                                    <div class="border rounded p-3 bg-light" id="bimestres-container-0">
+                                        <div class="text-muted text-center py-2">
+                                            <i class="bi bi-hourglass-split me-1"></i>
+                                            Selecciona un período escolar primero
                                         </div>
                                     </div>
                                     <div class="invalid-feedback d-none" id="bimestre-error-0">
@@ -161,7 +113,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Grados *</label>
-                                    <div class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                                    <div class="border rounded p-3 bg-light" style="max-height: 300px; overflow-y: auto;">
                                         <div class="row">
                                             @php
                                                 $gradosPorNivel = $grados->groupBy('nivel');
@@ -236,6 +188,7 @@
         </div>
     </div>
 </div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let criterioCount = 1;
@@ -243,6 +196,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const addButton = document.getElementById('add-criterio');
     const materiaSelect = document.getElementById('materia_id');
     const competenciaSelect = document.getElementById('materia_competencia_id');
+    const periodoSelect = document.getElementById('periodo_id');
+
+    let bimestresGlobales = []; // Almacenar bimestres cargados
 
     // Cargar competencias cuando se selecciona una materia
     materiaSelect.addEventListener('change', function() {
@@ -250,11 +206,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (materiaId) {
             competenciaSelect.disabled = false;
-
-            // Limpiar opciones anteriores
             competenciaSelect.innerHTML = '<option value="">Cargando competencias...</option>';
 
-            // Hacer petición AJAX para obtener competencias
             fetch(`/api/competencias-por-materia/${materiaId}`)
                 .then(response => response.json())
                 .then(data => {
@@ -276,6 +229,116 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Cargar bimestres cuando se selecciona un período
+    periodoSelect.addEventListener('change', function() {
+        const periodoId = this.value;
+
+        if (periodoId) {
+            // Mostrar indicador de carga
+            document.querySelectorAll('[id^="bimestres-container-"]').forEach(container => {
+                container.innerHTML = `
+                    <div class="text-muted text-center py-2">
+                        <i class="bi bi-hourglass-split me-1"></i>
+                        Cargando bimestres...
+                    </div>
+                `;
+            });
+
+            // Hacer petición AJAX al controlador
+            fetch(`/materiacriterio/bimestres/${periodoId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    bimestresGlobales = data;
+                    // Actualizar todos los contenedores de bimestres
+                    updateAllBimestresContainers();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.querySelectorAll('[id^="bimestres-container-"]').forEach(container => {
+                        container.innerHTML = `
+                            <div class="text-danger text-center py-2">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Error al cargar los bimestres. Por favor, recarga la página.
+                            </div>
+                        `;
+                    });
+                });
+        } else {
+            bimestresGlobales = [];
+            updateAllBimestresContainers();
+        }
+    });
+
+    // Función para actualizar todos los contenedores de bimestres
+    function updateAllBimestresContainers() {
+        document.querySelectorAll('.criterio-item').forEach((item, index) => {
+            updateBimestresContainer(item, index);
+        });
+    }
+
+    // Función para actualizar el contenedor de bimestres de un criterio específico
+    function updateBimestresContainer(criterioItem, index) {
+        const container = criterioItem.querySelector(`#bimestres-container-${index}`);
+        if (!container) return;
+
+        if (bimestresGlobales.length === 0) {
+            container.innerHTML = `
+                <div class="text-muted text-center py-2">
+                    <i class="bi bi-hourglass-split me-1"></i>
+                    Selecciona un período escolar primero
+                </div>
+            `;
+            return;
+        }
+
+        // Generar checkboxes de bimestres
+        let html = '<div class="row">';
+        bimestresGlobales.forEach((bimestre, bimestreIndex) => {
+            html += `
+                <div class="col-md-6 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input bimestre-checkbox"
+                               type="checkbox"
+                               name="criterios[${index}][periodos_bimestres][]"
+                               value="${bimestre.id}"
+                               id="bimestre_${bimestre.id}_${index}">
+                        <label class="form-check-label" for="bimestre_${bimestre.id}_${index}">
+                            <strong>${bimestre.sigla}</strong> ${bimestre.bimestre}
+                            <br><small class="text-muted">
+                                (${formatDate(bimestre.fecha_inicio)} - ${formatDate(bimestre.fecha_fin)})
+                            </small>
+                        </label>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        html += `
+            <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary select-all-bimestres" data-index="${index}">
+                    <i class="bi bi-check-all me-1"></i> Seleccionar todos
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary clear-bimestres" data-index="${index}">
+                    <i class="bi bi-x-circle me-1"></i> Limpiar
+                </button>
+            </div>
+        `;
+
+        container.innerHTML = html;
+
+        // Inicializar eventos de los botones de bimestres
+        initializeBimestreButtons(index);
+    }
+
+    // Función para formatear fecha
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+    }
+
     // Función para agregar nuevo criterio
     addButton.addEventListener('click', function() {
         const newIndex = criterioCount;
@@ -290,81 +353,21 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="card-body">
                 <div class="row mb-3">
-                    <div class="col-md-6">
+                    <div class="col-md-12">
                         <label for="criterios[${newIndex}][nombre]" class="form-label">Nombre del Criterio *</label>
                         <input type="text" class="form-control"
                                name="criterios[${newIndex}][nombre]"
                                required>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="criterios[${newIndex}][anio]" class="form-label">Año *</label>
-                        <select class="form-select" name="criterios[${newIndex}][anio]" required>
-                            @foreach($anios as $anio)
-                                <option value="{{ $anio }}" {{ $anio == date('Y') ? 'selected' : '' }}>
-                                    {{ $anio }}
-                                </option>
-                            @endforeach
-                        </select>
                     </div>
                 </div>
 
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label">Bimestres *</label>
-                        <div class="border rounded p-3 bg-light">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input bimestre-checkbox"
-                                               type="checkbox"
-                                               name="criterios[${newIndex}][bimestres][]"
-                                               value="1"
-                                               id="bimestre1_${newIndex}">
-                                        <label class="form-check-label" for="bimestre1_${newIndex}">
-                                            Bimestre 1
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input bimestre-checkbox"
-                                               type="checkbox"
-                                               name="criterios[${newIndex}][bimestres][]"
-                                               value="2"
-                                               id="bimestre2_${newIndex}">
-                                        <label class="form-check-label" for="bimestre2_${newIndex}">
-                                            Bimestre 2
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input bimestre-checkbox"
-                                               type="checkbox"
-                                               name="criterios[${newIndex}][bimestres][]"
-                                               value="3"
-                                               id="bimestre3_${newIndex}">
-                                        <label class="form-check-label" for="bimestre3_${newIndex}">
-                                            Bimestre 3
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input bimestre-checkbox"
-                                               type="checkbox"
-                                               name="criterios[${newIndex}][bimestres][]"
-                                               value="4"
-                                               id="bimestre4_${newIndex}">
-                                        <label class="form-check-label" for="bimestre4_${newIndex}">
-                                            Bimestre 4
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mt-2">
-                                <button type="button" class="btn btn-sm btn-outline-secondary select-all-bimestres" data-index="${newIndex}">
-                                    <i class="bi bi-check-all me-1"></i> Seleccionar todos
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary clear-bimestres" data-index="${newIndex}">
-                                    <i class="bi bi-x-circle me-1"></i> Limpiar
-                                </button>
+                        <div class="border rounded p-3 bg-light" id="bimestres-container-${newIndex}">
+                            <div class="text-muted text-center py-2">
+                                <i class="bi bi-hourglass-split me-1"></i>
+                                Selecciona un período escolar primero
                             </div>
                         </div>
                         <div class="invalid-feedback d-none" id="bimestre-error-${newIndex}">
@@ -373,7 +376,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Grados *</label>
-                        <div class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                        <div class="border rounded p-3 bg-light" style="max-height: 300px; overflow-y: auto;">
                             <div class="row">
                                 @php
                                     $gradosPorNivel = $grados->groupBy('nivel');
@@ -425,71 +428,77 @@ document.addEventListener('DOMContentLoaded', function() {
         container.appendChild(newCriterio);
         criterioCount++;
 
+        // Actualizar el contenedor de bimestres para el nuevo criterio
+        if (bimestresGlobales.length > 0) {
+            updateBimestresContainer(newCriterio, newIndex);
+        }
+
         // Inicializar eventos para los nuevos botones
-        initializeBimestreButtons(newIndex);
         initializeGradoButtons(newIndex);
-        // Habilitar botones de eliminar
         updateRemoveButtons();
     });
 
     // Función para inicializar botones de bimestres
     function initializeBimestreButtons(index) {
-        // Seleccionar todos los bimestres
-        document.querySelector(`.select-all-bimestres[data-index="${index}"]`).addEventListener('click', function() {
-            const checkboxes = document.querySelectorAll(`.bimestre-checkbox[name="criterios[${index}][bimestres][]"]`);
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = true;
-            });
-        });
+        const selectAllBtn = document.querySelector(`.select-all-bimestres[data-index="${index}"]`);
+        const clearBtn = document.querySelector(`.clear-bimestres[data-index="${index}"]`);
 
-        // Limpiar todos los bimestres
-        document.querySelector(`.clear-bimestres[data-index="${index}"]`).addEventListener('click', function() {
-            const checkboxes = document.querySelectorAll(`.bimestre-checkbox[name="criterios[${index}][bimestres][]"]`);
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = false;
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                const checkboxes = document.querySelectorAll(`.bimestre-checkbox[name="criterios[${index}][periodos_bimestres][]"]`);
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                });
             });
-        });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                const checkboxes = document.querySelectorAll(`.bimestre-checkbox[name="criterios[${index}][periodos_bimestres][]"]`);
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
+        }
     }
 
     // Función para inicializar botones de grados
     function initializeGradoButtons(index) {
-        // Seleccionar todos los grados
-        document.querySelector(`.select-all-grados[data-index="${index}"]`).addEventListener('click', function() {
-            const checkboxes = document.querySelectorAll(`.grado-checkbox[name="criterios[${index}][grados][]"]`);
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = true;
-            });
-        });
+        const selectAllBtn = document.querySelector(`.select-all-grados[data-index="${index}"]`);
+        const clearBtn = document.querySelector(`.clear-grados[data-index="${index}"]`);
 
-        // Limpiar todos los grados
-        document.querySelector(`.clear-grados[data-index="${index}"]`).addEventListener('click', function() {
-            const checkboxes = document.querySelectorAll(`.grado-checkbox[name="criterios[${index}][grados][]"]`);
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = false;
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                const checkboxes = document.querySelectorAll(`.grado-checkbox[name="criterios[${index}][grados][]"]`);
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                });
             });
-        });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                const checkboxes = document.querySelectorAll(`.grado-checkbox[name="criterios[${index}][grados][]"]`);
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
+        }
     }
-
-    // Inicializar botones para el primer criterio
-    initializeBimestreButtons(0);
-    initializeGradoButtons(0);
 
     // Función para actualizar botones de eliminar
     function updateRemoveButtons() {
         const removeButtons = document.querySelectorAll('.remove-criterio');
-        removeButtons.forEach((button, index) => {
-            // Habilitar todos los botones excepto el primero si hay más de uno
+        removeButtons.forEach((button, idx) => {
             if (removeButtons.length > 1) {
                 button.disabled = false;
             } else {
                 button.disabled = true;
             }
 
-            // Remover event listeners existentes y agregar nuevo
             button.replaceWith(button.cloneNode(true));
         });
 
-        // Agregar event listeners a los nuevos botones
         document.querySelectorAll('.remove-criterio').forEach(button => {
             button.addEventListener('click', function() {
                 if (document.querySelectorAll('.criterio-item').length > 1) {
@@ -507,7 +516,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const header = item.querySelector('.card-header h6');
             header.textContent = `Criterio #${index + 1}`;
 
-            // Actualizar los índices en los names de los inputs
+            // Actualizar names de inputs
             const inputs = item.querySelectorAll('input, select, textarea');
             inputs.forEach(input => {
                 const name = input.getAttribute('name');
@@ -517,22 +526,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            // Actualizar los IDs y data-index de los checkboxes y botones
+            // Actualizar IDs de bimestres
             const bimestreCheckboxes = item.querySelectorAll('.bimestre-checkbox');
-            bimestreCheckboxes.forEach((checkbox, checkboxIndex) => {
-                const newId = `bimestre${checkboxIndex + 1}_${index}`;
+            bimestreCheckboxes.forEach(checkbox => {
+                const oldId = checkbox.getAttribute('id');
+                const newId = oldId.replace(/_\d+$/, `_${index}`);
                 checkbox.setAttribute('id', newId);
-                checkbox.nextElementSibling.setAttribute('for', newId);
+                if (checkbox.nextElementSibling) {
+                    checkbox.nextElementSibling.setAttribute('for', newId);
+                }
             });
 
+            // Actualizar IDs de grados
             const gradoCheckboxes = item.querySelectorAll('.grado-checkbox');
             gradoCheckboxes.forEach(checkbox => {
                 const oldId = checkbox.getAttribute('id');
                 const newId = oldId.replace(/_\d+$/, `_${index}`);
                 checkbox.setAttribute('id', newId);
-                checkbox.nextElementSibling.setAttribute('for', newId);
+                if (checkbox.nextElementSibling) {
+                    checkbox.nextElementSibling.setAttribute('for', newId);
+                }
             });
 
+            // Actualizar data-index de botones
             const selectAllBimestres = item.querySelector('.select-all-bimestres');
             const clearBimestres = item.querySelector('.clear-bimestres');
             const selectAllGrados = item.querySelector('.select-all-grados');
@@ -543,38 +559,37 @@ document.addEventListener('DOMContentLoaded', function() {
             if (selectAllGrados) selectAllGrados.setAttribute('data-index', index);
             if (clearGrados) clearGrados.setAttribute('data-index', index);
 
-            // Actualizar los IDs de los mensajes de error
-            const bimestreError = item.querySelector('#bimestre-error-\\d+');
-            const gradoError = item.querySelector('#grado-error-\\d+');
-
-            if (bimestreError) bimestreError.setAttribute('id', `bimestre-error-${index}`);
-            if (gradoError) gradoError.setAttribute('id', `grado-error-${index}`);
+            // Actualizar ID del contenedor de bimestres
+            const bimestresContainer = item.querySelector('[id^="bimestres-container-"]');
+            if (bimestresContainer) {
+                bimestresContainer.setAttribute('id', `bimestres-container-${index}`);
+            }
         });
         criterioCount = document.querySelectorAll('.criterio-item').length;
     }
 
     // Validación del formulario
     document.getElementById('criterioForm').addEventListener('submit', function(e) {
-        const materiaSelect = document.getElementById('materia_id');
-        const competenciaSelect = document.getElementById('materia_competencia_id');
-
         if (!materiaSelect.value) {
             e.preventDefault();
             alert('Por favor selecciona una materia.');
-            materiaSelect.focus();
             return false;
         }
 
         if (!competenciaSelect.value) {
             e.preventDefault();
             alert('Por favor selecciona una competencia.');
-            competenciaSelect.focus();
             return false;
         }
 
-        // Validar que al menos un criterio tenga nombre
-        const criterioNombres = document.querySelectorAll('input[name^="criterios"][name$="[nombre]"]');
+        if (!periodoSelect.value) {
+            e.preventDefault();
+            alert('Por favor selecciona un período escolar.');
+            return false;
+        }
+
         let hasValidCriterio = false;
+        const criterioNombres = document.querySelectorAll('input[name^="criterios"][name$="[nombre]"]');
         criterioNombres.forEach(input => {
             if (input.value.trim() !== '') {
                 hasValidCriterio = true;
@@ -587,7 +602,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
 
-        // Validar que cada criterio tenga al menos un bimestre seleccionado
+        // Validar bimestres
         let allHaveBimestres = true;
         document.querySelectorAll('.criterio-item').forEach((item, index) => {
             const bimestreCheckboxes = item.querySelectorAll('.bimestre-checkbox:checked');
@@ -595,13 +610,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (bimestreCheckboxes.length === 0) {
                 allHaveBimestres = false;
-                if (errorDiv) {
-                    errorDiv.classList.remove('d-none');
-                }
+                if (errorDiv) errorDiv.classList.remove('d-none');
             } else {
-                if (errorDiv) {
-                    errorDiv.classList.add('d-none');
-                }
+                if (errorDiv) errorDiv.classList.add('d-none');
             }
         });
 
@@ -611,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
 
-        // Validar que cada criterio tenga al menos un grado seleccionado
+        // Validar grados
         let allHaveGrados = true;
         document.querySelectorAll('.criterio-item').forEach((item, index) => {
             const gradoCheckboxes = item.querySelectorAll('.grado-checkbox:checked');
@@ -619,13 +630,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (gradoCheckboxes.length === 0) {
                 allHaveGrados = false;
-                if (errorDiv) {
-                    errorDiv.classList.remove('d-none');
-                }
+                if (errorDiv) errorDiv.classList.remove('d-none');
             } else {
-                if (errorDiv) {
-                    errorDiv.classList.add('d-none');
-                }
+                if (errorDiv) errorDiv.classList.add('d-none');
             }
         });
 
@@ -636,66 +643,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Inicializar botones de eliminar
+    // Inicializar
+    initializeGradoButtons(0);
     updateRemoveButtons();
 
-    // Si hay una materia seleccionada en old(), cargar sus competencias
+    // Si hay un período seleccionado en old(), cargar bimestres
+    @if(old('periodo_id'))
+        periodoSelect.value = "{{ old('periodo_id') }}";
+        periodoSelect.dispatchEvent(new Event('change'));
+    @endif
+
+    // Si hay una materia seleccionada en old(), cargar competencias
     @if(old('materia_id'))
         materiaSelect.dispatchEvent(new Event('change'));
-        // Esperar un momento para seleccionar la competencia
         setTimeout(() => {
             competenciaSelect.value = "{{ old('materia_competencia_id') }}";
         }, 500);
     @endif
 });
 </script>
-
-<style>
-.criterio-item {
-    border-left: 4px solid #1cc88a;
-}
-
-.criterio-item .card-header {
-    background-color: #f8f9fa !important;
-}
-
-.remove-criterio:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.form-check {
-    margin-bottom: 0.3rem;
-}
-
-.border.rounded {
-    border-color: #dee2e6 !important;
-}
-
-.text-primary.small {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    border-bottom: 1px solid #dee2e6;
-    padding-bottom: 0.2rem;
-}
-
-/* Scroll personalizado para el contenedor de grados */
-.bg-light[style*="max-height"]::-webkit-scrollbar {
-    width: 6px;
-}
-
-.bg-light[style*="max-height"]::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-}
-
-.bg-light[style*="max-height"]::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 3px;
-}
-
-.bg-light[style*="max-height"]::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-</style>
 @endsection

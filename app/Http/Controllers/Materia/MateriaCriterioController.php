@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Materia\Materiacompetencia;
 use App\Models\Materia\Materiacriterio;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Models\Materia;
+use App\Models\Periodo;
+use App\Models\Periodobimestre;
 use App\Models\Grado;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
@@ -25,28 +28,60 @@ class MateriaCriterioController extends Controller
 
     public function index(Request $request)
     {
+        // Validar que se haya seleccionado un período
+        if (!$request->has('periodo_id') || !$request->periodo_id) {
+            // Si no hay período seleccionado, mostrar un mensaje y no cargar criterios
+            $materias = Materia::where('estado', 1)->orderBy('nombre')->get();
+            $grados = Grado::where('estado', 1)->orderBy('grado')->orderBy('seccion')->get();
+            $periodos = Periodo::where('estado', 1)
+                ->where('tipo_periodo', 'año escolar')
+                ->orderBy('anio', 'desc')
+                ->get();
+
+            $criteriosAgrupados = collect(); // Vacío
+
+            return view('materia.materiacriterio.index', compact(
+                'criteriosAgrupados',
+                'materias',
+                'grados',
+                'periodos'
+            ));
+        }
+
         $materias = Materia::where('estado', 1)->orderBy('nombre')->get();
         $grados = Grado::where('estado', 1)->orderBy('grado')->orderBy('seccion')->get();
 
-        // Obtener años únicos de los criterios
-        $anios = Materiacriterio::select('anio')
-            ->distinct()
+        // Obtener períodos de tipo 'año escolar'
+        $periodos = Periodo::where('estado', 1)
+            ->where('tipo_periodo', 'año escolar')
             ->orderBy('anio', 'desc')
-            ->pluck('anio');
+            ->get();
 
-        // Obtener bimestres únicos
-        $bimestres = Materiacriterio::select('bimestre')
-            ->distinct()
+        // Obtener periodos_bimestres según el período seleccionado
+        $periodosBimestres = Periodobimestre::where('periodo_id', $request->periodo_id)
             ->orderBy('bimestre')
-            ->pluck('bimestre');
+            ->get();
 
-        $criteriosQuery = Materiacriterio::with(['materia', 'grado', 'materiaCompetencia'])
-            ->orderBy('materia_id')
-            ->orderBy('anio', 'desc')
-            ->orderBy('bimestre')
-            ->orderBy('grado_id');
+        // Query base con eager loading
+        $criteriosQuery = Materiacriterio::with([
+            'materia',
+            'grado',
+            'materiaCompetencia',
+            'periodoBimestre',
+            'periodoBimestre.periodo'
+        ]);
 
-        // Aplicar filtros
+        // Aplicar filtros obligatorios
+        if ($request->has('periodo_bimestre_id') && $request->periodo_bimestre_id) {
+            $criteriosQuery->where('periodo_bimestre_id', $request->periodo_bimestre_id);
+        } else {
+            // Si no hay bimestre específico, filtrar por todos los bimestres del período
+            $criteriosQuery->whereHas('periodoBimestre', function($query) use ($request) {
+                $query->where('periodo_id', $request->periodo_id);
+            });
+        }
+
+        // Aplicar filtros opcionales
         if ($request->has('materia_id') && $request->materia_id) {
             $criteriosQuery->where('materia_id', $request->materia_id);
         }
@@ -55,22 +90,16 @@ class MateriaCriterioController extends Controller
             $criteriosQuery->where('grado_id', $request->grado_id);
         }
 
-        if ($request->has('anio') && $request->anio) {
-            $criteriosQuery->where('anio', $request->anio);
-        }
+        $criterios = $criteriosQuery->orderBy('materia_id')
+            ->orderBy('grado_id')
+            ->get();
 
-        if ($request->has('bimestre') && $request->bimestre) {
-            $criteriosQuery->where('bimestre', $request->bimestre);
-        }
-
-        $criterios = $criteriosQuery->get();
-
-        // Agrupar por competencia (manteniendo tu lógica actual)
+        // Agrupar por competencia
         $criteriosAgrupados = $criterios->groupBy(function($criterio) {
             return $criterio->materiaCompetencia->nombre ?? 'Sin Competencia';
         });
 
-        // Asignar colores (manteniendo tu lógica actual)
+        // Asignar colores
         $colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#5a5c69'];
         $colorIndex = 0;
 
@@ -85,124 +114,122 @@ class MateriaCriterioController extends Controller
             'criteriosAgrupados',
             'materias',
             'grados',
-            'anios',
-            'bimestres'
+            'periodos',
+            'periodosBimestres'
         ));
-    }
-    // Función helper para determinar el tipo de filtro
-    protected function determinarTipoFiltro($id)
-    {
-        // Aquí deberías implementar lógica para determinar si el ID es de materia, grado o competencia
-        // Esto es un ejemplo básico - ajusta según tu necesidad
-        if (Materia::where('id', $id)->exists()) {
-            return ['campo' => 'materia_id', 'tipo' => 'materia'];
-        } elseif (Grado::where('id', $id)->exists()) {
-            return ['campo' => 'grado_id', 'tipo' => 'grado'];
-        } else {
-            return ['campo' => 'materia_competencia_id', 'tipo' => 'competencia'];
-        }
     }
 
     public function create()
-{
-    $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
+    {
+        $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
 
-    $grados = Grado::where('estado', 1)
-                ->orderByRaw("
-                    CASE
-                        WHEN nivel = 'Primaria' THEN 1
-                        WHEN nivel = 'Secundaria' THEN 2
-                        ELSE 3
-                    END,
-                    grado ASC,
-                    seccion ASC
-                ")
-                ->get();
+        $grados = Grado::where('estado', 1)
+                    ->orderByRaw("
+                        CASE
+                            WHEN nivel = 'Primaria' THEN 1
+                            WHEN nivel = 'Secundaria' THEN 2
+                            ELSE 3
+                        END,
+                        grado ASC,
+                        seccion ASC
+                    ")
+                    ->get();
 
-    $anios = range(date('Y') - 1, date('Y') + 1);
+        // Obtener períodos activos de tipo 'año escolar'
+        $periodos = Periodo::where('estado', 1)
+                    ->where('tipo_periodo', 'año escolar')
+                    ->orderBy('anio', 'desc')
+                    ->get();
 
-    return view('materia.materiacriterio.create', compact(
-        'materias',
-        'grados',
-        'anios'
-    ));
-}
-public function store(Request $request)
-{
-    $request->validate([
-        'materia_id' => 'required|exists:materias,id',
-        'materia_competencia_id' => 'required|exists:materia_competencias,id',
-        'criterios' => 'required|array|min:1',
-        'criterios.*.nombre' => 'required|string|max:255',
-        'criterios.*.descripcion' => 'nullable|string',
-        'criterios.*.anio' => 'required|numeric|min:2020|max:2030',
-        'criterios.*.bimestres' => 'required|array|min:1', // Cambiado a bimestres (plural)
-        'criterios.*.bimestres.*' => 'in:1,2,3,4', // Validación para cada bimestre
-        'criterios.*.grados' => 'required|array|min:1',
-        'criterios.*.grados.*' => 'exists:grados,id',
-    ]);
+        return view('materia.materiacriterio.create', compact(
+            'materias',
+            'grados',
+            'periodos'
+        ));
+    }
+    public function store(Request $request)
+    {
+        $request->validate([
+            'materia_id' => 'required|exists:materias,id',
+            'materia_competencia_id' => 'required|exists:materia_competencias,id',
+            'criterios' => 'required|array|min:1',
+            'criterios.*.nombre' => 'required|string|max:255',
+            'criterios.*.descripcion' => 'nullable|string',
+            'criterios.*.periodos_bimestres' => 'required|array|min:1',
+            'criterios.*.periodos_bimestres.*' => 'exists:periodo_bimestres,id',
+            'criterios.*.grados' => 'required|array|min:1',
+            'criterios.*.grados.*' => 'exists:grados,id',
+        ]);
 
-    try {
-        $criteriosCreados = 0;
+        try {
+            DB::beginTransaction();
 
-        foreach ($request->criterios as $criterioData) {
-            foreach ($criterioData['grados'] as $gradoId) {
-                foreach ($criterioData['bimestres'] as $bimestre) { // Ahora iteramos sobre bimestres
-                    // Verificar si el criterio ya existe para esta competencia, grado, año y bimestre
-                    $existe = Materiacriterio::where('materia_competencia_id', $request->materia_competencia_id)
-                        ->where('grado_id', $gradoId)
-                        ->where('anio', $criterioData['anio'])
-                        ->where('bimestre', $bimestre) // Usamos $bimestre del array
-                        ->where('nombre', $criterioData['nombre'])
-                        ->exists();
+            $criteriosCreados = 0;
 
-                    if (!$existe) {
-                        Materiacriterio::create([
-                            'materia_competencia_id' => $request->materia_competencia_id,
-                            'materia_id' => $request->materia_id,
-                            'grado_id' => $gradoId,
-                            'anio' => $criterioData['anio'],
-                            'bimestre' => $bimestre, // Usamos $bimestre del array
-                            'nombre' => $criterioData['nombre'],
-                            'descripcion' => $criterioData['descripcion'] ?? null,
-                        ]);
-                        $criteriosCreados++;
+            foreach ($request->criterios as $criterioData) {
+                foreach ($criterioData['grados'] as $gradoId) {
+                    foreach ($criterioData['periodos_bimestres'] as $periodoBimestreId) {
+                        // Verificar si el criterio ya existe
+                        $existe = Materiacriterio::where('materia_competencia_id', $request->materia_competencia_id)
+                            ->where('grado_id', $gradoId)
+                            ->where('periodo_bimestre_id', $periodoBimestreId)
+                            ->where('nombre', $criterioData['nombre'])
+                            ->exists();
+
+                        if (!$existe) {
+                            Materiacriterio::create([
+                                'materia_competencia_id' => $request->materia_competencia_id,
+                                'materia_id' => $request->materia_id,
+                                'grado_id' => $gradoId,
+                                'periodo_bimestre_id' => $periodoBimestreId,
+                                'nombre' => $criterioData['nombre'],
+                                'descripcion' => $criterioData['descripcion'] ?? null,
+                            ]);
+                            $criteriosCreados++;
+                        }
                     }
                 }
             }
-        }
 
-        if ($criteriosCreados > 0) {
-            return redirect()->route('materiacriterio.index')
-                ->with('success', "{$criteriosCreados} criterio(s) creado(s) exitosamente.");
-        } else {
+            DB::commit();
+
+            if ($criteriosCreados > 0) {
+                return redirect()->route('materiacriterio.index')
+                    ->with('success', "{$criteriosCreados} criterio(s) creado(s) exitosamente.");
+            } else {
+                return redirect()->back()
+                    ->with('warning', 'No se crearon criterios nuevos. Puede que ya existan con la misma configuración.')
+                    ->withInput();
+            }
+
+        } catch (\Exception $e) {
+            DB::rollback();
             return redirect()->back()
-                ->with('warning', 'No se crearon criterios nuevos. Puede que ya existan con la misma configuración.')
+                ->with('error', 'Error al crear los criterios: ' . $e->getMessage())
                 ->withInput();
         }
-
-    } catch (\Exception $e) {
-        return redirect()->back()
-            ->with('error', 'Error al crear los criterios: ' . $e->getMessage())
-            ->withInput();
     }
-}
+    public function getBimestres($periodo_id)
+    {
+        try {
+            $bimestres = Periodobimestre::where('periodo_id', $periodo_id)
+                        ->with('periodo')
+                        ->orderBy('bimestre')
+                        ->get();
 
-
+            return response()->json($bimestres);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
     public function edit($id)
     {
         // Obtener el criterio específico
-        $criterio = MateriaCriterio::findOrFail($id);
-
-        // Obtener todos los criterios con el mismo nombre, materia y competencia (para edición múltiple)
-        $criteriosRelacionados = MateriaCriterio::where('nombre', $criterio->nombre)
-            ->where('materia_id', $criterio->materia_id)
-            ->where('materia_competencia_id', $criterio->materia_competencia_id)
-            ->where('anio', $criterio->anio)
-            ->get();
+        $criterio = MateriaCriterio::with(['periodoBimestre.periodo'])->findOrFail($id);
 
         // Obtener datos para los selects
-        $materia = Materia::findOrFail($criterio->materia_id);
+        $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
+
         $grados = Grado::where('estado', 1)
                     ->orderByRaw("
                         CASE
@@ -216,83 +243,96 @@ public function store(Request $request)
                     ->get();
 
         $competencias = MateriaCompetencia::where('materia_id', $criterio->materia_id)
-        ->where('estado', "1")
-        ->get();
+                        ->where('estado', "1")
+                        ->orderBy('nombre')
+                        ->get();
 
-        return view('materia.materiacriterio.edit', [
-            'criterio' => $criterio,
-            'criteriosRelacionados' => $criteriosRelacionados,
-            'materia' => $materia,
-            'grados' => $grados,
-            'competencias' => $competencias,
-            'anios' => range(date('Y') - 1, date('Y') + 1),
-            'gradosSeleccionados' => $criteriosRelacionados->pluck('grado_id')->toArray()
-        ]);
+        // Obtener períodos activos
+        $periodos = Periodo::where('estado', 1)
+                    ->where('tipo_periodo', 'año escolar')
+                    ->orderBy('anio', 'desc')
+                    ->get();
+
+        // Obtener bimestres del período actual del criterio
+        $bimestresDelPeriodo = Periodobimestre::where('periodo_id', $criterio->periodoBimestre->periodo_id)
+                                ->orderBy('bimestre')
+                                ->get();
+
+        return view('materia.materiacriterio.edit', compact(
+            'criterio',
+            'materias',
+            'grados',
+            'competencias',
+            'periodos',
+            'bimestresDelPeriodo'
+        ));
     }
-
     public function update(Request $request, $id)
     {
         $validated = $request->validate([
-            'materia_id' => 'required|exists:materias,id',
-            'materia_competencia_id' => 'required|exists:materia_competencias,id',
-            'grados' => 'required|array',
-            'grados.*' => 'exists:grados,id',
-            'nombre' => 'required|string|max:255',
+            'nombre' => 'required|string|max:500',
             'descripcion' => 'nullable|string',
-            'anio' => 'required|numeric|min:2020|max:2030'
+            'grado_id' => 'required|exists:grados,id',
+            'periodo_id' => 'required|exists:periodos,id',
+            'periodo_bimestre_id' => 'required|exists:periodo_bimestres,id'
         ]);
 
-        // 1. Actualizar el criterio específico que se está editando
-        $criterio = MateriaCriterio::findOrFail($id);
-        $criterio->update([
-            'materia_competencia_id' => $request->materia_competencia_id,
-            'nombre' => $request->nombre,
-            'descripcion' => $request->descripcion,
-            'anio' => $request->anio,
-            'grado_id' => $request->grados[0] // Tomamos el primer grado seleccionado
-        ]);
+        try {
+            $criterio = MateriaCriterio::findOrFail($id);
 
-        // 2. Manejar grados adicionales seleccionados
-        if (count($request->grados) > 1) {
-            // Obtener los grados adicionales (excluyendo el primero que ya actualizamos)
-            $gradosAdicionales = array_slice($request->grados, 1);
+            $criterio->update([
+                'nombre' => $request->nombre,
+                'descripcion' => $request->descripcion,
+                'grado_id' => $request->grado_id,
+                'periodo_bimestre_id' => $request->periodo_bimestre_id
+                // No actualizamos materia_id ni materia_competencia_id
+            ]);
 
-            // Crear nuevos criterios para los grados adicionales
-            foreach ($gradosAdicionales as $grado_id) {
-                MateriaCriterio::create([
-                    'materia_id' => $request->materia_id,
-                    'materia_competencia_id' => $request->materia_competencia_id,
-                    'grado_id' => $grado_id,
-                    'nombre' => $request->nombre,
-                    'descripcion' => $request->descripcion,
-                    'anio' => $request->anio
-                ]);
-            }
+            return redirect()
+                ->route('materiacriterio.index')
+                ->with('success', 'Criterio actualizado exitosamente.');
+
+        } catch (\Exception $e) {
+            return redirect()
+                ->back()
+                ->with('error', 'Error al actualizar el criterio: ' . $e->getMessage())
+                ->withInput();
         }
-
-        return redirect()
-            ->route('materiacriterio.index', $request->materia_id)
-            ->with('success', 'Criterio actualizado exitosamente');
     }
-
     public function destroy($id)
     {
         try {
-            $criterio = Materiacriterio::findOrFail($id);
-            $competenciaId = $criterio->materia_competencia_id;
-            $criterio->delete();
+            DB::beginTransaction();
 
-            return redirect()->route('materiacriterio.index', $competenciaId)
-                ->with('success', 'Criterio eliminado exitosamente.');
+            $criterio = MateriaCriterio::findOrFail($id);
+
+            // Eliminar todos los criterios relacionados (mismo nombre, materia, competencia y período)
+            $deletedCount = MateriaCriterio::where('nombre', $criterio->nombre)
+                ->where('materia_id', $criterio->materia_id)
+                ->where('materia_competencia_id', $criterio->materia_competencia_id)
+                ->where('periodo_bimestre_id', $criterio->periodo_bimestre_id)
+                ->delete();
+
+            DB::commit();
+
+            return redirect()->route('materiacriterio.index')
+                ->with('success', "Criterio eliminado exitosamente. Se eliminaron {$deletedCount} registro(s).");
+
         } catch (\Exception $e) {
-            return redirect()->route('materiacriterio.index', $competenciaId ?? 0)
+            DB::rollback();
+            return redirect()->route('materiacriterio.index')
                 ->with('error', 'Error al eliminar el criterio: ' . $e->getMessage());
         }
     }
     public function importar()
     {
         $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
-        return view('materia.materiacriterio.importar', compact('materias'));
+        $periodos = Periodo::where('estado', '1')
+                    ->where('tipo_periodo', 'año escolar')
+                    ->orderBy('anio', 'desc')
+                    ->get();
+
+        return view('materia.materiacriterio.importar', compact('materias', 'periodos'));
     }
     public function importarCriterio(Request $request)
     {
@@ -301,9 +341,7 @@ public function store(Request $request)
             $accion = $request->input('accion');
 
             if ($accion === 'cancelar') {
-                // Limpiar sesión y cancelar
                 session()->forget('import_data');
-
                 return redirect()->route('materiacriterio.importar')
                     ->with('info', 'Importación cancelada.');
             }
@@ -313,12 +351,20 @@ public function store(Request $request)
             }
         }
 
-        // Paso 1: Validación inicial del archivo
+        // Validación inicial del archivo y período
         $request->validate([
             'archivo_excel' => 'required|file|mimes:xlsx,xls|max:2048',
+            'periodo_id' => 'required|exists:periodos,id'
         ]);
 
         try {
+            $periodoId = $request->periodo_id;
+
+            // Obtener todos los bimestres del período seleccionado
+            $bimestresDisponibles = Periodobimestre::where('periodo_id', $periodoId)
+                ->get()
+                ->keyBy('sigla'); // Indexar por sigla para búsqueda rápida
+
             $spreadsheet = IOFactory::load($request->file('archivo_excel'));
             $sheet = $spreadsheet->getActiveSheet();
             $rows = $sheet->toArray();
@@ -337,10 +383,10 @@ public function store(Request $request)
                 try {
                     // Validar campos obligatorios
                     if (empty($row[0]) || empty($row[1]) || empty($row[2]) || empty($row[4]) ||
-                        empty($row[5]) || empty($row[6]) || empty($row[7]) || empty($row[8])) {
+                        empty($row[5]) || empty($row[6]) || empty($row[7])) {
                         $errores[] = [
                             'fila' => $numeroFila,
-                            'error' => "Faltan campos obligatorios (Materia, Competencia, Nombre, Grado, Sección, Nivel, Año y Bimestre son requeridos)"
+                            'error' => "Faltan campos obligatorios (Materia, Competencia, Nombre, Grado, Sección, Nivel y Sigla son requeridos)"
                         ];
                         continue;
                     }
@@ -352,17 +398,7 @@ public function store(Request $request)
                     $gradoNumero = trim($row[4]);
                     $seccion = trim($row[5]);
                     $nivel = trim($row[6]);
-                    $anio = trim($row[7]);
-                    $bimestre = trim($row[8]);
-
-                    // Validar formato del año
-                    if (!is_numeric($anio) || strlen($anio) != 4) {
-                        $errores[] = [
-                            'fila' => $numeroFila,
-                            'error' => "El año '$anio' no tiene un formato válido (debe ser 4 dígitos)"
-                        ];
-                        continue;
-                    }
+                    $siglaPeriodoBimestre = trim($row[7]);
 
                     // Validar formato del grado
                     if (!is_numeric($gradoNumero)) {
@@ -373,15 +409,17 @@ public function store(Request $request)
                         continue;
                     }
 
-                    // Validar bimestre
-                    $bimestresValidos = ['1', '2', '3', '4'];
-                    if (!in_array($bimestre, $bimestresValidos)) {
+                    // Buscar el periodo_bimestre por sigla
+                    if (!isset($bimestresDisponibles[$siglaPeriodoBimestre])) {
                         $errores[] = [
                             'fila' => $numeroFila,
-                            'error' => "El bimestre '$bimestre' no es válido. Debe ser: 1, 2, 3 o 4"
+                            'error' => "La sigla '$siglaPeriodoBimestre' no existe en el período seleccionado"
                         ];
                         continue;
                     }
+
+                    $periodoBimestre = $bimestresDisponibles[$siglaPeriodoBimestre];
+                    $bimestreId = $periodoBimestre->id;
 
                     // Buscar la materia
                     $materia = Materia::where('nombre', $materiaNombre)
@@ -428,25 +466,24 @@ public function store(Request $request)
                     // Verificar duplicados en base de datos
                     $criterioExistente = Materiacriterio::where('materia_competencia_id', $competencia->id)
                         ->where('grado_id', $grado->id)
-                        ->where('anio', $anio)
-                        ->where('bimestre', $bimestre)
+                        ->where('periodo_bimestre_id', $bimestreId)
                         ->where('nombre', $criterioNombre)
                         ->first();
 
                     if ($criterioExistente) {
                         $duplicados[] = [
                             'fila' => $numeroFila,
-                            'error' => "El criterio '$criterioNombre' ya existe para la competencia '$competenciaNombre', grado " . $grado->nombreCompleto . ", año '$anio' y bimestre '$bimestre'"
+                            'error' => "El criterio '$criterioNombre' ya existe para la competencia '$competenciaNombre', grado " . $grado->nombreCompleto . " y bimestre '$siglaPeriodoBimestre'"
                         ];
                         continue;
                     }
 
                     // Verificar duplicados dentro del archivo
-                    $claveCriterio = $competencia->id . '-' . $grado->id . '-' . $anio . '-' . $bimestre . '-' . $criterioNombre;
+                    $claveCriterio = $competencia->id . '-' . $grado->id . '-' . $bimestreId . '-' . $criterioNombre;
                     if (in_array($claveCriterio, $criteriosProcesados)) {
                         $duplicados[] = [
                             'fila' => $numeroFila,
-                            'error' => "Criterio duplicado en el archivo - '$criterioNombre' para competencia '$competenciaNombre', grado " . $grado->nombreCompleto . ", año '$anio' y bimestre '$bimestre'"
+                            'error' => "Criterio duplicado en el archivo - '$criterioNombre' para competencia '$competenciaNombre', grado " . $grado->nombreCompleto . " y bimestre '$siglaPeriodoBimestre'"
                         ];
                         continue;
                     }
@@ -460,11 +497,12 @@ public function store(Request $request)
                             'criterio' => $criterioNombre,
                             'descripcion' => $criterioDescripcion,
                             'grado' => $grado->nombreCompleto ?? ($gradoNumero . '° ' . $seccion . ' - ' . $nivel),
-                            'anio' => $anio,
-                            'bimestre' => $bimestre,
+                            'sigla' => $siglaPeriodoBimestre,
+                            'bimestre_info' => $periodoBimestre->bimestre,
                             'materia_id' => $materia->id,
                             'competencia_id' => $competencia->id,
-                            'grado_id' => $grado->id
+                            'grado_id' => $grado->id,
+                            'periodo_bimestre_id' => $bimestreId
                         ]
                     ];
 
@@ -484,7 +522,7 @@ public function store(Request $request)
                 'total_registros' => $totalRegistros,
                 'errores' => $errores,
                 'duplicados' => $duplicados,
-                'archivo_temp' => $request->file('archivo_excel')->getRealPath()
+                'periodo_id' => $periodoId
             ]);
 
             // Devolver a la vista con datos de validación
@@ -502,8 +540,6 @@ public function store(Request $request)
                 ->withInput();
         }
     }
-
-    // Método privado para procesar la importación
     private function procesarImportacion(Request $request)
     {
         try {
@@ -525,8 +561,7 @@ public function store(Request $request)
                         'materia_competencia_id' => $registro['datos']['competencia_id'],
                         'materia_id' => $registro['datos']['materia_id'],
                         'grado_id' => $registro['datos']['grado_id'],
-                        'anio' => $registro['datos']['anio'],
-                        'bimestre' => $registro['datos']['bimestre'],
+                        'periodo_bimestre_id' => $registro['datos']['periodo_bimestre_id'],
                         'nombre' => $registro['datos']['criterio'],
                         'descripcion' => $registro['datos']['descripcion'],
                     ]);

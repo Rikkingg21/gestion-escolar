@@ -95,8 +95,7 @@
                                             <th>Competencia</th>
                                             <th>Criterio</th>
                                             <th>Grado</th>
-                                            <th>Año</th>
-                                            <th>Bimestre</th>
+                                            <th>Sigla</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -107,8 +106,7 @@
                                             <td>{{ $registro['datos']['competencia'] }}</td>
                                             <td>{{ $registro['datos']['criterio'] }}</td>
                                             <td>{{ $registro['datos']['grado'] }}</td>
-                                            <td>{{ $registro['datos']['anio'] }}</td>
-                                            <td>{{ $registro['datos']['bimestre'] }}</td>
+                                            <td><span class="badge bg-info">{{ $registro['datos']['sigla'] }}</span></td>
                                         </tr>
                                         @endforeach
                                     </tbody>
@@ -247,9 +245,27 @@
                         @csrf
 
                         <div class="form-group mb-3">
+                            <label for="periodo_id" class="form-label text-danger fw-semibold">
+                                Período Escolar *
+                            </label>
+                            <select name="periodo_id" id="periodo_id" class="form-select" required>
+                                <option value="">Seleccione un período</option>
+                                @foreach($periodos as $periodo)
+                                    <option value="{{ $periodo->id }}" {{ old('periodo_id') == $periodo->id ? 'selected' : '' }}>
+                                        {{ $periodo->nombre }} ({{ $periodo->anio }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="form-text text-danger">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                El período seleccionado debe coincidir con las siglas de bimestres en tu archivo
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
                             <label for="archivo_excel" class="form-label">Archivo Excel *</label>
                             <input type="file" name="archivo_excel" id="archivo_excel"
-                                   class="form-control" accept=".xlsx,.xls" required>
+                                class="form-control" accept=".xlsx,.xls" required>
                             <div class="form-text">Formatos permitidos: .xlsx, .xls (Tamaño máximo: 2MB)</div>
                         </div>
 
@@ -263,16 +279,20 @@
                                 <li><strong>Columna E:</strong> Grado (debe existir en el sistema)</li>
                                 <li><strong>Columna F:</strong> Sección (debe existir en el sistema)</li>
                                 <li><strong>Columna G:</strong> Nivel (debe existir en el sistema)</li>
-                                <li><strong>Columna H:</strong> Año (obligatorio)</li>
-                                <li><strong>Columna I:</strong> Bimestre (obligatorio)</li>
+                                <li><strong>Columna H:</strong> Sigla del Bimestre (ej: B1, B2, B3, B4, etc. - debe existir en el período seleccionado)</li>
                             </ul>
+                            <hr class="my-2">
+                            <p class="mb-0 small text-muted">
+                                <i class="bi bi-lightbulb me-1"></i>
+                                Las siglas de bimestres deben coincidir con las configuradas en el período seleccionado.
+                            </p>
                         </div>
 
                         <div class="mt-4">
                             <button type="submit" class="btn btn-success" onclick="return validarYMostrarCarga()" id="btn-importar">
                                 <i class="bi bi-search me-2"></i> Validar y Procesar
                             </button>
-                            <a href="{{ route('materiacriterio.index', $materia->id ?? 0) }}" class="btn btn-secondary">
+                            <a href="{{ route('materiacriterio.index') }}" class="btn btn-secondary">
                                 <i class="bi bi-x-circle me-2"></i> Cancelar
                             </a>
                         </div>
@@ -282,7 +302,6 @@
         </div>
 
         <div class="col-md-4">
-            <!-- Contenido de plantilla e instrucciones (igual que antes) -->
             <div class="card shadow mb-4">
                 <div class="card-header py-3 bg-info text-white">
                     <h6 class="m-0 font-weight-bold">
@@ -295,8 +314,11 @@
                         <h5>Plantilla de Criterios</h5>
                         <p class="text-muted">Descarga la plantilla Excel con el formato correcto.</p>
                         <a href="{{ asset('templates/plantilla_materia_criterio.xlsx') }}"
-                           class="btn btn-info btn-block" download>
+                        class="btn btn-info btn-block" download>
                             <i class="bi bi-download me-2"></i> Descargar Plantilla
+                        </a>
+                        <a href="{{ asset('templates/plantilla_materia_criterio_ejemplo.xlsx') }}" class="btn btn-secondary btn-block" download>
+                            <i class="bi bi-download me-2"></i> Descargar Plantilla Ejemplo
                         </a>
                     </div>
                 </div>
@@ -312,7 +334,11 @@
                     <ul class="list-unstyled">
                         <li class="mb-2">
                             <i class="bi bi-check-circle text-success me-2"></i>
-                            Descarga la plantilla primero
+                            Selecciona el período escolar primero
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Descarga la plantilla
                         </li>
                         <li class="mb-2">
                             <i class="bi bi-check-circle text-success me-2"></i>
@@ -320,19 +346,15 @@
                         </li>
                         <li class="mb-2">
                             <i class="bi bi-exclamation-triangle text-warning me-2"></i>
-                            La materia debe existir en el sistema
+                            Las siglas deben coincidir con el período seleccionado
                         </li>
                         <li class="mb-2">
                             <i class="bi bi-exclamation-triangle text-warning me-2"></i>
-                            La competencia debe existir en la materia
+                            La materia y competencia deben existir
                         </li>
                         <li class="mb-2">
                             <i class="bi bi-exclamation-triangle text-warning me-2"></i>
                             El grado debe existir en el sistema
-                        </li>
-                        <li class="mb-2">
-                            <i class="bi bi-check-circle text-success me-2"></i>
-                            Sube el archivo completado
                         </li>
                     </ul>
                 </div>

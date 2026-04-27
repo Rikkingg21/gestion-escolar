@@ -20,6 +20,7 @@ class Periodobimestre extends Model
     protected $fillable = [
         'periodo_id',
         'bimestre',
+        'sigla',
         'fecha_inicio',
         'fecha_fin',
         'tipo_bimestre', //('A' es academico, 'R' es recuperación)

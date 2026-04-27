@@ -200,20 +200,23 @@ Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstu
     Route::get('/materia-criterio/importar', [MateriaCriterioController::class, 'importar'])->name('materiacriterio.importar');
     Route::post('/materia-criterio/importar/criterio', [MateriaCriterioController::class, 'importarCriterio'])->name('importar.criterio');
 
+    Route::get('/materia-criterio/importar-periodo-anterior', [MateriaCriterioController::class, 'importarPeriodo'])->name('materiacriterio.importarPeriodoAnterior');
+
     Route::get('/materia-criterio', [MateriaCriterioController::class, 'index'])->name('materiacriterio.index');
     Route::get('/materia-criterio/create', [MateriaCriterioController::class, 'create'])->name('materiacriterio.create');
     Route::post('/materia-criterio/crear', [MateriaCriterioController::class, 'store'])->name('materiacriterio.store');
     Route::get('/materia-criterio/{materiacriterio}/edit', [MateriaCriterioController::class, 'edit'])->name('materiacriterio.edit');
     Route::put('/materia-criterio/{materiacriterio}', [MateriaCriterioController::class, 'update'])->name('materiacriterio.update');
     Route::delete('/materia-criterio/{id}', [MateriaCriterioController::class, 'destroy'])->name('materiacriterio.destroy');
+    Route::get('/materiacriterio/bimestres/{periodo_id}', [MateriacriterioController::class, 'getBimestres'])->name('materiacriterio.bimestres');
     Route::get('/api/competencias-por-materia/{materiaId}', function($materiaId) {
-    $competencias = Materiacompetencia::where('materia_id', $materiaId)
-        ->where('estado', '1')
-        ->orderBy('nombre')
-        ->get(['id', 'nombre']);
+        $competencias = Materiacompetencia::where('materia_id', $materiaId)
+            ->where('estado', '1')
+            ->orderBy('nombre')
+            ->get(['id', 'nombre']);
 
-    return response()->json($competencias);
-});
+        return response()->json($competencias);
+    });
 
     Route::get('/conducta', [ConductaController::class, 'index'])->name('conducta.index');
     Route::get('/conducta/create', [ConductaController::class, 'create'])->name('conducta.create');

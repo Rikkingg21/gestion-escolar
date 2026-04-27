@@ -1,6 +1,8 @@
 <?php
 use Illuminate\Support\Facades\Route;
 use App\Models\Grado;
+use App\Models\Periodobimestre;
+use App\Models\Materia\Materiacompetencia;
 
 Route::get('/grados-por-nivel/{nivel}', function($nivel) {
     return response()->json(
