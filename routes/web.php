@@ -128,20 +128,13 @@ Route::middleware('auth')->group(function () {
     Route::delete('/maya/{id}', [MayaController::class, 'destroy'])->name('maya.destroy');
     Route::get('/maya/dashboard', [MayaController::class, 'dashboard'])->name('maya.dashboard');
 
-    Route::get('/nota/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'index'])->name('nota.index');
-    Route::get('/nota/create', [NotaController::class, 'create'])->name('nota.create');
+    Route::get('/nota/{curso_grado_sec_niv_anio_id}/{periodo_bimestre_id}', [NotaController::class, 'index'])->name('nota.index');
     Route::post('/nota-guardar', [NotaController::class, 'guardarNotas'])->name('nota.guardarNotas');
-    Route::get('/nota/{id}/edit', [NotaController::class, 'edit'])->name('nota.edit');
-    Route::put('/nota/{id}', [NotaController::class, 'update'])->name('nota.update');
-    Route::delete('/nota/{id}', [NotaController::class, 'destroy'])->name('nota.destroy');
-    Route::post('nota/publicar/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'publicar'])->name('nota.publicar');
-    Route::post('nota/revertir/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'revertir'])->name('nota.revertir');
-    Route::get('nota/revertir-form/{curso_grado_sec_niv_anio_id}/{bimestre}', [NotaController::class, 'showRevertirForm'])->name('nota.revertir.form');
+    Route::post('nota/publicar/{curso_grado_sec_niv_anio_id}/{periodo_bimestre_id}', [NotaController::class, 'publicar'])->name('nota.publicar');
+    Route::post('nota/revertir/{curso_grado_sec_niv_anio_id}/{periodo_bimestre_id}', [NotaController::class, 'revertir'])->name('nota.revertir');
+    Route::get('nota/revertir-form/{curso_grado_sec_niv_anio_id}/{periodo_bimestre_id}', [NotaController::class, 'showRevertirForm'])->name('nota.revertir.form');
 
-    Route::get('/notas/exportar-excel/{curso_grado_sec_niv_anio_id}/{bimestre}',
-    [NotaController::class, 'exportarExcel'])
-    ->name('notas.exportar.excel')
-    ->middleware('auth');
+    Route::get('/notas/exportar-excel/{curso_grado_sec_niv_anio_id}/{periodo_bimestre_id}', [NotaController::class, 'exportarExcel'])->name('notas.exportar.excel');
 
     Route::get('/user', [UserController::class, 'index'])->name('user.index');
     Route::get('/user/create', [UserController::class, 'create'])->name('user.create');
@@ -161,13 +154,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/apoderados/search', [ApoderadoController::class, 'search'])->name('apoderados.search');
 
     Route::get('/user/importar', [UserController::class, 'importar'])->name('user.importar');
-    // Para apoderados
-Route::post('/users/importar/apoderados', [UserController::class, 'importarApoderados'])
-    ->name('importar.apoderados');
-
-// Para estudiantes (cuando lo implementes)
-Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstudiantes'])
-    ->name('importar.estudiantes');
+    Route::post('/users/importar/apoderados', [UserController::class, 'importarApoderados'])->name('importar.apoderados');
+    Route::post('/users/importar/estudiantes', [UserController::class, 'importarEstudiantes'])->name('importar.estudiantes');
 
     Route::get('/grado', [GradoController::class, 'index'])->name('grado.index');
 

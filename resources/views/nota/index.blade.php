@@ -5,9 +5,9 @@
     <!-- Encabezado -->
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">
-            Notas - {{ $grado -> NombreCompleto }} - {{ $materia->nombre }} - Bimestre {{ $bimestre }}
+            Notas - {{ $grado->NombreCompleto }} - {{ $materia->nombre }} - {{ $periodoBimestre->sigla }} (Bimestre {{ $periodoBimestre->bimestre }})
             <span class="h6 text-primary">
-                {{ $periodo->anio }} ({{ $periodo->id }})
+                {{ $periodo->anio }} ({{ $periodo->nombre }})
             </span>
         </h1>
 
@@ -107,6 +107,7 @@
             </div>
         </div>
     </div>
+
     <div class="row mb-4">
         <div class="col-12">
             {{-- Mensajes de error generales del sistema (Validaciones, etc) --}}
@@ -497,7 +498,7 @@
 
             <form action="{{ route('nota.publicar', [
                 'curso_grado_sec_niv_anio_id' => $curso_id,
-                'bimestre' => $bimestre
+                'periodo_bimestre_id' => $periodo_bimestre_id
             ]) }}" method="POST">
                 @csrf
 
@@ -527,6 +528,7 @@
     </div>
 </div>
 @endif
+
 <!-- Modal para revertir notas -->
 @if($puedeRevertir)
 <div class="modal fade" id="revertirModal" tabindex="-1" aria-labelledby="revertirModalLabel" aria-hidden="true">
@@ -542,7 +544,7 @@
 
             <form action="{{ route('nota.revertir', [
                     'curso_grado_sec_niv_anio_id' => $curso_id,
-                    'bimestre' => $bimestre
+                    'periodo_bimestre_id' => $periodo_bimestre_id
                 ]) }}" method="POST">
                 @csrf
 
@@ -631,6 +633,7 @@
     </div>
 </div>
 @endif
+
 <script>
     // CONFIGURACIÓN Y CONSTANTES
     const CONFIG = {
@@ -964,7 +967,7 @@
                     allowOutsideClick: false,
                     didOpen: () => Swal.showLoading()
                 });
-                const url = '{{ route("notas.exportar.excel", ["curso_grado_sec_niv_anio_id" => $curso_id, "bimestre" => $bimestre]) }}?formato=' + formato;
+                const url = '{{ route("notas.exportar.excel", ["curso_grado_sec_niv_anio_id" => $curso_id, "periodo_bimestre_id" => $periodo_bimestre_id]) }}?formato=' + formato;
                 window.location.href = url;
                 setTimeout(() => Swal.close(), 2000);
             }
@@ -1014,12 +1017,10 @@
     $(document).on('click', '.btn-secondary:contains("PDF")', generarPDF);
     $(document).on('click', '#btnExportarExcel', exportarExcel);
 </script>
-
 <script>
     $(document).on('click', '#btnGuardarNotas', function(e) {
         e.preventDefault();
-        // Mostrar loading si tienes función
-        mostrarLoading && mostrarLoading();
+        mostrarLoading();
 
         // Recolectar notas de criterios
         let notas = {};
@@ -1043,7 +1044,7 @@
 
         // Datos adicionales
         let curso_id = "{{ $curso_id }}";
-        let bimestre = "{{ $bimestre }}";
+        let periodo_bimestre_id = "{{ $periodo_bimestre_id }}";
         let token = "{{ csrf_token() }}";
 
         $.ajax({
@@ -1052,39 +1053,23 @@
             data: {
                 _token: token,
                 curso_id: curso_id,
-                bimestre: bimestre,
+                periodo_bimestre_id: periodo_bimestre_id,
                 notas: notas,
                 conductas: conductas
             },
             success: function(response) {
-                ocultarLoading && ocultarLoading();
-                // Recargar la página o mostrar mensaje de éxito
+                ocultarLoading();
                 location.reload();
             },
             error: function(xhr) {
-                ocultarLoading && ocultarLoading();
+                ocultarLoading();
                 let msg = "Error al guardar las notas.";
                 if (xhr.responseJSON && xhr.responseJSON.message) {
                     msg = xhr.responseJSON.message;
                 }
-                mostrarMensaje && mostrarMensaje('error', 'Error', msg, 4000);
+                mostrarMensaje('error', 'Error', msg, 4000);
             }
         });
     });
 </script>
-<style>
-    .nota-input {
-        width: 60px !important;
-        text-align: center;
-    }
-    .promedio-siagie {
-        font-weight: bold;
-        min-width: 70px;
-        text-align: center;
-    }
-    .switch-container {
-        font-size: 0.9rem;
-    }
-</style>
-
 @endsection

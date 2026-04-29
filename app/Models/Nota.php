@@ -20,6 +20,7 @@ class Nota extends Model
         'estudiante_id',
         'materia_criterio_id',
         'periodo_id',
+        'periodo_bimestre_id',
         'bimestre',
         'publico',
         'nota',
@@ -39,6 +40,10 @@ class Nota extends Model
     public function periodo()
     {
         return $this->belongsTo(Periodo::class, 'periodo_id');
+    }
+    public function periodoBimestre()
+    {
+        return $this->belongsTo(Periodobimestre::class, 'periodo_bimestre_id');
     }
     public function competencia()
     {

@@ -55,6 +55,7 @@ class MayaController extends Controller
                 'filters' => []
             ]);
         }
+
         // Si no se proporcionó un periodo_id y hay periodos disponibles
         if (!$periodoSeleccionadoId) {
             // Intentar encontrar un periodo activo (estado = 1)
@@ -67,7 +68,6 @@ class MayaController extends Controller
 
             $periodoSeleccionadoId = $periodoActivo ? $periodoActivo->id : $periodos->first()->id;
         }
-
 
         // Obtener el periodo seleccionado
         $periodoSeleccionado = Periodo::find($periodoSeleccionadoId);
@@ -134,28 +134,20 @@ class MayaController extends Controller
                     ->orderBy('materia_id')
                     ->get();
 
-        // Obtener bimestres disponibles para cada maya - ahora basado en el periodo
+        // Obtener bimestres disponibles para cada maya - ahora usando periodo_bimestre
         foreach ($mayas as $maya) {
-            $anioPeriodo = $periodoSeleccionado ? $periodoSeleccionado->anio : date('Y');
-
-            $maya->bimestres_disponibles = Materiacriterio::where('materia_id', $maya->materia_id)
+            // Obtener todos los periodos_bimestres del período seleccionado que tienen criterios
+            $periodosBimestresConCriterios = Materiacriterio::where('materia_id', $maya->materia_id)
                 ->where('grado_id', $maya->grado_id)
-                ->where('anio', $anioPeriodo)
-                ->select('bimestre')
-                ->distinct()
-                ->orderBy('bimestre')
-                ->pluck('bimestre');
+                ->whereHas('periodoBimestre', function($query) use ($periodoSeleccionadoId) {
+                    $query->where('periodo_id', $periodoSeleccionadoId);
+                })
+                ->with('periodoBimestre')
+                ->get()
+                ->pluck('periodoBimestre')
+                ->unique('id');
 
-            // También podemos contar cuántos bimestres tienen notas registradas
-            $maya->bimestres_con_notas = 0;
-            if ($maya->bimestres_disponibles->isNotEmpty()) {
-                // Aquí podrías agregar lógica para contar bimestres con notas
-                // Por ejemplo:
-                // $maya->bimestres_con_notas = Nota::whereHas('criterio', function($q) use ($maya) {
-                //     $q->where('materia_id', $maya->materia_id)
-                //       ->where('grado_id', $maya->grado_id);
-                // })->distinct('bimestre')->count();
-            }
+            $maya->bimestres_disponibles = $periodosBimestresConCriterios->sortBy('bimestre');
         }
 
         return view('modulos.maya.index', [

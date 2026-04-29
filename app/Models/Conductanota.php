@@ -21,6 +21,7 @@ class Conductanota extends Model
         'estudiante_id',
         'conducta_id',
         'periodo_id',
+        'periodo_bimestre_id',
         'curso_grado_sec_niv_anio_id',
         'bimestre',
         'publico',
@@ -41,6 +42,10 @@ class Conductanota extends Model
     public function periodo()
     {
         return $this->belongsTo(Periodo::class, 'periodo_id');
+    }
+    public function periodo_bimestre()
+    {
+        return $this->belongsTo(Bimestre::class, 'periodo_bimestre_id');
     }
     public function curso_grado_sec_niv_anio()
     {

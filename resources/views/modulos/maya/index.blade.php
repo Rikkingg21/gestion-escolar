@@ -192,23 +192,13 @@
                             <!-- Bimestres Disponibles -->
                             @if($maya->bimestres_disponibles->isNotEmpty())
                             <div class="row g-2">
-                                @foreach ($maya->bimestres_disponibles as $bimestre)
+                                @foreach ($maya->bimestres_disponibles as $periodoBimestre)
                                 @php
-                                    $anioPeriodo = $periodoSeleccionado ? $periodoSeleccionado->anio : date('Y');
                                     $criteriosCount = App\Models\Materia\Materiacriterio::where('materia_id', $maya->materia_id)
                                         ->where('grado_id', $maya->grado_id)
-                                        ->where('anio', $anioPeriodo)
-                                        ->where('bimestre', $bimestre)
+                                        ->where('periodo_bimestre_id', $periodoBimestre->id)
                                         ->count();
-
-                                    // Opcional: contar notas registradas en este bimestre
                                     $notasCount = 0; // Puedes implementar esto si lo necesitas
-                                    // $notasCount = App\Models\Nota::whereHas('criterio', function($q) use ($maya, $anioPeriodo, $bimestre) {
-                                    //     $q->where('materia_id', $maya->materia_id)
-                                    //       ->where('grado_id', $maya->grado_id)
-                                    //       ->where('anio', $anioPeriodo)
-                                    //       ->where('bimestre', $bimestre);
-                                    // })->count();
                                 @endphp
 
                                 <div class="col-md-6 col-lg-4">
@@ -224,7 +214,16 @@
                                                 @endif
                                             </div>
 
-                                            <h5 class="card-title text-dark">Bimestre {{ $bimestre }}</h5>
+                                            <h5 class="card-title text-dark">
+                                                {{ $periodoBimestre->sigla }} - Bimestre {{ $periodoBimestre->bimestre }}
+                                            </h5>
+
+                                            <p class="card-text">
+                                                <small class="text-muted">
+                                                    {{ \Carbon\Carbon::parse($periodoBimestre->fecha_inicio)->format('d/m/Y') }} -
+                                                    {{ \Carbon\Carbon::parse($periodoBimestre->fecha_fin)->format('d/m/Y') }}
+                                                </small>
+                                            </p>
 
                                             <p class="card-text">
                                                 @if($criteriosCount > 0)
@@ -248,8 +247,8 @@
                                             @if($criteriosCount > 0)
                                                 <a href="{{ route('nota.index', [
                                                     'curso_grado_sec_niv_anio_id' => $maya->id,
-                                                    'bimestre' => $bimestre
-                                                ]) }}" class="btn btn-primary btn-sm w-100 mb-2">
+                                                    'periodo_bimestre_id' => $periodoBimestre->id
+                                                ]) }}" class="btn btn-outline-primary btn-sm w-100">
                                                     <i class="bi bi-journal-check me-1"></i> Calificar
                                                 </a>
                                             @endif
@@ -258,8 +257,8 @@
                                                 <a href="{{ route('materiacriterio.index', [
                                                     'materia_id' => $maya->materia_id,
                                                     'grado_id' => $maya->grado_id,
-                                                    'anio' => $anioPeriodo,
-                                                    'bimestre' => $bimestre
+                                                    'periodo_id' => $periodoSeleccionado->id,
+                                                    'periodo_bimestre_id' => $periodoBimestre->id
                                                 ]) }}" class="btn btn-outline-info btn-sm w-100">
                                                     <i class="bi bi-list-check me-1"></i>
                                                     {{ $criteriosCount > 0 ? 'Gestionar' : 'Crear' }} Criterios
@@ -294,10 +293,10 @@
                                     <div>
                                         <strong class="text-dark">Sin bimestres configurados</strong>
                                         <span class="text-dark d-block">
-                                            No hay criterios definidos para esta combinación de materia, grado y año {{ $periodoSeleccionado ? $periodoSeleccionado->anio : date('Y') }}.
+                                            No hay criterios definidos para esta combinación de materia y grado en el período {{ $periodoSeleccionado ? $periodoSeleccionado->nombre : '' }}.
                                         </span>
                                         @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
-                                            <a href="{{ route('materiacriterio.create') }}?materia_id={{ $maya->materia_id }}&grado_id={{ $maya->grado_id }}&anio={{ $periodoSeleccionado ? $periodoSeleccionado->anio : date('Y') }}"
+                                            <a href="{{ route('materiacriterio.create') }}?materia_id={{ $maya->materia_id }}&grado_id={{ $maya->grado_id }}&periodo_id={{ $periodoSeleccionadoId }}"
                                             class="btn btn-sm btn-primary mt-2">
                                                 <i class="bi bi-plus-circle me-1"></i> Crear Criterios
                                             </a>
