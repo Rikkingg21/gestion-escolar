@@ -29,4 +29,13 @@ class Periodobimestre extends Model
     {
         return $this->belongsTo(Periodo::class, 'periodo_id');
     }
+    public function conductas()
+    {
+        return $this->belongsToMany(
+            Conducta::class,
+            'conducta_periodo_bimestres',
+            'periodo_bimestre_id',
+            'conducta_id'
+        )->whereNull('conducta_periodo_bimestres.deleted_at'); // Solo relaciones no eliminadas
+    }
 }

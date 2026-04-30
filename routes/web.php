@@ -213,6 +213,13 @@ Route::middleware('auth')->group(function () {
     Route::put('/conducta/{conducta}', [ConductaController::class, 'update'])->name('conducta.update');
     Route::delete('/conducta/{conducta}', [ConductaController::class, 'destroy'])->name('conducta.destroy');
 
+    Route::post('/asignar-conductas', [ConductaController::class, 'asignarConductas'])->name('conducta.asignar');
+    Route::post('/migrar-conductas', [ConductaController::class, 'migrarConductas'])->name('conducta.migrar');
+    Route::get('/conducta/conductas-por-bimestre/{periodoBimestreId}', [ConductaController::class, 'getConductasAsignadas'])->name('conducta.por-bimestre');
+    Route::get('/periodo-inactivo/{periodo_id}', [ConductaController::class, 'showPeriodoInactivo'])->name('conducta.periodo-inactivo');
+
+    Route::delete('/eliminar-conducta-bimestre', [ConductaController::class, 'eliminarConductaBimestre'])->name('conducta.eliminar-bimestre');
+
     Route::get('/reporte', [ReporteController::class, 'index'])->name('reporte.index');
     Route::get('/reporte/create', [ReporteController::class, 'create'])->name('reporte.create');
     Route::get('/reporte/{id}', [ReporteController::class, 'show'])->name('reporte.show');

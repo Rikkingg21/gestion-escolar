@@ -30,4 +30,8 @@ class Periodo extends Model
     {
         return $this->hasMany(Matricula::class, 'periodo_id');
     }
+    public function periodobimestres()
+    {
+        return $this->hasMany(Periodobimestre::class, 'periodo_id');
+    }
 }

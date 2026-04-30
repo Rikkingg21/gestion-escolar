@@ -17,4 +17,13 @@ class Conducta extends Model
         'nombre',
         'estado',
     ];
+    public function periodosBimestres()
+    {
+        return $this->belongsToMany(
+            Periodobimestre::class,
+            'conducta_periodo_bimestres',
+            'conducta_id',
+            'periodo_bimestre_id'
+        )->withTimestamps();
+    }
 }
