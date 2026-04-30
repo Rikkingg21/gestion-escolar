@@ -199,24 +199,24 @@
                         <tr class="text-center">
                             @foreach($competencias as $competencia)
                                 @foreach($competencia->criterios as $criterio)
-                                <th class="small bg-light">
-                                    {{ $criterio->nombre }}
-                                </th>
+                                    <th class="col-rotada small bg-light">
+                                        <span>{{ $criterio->nombre }}</span>
+                                    </th>
                                 @endforeach
                             @endforeach
 
                             @foreach($competenciasNoTransversales as $competenciaNT)
-                            <th class="small bg-info text-white">
-                                {{ $competenciaNT->nombre }}
-                                <br>
-                                <small>Promedio</small>
-                            </th>
+                                <th class="col-rotada small bg-info text-white">
+                                    <span>{{ $competenciaNT->nombre }}</span>
+                                    <!-- Si quieres que "Promedio" no rote, déjalo fuera del span o ponlo en otro span -->
+                                    <br><small>Promedio</small>
+                                </th>
                             @endforeach
 
                             @if($competenciaTransversal)
                                 @foreach($competenciaTransversal->criterios as $criterioTrans)
-                                <th class="small bg-info text-white">
-                                    {{ $criterioTrans->nombre }}
+                                <th class="col-rotada small bg-info text-white">
+                                    <span>{{ $criterioTrans->nombre }}</span>
                                     <br>
                                     <small>Transversal</small>
                                 </th>
@@ -224,9 +224,9 @@
                             @endif
 
                             @foreach($conductas as $conducta)
-                            <th class="small bg-warning">
-                                {{ $conducta->nombre }}
-                            </th>
+                                <th class="col-rotada small bg-warning">
+                                    <span>{{ $conducta->nombre }}</span>
+                                </th>
                             @endforeach
                         </tr>
                     </thead>
@@ -633,7 +633,45 @@
     </div>
 </div>
 @endif
+<!--
+<style>
+.col-rotada {
+    vertical-align: bottom !important;
+    padding: 10px 0 !important;
+    width: auto;
+    min-width: 30px; /* Un poco más estrecho para celdas de una sola línea */
+}
 
+/* Estilo para el texto rotado */
+.col-rotada span {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    display: inline-block;
+
+    /* JUSTIFICACIÓN TIPO WORD */
+    text-align: justify;
+    text-justify: inter-word; /* Distribuye el espacio entre palabras */
+    hyphens: auto; /* Permite guiones si una palabra es muy larga */
+
+    line-height: 22px; /* Espacio entre líneas (el ancho visual de la columna) */
+
+    /* ALTURA Y FLEXIBILIDAD */
+    min-height: 40px;
+    max-height: 250px; /* Ajusta esto: es el largo máximo antes de saltar a otra línea */
+    height: auto;
+    width: auto;
+
+    /* ELIMINACIÓN DE LÍMITES */
+    white-space: normal;
+    word-wrap: break-word;
+
+    /* Cambiamos el modo de visualización para permitir crecimiento infinito */
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: none; /* Quitamos el límite de 3 líneas */
+}
+</style>
+-->
 <script>
     // CONFIGURACIÓN Y CONSTANTES
     const CONFIG = {
