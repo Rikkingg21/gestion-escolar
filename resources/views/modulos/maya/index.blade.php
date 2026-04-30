@@ -32,18 +32,20 @@
             </h5>
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ route('maya.index') }}">
+            <form method="GET" action="{{ route('maya.index') }}" id="filtroForm">
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label for="periodo_id" class="form-label fw-semibold">Periodo Académico</label>
-                        <select name="periodo_id" id="periodo_id" class="form-select" required>
+                        <select name="periodo_id" id="periodo_id" class="form-select">
                             @foreach($periodos as $periodo)
                                 <option value="{{ $periodo->id }}"
                                         {{ ($periodoSeleccionadoId ?? null) == $periodo->id ? 'selected' : '' }}
                                         data-anio="{{ $periodo->anio }}">
-                                    {{ $periodo->anio }}
+                                    {{ $periodo->nombre }} ({{ $periodo->anio }})
                                     @if($periodo->estado == 0)
                                         - Inactivo
+                                    @else
+                                        - Activo
                                     @endif
                                 </option>
                             @endforeach

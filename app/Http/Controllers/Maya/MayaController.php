@@ -30,10 +30,9 @@ class MayaController extends Controller
 
         // Si el usuario tiene rol admin o director se muestran periodos con estado '1' y '0'
         if ($user->hasRole('admin') || $user->hasRole('director')) {
-            $periodos = Periodo::all()
-                ->sortByDesc('anio')
-                ->sortBy('nombre')
-                ->values();
+            $periodos = Periodo::orderBy('anio', 'desc')
+                ->orderBy('nombre')
+                ->get();
         } else {
             $periodos = Periodo::where('estado', 1)
                 ->orderBy('anio', 'desc')
@@ -41,8 +40,6 @@ class MayaController extends Controller
                 ->get();
         }
 
-        // Obtener el periodo seleccionado (por defecto el periodo activo o el primero)
-        $periodoSeleccionadoId = $request->get('periodo_id');
         if ($periodos->isEmpty()) {
             return view('modulos.maya.index', [
                 'periodos' => $periodos,
@@ -56,23 +53,33 @@ class MayaController extends Controller
             ]);
         }
 
-        // Si no se proporcionó un periodo_id y hay periodos disponibles
-        if (!$periodoSeleccionadoId) {
-            // Intentar encontrar un periodo activo (estado = 1)
-            $periodoActivo = $periodos->firstWhere('estado', 1);
+        // Obtener el periodo seleccionado
+        $periodoSeleccionadoId = $request->get('periodo_id');
 
-            // Si no hay periodo activo y el usuario es admin/director, usar el primero (aunque esté inactivo)
-            if (!$periodoActivo && ($user->hasRole('admin') || $user->hasRole('director'))) {
-                $periodoActivo = $periodos->first();
+        if (!$periodoSeleccionadoId) {
+            // Buscar el periodo actual (año actual y estado activo)
+            $anioActual = date('Y');
+            $periodoActual = $periodos->firstWhere(function($periodo) use ($anioActual) {
+                return $periodo->estado == 1 && $periodo->anio == $anioActual;
+            });
+
+            // Si no hay periodo actual, tomar el primer periodo activo
+            if (!$periodoActual) {
+                $periodoActual = $periodos->firstWhere('estado', 1);
             }
 
-            $periodoSeleccionadoId = $periodoActivo ? $periodoActivo->id : $periodos->first()->id;
+            // Si aún no hay, tomar el primero disponible
+            if (!$periodoActual) {
+                $periodoActual = $periodos->first();
+            }
+
+            $periodoSeleccionadoId = $periodoActual ? $periodoActual->id : $periodos->first()->id;
         }
 
         // Obtener el periodo seleccionado
         $periodoSeleccionado = Periodo::find($periodoSeleccionadoId);
 
-        // Obtener datos para los filtros con caché de grados con estado activo
+        // Obtener datos para los filtros
         $grados = cache()->remember('grados_filter_activos', 3600, function() {
             return Grado::where('estado', '1')
                         ->orderBy('grado')
@@ -92,7 +99,7 @@ class MayaController extends Controller
             }])->get(['id', 'user_id']);
         }
 
-        // Construir consulta base optimizada - filtrar por periodo
+        // Construir consulta base - filtrar por periodo
         $query = Cursogradosecnivanio::with([
                 'grado' => function($q) {
                     $q->select('id', 'grado', 'seccion', 'nivel');
@@ -109,7 +116,7 @@ class MayaController extends Controller
             ])
             ->where('periodo_id', $periodoSeleccionadoId);
 
-        // Aplicar filtros dinámicos
+        // Aplicar filtros
         $filters = $request->only(['grado_id', 'materia_id', 'docente_id']);
 
         if (!empty($filters['grado_id'])) {
@@ -134,13 +141,15 @@ class MayaController extends Controller
                     ->orderBy('materia_id')
                     ->get();
 
-        // Obtener bimestres disponibles para cada maya - ahora usando periodo_bimestre
+        // Obtener bimestres disponibles para cada maya
         foreach ($mayas as $maya) {
-            // Obtener todos los periodos_bimestres del período seleccionado que tienen criterios
+            // Obtener todos los periodos_bimestres del período seleccionado
+            // que tienen criterios y son de tipo académico (A)
             $periodosBimestresConCriterios = Materiacriterio::where('materia_id', $maya->materia_id)
                 ->where('grado_id', $maya->grado_id)
                 ->whereHas('periodoBimestre', function($query) use ($periodoSeleccionadoId) {
-                    $query->where('periodo_id', $periodoSeleccionadoId);
+                    $query->where('periodo_id', $periodoSeleccionadoId)
+                        ->where('tipo_bimestre', 'A'); // Solo bimestres académicos
                 })
                 ->with('periodoBimestre')
                 ->get()
