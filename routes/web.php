@@ -217,6 +217,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/migrar-conductas', [ConductaController::class, 'migrarConductas'])->name('conducta.migrar');
     Route::get('/conducta/conductas-por-bimestre/{periodoBimestreId}', [ConductaController::class, 'getConductasAsignadas'])->name('conducta.por-bimestre');
     Route::get('/periodo-inactivo/{periodo_id}', [ConductaController::class, 'showPeriodoInactivo'])->name('conducta.periodo-inactivo');
+    Route::get('/conducta/verificar-notas-conducta/{periodoBimestreId}/{conductaId}', [ConductaController::class, 'verificarNotasConducta'])->name('conducta.verificar-notas');
 
     Route::delete('/eliminar-conducta-bimestre', [ConductaController::class, 'eliminarConductaBimestre'])->name('conducta.eliminar-bimestre');
 

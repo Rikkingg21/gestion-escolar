@@ -5,7 +5,7 @@
     <!-- Encabezado -->
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">
-            Notas - {{ $grado->NombreCompleto }} - {{ $materia->nombre }} - {{ $periodoBimestre->sigla }} (Bimestre {{ $periodoBimestre->bimestre }})
+            Notas - {{ $grado->NombreCompleto }} - {{ $materia->nombre }} - {{ $periodoBimestre->sigla }} ({{ $periodoBimestre->bimestre }})
             <span class="h6 text-primary">
                 {{ $periodo->anio }} ({{ $periodo->nombre }})
             </span>
@@ -18,6 +18,11 @@
                     {{ $estadosNotas[$estadoActual][0] ?? 'Desconocido' }}
                 </span>
             </div>
+
+            <button class="btn btn-secondary" onclick="window.location='{{ route('maya.index') }}'">
+                <i class="fas fa-arrow-left me-1"></i>
+                Regresar a Mayas
+            </button>
 
             <div class="btn-group" role="group">
             <!-- PUBLICAR / AVANZAR -->

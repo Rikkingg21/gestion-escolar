@@ -174,7 +174,7 @@ class NotaController extends Controller
         $totalColumnasSIAGIE = $numCompetenciasNoTransversales + $numCriteriosTransversales;
 
         // Columnas principales - Cargar conductas activas
-        $conductas = $this->cargarConductas();
+        $conductas = $this->cargarConductas($periodo_bimestre_id);
 
         //Datos de subcolumnas - Cargar estado de notas (tanto para criterios y conducta)
         $notasExistentes = $this->cargarNotasExistentes($curso_grado_sec_niv_anio_id, $periodo_bimestre_id, $competencias, $estudiantes);
@@ -306,11 +306,20 @@ class NotaController extends Controller
         });
     }
     //Cargar conductas activas
-    private function cargarConductas()
+    private function cargarConductas($periodo_bimestre_id)
     {
-        return Conducta::where('estado', "1")
-            ->orderBy('nombre')
-            ->get();
+        return Conductaperiodobimestre::where('periodo_bimestre_id', $periodo_bimestre_id)
+            ->with('conducta')
+            ->get()
+            ->map(function($relacion) {
+                $conducta = $relacion->conducta;
+                if ($conducta) {
+                    $conducta->conducta_periodo_bimestre_id = $relacion->id;
+                    return $conducta;
+                }
+                return null;
+            })
+            ->filter();
     }
     //Cargar notas de conducta existentes
     private function cargarConductaNotas($curso_grado_sec_niv_anio_id, $periodo_bimestre_id, $estudiantes)
@@ -322,34 +331,37 @@ class NotaController extends Controller
             return collect();
         }
 
-        // Obtener todas las conductas activas
-        $conductasActivas = Conducta::where('estado', '1')->get();
-
-        // Obtener todas las relaciones conducta_periodo_bimestre
+        // Obtener las relaciones conducta_periodo_bimestre (sin filtrar por estado de conducta)
         $relacionesConducta = Conductaperiodobimestre::where('periodo_bimestre_id', $periodo_bimestre_id)
-            ->whereIn('conducta_id', $conductasActivas->pluck('id'))
+            ->with('conducta')
             ->get();
 
         if ($relacionesConducta->isEmpty()) {
             return collect();
         }
 
-        // Obtener las notas usando el nuevo modelo con curso_grado_sec_niv_anio_id
+        // Obtener las notas en UNA SOLA consulta
         $notas = Conductaperiodobimestrenota::where('periodo_bimestre_id', $periodo_bimestre_id)
             ->where('curso_grado_sec_niv_anio_id', $curso_grado_sec_niv_anio_id)
             ->whereIn('conducta_periodo_bimestre_id', $relacionesConducta->pluck('id'))
             ->whereIn('estudiante_id', $estudianteIds)
             ->get();
 
-        // Mapear por estudiante_id y conducta_id para compatibilidad con la vista
-        return $notas->mapWithKeys(function ($item) use ($relacionesConducta) {
-            $relacion = $relacionesConducta->firstWhere('id', $item->conducta_periodo_bimestre_id);
-            return [
-                $item->estudiante_id . '-' . ($relacion ? $relacion->conducta_id : '') => [
-                    'nota' => $item->nota ?? 0,
-                    'publico' => $item->publico ?? '0'
-                ]
-            ];
+        // Crear un mapa rápido de relaciones por ID
+        $relacionesMap = $relacionesConducta->keyBy('id');
+
+        // Mapear resultados
+        return $notas->mapWithKeys(function ($item) use ($relacionesMap) {
+            $relacion = $relacionesMap->get($item->conducta_periodo_bimestre_id);
+            if ($relacion && $relacion->conducta) {
+                return [
+                    $item->estudiante_id . '-' . $relacion->conducta_id => [
+                        'nota' => $item->nota ?? 0,
+                        'publico' => $item->publico ?? '0'
+                    ]
+                ];
+            }
+            return [];
         });
     }
     //Obtener estado actual de las notas
@@ -424,7 +436,6 @@ class NotaController extends Controller
 
         return (string)$estadoFinal;
     }
-
     public function publicar(Request $request, $curso_grado_sec_niv_anio_id, $periodo_bimestre_id)
     {
         try {
@@ -838,7 +849,7 @@ class NotaController extends Controller
             });
 
             $notasExistentes = $this->cargarNotasExistentes($curso_grado_sec_niv_anio_id, $periodo_bimestre_id, $competencias, $estudiantes);
-            $conductas = $this->cargarConductas();
+            $conductas = $this->cargarConductas($periodo_bimestre_id);
             $conductaNotas = $this->cargarConductaNotas($curso_grado_sec_niv_anio_id, $periodo_bimestre_id, $estudiantes);
 
             // 4. Obtener el formato actual
@@ -890,7 +901,6 @@ class NotaController extends Controller
                 ->with('error', 'Error al exportar Excel: ' . $e->getMessage());
         }
     }
-
     private function generarContenidoExcel($datos)
     {
         ob_start();
@@ -1313,5 +1323,4 @@ class NotaController extends Controller
 
         return ob_get_clean();
     }
-
 }

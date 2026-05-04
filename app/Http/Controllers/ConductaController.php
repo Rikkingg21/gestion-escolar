@@ -9,6 +9,7 @@ use App\Models\Conducta;
 use App\Models\Periodo;
 use App\Models\Periodobimestre;
 use App\Models\Conductaperiodobimestre;
+use App\Models\Conductaperiodobimestrenota;
 use App\Models\Estudiante;
 use App\Models\Materia;
 use App\Models\Docente;
@@ -77,31 +78,40 @@ class ConductaController extends Controller
         DB::beginTransaction();
 
         try {
-            // Obtener las conductas actualmente asignadas (activas, no soft delete)
+            // Obtener las conductas actualmente asignadas
             $conductasActuales = Conductaperiodobimestre::where('periodo_bimestre_id', $periodoBimestreId)
                 ->whereNull('deleted_at')
                 ->pluck('conducta_id')
                 ->toArray();
 
-            // Conductas que hay que agregar (están en nuevas pero no en actuales)
+            // Obtener las relaciones que tienen notas (no se pueden eliminar)
+            $relacionesIdsConNotas = Conductaperiodobimestrenota::where('periodo_bimestre_id', $periodoBimestreId)
+                ->distinct()
+                ->pluck('conducta_periodo_bimestre_id')
+                ->toArray();
+
+            // Obtener los IDs de conductas que tienen notas
+            $relacionesConNotas = Conductaperiodobimestre::whereIn('id', $relacionesIdsConNotas)
+                ->pluck('conducta_id')
+                ->toArray();
+
+            // Conductas que hay que agregar
             $conductasAAgregar = array_diff($nuevasConductas, $conductasActuales);
 
-            // Conductas que hay que eliminar (están en actuales pero no en nuevas)
+            // Conductas que hay que eliminar (excluyendo las que tienen notas)
             $conductasAEliminar = array_diff($conductasActuales, $nuevasConductas);
+            $conductasAEliminar = array_diff($conductasAEliminar, $relacionesConNotas);
 
-            // Agregar nuevas conductas (crear registros nuevos)
+            // Agregar nuevas conductas
             foreach ($conductasAAgregar as $conductaId) {
-                // Verificar si ya existe un registro soft deleted
                 $existente = Conductaperiodobimestre::where('periodo_bimestre_id', $periodoBimestreId)
                     ->where('conducta_id', $conductaId)
                     ->withTrashed()
                     ->first();
 
                 if ($existente && $existente->trashed()) {
-                    // Si existe pero está soft deleted, lo restauramos
                     $existente->restore();
                 } elseif (!$existente) {
-                    // Si no existe, creamos uno nuevo
                     Conductaperiodobimestre::create([
                         'periodo_bimestre_id' => $periodoBimestreId,
                         'conducta_id' => $conductaId
@@ -109,7 +119,7 @@ class ConductaController extends Controller
                 }
             }
 
-            // Eliminar conductas (soft delete)
+            // Eliminar conductas (solo las que no tienen notas)
             foreach ($conductasAEliminar as $conductaId) {
                 $relacion = Conductaperiodobimestre::where('periodo_bimestre_id', $periodoBimestreId)
                     ->where('conducta_id', $conductaId)
@@ -117,15 +127,20 @@ class ConductaController extends Controller
                     ->first();
 
                 if ($relacion) {
-                    $relacion->delete(); // Soft delete
+                    $relacion->delete();
                 }
             }
 
             DB::commit();
 
+            $mensaje = 'Conductas asignadas correctamente.';
+            if (!empty($relacionesConNotas)) {
+                $mensaje .= ' Las conductas con notas registradas no se pueden desmarcar.';
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Conductas asignadas correctamente (usando Soft Delete)'
+                'message' => $mensaje
             ]);
 
         } catch (\Exception $e) {
@@ -233,21 +248,31 @@ class ConductaController extends Controller
                 ->where('conducta_id', $request->conducta_id)
                 ->first();
 
-            if ($relacion) {
-                // Esto aplica Soft Delete (actualiza deleted_at)
-                $relacion->delete();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Conducta desasignada del bimestre correctamente'
-                ]);
-            } else {
-                // Si no existe la relación, podría estar ya eliminada (soft delete)
+            if (!$relacion) {
                 return response()->json([
                     'success' => false,
                     'message' => 'La relación no existe o ya fue eliminada'
                 ], 404);
             }
+
+            // Verificar si existen notas asociadas a esta relación
+            $existenNotas = Conductaperiodobimestrenota::where('conducta_periodo_bimestre_id', $relacion->id)
+                ->exists();
+
+            if ($existenNotas) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede eliminar la conducta porque ya tiene notas registradas. Primero debe eliminar las notas asociadas.'
+                ], 409); // 409 Conflict
+            }
+
+            // Si no hay notas asociadas, aplicar Soft Delete
+            $relacion->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Conducta desasignada del bimestre correctamente'
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
@@ -258,13 +283,78 @@ class ConductaController extends Controller
     }
     public function getConductasAsignadas($periodoBimestreId)
     {
-        $periodoBimestre = Periodobimestre::with('conductas')->findOrFail($periodoBimestreId);
-        $conductasAsignadas = $periodoBimestre->conductas->pluck('id')->toArray();
+        try {
+            $periodoBimestre = Periodobimestre::with('conductas')->findOrFail($periodoBimestreId);
+            $conductasAsignadas = $periodoBimestre->conductas->pluck('id')->toArray();
 
-        return response()->json([
-            'success' => true,
-            'conductas_asignadas' => $conductasAsignadas
-        ]);
+            // Obtener las relaciones y verificar notas directamente con una subconsulta
+            $relaciones = Conductaperiodobimestre::where('periodo_bimestre_id', $periodoBimestreId)
+                ->with('conducta')
+                ->get();
+
+            $conductasConNotas = [];
+            $conductasInactivasAsignadas = [];
+
+            foreach ($relaciones as $relacion) {
+                // Verificar si tiene notas
+                $tieneNotas = Conductaperiodobimestrenota::where('conducta_periodo_bimestre_id', $relacion->id)
+                    ->exists();
+
+                if ($tieneNotas) {
+                    $conductasConNotas[] = $relacion->conducta_id;
+                }
+
+                // Verificar si es inactiva
+                if ($relacion->conducta && $relacion->conducta->estado == '0') {
+                    $conductasInactivasAsignadas[] = $relacion->conducta_id;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'conductas_asignadas' => $conductasAsignadas,
+                'conductas_con_notas' => $conductasConNotas,
+                'conductas_inactivas_asignadas' => $conductasInactivasAsignadas
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function verificarNotasConducta($periodoBimestreId, $conductaId)
+    {
+        try {
+            // Buscar la relación
+            $relacion = Conductaperiodobimestre::where('periodo_bimestre_id', $periodoBimestreId)
+                ->where('conducta_id', $conductaId)
+                ->first();
+
+            if (!$relacion) {
+                return response()->json([
+                    'tiene_notas' => false,
+                    'cantidad_notas' => 0
+                ]);
+            }
+
+            // Contar notas asociadas
+            $cantidadNotas = Conductaperiodobimestrenota::where('conducta_periodo_bimestre_id', $relacion->id)
+                ->count();
+
+            return response()->json([
+                'tiene_notas' => $cantidadNotas > 0,
+                'cantidad_notas' => $cantidadNotas
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'tiene_notas' => false,
+                'cantidad_notas' => 0,
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
     public function showPeriodoInactivo($periodo_id)
     {

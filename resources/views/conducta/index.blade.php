@@ -266,6 +266,11 @@
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <strong>Bimestre:</strong> <span id="bimestreNombre"></span>
+                        <div class="mt-2 small">
+                            <span class="badge bg-success">Activa</span> Conducta activa
+                            <span class="badge bg-secondary ms-2">Inactiva</span> Conducta inactiva
+                            <span class="badge bg-danger ms-2">Bloqueada</span> Conducta con notas (no se puede desmarcar)
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -279,6 +284,7 @@
                                         </th>
                                         <th>ID</th>
                                         <th>Nombre</th>
+                                        <th>Estado</th>
                                     </tr>
                                 </thead>
                                 <tbody id="listaConductasCheckbox">
@@ -288,14 +294,34 @@
                                             <input type="checkbox"
                                                    name="conducta_ids[]"
                                                    value="{{ $conducta->id }}"
-                                                   class="conducta-checkbox">
+                                                   class="conducta-checkbox conducta-activa"
+                                                   data-conducta-id="{{ $conducta->id }}">
                                         </td>
                                         <td>{{ $conducta->id }}</td>
                                         <td>{{ $conducta->nombre }}</td>
+                                        <td><span class="badge bg-success">Activa</span></td>
+                                    </tr>
+                                    @endforeach
+                                    @foreach($conductasInactivas as $conducta)
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox"
+                                                   name="conducta_ids[]"
+                                                   value="{{ $conducta->id }}"
+                                                   class="conducta-checkbox conducta-inactiva"
+                                                   data-conducta-id="{{ $conducta->id }}">
+                                        </td>
+                                        <td>{{ $conducta->id }}</td>
+                                        <td>{{ $conducta->nombre }} <small class="text-muted">(Inactiva)</small></td>
+                                        <td><span class="badge bg-secondary">Inactiva</span></td>
                                     </tr>
                                     @endforeach
                                 </tbody>
                             </table>
+                        </div>
+                        <div id="bloqueoWarning" class="alert alert-warning mt-2 d-none">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Las conductas bloqueadas no pueden desmarcarse porque ya tienen notas registradas.
                         </div>
                     </div>
                     <input type="hidden" name="periodo_bimestre_id" id="periodoBimestreId">
@@ -357,9 +383,9 @@
 
 <script>
 $(document).ready(function() {
-    // Select all functionality
+    // Select all functionality (solo para conductas no bloqueadas)
     $('#selectAllConductas').change(function() {
-        $('.conducta-checkbox').prop('checked', $(this).prop('checked'));
+        $('.conducta-checkbox:not(:disabled)').prop('checked', $(this).prop('checked'));
     });
 
     // Open modal to assign conductas
@@ -367,14 +393,14 @@ $(document).ready(function() {
         const bimestreId = $(this).data('bimestre-id');
         const bimestreNombre = $(this).data('bimestre-nombre');
 
-        console.log('Abriendo modal para bimestre:', bimestreId); // Para depuración
-
         $('#periodoBimestreId').val(bimestreId);
         $('#bimestreNombre').text(bimestreNombre);
 
         // Reset checkboxes primero
-        $('.conducta-checkbox').prop('checked', false);
+        $('.conducta-checkbox').prop('checked', false).prop('disabled', false);
+        $('.conducta-checkbox').closest('tr').removeClass('table-secondary table-danger');
         $('#selectAllConductas').prop('checked', false);
+        $('#bloqueoWarning').addClass('d-none');
 
         // Load existing assignments
         $.ajax({
@@ -382,114 +408,227 @@ $(document).ready(function() {
             method: 'GET',
             dataType: 'json',
             success: function(data) {
-                console.log('Conductas asignadas recibidas:', data);
+                if (data.success) {
+                    let bloqueadas = [];
 
-                if (data.success && data.conductas_asignadas) {
                     // Marcar las conductas que ya están asignadas
-                    data.conductas_asignadas.forEach(function(conductaId) {
-                        $(`input.conducta-checkbox[value="${conductaId}"]`).prop('checked', true);
-                        console.log('Marcando conducta:', conductaId);
-                    });
+                    if (data.conductas_asignadas) {
+                        data.conductas_asignadas.forEach(function(conductaId) {
+                            const checkbox = $(`input.conducta-checkbox[value="${conductaId}"]`);
+                            checkbox.prop('checked', true);
 
-                    // Actualizar el select all si todas están marcadas
-                    const totalCheckboxes = $('.conducta-checkbox').length;
-                    const checkedCheckboxes = $('.conducta-checkbox:checked').length;
+                            // Si tiene notas, bloquear
+                            if (data.conductas_con_notas && data.conductas_con_notas.includes(conductaId)) {
+                                checkbox.prop('disabled', true);
+                                checkbox.closest('tr').addClass('table-danger');
+                                bloqueadas.push(conductaId);
+                            } else if (data.conductas_inactivas_asignadas && data.conductas_inactivas_asignadas.includes(conductaId)) {
+                                // Conductas inactivas asignadas también se bloquean
+                                checkbox.prop('disabled', true);
+                                checkbox.closest('tr').addClass('table-secondary');
+                            }
+                        });
+                    }
+
+                    // Mostrar advertencia si hay conductas bloqueadas
+                    if (bloqueadas.length > 0) {
+                        $('#bloqueoWarning').removeClass('d-none');
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Conductas Bloqueadas',
+                            html: `<strong>${bloqueadas.length}</strong> conducta(s) tienen notas registradas y no pueden desmarcarse.<br>
+                                   Para desmarcarlas, primero debe eliminar las notas asociadas.`,
+                            confirmButtonColor: '#3085d6'
+                        });
+                    }
+
+                    // Actualizar el select all (solo para no bloqueadas)
+                    const totalCheckboxes = $('.conducta-checkbox:not(:disabled)').length;
+                    const checkedCheckboxes = $('.conducta-checkbox:checked:not(:disabled)').length;
                     $('#selectAllConductas').prop('checked', totalCheckboxes === checkedCheckboxes && totalCheckboxes > 0);
-                } else {
-                    console.warn('No se recibieron conductas asignadas:', data);
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error al cargar conductas asignadas:', error);
-                console.error('Respuesta del servidor:', xhr.responseText);
-                alert('Error al cargar las conductas asignadas. Revisa la consola para más detalles.');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error al cargar las conductas asignadas: ' + error
+                });
             }
         });
 
         $('#modalAsignarConductas').modal('show');
     });
 
-    // Submit asignacion form
+    // Submit asignacion form - Validar que no se estén desmarcando conductas bloqueadas
     $('#formAsignarConductas').submit(function(e) {
         e.preventDefault();
 
-        // Mostrar indicador de carga
-        const submitBtn = $(this).find('button[type="submit"]');
-        const originalText = submitBtn.html();
-        submitBtn.prop('disabled', true).html('Guardando...');
+        // Verificar si se está intentando desmarcar alguna conducta bloqueada
+        const conductasSeleccionadas = $('.conducta-checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
 
-        $.ajax({
-            url: '{{ route("conducta.asignar") }}',
-            method: 'POST',
-            data: $(this).serialize(),
-            success: function(response) {
-                console.log('Respuesta al guardar:', response);
-                if(response.success) {
-                    // Cerrar modal y recargar
-                    $('#modalAsignarConductas').modal('hide');
-                    location.reload();
-                } else {
-                    alert('Error: ' + (response.message || 'Error desconocido'));
-                }
-            },
-            error: function(xhr) {
-                console.error('Error en la petición:', xhr);
-                let errorMsg = 'Error al guardar: ';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMsg += xhr.responseJSON.message;
-                } else if (xhr.statusText) {
-                    errorMsg += xhr.statusText;
-                } else {
-                    errorMsg += 'Error desconocido';
-                }
-                alert(errorMsg);
-            },
-            complete: function() {
-                submitBtn.prop('disabled', false).html(originalText);
+        const conductasAsignadasOriginales = [];
+        $('.conducta-checkbox:disabled').each(function() {
+            conductasAsignadasOriginales.push($(this).val());
+        });
+
+        const conductasADesmarcar = conductasAsignadasOriginales.filter(id => !conductasSeleccionadas.includes(id));
+
+        if (conductasADesmarcar.length > 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Operación no permitida',
+                html: `No se pueden desmarcar <strong>${conductasADesmarcar.length}</strong> conducta(s) porque tienen notas registradas.<br><br>
+                       Para desmarcarlas, primero debe eliminar las notas asociadas desde el módulo de calificaciones.`,
+                confirmButtonColor: '#3085d6'
+            });
+            return;
+        }
+
+        Swal.fire({
+            title: '¿Guardar cambios?',
+            text: 'Se actualizarán las conductas asignadas a este bimestre.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sí, guardar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Guardando...',
+                    text: 'Por favor espere',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                $.ajax({
+                    url: '{{ route("conducta.asignar") }}',
+                    method: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        if(response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Éxito!',
+                                text: response.message,
+                                confirmButtonColor: '#3085d6'
+                            }).then(() => {
+                                $('#modalAsignarConductas').modal('hide');
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.message || 'Error desconocido'
+                            });
+                        }
+                    },
+                    error: function(xhr) {
+                        let errorMsg = 'Error al guardar: ';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg += xhr.responseJSON.message;
+                        } else {
+                            errorMsg += xhr.statusText;
+                        }
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: errorMsg
+                        });
+                    }
+                });
             }
         });
     });
 
-    // Eliminar conducta de un bimestre
+    // Eliminar conducta de un bimestre (con verificación adicional)
     $(document).on('click', '.btn-eliminar-conducta', function() {
         const bimestreId = $(this).data('bimestre-id');
         const conductaId = $(this).data('conducta-id');
         const conductaNombre = $(this).data('conducta-nombre');
 
-        if(confirm(`¿Desasignar la conducta "${conductaNombre}" de este bimestre?`)) {
-            // Mostrar indicador en el botón
-            const btn = $(this);
-            const originalHtml = btn.html();
-            btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i>');
+        // Primero verificar si tiene notas
+        $.ajax({
+            url: `/conducta/verificar-notas-conducta/${bimestreId}/${conductaId}`,
+            method: 'GET',
+            success: function(data) {
+                if (data.tiene_notas) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'No se puede eliminar',
+                        html: `La conducta <strong>"${conductaNombre}"</strong> tiene ${data.cantidad_notas} nota(s) registradas.<br><br>
+                               Para eliminarla, primero debe eliminar las notas asociadas desde el módulo de calificaciones.`,
+                        confirmButtonColor: '#3085d6'
+                    });
+                } else {
+                    // Si no tiene notas, proceder con la eliminación
+                    Swal.fire({
+                        title: '¿Desasignar conducta?',
+                        html: `¿Está seguro de desasignar la conducta <strong>"${conductaNombre}"</strong> de este bimestre?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Sí, desasignar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.fire({
+                                title: 'Eliminando...',
+                                text: 'Por favor espere',
+                                allowOutsideClick: false,
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                }
+                            });
 
-            $.ajax({
-                url: '{{ route("conducta.eliminar-bimestre") }}',
-                method: 'DELETE',
-                data: {
-                    _token: '{{ csrf_token() }}',
-                    periodo_bimestre_id: bimestreId,
-                    conducta_id: conductaId
-                },
-                success: function(response) {
-                    console.log('Respuesta al eliminar:', response);
-                    if(response.success) {
-                        location.reload();
-                    } else {
-                        alert('Error: ' + (response.message || 'Error desconocido'));
-                        btn.prop('disabled', false).html(originalHtml);
-                    }
-                },
-                error: function(xhr) {
-                    console.error('Error al eliminar:', xhr);
-                    alert('Error al desasignar la conducta: ' + (xhr.responseJSON?.message || xhr.statusText));
-                    btn.prop('disabled', false).html(originalHtml);
+                            $.ajax({
+                                url: '{{ route("conducta.eliminar-bimestre") }}',
+                                method: 'DELETE',
+                                data: {
+                                    _token: '{{ csrf_token() }}',
+                                    periodo_bimestre_id: bimestreId,
+                                    conducta_id: conductaId
+                                },
+                                success: function(response) {
+                                    if(response.success) {
+                                        Swal.fire({
+                                            icon: 'success',
+                                            title: '¡Eliminado!',
+                                            text: response.message,
+                                            confirmButtonColor: '#3085d6'
+                                        }).then(() => {
+                                            location.reload();
+                                        });
+                                    } else {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Error',
+                                            text: response.message || 'Error desconocido'
+                                        });
+                                    }
+                                },
+                                error: function(xhr) {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error',
+                                        text: xhr.responseJSON?.message || 'Error al desasignar la conducta'
+                                    });
+                                }
+                            });
+                        }
+                    });
                 }
-            });
-        }
+            }
+        });
     });
-
-    // Depuración: Verificar que los botones de eliminar existen
-    console.log('Botones de eliminar encontrados:', $('.btn-eliminar-conducta').length);
 });
 </script>
 @endsection
