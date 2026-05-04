@@ -192,24 +192,18 @@
                             @endif
 
                             <!-- Bimestres Disponibles -->
-                            @if($maya->bimestres_disponibles->isNotEmpty())
-                            <div class="row g-2">
-                                @foreach ($maya->bimestres_disponibles as $periodoBimestre)
+                            @if($periodoSeleccionado && $periodoSeleccionado->periodobimestres->where('tipo_bimestre', 'A')->count() > 0)
+                            <div class="row g-3">
+                                @foreach ($periodoSeleccionado->periodobimestres->where('tipo_bimestre', 'A')->sortBy('bimestre') as $periodoBimestre)
                                 @php
-                                    $criteriosCount = App\Models\Materia\Materiacriterio::where('materia_id', $maya->materia_id)
-                                        ->where('grado_id', $maya->grado_id)
-                                        ->where('periodo_bimestre_id', $periodoBimestre->id)
-                                        ->count();
-                                    $notasCount = 0; // Puedes implementar esto si lo necesitas
+                                    $bimestreData = $maya->bimestres_disponibles->firstWhere('id', $periodoBimestre->id);
+                                    $criteriosCount = $bimestreData->criterios_count ?? 0;
                                 @endphp
-
-                                <div class="col-md-6 col-lg-4">
+                                <div class="col-12 col-sm-6 col-md-6 col-lg-3 col-xl-3">
                                     <div class="card border h-100">
                                         <div class="card-body text-center">
                                             <div class="mb-3">
-                                                @if($notasCount > 0)
-                                                    <i class="bi bi-check-circle text-success fs-1"></i>
-                                                @elseif($criteriosCount > 0)
+                                                @if($criteriosCount > 0)
                                                     <i class="bi bi-calendar-week text-primary fs-1"></i>
                                                 @else
                                                     <i class="bi bi-calendar-x text-warning fs-1"></i>
@@ -217,7 +211,7 @@
                                             </div>
 
                                             <h5 class="card-title text-dark">
-                                                {{ $periodoBimestre->sigla }} - Bimestre {{ $periodoBimestre->bimestre }}
+                                                {{ $periodoBimestre->sigla }} - {{ $periodoBimestre->bimestre }}° Bimestre
                                             </h5>
 
                                             <p class="card-text">
@@ -231,12 +225,6 @@
                                                 @if($criteriosCount > 0)
                                                     <small class="text-muted">
                                                         {{ $criteriosCount }} criterio(s)
-                                                        @if($notasCount > 0)
-                                                            <br>
-                                                            <span class="text-success">
-                                                                <i class="bi bi-check-circle me-1"></i>{{ $notasCount }} nota(s)
-                                                            </span>
-                                                        @endif
                                                     </small>
                                                 @else
                                                     <small class="text-warning">
@@ -253,6 +241,10 @@
                                                 ]) }}" class="btn btn-outline-primary btn-sm w-100">
                                                     <i class="bi bi-journal-check me-1"></i> Calificar
                                                 </a>
+                                            @else
+                                                <button type="button" class="btn btn-outline-secondary btn-sm w-100" disabled>
+                                                    <i class="bi bi-journal-check me-1"></i> Calificar
+                                                </button>
                                             @endif
 
                                             @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
@@ -261,7 +253,7 @@
                                                     'grado_id' => $maya->grado_id,
                                                     'periodo_id' => $periodoSeleccionado->id,
                                                     'periodo_bimestre_id' => $periodoBimestre->id
-                                                ]) }}" class="btn btn-outline-info btn-sm w-100">
+                                                ]) }}" class="btn btn-outline-info btn-sm w-100 mt-2">
                                                     <i class="bi bi-list-check me-1"></i>
                                                     {{ $criteriosCount > 0 ? 'Gestionar' : 'Crear' }} Criterios
                                                 </a>
@@ -270,11 +262,7 @@
 
                                         <!-- Estado del bimestre -->
                                         <div class="card-footer bg-transparent">
-                                            @if($notasCount > 0)
-                                                <small class="text-success">
-                                                    <i class="bi bi-check-circle me-1"></i> Notas registradas
-                                                </small>
-                                            @elseif($criteriosCount > 0)
+                                            @if($criteriosCount > 0)
                                                 <small class="text-primary">
                                                     <i class="bi bi-clock me-1"></i> Listo para calificar
                                                 </small>
@@ -295,14 +283,8 @@
                                     <div>
                                         <strong class="text-dark">Sin bimestres configurados</strong>
                                         <span class="text-dark d-block">
-                                            No hay criterios definidos para esta combinación de materia y grado en el período {{ $periodoSeleccionado ? $periodoSeleccionado->nombre : '' }}.
+                                            No hay bimestres académicos configurados para el período {{ $periodoSeleccionado ? $periodoSeleccionado->nombre : '' }}.
                                         </span>
-                                        @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
-                                            <a href="{{ route('materiacriterio.create') }}?materia_id={{ $maya->materia_id }}&grado_id={{ $maya->grado_id }}&periodo_id={{ $periodoSeleccionadoId }}"
-                                            class="btn btn-sm btn-primary mt-2">
-                                                <i class="bi bi-plus-circle me-1"></i> Crear Criterios
-                                            </a>
-                                        @endif
                                     </div>
                                 </div>
                             </div>

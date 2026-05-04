@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Maya;
 
 use App\Http\Controllers\Controller;
 use App\Models\Maya\Cursogradosecnivanio;
+use App\Models\Periodobimestre;
+use App\Models\Nota;
 use Illuminate\Http\Request;
 use App\Models\Materia;
 use App\Models\Grado;
@@ -57,18 +59,15 @@ class MayaController extends Controller
         $periodoSeleccionadoId = $request->get('periodo_id');
 
         if (!$periodoSeleccionadoId) {
-            // Buscar el periodo actual (año actual y estado activo)
             $anioActual = date('Y');
             $periodoActual = $periodos->firstWhere(function($periodo) use ($anioActual) {
                 return $periodo->estado == 1 && $periodo->anio == $anioActual;
             });
 
-            // Si no hay periodo actual, tomar el primer periodo activo
             if (!$periodoActual) {
                 $periodoActual = $periodos->firstWhere('estado', 1);
             }
 
-            // Si aún no hay, tomar el primero disponible
             if (!$periodoActual) {
                 $periodoActual = $periodos->first();
             }
@@ -76,7 +75,6 @@ class MayaController extends Controller
             $periodoSeleccionadoId = $periodoActual ? $periodoActual->id : $periodos->first()->id;
         }
 
-        // Obtener el periodo seleccionado
         $periodoSeleccionado = Periodo::find($periodoSeleccionadoId);
 
         // Obtener datos para los filtros
@@ -91,7 +89,6 @@ class MayaController extends Controller
             return Materia::orderBy('nombre')->get();
         });
 
-        // Solo cargar docentes si es admin/director
         $docentes = null;
         if ($user->hasRole('admin') || $user->hasRole('director')) {
             $docentes = Docente::with(['user' => function($query) {
@@ -99,7 +96,7 @@ class MayaController extends Controller
             }])->get(['id', 'user_id']);
         }
 
-        // Construir consulta base - filtrar por periodo
+        // Construir consulta base
         $query = Cursogradosecnivanio::with([
                 'grado' => function($q) {
                     $q->select('id', 'grado', 'seccion', 'nivel');
@@ -131,32 +128,44 @@ class MayaController extends Controller
             $query->where('docente_designado_id', $filters['docente_id']);
         }
 
-        // Filtro para docentes
         if ($user->hasRole('docente')) {
             $query->where('docente_designado_id', $user->docente->id ?? 0);
         }
 
-        // Ordenar resultados
         $mayas = $query->orderBy('grado_id')
                     ->orderBy('materia_id')
                     ->get();
 
-        // Obtener bimestres disponibles para cada maya
+        // Obtener TODOS los bimestres del periodo (B1, B2, B3, B4) para cada maya
         foreach ($mayas as $maya) {
-            // Obtener todos los periodos_bimestres del período seleccionado
-            // que tienen criterios y son de tipo académico (A)
-            $periodosBimestresConCriterios = Materiacriterio::where('materia_id', $maya->materia_id)
-                ->where('grado_id', $maya->grado_id)
-                ->whereHas('periodoBimestre', function($query) use ($periodoSeleccionadoId) {
-                    $query->where('periodo_id', $periodoSeleccionadoId)
-                        ->where('tipo_bimestre', 'A'); // Solo bimestres académicos
-                })
-                ->with('periodoBimestre')
-                ->get()
-                ->pluck('periodoBimestre')
-                ->unique('id');
+            // Obtener todos los periodos_bimestres del periodo seleccionado (tipo académico)
+            $todosLosBimestres = Periodobimestre::where('periodo_id', $periodoSeleccionadoId)
+                ->where('tipo_bimestre', 'A')
+                ->orderBy('bimestre')
+                ->get();
 
-            $maya->bimestres_disponibles = $periodosBimestresConCriterios->sortBy('bimestre');
+            // Para cada bimestre, obtener la información de criterios y notas
+            $maya->bimestres_disponibles = $todosLosBimestres->map(function($bimestre) use ($maya) {
+                // Contar criterios para este bimestre
+                $criteriosCount = Materiacriterio::where('materia_id', $maya->materia_id)
+                    ->where('grado_id', $maya->grado_id)
+                    ->where('periodo_bimestre_id', $bimestre->id)
+                    ->count();
+
+                // Contar notas registradas para este bimestre
+                $notasCount = Nota::where('periodo_bimestre_id', $bimestre->id)
+                    ->whereHas('criterio', function($query) use ($maya) {
+                        $query->where('materia_id', $maya->materia_id)
+                            ->where('grado_id', $maya->grado_id);
+                    })
+                    ->count();
+
+                // Agregar los conteos al objeto bimestre
+                $bimestre->criterios_count = $criteriosCount;
+                $bimestre->notas_count = $notasCount;
+
+                return $bimestre;
+            });
         }
 
         return view('modulos.maya.index', [
