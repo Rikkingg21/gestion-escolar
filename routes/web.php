@@ -229,7 +229,8 @@ Route::middleware('auth')->group(function () {
     Route::put('/reporte/{reporte}', [ReporteController::class, 'update'])->name('reporte.update');
     Route::delete('/reporte/{id}', [ReporteController::class, 'destroy'])->name('reporte.destroy');
 
-    Route::get('/libreta/{anio}/{bimestre}', [LibretaController::class, 'index'])->name('libreta.index');
+    //Route::get('/libreta/{anio}/{bimestre}', [LibretaController::class, 'index'])->name('libreta.index');
+    Route::get('/libreta/{anio}/{sigla?}', [LibretaController::class, 'index'])->name('libreta.index');
     Route::post('/libreta/{anio}/{bimestre}/pdf', [LibretaController::class, 'pdf'])->name('libreta.pdf');
 
     Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asistencia.index');

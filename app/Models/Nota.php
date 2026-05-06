@@ -21,7 +21,7 @@ class Nota extends Model
         'materia_criterio_id',
         'periodo_id',
         'periodo_bimestre_id',
-        'bimestre',
+        //'bimestre',
         'publico',
         'nota',
     ];

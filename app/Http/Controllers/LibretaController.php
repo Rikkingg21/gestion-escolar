@@ -12,6 +12,8 @@ use App\Models\Materia;
 use App\Models\Docente;
 use App\Models\Materia\Materiacompetencia;
 use App\Models\Materia\Materiacriterio;
+use App\Models\Conductaperiodobimestrenota;
+use App\Models\Periodobimestre;
 use App\Models\Colegio;
 use App\Models\Conductanota;
 use App\Models\Periodo;
@@ -34,952 +36,408 @@ class LibretaController extends Controller
             return $next($request);
         });
     }
-
-    public function index(Request $request, $anio, $bimestre)
+    public function index($anio, $sigla = null)
     {
-        $user = auth()->user();
-
-        // Obtener el estudiante con el usuario relacionado
-        $estudiante = Estudiante::with(['user'])
-            ->where('user_id', $user->id)
-            ->first();
-
+        // 1. Obtener estudiante autenticado
+        $estudiante = $this->getEstudiante();
         if (!$estudiante) {
             abort(404, 'Estudiante no encontrado.');
         }
 
-        // Validar que el bimestre sea válido (1-4 o anual)
-        if (!in_array($bimestre, ['anual', '1', '2', '3', '4'])) {
-            abort(404, 'Bimestre no válido.');
+        // 2. Obtener periodos del estudiante
+        $periodos = $this->getPeriodosEstudiante($estudiante);
+        if ($periodos->isEmpty()) {
+            abort(404, 'No se encontraron periodos para este estudiante.');
         }
 
-        // Buscar el periodo por año (anio)
-        $periodoActual = Periodo::where('anio', $anio)->first();
-
+        // 3. Validar y obtener periodo actual
+        $periodoActual = $this->getPeriodoActual($anio, $periodos);
         if (!$periodoActual) {
-            $periodoActual = Periodo::where('estado', '1')
-                ->orderBy('anio', 'desc')
-                ->first();
-
-            if ($periodoActual) {
-                return redirect()->route('libreta.index', [
-                    'anio' => $periodoActual->anio,
-                    'bimestre' => $bimestre
-                ]);
-            }
+            $primerPeriodo = $periodos->first();
+            return redirect()->route('libreta.index', [
+                'anio' => $primerPeriodo['anio'],
+                'sigla' => $sigla ?? 'anual'
+            ]);
         }
 
-        // Obtener la matrícula del estudiante para este periodo
-        $matriculaActual = null;
-        if ($periodoActual) {
-            $matriculaActual = Matricula::with(['grado', 'periodo'])
-                ->where('estudiante_id', $estudiante->id)
-                ->where('periodo_id', $periodoActual->id)
-                ->first();
-        }
+        // 4. Obtener matrícula actual
+        $matriculaActual = $this->getMatriculaActual($estudiante, $periodoActual);
 
-        // Obtener todos los periodos donde el estudiante tiene matrículas
-        $periodos = Periodo::whereIn('id', function($query) use ($estudiante) {
+        // 5. Obtener bimestres disponibles (incluyendo opción anual)
+        $bimestres = $this->getBimestresDisponibles($periodoActual);
+
+        // 6. Validar y obtener sigla seleccionada
+        $sigla = $this->validarSigla($sigla, $bimestres);
+
+        // 7. Obtener datos del colegio
+        $colegio = Colegio::configuracion();
+
+        // 8. OBTENER NOTAS DE MATERIAS
+        $esAnual = ($sigla === 'anual');
+        $notasMaterias = $this->getNotasMaterias($estudiante->id, $periodoActual, $sigla);
+        $materiasAgrupadas = $this->agruparNotasPorMateria($notasMaterias, $esAnual);
+        $materiasConPromedios = $this->calcularPromedios($materiasAgrupadas, $esAnual);
+        $promedioTransversales = $this->calcularPromedioTransversales($materiasConPromedios);
+
+        // 9. OBTENER NOTAS DE CONDUCTA
+        $notasConducta = $this->getNotasConducta($estudiante->id, $periodoActual, $sigla, $matriculaActual->grado_id ?? null);
+        $conductasPorMateria = $this->agruparNotasConductaPorMateria($notasConducta);
+
+        // 10. Preparar datos para la vista
+        $datosVista = $this->prepararDatosVista([
+            'estudiante' => $estudiante,
+            'periodos' => $periodos,
+            'periodoActual' => $periodoActual,
+            'matriculaActual' => $matriculaActual,
+            'bimestres' => $bimestres,
+            'sigla' => $sigla,
+            'colegio' => $colegio,
+            'anio' => $anio,
+        ]);
+
+        // 11. Retornar la vista
+        return view('libreta.index', array_merge($datosVista, [
+            'materias' => $materiasConPromedios,
+            'conductas_por_materia' => $conductasPorMateria,
+            'promedioTransversales' => $promedioTransversales,
+        ]));
+    }
+    private function getEstudiante()
+    {
+        return Estudiante::with(['user'])
+            ->where('user_id', auth()->user()->id)
+            ->first();
+    }
+    private function getPeriodosEstudiante($estudiante)
+    {
+        return Periodo::whereIn('id', function($query) use ($estudiante) {
                 $query->select('periodo_id')
                     ->from('matriculas')
                     ->where('estudiante_id', $estudiante->id);
             })
             ->orderBy('anio', 'desc')
-            ->get();
+            ->get()
+            ->map(function($periodo) {
+                return [
+                    'id' => $periodo->id,
+                    'anio' => $periodo->anio,
+                    'nombre' => $periodo->nombre,
+                    'estado' => $periodo->estado,
+                    'descripcion' => $periodo->descripcion,
+                ];
+            });
+    }
+    private function getPeriodoActual($anio, $periodos)
+    {
+        $periodo = Periodo::where('anio', $anio)->first();
 
-        // Obtener datos de la IE (Colegio)
-        $colegio = Colegio::configuracion();
-
-        // Variables principales para la vista
-        $datosVista = [
-            'materias_regulares' => [],
-            'competencias_transversales' => [],
-            'criterios_transversales' => [],
-            'promedios_por_criterio' => [],
-            'promedio_general_transversales' => 0,
-            'notas_conducta' => null,
-            'conductas_agrupadas' => [],
-            'total_bimestres_conducta' => 0,
-            'asistencias' => collect(),
-            'resumen_asistencias' => ['total' => 0, 'tipos' => []],
-            'numero_criterio_global' => 0,
-            'numero_competencia_global' => 0,
-            'total_materias_regulares' => 0,
-            'promedio_general_materias' => 0,
-            'materias_procesadas' => []
-        ];
-
-        if ($matriculaActual && $periodoActual) {
-            // 1. OBTENER Y PROCESAR NOTAS DE MATERIAS
-            $datosMaterias = $this->procesarNotasMaterias($estudiante->id, $periodoActual, $bimestre);
-            $datosVista = array_merge($datosVista, $datosMaterias);
-
-            // 2. OBTENER NOTAS DE CONDUCTA
-            $datosConducta = $this->obtenerNotasConducta(
-                $estudiante->id,
-                $periodoActual,
-                $bimestre,
-                $matriculaActual->grado_id // Añadir gradoId para filtrar cursos
-            );
-
-            $datosVista['notas_conducta'] = $datosConducta['datos_agrupados'];
-            $datosVista['conductas_agrupadas'] = $datosConducta['conductas_agrupadas'];
-            $datosVista['total_bimestres_conducta'] = $datosConducta['total_bimestres'];
-
-            // 3. OBTENER ASISTENCIAS
-            $datosAsistencias = $this->obtenerAsistencias($estudiante->id, $matriculaActual->grado_id, $periodoActual, $bimestre);
-            $datosVista['asistencias'] = $datosAsistencias['asistencias'];
-            $datosVista['resumen_asistencias'] = $datosAsistencias['resumen'];
-
-            // 4. CALCULAR ESTADÍSTICAS GLOBALES
-            $datosVista['numero_criterio_global'] = $this->calcularTotalCriterios($datosVista['materias_regulares']);
-            $datosVista['numero_competencia_global'] = $this->calcularTotalCompetencias($datosVista['materias_regulares']);
-            $datosVista['total_materias_regulares'] = count($datosVista['materias_regulares']);
-            $datosVista['promedio_general_materias'] = $this->calcularPromedioGeneralMaterias($datosVista['materias_regulares']);
-
-            // 5. PREPARAR DATOS PARA LA VISTA (rowspan y promedios por materia)
-            $datosVista['materias_procesadas'] = $this->prepararMateriasParaVista($datosVista['materias_regulares']);
+        if (!$periodo || !collect($periodos)->contains('id', $periodo->id)) {
+            return null;
         }
 
-        return view('libreta.index', array_merge([
-            'estudiante' => $estudiante,
-            'matricula_actual' => $matriculaActual,
-            'periodo_actual' => $periodoActual,
-            'periodos' => $periodos,
-            'colegio' => $colegio,
-            'anio_param' => $anio,
-            'bimestre_param' => $bimestre,
-        ], $datosVista));
+        return $periodo;
     }
-    //Procesar todas las notas de materias
-    private function procesarNotasMaterias($estudianteId, $periodoActual, $bimestre)
+    private function getMatriculaActual($estudiante, $periodoActual)
     {
-        $notasEstudiante = Nota::with(['criterio.materiaCompetencia', 'criterio.materia'])
-            ->where('estudiante_id', $estudianteId)
-            ->where('publico', '!=', '0')
-            ->whereHas('criterio', function($query) use ($periodoActual) {
-                $query->where('anio', $periodoActual->anio);
+        return Matricula::with(['grado', 'periodo'])
+            ->where('estudiante_id', $estudiante->id)
+            ->where('periodo_id', $periodoActual->id)
+            ->first();
+    }
+    private function getBimestresDisponibles($periodoActual)
+    {
+        $bimestres = Periodobimestre::where('periodo_id', $periodoActual->id)
+            ->where('tipo_bimestre', 'A')
+            ->orderBy('bimestre')
+            ->get()
+            ->map(function($bimestre) {
+                return [
+                    'sigla' => $bimestre->sigla,
+                    'bimestre' => $bimestre->bimestre,
+                    'nombre' => $bimestre->sigla . ' - Bimestre ' . $bimestre->bimestre,
+                    'fecha_inicio' => $bimestre->fecha_inicio,
+                    'fecha_fin' => $bimestre->fecha_fin,
+                ];
             });
 
-        if ($bimestre !== 'anual') {
-            $notasEstudiante->where('bimestre', $bimestre);
-        }
-
-        $notasEstudiante = $notasEstudiante->get();
-
-        // Agrupar notas por materia
-        $notasPorMateria = $this->agruparNotasPorMateria($notasEstudiante);
-
-        // Separar materias regulares y transversales
-        $resultados = $this->separarMateriasRegularesTransversales($notasPorMateria);
-
-        // Procesar competencias transversales
-        $datosTransversales = $this->procesarCompetenciasTransversales($resultados['competencias_transversales']);
-
-        return array_merge($resultados, $datosTransversales);
+        // Agregar opción anual al inicio
+        return collect([
+            [
+                'sigla' => 'anual',
+                'bimestre' => null,
+                'nombre' => 'Promedio Anual',
+                'fecha_inicio' => null,
+                'fecha_fin' => null,
+            ]
+        ])->concat($bimestres);
     }
-
-    //Agrupar notas por materia, competencia y criterio
-    private function agruparNotasPorMateria($notasEstudiante)
+    private function validarSigla($sigla, $bimestres)
     {
-        $notasPorMateria = [];
+        $siglasValidas = $bimestres->pluck('sigla')->toArray();
 
-        foreach ($notasEstudiante as $nota) {
-            if ($nota->criterio && $nota->criterio->materia) {
-                $materiaId = $nota->criterio->materia_id;
-                $competenciaId = $nota->criterio->materia_competencia_id;
-
-                if (!isset($notasPorMateria[$materiaId])) {
-                    $notasPorMateria[$materiaId] = [
-                        'materia_id' => $materiaId,
-                        'materia_nombre' => $nota->criterio->materia->nombre ?? 'Sin nombre',
-                        'competencias' => []
-                    ];
-                }
-
-                if (!isset($notasPorMateria[$materiaId]['competencias'][$competenciaId])) {
-                    $notasPorMateria[$materiaId]['competencias'][$competenciaId] = [
-                        'competencia_id' => $competenciaId,
-                        'competencia_nombre' => $nota->criterio->materiaCompetencia->nombre ?? 'Sin competencia',
-                        'criterios' => []
-                    ];
-                }
-
-                $notasPorMateria[$materiaId]['competencias'][$competenciaId]['criterios'][] = [
-                    'criterio_id' => $nota->criterio->id,
-                    'criterio_nombre' => $nota->criterio->nombre,
-                    'nota' => [
-                        'id' => $nota->id,
-                        'valor' => $nota->nota,
-                        'publico' => $nota->publico,
-                        'bimestre' => $nota->bimestre,
-                    ]
-                ];
-            }
+        if (!$sigla || !in_array($sigla, $siglasValidas)) {
+            return 'anual';
         }
 
-        return $notasPorMateria;
+        return $sigla;
     }
-
-    //Separar materias regulares de competencias transversales
-    private function separarMateriasRegularesTransversales($notasPorMateria)
+    private function prepararDatosVista($params)
     {
-        $materiasRegulares = [];
-        $competenciasTransversales = [];
-
-        foreach ($notasPorMateria as $materiaData) {
-            $competencias = collect($materiaData['competencias'])
-                ->map(function($competencia) {
-                    $competencia['criterios'] = collect($competencia['criterios']);
-                    return $competencia;
-                })
-                ->values();
-
-            // Separar competencias
-            $transversales = [];
-            $regulares = [];
-
-            foreach ($competencias as $competencia) {
-                $competenciaNombre = strtoupper(trim($competencia['competencia_nombre']));
-                if ($competenciaNombre == 'COMPETENCIAS TRANSVERSALES' ||
-                    str_contains($competenciaNombre, 'TRANSVERSAL')) {
-                    $transversales[] = $competencia;
-                } else {
-                    $regulares[] = $competencia;
-                }
-            }
-
-            if (count($regulares) > 0) {
-                $materiasRegulares[] = [
-                    'materia_nombre' => $materiaData['materia_nombre'],
-                    'competencias' => $regulares,
-                    'competencias_original' => $competencias
-                ];
-            }
-
-            if (count($transversales) > 0) {
-                foreach ($transversales as $transversal) {
-                    $competenciasTransversales[] = [
-                        'materia_nombre' => $materiaData['materia_nombre'],
-                        'competencia' => $transversal
-                    ];
-                }
-            }
-        }
+        $bimestreSeleccionado = $params['bimestres']->firstWhere('sigla', $params['sigla']);
 
         return [
-            'materias_regulares' => $materiasRegulares,
-            'competencias_transversales' => $competenciasTransversales
+            // Datos del estudiante
+            'estudiante' => $params['estudiante'],
+
+            // Datos de matrícula
+            'matricula_actual' => $params['matriculaActual'],
+
+            // Datos del periodo actual
+            'periodo_actual' => [
+                'id' => $params['periodoActual']->id,
+                'anio' => $params['periodoActual']->anio,
+                'nombre' => $params['periodoActual']->nombre,
+                'descripcion' => $params['periodoActual']->descripcion,
+            ],
+
+            // Lista de periodos para el selector
+            'periodos' => $params['periodos'],
+
+            // Lista de bimestres para el selector
+            'bimestres_disponibles' => $params['bimestres'],
+
+            // Bimestre seleccionado
+            'bimestre_seleccionado' => $bimestreSeleccionado,
+            'bimestre_nombre' => $bimestreSeleccionado['nombre'] ?? 'Promedio Anual',
+
+            // Datos del colegio
+            'colegio' => $params['colegio'],
+
+            // Parámetros de URL
+            'anio_param' => $params['anio'],
+            'sigla_param' => $params['sigla'],
         ];
     }
-
-    //Procesar competencias transversales
-    private function procesarCompetenciasTransversales($competenciasTransversales)
+    private function getNotasMaterias($estudianteId, $periodoActual, $sigla)
     {
-        $criteriosTransversales = [];
-        $promediosPorCriterio = [];
-        $promedioGeneralTransversales = 0;
-        $sumaPromediosTransversales = 0;
-        $totalCompetenciasTransversales = 0;
-
-        // Agrupar criterios por nombre
-        foreach ($competenciasTransversales as $transversal) {
-            foreach ($transversal['competencia']['criterios'] as $criterio) {
-                $criterioNombre = $criterio['criterio_nombre'];
-
-                if (!isset($criteriosTransversales[$criterioNombre])) {
-                    $criteriosTransversales[$criterioNombre] = [
-                        'notas' => [],
-                        'bimestres' => []
-                    ];
-                }
-
-                if ($criterio['nota']) {
-                    $criteriosTransversales[$criterioNombre]['notas'][] = $criterio['nota']['valor'];
-                    if ($criterio['nota']['bimestre']) {
-                        $criteriosTransversales[$criterioNombre]['bimestres'][] = $criterio['nota']['bimestre'];
-                    }
-                }
-            }
-        }
-
-        // Calcular promedios por criterio
-        foreach ($criteriosTransversales as $criterioNombre => $data) {
-            $totalNotas = count($data['notas']);
-            $promediosPorCriterio[$criterioNombre] = $totalNotas > 0 ?
-                array_sum($data['notas']) / $totalNotas : 0;
-        }
-
-        // Calcular promedio general de transversales
-        foreach ($competenciasTransversales as $transversal) {
-            $promedioTransversal = 0;
-            $criteriosConNota = 0;
-
-            foreach ($transversal['competencia']['criterios'] as $criterio) {
-                if ($criterio['nota']) {
-                    $promedioTransversal += $criterio['nota']['valor'];
-                    $criteriosConNota++;
-                }
-            }
-
-            if ($criteriosConNota > 0) {
-                $promedioTransversalCalculado = $promedioTransversal / $criteriosConNota;
-                $sumaPromediosTransversales += $promedioTransversalCalculado;
-                $totalCompetenciasTransversales++;
-            }
-        }
-
-        $promedioGeneralTransversales = $totalCompetenciasTransversales > 0 ?
-            $sumaPromediosTransversales / $totalCompetenciasTransversales : 0;
-
-        return [
-            'criterios_transversales' => $criteriosTransversales,
-            'promedios_por_criterio' => $promediosPorCriterio,
-            'promedio_general_transversales' => $promedioGeneralTransversales,
-            'total_competencias_transversales' => $totalCompetenciasTransversales,
-        ];
-    }
-
-    //Obtener notas de conducta
-    private function obtenerNotasConducta($estudianteId, $periodoActual, $bimestre, $gradoId = null)
-    {
-        // Primero, obtener todos los cursos del estudiante en este periodo
-        $cursosEstudiante = Cursogradosecnivanio::where('periodo_id', $periodoActual->id)
-            ->where('grado_id', $gradoId)
-            ->get();
-
-        // Si no hay cursos, retornar colección vacía
-        if ($cursosEstudiante->isEmpty()) {
-            return [
-                'datos_agrupados' => collect(),
-                'conductas_agrupadas' => [],
-                'total_bimestres' => 0
-            ];
-        }
-
-        // Obtener IDs de los cursos
-        $cursoIds = $cursosEstudiante->pluck('id');
-
-        // Consulta para notas de conducta
-        $notasConductaQuery = Conductanota::with(['conducta', 'periodo', 'curso_grado_sec_niv_anio.materia'])
+        $query = Nota::with(['criterio.materiaCompetencia', 'criterio.materia'])
             ->where('estudiante_id', $estudianteId)
-            ->whereIn('curso_grado_sec_niv_anio_id', $cursoIds) // Filtrar por cursos del estudiante
+            ->where('periodo_id', $periodoActual->id)
             ->where('publico', '!=', '0'); // Solo notas publicadas
 
-        if ($bimestre !== 'anual') {
-            $notasConductaQuery->where('bimestre', $bimestre);
-        }
+        // Si no es anual, filtrar por periodo_bimestre_id
+        if ($sigla !== 'anual') {
+            // Buscar el periodo_bimestre_id por sigla
+            $periodoBimestre = Periodobimestre::where('periodo_id', $periodoActual->id)
+                ->where('sigla', $sigla)
+                ->where('tipo_bimestre', 'A')
+                ->first();
 
-        $notasConducta = $notasConductaQuery->get()
-            ->map(function($notaConducta) {
-                return [
-                    'id' => $notaConducta->id,
-                    'conducta_id' => $notaConducta->conducta_id,
-                    'conducta_nombre' => $notaConducta->conducta->nombre ?? 'Sin nombre',
-                    'valor' => $notaConducta->nota,
-                    'bimestre' => $notaConducta->bimestre,
-                    'publico' => $notaConducta->publico,
-                    'periodo_anio' => $notaConducta->periodo->anio ?? null,
-                    'materia_nombre' => $notaConducta->curso_grado_sec_niv_anio->materia->nombre ?? 'General',
-                    'materia_id' => $notaConducta->curso_grado_sec_niv_anio->materia->id ?? null,
-                ];
-            })
-            ->groupBy('materia_nombre'); // Agrupar por materia
-
-        // Procesar los datos agrupados para la tabla resumen
-        $conductasAgrupadas = [];
-        $totalBimestres = 0;
-
-        foreach($notasConducta as $conductasMateria) {
-            foreach($conductasMateria as $notaConducta) {
-                $conductaId = $notaConducta['conducta_id'];
-                $conductaNombre = $notaConducta['conducta_nombre'];
-                $bimestre = $notaConducta['bimestre'];
-                $valor = $notaConducta['valor'];
-
-                if(!isset($conductasAgrupadas[$conductaId])) {
-                    $conductasAgrupadas[$conductaId] = [
-                        'nombre' => $conductaNombre,
-                        'total' => 0,
-                        'count' => 0,
-                        'bimestres' => []
-                    ];
-                }
-
-                $conductasAgrupadas[$conductaId]['total'] += $valor;
-                $conductasAgrupadas[$conductaId]['count']++;
-                $conductasAgrupadas[$conductaId]['bimestres'][$bimestre] = $valor;
-                $totalBimestres = max($totalBimestres, $bimestre);
+            if ($periodoBimestre) {
+                $query->where('periodo_bimestre_id', $periodoBimestre->id);
+            } else {
+                // No se encontró el bimestre, retornar colección vacía
+                return collect();
             }
         }
 
-        // Ordenar por clave (conducta_id)
-        ksort($conductasAgrupadas);
+        $notas = $query->get();
 
-        // Calcular promedios para cada conducta
-        foreach($conductasAgrupadas as $conductaId => &$datosConducta) {
-            $datosConducta['promedio'] = $datosConducta['count'] > 0 ?
-                round($datosConducta['total'] / $datosConducta['count'], 0) : 0;
-        }
-
-        return [
-            'datos_agrupados' => $notasConducta,
-            'conductas_agrupadas' => $conductasAgrupadas,
-            'total_bimestres' => $totalBimestres
-        ];
+        return $notas;
     }
-    //Obtener asistencias
-    private function obtenerAsistencias($estudianteId, $gradoId, $periodoActual, $bimestre)
+    private function getNotasConducta($estudianteId, $periodoActual, $bimestreNumero, $gradoId)
     {
-        $asistenciasQuery = Asistencia::with(['tipoasistencia', 'grado'])
-            ->where('estudiante_id', $estudianteId)
+        // Obtener los cursos del estudiante
+        $cursos = Cursogradosecnivanio::where('periodo_id', $periodoActual->id)
             ->where('grado_id', $gradoId)
-            ->whereYear('fecha', $periodoActual->anio);
+            ->pluck('id');
 
-        if ($bimestre !== 'anual') {
-            $asistenciasQuery->where('bimestre', $bimestre);
+        if ($cursos->isEmpty()) {
+            return collect();
         }
 
-        $asistencias = $asistenciasQuery->orderBy('fecha', 'desc')->get();
+        $query = Conductaperiodobimestrenota::with([
+                'conductaPeriodoBimestre.conducta',
+                'curso_grado_sec_niv_anio.materia'
+            ])
+            ->where('estudiante_id', $estudianteId)
+            ->where('periodo_id', $periodoActual->id)
+            ->whereIn('curso_grado_sec_niv_anio_id', $cursos)
+            ->where('publico', '!=', '0');
 
-        $resumenAsistencias = [
-            'total' => 0,
-            'tipos' => []
-        ];
+        // Filtrar por bimestre si no es anual
+        if ($bimestreNumero) {
+            $periodoBimestre = Periodobimestre::where('periodo_id', $periodoActual->id)
+                ->where('bimestre', $bimestreNumero)
+                ->where('tipo_bimestre', 'A')
+                ->first();
 
-        if ($asistencias->count() > 0) {
-            $resumenAsistencias['total'] = $asistencias->count();
-
-            $asistenciasPorTipo = $asistencias->groupBy('tipo_asistencia_id');
-
-            foreach ($asistenciasPorTipo as $tipoId => $asistenciasTipo) {
-                $tipo = $asistenciasTipo->first()->tipoasistencia;
-                $resumenAsistencias['tipos'][] = [
-                    'tipo_id' => $tipoId,
-                    'tipo_nombre' => $tipo->nombre ?? 'Sin tipo',
-                    'cantidad' => $asistenciasTipo->count(),
-                    'porcentaje' => round(($asistenciasTipo->count() / $asistencias->count()) * 100, 1)
-                ];
+            if ($periodoBimestre) {
+                $query->where('periodo_bimestre_id', $periodoBimestre->id);
             }
         }
 
-        return [
-            'asistencias' => $asistencias,
-            'resumen' => $resumenAsistencias
-        ];
+        return $query->get();
     }
-
-    //Calcular total de criterios
-    private function calcularTotalCriterios($materiasRegulares)
+    private function agruparNotasPorMateria($notas, $esAnual = false)
     {
-        $totalCriterios = 0;
+        $materias = [];
 
-        foreach ($materiasRegulares as $materia) {
-            foreach ($materia['competencias'] as $competencia) {
-                $criteriosCount = $competencia['criterios']->count();
-                $totalCriterios += ($criteriosCount > 0 ? $criteriosCount : 1);
-            }
-        }
+        foreach ($notas as $nota) {
+            $criterio = $nota->criterio;
+            if (!$criterio) continue;
 
-        return $totalCriterios;
-    }
+            $materiaId = $criterio->materia_id;
+            $materiaNombre = $criterio->materia->nombre ?? 'Sin materia';
+            $competenciaId = $criterio->materia_competencia_id;
+            $competenciaNombre = $criterio->materiaCompetencia->nombre ?? 'Sin competencia';
 
-    //Calcular total de competencias
-    private function calcularTotalCompetencias($materiasRegulares)
-    {
-        $totalCompetencias = 0;
+            // Detectar si es transversal
+            $esTransversal = str_contains(strtoupper($competenciaNombre), 'TRANSVERSAL');
 
-        foreach ($materiasRegulares as $materia) {
-            $totalCompetencias += count($materia['competencias']);
-        }
-
-        return $totalCompetencias;
-    }
-
-    // Calcular promedio general de materias
-    private function calcularPromedioGeneralMaterias($materiasRegulares)
-    {
-        $sumaPromedios = 0;
-        $materiasConPromedio = 0;
-
-        foreach ($materiasRegulares as $materia) {
-            $promedioMateria = 0;
-            $totalCompetencias = 0;
-
-            foreach ($materia['competencias'] as $competencia) {
-                $promedioCompetencia = 0;
-                $criteriosConNota = 0;
-
-                foreach ($competencia['criterios'] as $criterio) {
-                    if ($criterio['nota']) {
-                        $promedioCompetencia += $criterio['nota']['valor'];
-                        $criteriosConNota++;
-                    }
-                }
-
-                if ($criteriosConNota > 0) {
-                    $promedioCompetenciaCalculado = $promedioCompetencia / $criteriosConNota;
-                    $promedioMateria += $promedioCompetenciaCalculado;
-                    $totalCompetencias++;
-                }
-            }
-
-            if ($totalCompetencias > 0) {
-                $promedioMateriaCalculado = $promedioMateria / $totalCompetencias;
-                $sumaPromedios += $promedioMateriaCalculado;
-                $materiasConPromedio++;
-            }
-        }
-
-        return $materiasConPromedio > 0 ? $sumaPromedios / $materiasConPromedio : 0;
-    }
-
-    //Preparar datos de materias para la vista (rowspan y promedios)
-    private function prepararMateriasParaVista($materiasRegulares)
-    {
-        $materiasProcesadas = [];
-
-        foreach ($materiasRegulares as $materia) {
-            $rowspanMateria = 0;
-            $promedioMateria = 0;
-            $totalCompetencias = 0;
-            $competenciasProcesadas = [];
-
-            foreach ($materia['competencias'] as $competencia) {
-                $criteriosCount = $competencia['criterios']->count();
-                $rowspanMateria += ($criteriosCount > 0 ? $criteriosCount + 1 : 2);
-
-                // Calcular promedio de competencia
-                $promedioCompetencia = 0;
-                $criteriosConNota = 0;
-                $ultimoCriterio = null;
-
-                foreach ($competencia['criterios'] as $criterio) {
-                    $ultimoCriterio = $criterio;
-                    if ($criterio['nota']) {
-                        $promedioCompetencia += $criterio['nota']['valor'];
-                        $criteriosConNota++;
-                    }
-                }
-
-                $promedioCompetenciaCalculado = $criteriosConNota > 0 ?
-                    $promedioCompetencia / $criteriosConNota : 0;
-
-                if ($criteriosConNota > 0) {
-                    $promedioMateria += $promedioCompetenciaCalculado;
-                    $totalCompetencias++;
-                }
-
-                $competenciasProcesadas[] = [
-                    'nombre' => $competencia['competencia_nombre'],
-                    'criterios' => $competencia['criterios'],
-                    'criterios_count' => $criteriosCount,
-                    'promedio' => $promedioCompetenciaCalculado,
-                    'ultimo_criterio' => $ultimoCriterio
+            if (!isset($materias[$materiaId])) {
+                $materias[$materiaId] = [
+                    'id' => $materiaId,
+                    'nombre' => $materiaNombre,
+                    'competencias' => [],
+                    'competencias_transversales' => [],
+                    'es_transversal' => false
                 ];
             }
 
-            $promedioMateriaCalculado = $totalCompetencias > 0 ?
-                $promedioMateria / $totalCompetencias : 0;
+            $targetArray = $esTransversal ? 'competencias_transversales' : 'competencias';
 
-            $materiasProcesadas[] = [
-                'nombre' => $materia['materia_nombre'],
-                'competencias' => $competenciasProcesadas,
-                'rowspan' => $rowspanMateria,
-                'promedio' => $promedioMateriaCalculado,
-                'total_competencias' => $totalCompetencias
+            if (!isset($materias[$materiaId][$targetArray][$competenciaId])) {
+                $materias[$materiaId][$targetArray][$competenciaId] = [
+                    'id' => $competenciaId,
+                    'nombre' => $competenciaNombre,
+                    'criterios' => [],
+                    'es_transversal' => $esTransversal
+                ];
+            }
+
+            $materias[$materiaId][$targetArray][$competenciaId]['criterios'][] = [
+                'id' => $criterio->id,
+                'nombre' => $criterio->nombre,
+                'nota' => $nota->nota,
+                'publico' => $nota->publico
             ];
         }
 
-        return $materiasProcesadas;
+        // Convertir arrays asociativos a indexados
+        foreach ($materias as &$materia) {
+            $materia['competencias'] = array_values($materia['competencias']);
+            $materia['competencias_transversales'] = array_values($materia['competencias_transversales']);
+            foreach ($materia['competencias'] as &$competencia) {
+                $competencia['criterios'] = array_values($competencia['criterios']);
+            }
+            foreach ($materia['competencias_transversales'] as &$competencia) {
+                $competencia['criterios'] = array_values($competencia['criterios']);
+            }
+        }
+
+        return array_values($materias);
     }
-
-    //Generar PDF de la libreta
-    public function pdf(Request $request, $anio, $bimestre)
+    private function agruparNotasConductaPorMateria($notasConducta)
     {
-        $user = auth()->user();
+        $conductasPorMateria = [];
 
-        // Obtener el estudiante con el usuario relacionado
-        $estudiante = Estudiante::with(['user'])
-            ->where('user_id', $user->id)
-            ->first();
+        foreach ($notasConducta as $nota) {
+            $curso = $nota->curso_grado_sec_niv_anio;
+            if (!$curso) continue;
 
-        if (!$estudiante) {
-            abort(404, 'Estudiante no encontrado.');
-        }
+            $materiaNombre = $curso->materia->nombre ?? 'Sin materia';
+            $conducta = $nota->conductaPeriodoBimestre->conducta ?? null;
 
-        // Validar que el bimestre sea válido (1-4 o anual)
-        if (!in_array($bimestre, ['anual', '1', '2', '3', '4'])) {
-            abort(404, 'Bimestre no válido.');
-        }
+            if (!$conducta) continue;
 
-        // Obtener el tipo de PDF (cuantitativo o cualitativo)
-        $tipoPdf = $request->input('tipo_pdf', 'cuantitativo');
-        if (!in_array($tipoPdf, ['cuantitativo', 'cualitativo'])) {
-            $tipoPdf = 'cuantitativo';
-        }
-
-        // Buscar el periodo por año (anio)
-        $periodoActual = Periodo::where('anio', $anio)->first();
-
-        if (!$periodoActual) {
-            $periodoActual = Periodo::where('estado', '1')
-                ->orderBy('anio', 'desc')
-                ->first();
-
-            if ($periodoActual) {
-                return redirect()->route('libreta.pdf', [
-                    'anio' => $periodoActual->anio,
-                    'bimestre' => $bimestre
-                ]);
+            if (!isset($conductasPorMateria[$materiaNombre])) {
+                $conductasPorMateria[$materiaNombre] = [];
             }
+
+            $conductasPorMateria[$materiaNombre][] = [
+                'conducta_id' => $conducta->id,
+                'conducta_nombre' => $conducta->nombre,
+                'nota' => $nota->nota,
+                'publico' => $nota->publico
+            ];
         }
 
-        // Obtener la matrícula del estudiante para este periodo
-        $matriculaActual = null;
-        if ($periodoActual) {
-            $matriculaActual = Matricula::with(['grado', 'periodo'])
-                ->where('estudiante_id', $estudiante->id)
-                ->where('periodo_id', $periodoActual->id)
-                ->first();
-        }
-
-        // Obtener datos de la IE (Colegio)
-        $colegio = Colegio::configuracion();
-
-        // Variables principales para la vista
-        $datosVista = [
-            'materias_regulares' => [],
-            'competencias_transversales' => [],
-            'criterios_transversales' => [],
-            'promedios_por_criterio' => [],
-            'promedio_general_transversales' => 0,
-            'notas_conducta' => null,
-            'conductas_agrupadas' => [],
-            'total_bimestres_conducta' => 0,
-            'asistencias' => collect(),
-            'resumen_asistencias' => ['total' => 0, 'tipos' => []],
-            'numero_criterio_global' => 0,
-            'numero_competencia_global' => 0,
-            'total_materias_regulares' => 0,
-            'promedio_general_materias' => 0,
-            'materias_procesadas' => []
-        ];
-
-        if ($matriculaActual && $periodoActual) {
-            // 1. OBTENER Y PROCESAR NOTAS DE MATERIAS
-            $datosMaterias = $this->procesarNotasMaterias($estudiante->id, $periodoActual, $bimestre);
-            $datosVista = array_merge($datosVista, $datosMaterias);
-
-            // 2. OBTENER NOTAS DE CONDUCTA
-            $datosConducta = $this->obtenerNotasConducta(
-                $estudiante->id,
-                $periodoActual,
-                $bimestre,
-                $matriculaActual->grado_id
-            );
-
-            $datosVista['notas_conducta'] = $datosConducta['datos_agrupados'];
-            $datosVista['conductas_agrupadas'] = $datosConducta['conductas_agrupadas'];
-            $datosVista['total_bimestres_conducta'] = $datosConducta['total_bimestres'];
-
-            // 3. OBTENER ASISTENCIAS
-            $datosAsistencias = $this->obtenerAsistencias($estudiante->id, $matriculaActual->grado_id, $periodoActual, $bimestre);
-            $datosVista['asistencias'] = $datosAsistencias['asistencias'];
-            $datosVista['resumen_asistencias'] = $datosAsistencias['resumen'];
-
-            // 4. CALCULAR ESTADÍSTICAS GLOBALES
-            $datosVista['numero_criterio_global'] = $this->calcularTotalCriterios($datosVista['materias_regulares']);
-            $datosVista['numero_competencia_global'] = $this->calcularTotalCompetencias($datosVista['materias_regulares']);
-            $datosVista['total_materias_regulares'] = count($datosVista['materias_regulares']);
-            $datosVista['promedio_general_materias'] = $this->calcularPromedioGeneralMaterias($datosVista['materias_regulares']);
-
-            // 5. PREPARAR DATOS PARA LA VISTA (rowspan y promedios por materia)
-            $datosVista['materias_procesadas'] = $this->prepararMateriasParaVista($datosVista['materias_regulares']);
-        }
-
-        // Preparar datos para el PDF
-        $pdfData = array_merge([
-            'estudiante' => $estudiante,
-            'matricula_actual' => $matriculaActual,
-            'periodo_actual' => $periodoActual,
-            'colegio' => $colegio,
-            'anio_param' => $anio,
-            'bimestre_param' => $bimestre,
-            'tipo_pdf' => $tipoPdf,
-            'fecha_generacion' => now()->format('d/m/Y H:i:s'),
-            'user' => $user,
-            'modo_pdf' => true,
-        ], $datosVista);
-
-        // Aplicar redondeo en modo cuantitativo y conversión en modo cualitativo
-        if ($tipoPdf === 'cualitativo') {
-            $pdfData = $this->convertirDatosACualitativo($pdfData);
-        } else {
-            $pdfData = $this->redondearDatosCuantitativos($pdfData);
-        }
-
-        // Configurar opciones del PDF
-        $options = [
-            'defaultFont' => 'Arial',
-            'isHtml5ParserEnabled' => true,
-            'isRemoteEnabled' => true,
-            'dpi' => 150,
-        ];
-
-        // Generar nombre del archivo
-        $nombreArchivo = 'libreta_' .
-                        $estudiante->user->dni . '_' .
-                        $anio . '_' .
-                        ($bimestre == 'anual' ? 'anual' : 'bim' . $bimestre) . '_' .
-                        $tipoPdf . '_' .
-                        date('YmdHis') . '.pdf';
-
-        // Generar PDF
-        $pdf = Pdf::loadView('libreta.pdf', $pdfData)
-            ->setOptions($options)
-            ->setPaper('A4', 'portrait');
-
-        // Forzar descarga del PDF
-        return $pdf->download($nombreArchivo);
+        return $conductasPorMateria;
     }
-
-    // Redondear datos numéricos en modo cuantitativo
-    private function redondearDatosCuantitativos($datos)
+    private function calcularPromedios($materias, $esAnual = false)
     {
-        // Función para redondear números (1.5 se redondea a 2)
-        $redondearNota = function($nota) {
-            if (is_numeric($nota)) {
-                $nota = floatval($nota);
-                // Redondear al entero más cercano (1.5 => 2, 1.4 => 1)
-                return round($nota);
-            }
-            return $nota;
-        };
+        foreach ($materias as &$materia) {
+            $sumaCompetencias = 0;
+            $totalCompetencias = 0;
 
-        // 1. REDONDEAR CALIFICACIONES DE CRITERIOS EN MATERIAS REGULARES
-        if (isset($datos['materias_procesadas']) && is_array($datos['materias_procesadas'])) {
-            foreach ($datos['materias_procesadas'] as &$materia) {
-                // Redondear promedio de la materia
-                if (isset($materia['promedio']) && is_numeric($materia['promedio'])) {
-                    $materia['promedio'] = $redondearNota($materia['promedio']);
-                }
-
-                // Procesar competencias
-                if (isset($materia['competencias']) && is_array($materia['competencias'])) {
-                    foreach ($materia['competencias'] as &$competencia) {
-                        // Redondear promedio de competencia
-                        if (isset($competencia['promedio']) && is_numeric($competencia['promedio'])) {
-                            $competencia['promedio'] = $redondearNota($competencia['promedio']);
-                        }
-
-                        // Redondear notas de criterios
-                        if (isset($competencia['criterios']) && is_array($competencia['criterios'])) {
-                            foreach ($competencia['criterios'] as &$criterio) {
-                                if (isset($criterio['nota']['valor']) && is_numeric($criterio['nota']['valor'])) {
-                                    $criterio['nota']['valor'] = $redondearNota($criterio['nota']['valor']);
-                                }
-                            }
+            // Procesar competencias regulares
+            foreach ($materia['competencias'] as &$competencia) {
+                if ($esAnual) {
+                    // En modo anual, calcular promedio de TODOS los criterios de la competencia
+                    $sumaCriterios = 0;
+                    $totalCriterios = 0;
+                    foreach ($competencia['criterios'] as $criterio) {
+                        if ($criterio['nota']) {
+                            $sumaCriterios += $criterio['nota'];
+                            $totalCriterios++;
                         }
                     }
+                    $competencia['promedio'] = $totalCriterios > 0
+                        ? round($sumaCriterios / $totalCriterios, 1)
+                        : null;
+                } else {
+                    // En modo bimestre, tomar la nota directa del criterio
+                    $notasValidas = array_filter(array_column($competencia['criterios'], 'nota'));
+                    $competencia['promedio'] = !empty($notasValidas)
+                        ? round(array_sum($notasValidas) / count($notasValidas), 1)
+                        : null;
+                }
+
+                if ($competencia['promedio']) {
+                    $sumaCompetencias += $competencia['promedio'];
+                    $totalCompetencias++;
                 }
             }
-        }
 
-        // 2. REDONDEAR COMPETENCIAS TRANSVERSALES
-        if (isset($datos['competencias_transversales']) && is_array($datos['competencias_transversales'])) {
-            foreach ($datos['competencias_transversales'] as &$transversal) {
-                if (isset($transversal['competencia']['criterios']) && is_array($transversal['competencia']['criterios'])) {
-                    foreach ($transversal['competencia']['criterios'] as &$criterio) {
-                        if (isset($criterio['nota']['valor']) && is_numeric($criterio['nota']['valor'])) {
-                            $criterio['nota']['valor'] = $redondearNota($criterio['nota']['valor']);
-                        }
+            $materia['promedio'] = $totalCompetencias > 0
+                ? round($sumaCompetencias / $totalCompetencias, 1)
+                : null;
+
+            // Procesar competencias transversales (siempre se muestran aparte)
+            foreach ($materia['competencias_transversales'] as &$competencia) {
+                $sumaCriterios = 0;
+                $totalCriterios = 0;
+                foreach ($competencia['criterios'] as $criterio) {
+                    if ($criterio['nota']) {
+                        $sumaCriterios += $criterio['nota'];
+                        $totalCriterios++;
                     }
                 }
+                $competencia['promedio'] = $totalCriterios > 0
+                    ? round($sumaCriterios / $totalCriterios, 1)
+                    : null;
             }
         }
 
-        // 3. REDONDEAR PROMEDIOS POR CRITERIO EN TRANSVERSALES
-        if (isset($datos['promedios_por_criterio']) && is_array($datos['promedios_por_criterio'])) {
-            foreach ($datos['promedios_por_criterio'] as &$promedio) {
-                if (is_numeric($promedio)) {
-                    $promedio = $redondearNota($promedio);
-                }
-            }
-        }
-
-        // 4. REDONDEAR PROMEDIO GENERAL DE TRANSVERSALES
-        if (isset($datos['promedio_general_transversales']) && is_numeric($datos['promedio_general_transversales'])) {
-            $datos['promedio_general_transversales'] = $redondearNota($datos['promedio_general_transversales']);
-        }
-
-        // 5. REDONDEAR PROMEDIO GENERAL DE MATERIAS
-        if (isset($datos['promedio_general_materias']) && is_numeric($datos['promedio_general_materias'])) {
-            $datos['promedio_general_materias'] = $redondearNota($datos['promedio_general_materias']);
-        }
-
-        // 6. REDONDEAR NOTAS DE CONDUCTA AGRUPADAS
-        if (isset($datos['conductas_agrupadas']) && is_array($datos['conductas_agrupadas'])) {
-            foreach ($datos['conductas_agrupadas'] as &$conducta) {
-                if (isset($conducta['promedio']) && is_numeric($conducta['promedio'])) {
-                    $conducta['promedio'] = $redondearNota($conducta['promedio']);
-                }
-            }
-        }
-
-        // 7. REDONDEAR NOTAS DE CONDUCTA DETALLADAS (por materia)
-        if (isset($datos['notas_conducta']) && $datos['notas_conducta'] instanceof \Illuminate\Support\Collection) {
-            $datos['notas_conducta'] = $datos['notas_conducta']->map(function($materia) use ($redondearNota) {
-                if (is_array($materia)) {
-                    return array_map(function($notaConducta) use ($redondearNota) {
-                        if (isset($notaConducta['valor']) && is_numeric($notaConducta['valor'])) {
-                            $notaConducta['valor'] = $redondearNota($notaConducta['valor']);
-                        }
-                        return $notaConducta;
-                    }, $materia);
-                }
-                return $materia;
-            });
-        }
-
-        // 8. REDONDEAR MATERIAS REGULARES (datos originales)
-        if (isset($datos['materias_regulares']) && is_array($datos['materias_regulares'])) {
-            foreach ($datos['materias_regulares'] as &$materia) {
-                if (isset($materia['competencias']) && is_array($materia['competencias'])) {
-                    foreach ($materia['competencias'] as &$competencia) {
-                        // Redondear promedio de competencia
-                        if (isset($competencia['promedio']) && is_numeric($competencia['promedio'])) {
-                            $competencia['promedio'] = $redondearNota($competencia['promedio']);
-                        }
-
-                        // Redondear criterios
-                        if (isset($competencia['criterios']) && is_array($competencia['criterios'])) {
-                            foreach ($competencia['criterios'] as &$criterio) {
-                                if (isset($criterio['nota']['valor']) && is_numeric($criterio['nota']['valor'])) {
-                                    $criterio['nota']['valor'] = $redondearNota($criterio['nota']['valor']);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return $datos;
+        return $materias;
     }
-    //Convertir datos numéricos a cualitativos
-    private function convertirDatosACualitativo($datos)
+    private function calcularPromedioTransversales($materias)
     {
-        // Primero redondear todos los datos numéricos
-        $datosRedondeados = $this->redondearDatosCuantitativos($datos);
+        $sumaTransversales = 0;
+        $totalTransversales = 0;
 
-        // Función para convertir número redondeado a letra
-        $convertirNotaRedondeada = function($nota) {
-            if (is_numeric($nota)) {
-                $nota = intval($nota); // Ya está redondeado
-
-                // Asegurar que esté en rango 1-4
-                if ($nota > 4) $nota = 4;
-                if ($nota < 1) $nota = 1;
-
-                // Convertir a letra
-                switch ($nota) {
-                    case 4: return 'AD';
-                    case 3: return 'A';
-                    case 2: return 'B';
-                    case 1: return 'C';
-                    default: return 'C';
-                }
-            }
-            return $nota;
-        };
-        // Convertir los datos redondeados a cualitativos
-        return $this->convertirDatosRedondeadosACualitativo($datosRedondeados, $convertirNotaRedondeada);
-    }
-
-    // Función auxiliar para convertir datos redondeados a cualitativos
-    private function convertirDatosRedondeadosACualitativo($datos, $convertirNota)
-    {
-        // 1. CONVERTIR CALIFICACIONES DE CRITERIOS EN MATERIAS REGULARES
-        if (isset($datos['materias_procesadas']) && is_array($datos['materias_procesadas'])) {
-            foreach ($datos['materias_procesadas'] as &$materia) {
-                if (isset($materia['promedio']) && is_numeric($materia['promedio'])) {
-                    $materia['promedio'] = $convertirNota($materia['promedio']);
-                }
-
-                if (isset($materia['competencias']) && is_array($materia['competencias'])) {
-                    foreach ($materia['competencias'] as &$competencia) {
-                        if (isset($competencia['promedio']) && is_numeric($competencia['promedio'])) {
-                            $competencia['promedio'] = $convertirNota($competencia['promedio']);
-                        }
-
-                        if (isset($competencia['criterios']) && is_array($competencia['criterios'])) {
-                            foreach ($competencia['criterios'] as &$criterio) {
-                                if (isset($criterio['nota']['valor']) && is_numeric($criterio['nota']['valor'])) {
-                                    $criterio['nota']['valor'] = $convertirNota($criterio['nota']['valor']);
-                                }
-                            }
-                        }
-                    }
+        foreach ($materias as $materia) {
+            foreach ($materia['competencias_transversales'] as $competencia) {
+                if ($competencia['promedio']) {
+                    $sumaTransversales += $competencia['promedio'];
+                    $totalTransversales++;
                 }
             }
         }
 
-        // 2. CONVERTIR COMPETENCIAS TRANSVERSALES
-        if (isset($datos['competencias_transversales']) && is_array($datos['competencias_transversales'])) {
-            foreach ($datos['competencias_transversales'] as &$transversal) {
-                if (isset($transversal['competencia']['criterios']) && is_array($transversal['competencia']['criterios'])) {
-                    foreach ($transversal['competencia']['criterios'] as &$criterio) {
-                        if (isset($criterio['nota']['valor']) && is_numeric($criterio['nota']['valor'])) {
-                            $criterio['nota']['valor'] = $convertirNota($criterio['nota']['valor']);
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3. CONVERTIR PROMEDIOS POR CRITERIO EN TRANSVERSALES
-        if (isset($datos['promedios_por_criterio']) && is_array($datos['promedios_por_criterio'])) {
-            foreach ($datos['promedios_por_criterio'] as &$promedio) {
-                if (is_numeric($promedio)) {
-                    $promedio = $convertirNota($promedio);
-                }
-            }
-        }
-
-        // 4. CONVERTIR PROMEDIO GENERAL DE TRANSVERSALES
-        if (isset($datos['promedio_general_transversales']) && is_numeric($datos['promedio_general_transversales'])) {
-            $datos['promedio_general_transversales'] = $convertirNota($datos['promedio_general_transversales']);
-        }
-
-        // 5. CONVERTIR PROMEDIO GENERAL DE MATERIAS
-        if (isset($datos['promedio_general_materias']) && is_numeric($datos['promedio_general_materias'])) {
-            $datos['promedio_general_materias'] = $convertirNota($datos['promedio_general_materias']);
-        }
-
-        // 6. CONVERTIR NOTAS DE CONDUCTA AGRUPADAS
-        if (isset($datos['conductas_agrupadas']) && is_array($datos['conductas_agrupadas'])) {
-            foreach ($datos['conductas_agrupadas'] as &$conducta) {
-                if (isset($conducta['promedio']) && is_numeric($conducta['promedio'])) {
-                    $conducta['promedio'] = $convertirNota($conducta['promedio']);
-                }
-            }
-        }
-
-        // 7. CONVERTIR NOTAS DE CONDUCTA DETALLADAS (por materia)
-        if (isset($datos['notas_conducta']) && $datos['notas_conducta'] instanceof \Illuminate\Support\Collection) {
-            $datos['notas_conducta'] = $datos['notas_conducta']->map(function($materia) use ($convertirNota) {
-                if (is_array($materia)) {
-                    return array_map(function($notaConducta) use ($convertirNota) {
-                        if (isset($notaConducta['valor']) && is_numeric($notaConducta['valor'])) {
-                            $notaConducta['valor'] = $convertirNota($notaConducta['valor']);
-                        }
-                        return $notaConducta;
-                    }, $materia);
-                }
-                return $materia;
-            });
-        }
-        return $datos;
+        return $totalTransversales > 0
+            ? round($sumaTransversales / $totalTransversales, 1)
+            : null;
     }
 }
