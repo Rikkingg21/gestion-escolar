@@ -40,7 +40,7 @@ class Conductaperiodobimestrenota extends Model
     {
         return $this->belongsTo(Periodo::class, 'periodo_id');
     }
-    public function periodo_bimestre()
+    public function periodoBimestre()
     {
         return $this->belongsTo(Bimestre::class, 'periodo_bimestre_id');
     }

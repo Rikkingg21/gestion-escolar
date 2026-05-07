@@ -15,7 +15,7 @@ class Conducta extends Model
     public $timestamps = true;
     protected $fillable = [
         'nombre',
-        'estado',
+        'estado', // '1' para activo, '0' para inactivo
     ];
     public function periodosBimestres()
     {

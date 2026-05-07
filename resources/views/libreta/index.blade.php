@@ -446,7 +446,7 @@
         @endif
 
         <!-- Calificaciones de Conducta -->
-        @if(count($conductas_por_materia) > 0)
+        @if(isset($todas_las_conductas) && count($todas_las_conductas) > 0)
         <div class="mt-4">
             <div class="border border-1 border-dark rounded-1 p-3">
                 <h5 class="mb-3">
@@ -456,30 +456,27 @@
                 <div class="table-responsive">
                     <table class="table table-bordered">
                         <thead class="table-light">
-                            <tr>
-                                <th class="text-center">MATERIA</th>
-                                <th class="text-center">CONDUCTA</th>
-                                <th class="text-center">CALIFICACIÓN</th>
+                            <tr class="text-center">
+                                <th style="width: 70%">CONDUCTA</th>
+                                <th style="width: 30%">
+                                    @if($sigla_param == 'anual')
+                                        PROMEDIO ANUAL
+                                    @else
+                                        CALIFICACIÓN {{ strtoupper($sigla_param) }}
+                                    @endif
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($conductas_por_materia as $materiaNombre => $conductas)
-                                @php $conductaCount = count($conductas); @endphp
-                                @foreach($conductas as $index => $conducta)
-                                    <tr>
-                                        @if($index === 0)
-                                        <td rowspan="{{ $conductaCount }}" class="align-middle fw-bold">
-                                            {{ $materiaNombre }}
-                                        </td>
-                                        @endif
-                                        <td>{{ $conducta['conducta_nombre'] }}</td>
-                                        <td class="text-center fw-bold">
-                                            <span class="nota-valor" data-original="{{ $conducta['nota'] }}">
-                                                {{ $conducta['nota'] }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                @endforeach
+                            @foreach($todas_las_conductas as $conducta)
+                            <tr>
+                                <td>{{ $conducta['nombre'] }}</td>
+                                <td class="text-center fw-bold">
+                                    <span class="badge bg-secondary fs-6 p-2">
+                                        {{ number_format($conducta['nota'], 1) }}
+                                    </span>
+                                </td>
+                            </tr>
                             @endforeach
                         </tbody>
                     </table>
