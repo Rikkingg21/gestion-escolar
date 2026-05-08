@@ -469,11 +469,31 @@
                         </thead>
                         <tbody>
                             @foreach($todas_las_conductas as $conducta)
+                            @php
+                                // Determinar si la nota es baja para aplicar color rojo
+                                $notaRaw = $conducta['nota'];
+                                $esBaja = false;
+                                if ($notaRaw !== '-') {
+                                    $notaNumerica = is_numeric($notaRaw) ? $notaRaw : (floatval($notaRaw));
+                                    if ($notaNumerica <= 2 || $notaRaw == 'C' || $notaRaw == 'B') {
+                                        $esBaja = true;
+                                    }
+                                }
+                                $claseColor = $esBaja ? 'text-danger fw-bold' : '';
+                            @endphp
                             <tr>
-                                <td>{{ $conducta['nombre'] }}</td>
+                                <td>
+                                    {{ $conducta['nombre'] }}
+                                    @if($conducta['tiene_tooltip'])
+                                    <i class="bi bi-info-circle text-info ms-2"
+                                    style="cursor: help;"
+                                    title="{{ $conducta['estado'] }}"></i>
+                                    @endif
+                                </td>
                                 <td class="text-center fw-bold">
-                                    <span class="badge bg-secondary fs-6 p-2">
-                                        {{ number_format($conducta['nota'], 1) }}
+                                    <span class="fs-6 p-2 nota-conducta {{ $claseColor }}"
+                                        data-original="{{ $conducta['nota_original'] }}">
+                                        {{ $conducta['nota'] }}
                                     </span>
                                 </td>
                             </tr>
@@ -524,7 +544,26 @@ function valorCualitativo(valor) {
     return 'C';
 }
 
-// Cambiar entre cuantitativo y cualitativo
+// Función para inicializar tooltips
+function inicializarTooltips() {
+    // Destruir tooltips existentes para evitar duplicados
+    const existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    existingTooltips.forEach(el => {
+        const instance = bootstrap.Tooltip.getInstance(el);
+        if (instance) {
+            instance.dispose();
+        }
+    });
+
+    // Crear nuevos tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl, {
+            trigger: 'hover focus'
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const switchCualitativo = document.getElementById('switchCualitativo');
     const labelSwitch = document.getElementById('labelSwitchCualitativo');
@@ -532,22 +571,70 @@ document.addEventListener('DOMContentLoaded', function() {
     function actualizarNotas() {
         const esCualitativo = !switchCualitativo.checked;
 
-        document.querySelectorAll('.nota-valor').forEach(function(span) {
+        // Notas de criterios y promedios académicos
+        document.querySelectorAll('.nota-valor, .nota-promedio').forEach(function(span) {
             const original = span.getAttribute('data-original');
             if (!original) {
                 span.setAttribute('data-original', span.textContent.trim());
             }
             const valor = span.getAttribute('data-original');
-            span.textContent = esCualitativo ? valorCualitativo(valor) : valor;
+            if (esCualitativo) {
+                span.textContent = valorCualitativo(valor);
+                // Aplicar color rojo para notas bajas en modo cualitativo
+                const texto = span.textContent;
+                if (texto === 'C' || texto === 'B') {
+                    span.classList.add('text-danger', 'fw-bold');
+                } else {
+                    span.classList.remove('text-danger', 'fw-bold');
+                }
+            } else {
+                const num = parseFloat(valor);
+                const notaRedondeada = Math.round(num);
+                span.textContent = notaRedondeada;
+                // Aplicar color rojo para notas <= 2
+                if (notaRedondeada <= 2) {
+                    span.classList.add('text-danger', 'fw-bold');
+                } else {
+                    span.classList.remove('text-danger', 'fw-bold');
+                }
+            }
         });
 
-        document.querySelectorAll('.nota-promedio').forEach(function(span) {
+        // Notas de conducta
+        document.querySelectorAll('.nota-conducta').forEach(function(span) {
             const original = span.getAttribute('data-original');
             if (!original) {
                 span.setAttribute('data-original', span.textContent.trim());
             }
             const valor = span.getAttribute('data-original');
-            span.textContent = esCualitativo ? valorCualitativo(valor) : valor;
+
+            // Si es guión, mantener como está
+            if (valor === '-') {
+                span.textContent = '-';
+                span.classList.remove('text-danger', 'fw-bold');
+                return;
+            }
+
+            if (esCualitativo) {
+                const letra = valorCualitativo(valor);
+                span.textContent = letra;
+                // Aplicar color rojo para C o B
+                if (letra === 'C' || letra === 'B') {
+                    span.classList.add('text-danger', 'fw-bold');
+                } else {
+                    span.classList.remove('text-danger', 'fw-bold');
+                }
+            } else {
+                const num = parseFloat(valor);
+                const notaRedondeada = Math.round(num);
+                span.textContent = notaRedondeada;
+                // Aplicar color rojo para notas <= 2
+                if (notaRedondeada <= 2) {
+                    span.classList.add('text-danger', 'fw-bold');
+                } else {
+                    span.classList.remove('text-danger', 'fw-bold');
+                }
+            }
         });
 
         labelSwitch.textContent = esCualitativo ? 'Cualitativo' : 'Cuantitativo';
@@ -557,6 +644,9 @@ document.addEventListener('DOMContentLoaded', function() {
         switchCualitativo.addEventListener('change', actualizarNotas);
         actualizarNotas();
     }
+
+    // Inicializar tooltips
+    inicializarTooltips();
 });
 
 // Modal PDF
