@@ -65,6 +65,9 @@ class LibretaController extends Controller
         $materiasConRowspan = $this->calcularRowspanMaterias($materiasConPromedios);
 
         $promedioTransversales = $this->calcularPromedioTransversales($materiasConPromedios);
+        $competenciasTransversalesAgrupadas = $this->agruparCompetenciasTransversales($materiasConPromedios);
+        $promedioTransversalesGeneral = $this->calcularPromedioTransversalesGeneral($competenciasTransversalesAgrupadas);
+
         $todasLasConductas = $this->obtenerTodasLasConductas($estudiante->id, $periodoActual, $sigla, $matriculaActual->grado_id ?? null);
         $conductasEnriquecidas = $this->enriquecerConductas($todasLasConductas);
 
@@ -82,12 +85,12 @@ class LibretaController extends Controller
         // Agregar los datos adicionales que necesita la vista
         $datosVista['materias'] = $materiasConRowspan;
         $datosVista['todas_las_conductas'] = $conductasEnriquecidas;
-        $datosVista['promedio_transversales'] = $promedioTransversales;
+        $datosVista['competencias_transversales_agrupadas'] = $competenciasTransversalesAgrupadas;
+        $datosVista['promedio_transversales_general'] = $promedioTransversalesGeneral;
         $datosVista['titulo_periodo'] = $esAnual ? 'EVALUACIÓN ANUAL' : strtoupper($sigla);
         $datosVista['titulo_conducta'] = $esAnual ? 'PROMEDIO ANUAL' : "CALIFICACIÓN " . strtoupper($sigla);
         $datosVista['datos_estudiante'] = $this->getDatosEstudiante($estudiante, $matriculaActual, $colegio);
         $datosVista['promedio_general_bimestre'] = $this->calcularPromedioGeneralBimestre($materiasConRowspan);
-        $datosVista['competencias_transversales'] = $this->extraerCompetenciasTransversales($materiasConRowspan);
         $datosVista['sin_criterios'] = $this->calcularSinCriterios($materiasConRowspan);
 
         return view('libreta.index', $datosVista);
@@ -769,5 +772,113 @@ class LibretaController extends Controller
         }
 
         return $conductas;
+    }
+    private function agruparCompetenciasTransversales($materias)
+    {
+        // Estructura: competencia_id => [nombre, criterios => [criterio_id => [nombre, materias => [materia => nota]]]]
+        $competenciasMap = [];
+
+        foreach ($materias as $materia) {
+            $materiaNombre = $materia['nombre'];
+
+            foreach ($materia['competencias_transversales'] as $competencia) {
+                $competenciaId = $competencia['id'];
+                $competenciaNombre = $competencia['nombre'];
+
+                if (!isset($competenciasMap[$competenciaId])) {
+                    $competenciasMap[$competenciaId] = [
+                        'id' => $competenciaId,
+                        'nombre' => $competenciaNombre,
+                        'criterios' => [],
+                        'sumaPromediosCompetencia' => 0,
+                        'totalCriteriosConNota' => 0
+                    ];
+                }
+
+                // Procesar cada criterio de esta competencia transversal
+                foreach ($competencia['criterios'] as $criterio) {
+                    $criterioId = $criterio['id'];
+                    $criterioNombre = $criterio['nombre'];
+                    $nota = $criterio['nota'];
+
+                    if (!isset($competenciasMap[$competenciaId]['criterios'][$criterioId])) {
+                        $competenciasMap[$competenciaId]['criterios'][$criterioId] = [
+                            'id' => $criterioId,
+                            'nombre' => $criterioNombre,
+                            'materias' => [],
+                            'sumaNotas' => 0,
+                            'totalMateriasConNota' => 0
+                        ];
+                    }
+
+                    // Agregar la materia y su nota para este criterio
+                    $competenciasMap[$competenciaId]['criterios'][$criterioId]['materias'][] = [
+                        'nombre' => $materiaNombre,
+                        'nota' => $nota
+                    ];
+
+                    if ($nota !== null) {
+                        $competenciasMap[$competenciaId]['criterios'][$criterioId]['sumaNotas'] += $nota;
+                        $competenciasMap[$competenciaId]['criterios'][$criterioId]['totalMateriasConNota']++;
+                    }
+                }
+            }
+        }
+
+        // Calcular promedios por criterio y por competencia
+        $resultado = [];
+        foreach ($competenciasMap as $competencia) {
+            $criteriosArray = [];
+            $sumaPromediosCriterios = 0;
+            $totalCriteriosConNota = 0;
+
+            foreach ($competencia['criterios'] as $criterio) {
+                // Promedio del criterio (promedio de todas las materias)
+                $promedioCriterio = $criterio['totalMateriasConNota'] > 0
+                    ? round($criterio['sumaNotas'] / $criterio['totalMateriasConNota'], 1)
+                    : null;
+
+                $criteriosArray[] = [
+                    'id' => $criterio['id'],
+                    'nombre' => $criterio['nombre'],
+                    'promedio' => $promedioCriterio,
+                    'materias' => $criterio['materias']
+                ];
+
+                if ($promedioCriterio !== null) {
+                    $sumaPromediosCriterios += $promedioCriterio;
+                    $totalCriteriosConNota++;
+                }
+            }
+
+            // Promedio de la competencia (promedio de todos sus criterios)
+            $promedioCompetencia = $totalCriteriosConNota > 0
+                ? round($sumaPromediosCriterios / $totalCriteriosConNota, 1)
+                : null;
+
+            $resultado[] = [
+                'id' => $competencia['id'],
+                'nombre' => $competencia['nombre'],
+                'promedio' => $promedioCompetencia,
+                'criterios' => $criteriosArray
+            ];
+        }
+
+        return $resultado;
+    }
+
+    private function calcularPromedioTransversalesGeneral($competenciasTransversalesAgrupadas)
+    {
+        $sumaTotal = 0;
+        $totalCompetenciasConNota = 0;
+
+        foreach ($competenciasTransversalesAgrupadas as $competencia) {
+            if ($competencia['promedio'] !== null) {
+                $sumaTotal += $competencia['promedio'];
+                $totalCompetenciasConNota++;
+            }
+        }
+
+        return $totalCompetenciasConNota > 0 ? round($sumaTotal / $totalCompetenciasConNota, 1) : null;
     }
 }

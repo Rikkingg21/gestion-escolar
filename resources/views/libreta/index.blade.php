@@ -252,58 +252,134 @@
                 </div>
             @endif
 
-            @if(count($competencias_transversales) > 0)
-                <div class="mt-4">
-                    <div class="border border-1 border-dark rounded-1 p-3">
-                        <h5 class="mb-3">
-                            <i class="fas fa-chalkboard-user me-2"></i>Competencias Transversales
-                        </h5>
-                        <p class="text-muted small mb-3">
-                            Las competencias transversales se evalúan de forma independiente y no se incluyen en el promedio regular.
-                        </p>
+            @if(count($competencias_transversales_agrupadas) > 0)
+            <div class="mt-4">
+                <div class="border border-1 border-dark rounded-1 p-3">
+                    <h5 class="mb-3">
+                        <i class="fas fa-chalkboard-user me-2"></i>Competencias y Criterios Transversales
+                    </h5>
+                    <p class="text-muted small mb-3">
+                        Las competencias transversales se evalúan a través de criterios que aplican a todas las materias.
+                    </p>
 
-                        <div class="table-responsive">
-                            <table class="table table-bordered">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="text-center">MATERIA</th>
-                                        <th class="text-center">COMPETENCIA TRANSVERSAL</th>
-                                        <th class="text-center">PROMEDIO</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($competencias_transversales as $item)
-                                        <tr>
-                                            <td class="fw-bold">{{ $item['materia'] }}</td>
-                                            <td>{{ $item['competencia'] }}</td>
-                                            <td class="text-center fw-bold">
-                                                @if($item['promedio'])
-                                                    <span class="nota-promedio" data-valor="{{ $item['promedio'] }}">
-                                                        {{ number_format($item['promedio'], 1) }}
+                    <div class="accordion" id="accordionTransversales">
+                        @foreach($competencias_transversales_agrupadas as $index => $competenciaTransversal)
+                            @php
+                                $accordionId = 'transversal-' . $index;
+                                $promedioCompetencia = $competenciaTransversal['promedio'] ?? null;
+                                $tienePromedio = $promedioCompetencia !== null;
+                            @endphp
+
+                            <div class="accordion-item mb-2 border rounded">
+                                <h2 class="accordion-header" id="heading{{ $accordionId }}">
+                                    <button class="accordion-button {{ $index > 0 ? 'collapsed' : '' }}"
+                                            type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#collapse{{ $accordionId }}"
+                                            aria-expanded="{{ $index === 0 ? 'true' : 'false' }}">
+                                        <div class="d-flex justify-content-between align-items-center w-100 me-3 text-black">
+                                            <span class="fw-bold">
+                                                <i class="fas fa-chalkboard-user me-2"></i>{{ $competenciaTransversal['nombre'] }}
+                                            </span>
+                                            <span class="badge {{ $tienePromedio ? 'bg-success' : 'bg-secondary' }} fs-6 px-3 py-2">
+                                                <i class="fas fa-chart-line me-1"></i>
+                                                Promedio:
+                                                @if($tienePromedio)
+                                                    <span class="nota-promedio" data-valor="{{ $promedioCompetencia }}">
+                                                        {{ number_format($promedioCompetencia, 1) }}
                                                     </span>
                                                 @else
-                                                    <span class="text-muted">--</span>
+                                                    --
                                                 @endif
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                                @if($promedio_transversales)
-                                    <tfoot class="table-info">
-                                        <tr>
-                                            <td colspan="2" class="text-end fw-bold">Promedio General de Competencias Transversales:</td>
-                                            <td class="text-center fw-bold">
-                                                <span class="nota-promedio" data-valor="{{ $promedio_transversales }}">
-                                                    {{ number_format($promedio_transversales, 1) }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    </tfoot>
-                                @endif
-                            </table>
-                        </div>
+                                            </span>
+                                        </div>
+                                    </button>
+                                </h2>
+
+                                <div id="collapse{{ $accordionId }}"
+                                    class="accordion-collapse collapse {{ $index === 0 ? 'show' : '' }}"
+                                    data-bs-parent="#accordionTransversales">
+                                    <div class="accordion-body p-0">
+                                        @foreach($competenciaTransversal['criterios'] as $criterioIndex => $criterio)
+                                            @php
+                                                $criterioPromedio = $criterio['promedio'] ?? null;
+                                            @endphp
+                                            <div class="border-bottom {{ $criterioIndex > 0 ? 'border-top' : '' }}">
+                                                <div class="bg-light p-2 px-3">
+                                                    <strong class="text-info">
+                                                        <i class="fas fa-check-circle me-2"></i>{{ $criterio['nombre'] }}
+                                                    </strong>
+                                                    @if($criterioPromedio)
+                                                        <span class="badge bg-info ms-2">
+                                                            Promedio: {{ number_format($criterioPromedio, 1) }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                <div class="table-responsive">
+                                                    <table class="table table-bordered mb-0">
+                                                        <thead class="table-light">
+                                                            <tr class="text-center">
+                                                                <th style="width: 60%">MATERIA</th>
+                                                                <th style="width: 40%">CALIFICACIÓN</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach($criterio['materias'] as $materia)
+                                                                @php
+                                                                    $tieneNota = $materia['nota'] !== null;
+                                                                @endphp
+                                                                <tr>
+                                                                    <td class="align-middle fw-bold">
+                                                                        <i class="fas fa-book text-primary me-2"></i>
+                                                                        {{ $materia['nombre'] }}
+                                                                    </td>
+                                                                    <td class="text-center fw-bold">
+                                                                        @if($tieneNota)
+                                                                            <span class="nota-valor" data-valor="{{ $materia['nota'] }}">
+                                                                                {{ $materia['nota'] }}
+                                                                            </span>
+                                                                        @else
+                                                                            <span class="text-muted">--</span>
+                                                                        @endif
+                                                                    </td>
+                                                                </tr>
+                                                            @endforeach
+                                                        </tbody>
+                                                        @if($criterioPromedio)
+                                                            <tfoot class="table-info">
+                                                                <tr>
+                                                                    <td class="text-end fw-bold">
+                                                                        <i class="fas fa-calculator me-2"></i>Promedio del Criterio:
+                                                                    </td>
+                                                                    <td class="text-center fw-bold">
+                                                                        <span class="nota-promedio" data-valor="{{ $criterioPromedio }}">
+                                                                            {{ number_format($criterioPromedio, 1) }}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            </tfoot>
+                                                        @endif
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
+
+                    @if($promedio_transversales_general)
+                        <div class="alert alert-info mt-3 mb-0 text-center">
+                            <i class="fas fa-chart-line me-2"></i>
+                            <strong>Promedio General de todas las Competencias Transversales:</strong>
+                            <span class="nota-promedio fs-5 fw-bold ms-2" data-valor="{{ $promedio_transversales_general }}">
+                                {{ number_format($promedio_transversales_general, 1) }}
+                            </span>
+                        </div>
+                    @endif
                 </div>
+            </div>
             @endif
 
             @if(count($todas_las_conductas) > 0)
