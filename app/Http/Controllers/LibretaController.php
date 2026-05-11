@@ -59,14 +59,14 @@ class LibretaController extends Controller
         $colegio = Colegio::configuracion();
         $esAnual = ($sigla === 'anual');
 
-        // Notas de materias
         $notasMaterias = $this->getNotasMaterias($estudiante->id, $periodoActual, $sigla);
-        $materiasAgrupadas = $this->agruparNotasPorMateria($notasMaterias, $esAnual);
+        $materiasAgrupadas = $this->agruparNotasPorMateria($notasMaterias, $esAnual, $matriculaActual->grado_id ?? null);
         $materiasConPromedios = $this->calcularPromedios($materiasAgrupadas, $esAnual);
-        $promedioTransversales = $this->calcularPromedioTransversales($materiasConPromedios);
+        $materiasConRowspan = $this->calcularRowspanMaterias($materiasConPromedios);
 
-        // OBTENER Y PROCESAR CONDUCTAS (SIMPLIFICADO)
+        $promedioTransversales = $this->calcularPromedioTransversales($materiasConPromedios);
         $todasLasConductas = $this->obtenerTodasLasConductas($estudiante->id, $periodoActual, $sigla, $matriculaActual->grado_id ?? null);
+        $conductasEnriquecidas = $this->enriquecerConductas($todasLasConductas);
 
         $datosVista = $this->prepararDatosVista([
             'estudiante' => $estudiante,
@@ -79,68 +79,68 @@ class LibretaController extends Controller
             'anio' => $anio,
         ]);
 
-        return view('libreta.index', array_merge($datosVista, [
-            'materias' => $materiasConPromedios,
-            'todas_las_conductas' => $todasLasConductas,
-            'promedioTransversales' => $promedioTransversales,
-        ]));
+        // Agregar los datos adicionales que necesita la vista
+        $datosVista['materias'] = $materiasConRowspan;
+        $datosVista['todas_las_conductas'] = $conductasEnriquecidas;
+        $datosVista['promedio_transversales'] = $promedioTransversales;
+        $datosVista['titulo_periodo'] = $esAnual ? 'EVALUACIÓN ANUAL' : strtoupper($sigla);
+        $datosVista['titulo_conducta'] = $esAnual ? 'PROMEDIO ANUAL' : "CALIFICACIÓN " . strtoupper($sigla);
+        $datosVista['datos_estudiante'] = $this->getDatosEstudiante($estudiante, $matriculaActual, $colegio);
+        $datosVista['promedio_general_bimestre'] = $this->calcularPromedioGeneralBimestre($materiasConRowspan);
+        $datosVista['competencias_transversales'] = $this->extraerCompetenciasTransversales($materiasConRowspan);
+        $datosVista['sin_criterios'] = $this->calcularSinCriterios($materiasConRowspan);
+
+        return view('libreta.index', $datosVista);
+    }
+    private function calcularSinCriterios($materias)
+    {
+        $totalCriterios = 0;
+        foreach ($materias as $materia) {
+            foreach ($materia['competencias'] as $competencia) {
+                $totalCriterios += count($competencia['criterios']);
+            }
+        }
+        return $totalCriterios == 0;
     }
     private function redondearNota($nota)
     {
-        $decimal = $nota - floor($nota);
-        if ($decimal >= 0.5) {
-            return ceil($nota);
-        } else {
-            return floor($nota);
-        }
+        return ($nota - floor($nota) >= 0.5) ? ceil($nota) : floor($nota);
     }
+
     private function obtenerTodasLasConductas($estudianteId, $periodoActual, $sigla, $gradoId)
     {
-        // Obtener todos los cursos del grado del estudiante (materias)
         $cursos = Cursogradosecnivanio::with('materia')
             ->where('periodo_id', $periodoActual->id)
             ->where('grado_id', $gradoId)
             ->get();
 
-        // Obtener los bimestres del periodo
         $bimestres = Periodobimestre::where('periodo_id', $periodoActual->id)
             ->where('tipo_bimestre', 'A')
             ->orderBy('bimestre')
             ->get();
 
-        // Obtener el bimestre seleccionado (si no es anual)
-        $periodoBimestreSeleccionado = null;
-        if ($sigla !== 'anual') {
-            $periodoBimestreSeleccionado = $bimestres->firstWhere('sigla', $sigla);
-        }
+        $periodoBimestreSeleccionado = ($sigla !== 'anual')
+            ? $bimestres->firstWhere('sigla', $sigla)
+            : null;
 
-        // OBTENER LAS CONDUCTAS REALMENTE RELACIONADAS CON EL PERIODO
-        // A través de Conductaperiodobimestre (relación entre periodobimestre y conducta)
-        // IMPORTANTE: Solo considerar conductaperiodobimestres que NO estén eliminados (deleted_at IS NULL)
         $conductasQuery = Conducta::whereHas('periodosBimestres', function($query) use ($periodoActual, $periodoBimestreSeleccionado, $sigla) {
             $query->where('periodo_id', $periodoActual->id)
-                ->whereNull('conducta_periodo_bimestres.deleted_at'); // Excluir eliminados
+                ->whereNull('conducta_periodo_bimestres.deleted_at');
 
-            // Si es modo bimestre, filtrar por el bimestre específico
             if ($sigla !== 'anual' && $periodoBimestreSeleccionado) {
                 $query->where('periodo_bimestre_id', $periodoBimestreSeleccionado->id);
             }
-            // Si es anual, traer todas las conductas de todos los bimestres del periodo
         });
 
         $todasLasConductasDB = $conductasQuery->distinct()->get();
-        $totalConductas = $todasLasConductasDB->count();
 
-        // Si no hay conductas asignadas al periodo, retornar array vacío
-        if ($totalConductas == 0) {
+        if ($todasLasConductasDB->isEmpty()) {
             return [];
         }
 
-        // Obtener las notas existentes
-        // IMPORTANTE: Solo considerar notas que pertenezcan a conductaperiodobimestres NO eliminados
         $query = Conductaperiodobimestrenota::with([
                 'conductaPeriodoBimestre' => function($query) {
-                    $query->whereNull('deleted_at'); // Solo relaciones no eliminadas
+                    $query->whereNull('deleted_at');
                 },
                 'conductaPeriodoBimestre.conducta',
                 'periodoBimestre',
@@ -150,36 +150,21 @@ class LibretaController extends Controller
             ->where('periodo_id', $periodoActual->id)
             ->where('publico', '!=', '0')
             ->whereHas('conductaPeriodoBimestre', function($query) {
-                $query->whereNull('deleted_at'); // Solo notas con conducta_periodo_bimestre no eliminado
+                $query->whereNull('deleted_at');
             });
 
-        // Si es modo bimestre, filtrar por el bimestre seleccionado
         if ($sigla !== 'anual' && $periodoBimestreSeleccionado) {
             $query->where('periodo_bimestre_id', $periodoBimestreSeleccionado->id);
         }
 
         $notasExistentes = $query->get();
 
-        // Si no hay notas existentes y es modo bimestre, retornar array con guiones
         if ($notasExistentes->isEmpty() && $sigla !== 'anual') {
-            $resultado = [];
-            foreach ($todasLasConductasDB as $conducta) {
-                $resultado[] = [
-                    'nombre' => $conducta->nombre,
-                    'nota' => '-',
-                    'nota_original' => '-',
-                    'estado' => "0/{$cursos->count()} materias - Sin notas registradas",
-                    'tiene_tooltip' => true,
-                    'es_guion' => true
-                ];
-            }
-            return $resultado;
+            return $this->formatoConductasSinNotas($todasLasConductasDB, $cursos);
         }
 
-        // Crear un array de notas existentes para fácil acceso
         $notasMap = [];
         foreach ($notasExistentes as $nota) {
-            // Verificar que la relación conductaPeriodoBimestre existe y no está eliminada
             if (!$nota->conductaPeriodoBimestre || $nota->conductaPeriodoBimestre->trashed()) {
                 continue;
             }
@@ -189,184 +174,199 @@ class LibretaController extends Controller
             $bimestreId = $nota->periodo_bimestre_id;
 
             if ($conductaId && $cursoId && $bimestreId) {
-                $key = $conductaId . '|' . $cursoId . '|' . $bimestreId;
+                $key = "{$conductaId}|{$cursoId}|{$bimestreId}";
                 $notasMap[$key] = $nota->nota;
             }
         }
 
-        // Si es modo anual
         if ($sigla === 'anual') {
-            $totalBimestres = $bimestres->count();
+            return $this->procesarConductasAnual($todasLasConductasDB, $cursos, $bimestres, $notasMap);
+        }
 
-            // Verificar si hay alguna nota en todo el año
-            $hayNotas = false;
-            foreach ($notasMap as $nota) {
-                if ($nota) {
-                    $hayNotas = true;
-                    break;
+        return $this->procesarConductasBimestral($todasLasConductasDB, $cursos, $periodoBimestreSeleccionado, $notasMap);
+    }
+
+    private function formatoConductasSinNotas($conductas, $cursos)
+    {
+        $resultado = [];
+        foreach ($conductas as $conducta) {
+            $resultado[] = [
+                'nombre' => $conducta->nombre,
+                'nota' => '-',
+                'nota_original' => '-',
+                'estado' => "0/{$cursos->count()} materias - Sin notas registradas",
+                'tiene_tooltip' => true,
+                'es_guion' => true
+            ];
+        }
+        return $resultado;
+    }
+
+    private function procesarConductasAnual($conductas, $cursos, $bimestres, $notasMap)
+    {
+        $totalBimestres = $bimestres->count();
+        $hayNotas = !empty($notasMap);
+
+        if (!$hayNotas) {
+            return $this->formatoConductasAnualSinNotas($conductas, $totalBimestres);
+        }
+
+        $resultado = [];
+        foreach ($conductas as $conducta) {
+            $promediosPorBimestre = [];
+            $bimestresCompletos = [];
+            $bimestresIncompletos = [];
+
+            foreach ($bimestres as $bimestre) {
+                $notasBimestre = [];
+                $notasEncontradas = 0;
+
+                foreach ($cursos as $curso) {
+                    $key = $conducta->id . '|' . $curso->id . '|' . $bimestre->id;
+
+                    if (isset($notasMap[$key])) {
+                        $notasBimestre[] = $notasMap[$key];
+                        $notasEncontradas++;
+                    } else {
+                        $notasBimestre[] = 1;
+                    }
+                }
+
+                $promedio = round(array_sum($notasBimestre) / count($notasBimestre), 1);
+                $promediosPorBimestre[$bimestre->bimestre] = $promedio;
+
+                if ($notasEncontradas == $cursos->count()) {
+                    $bimestresCompletos[] = $bimestre->bimestre;
+                } elseif ($notasEncontradas > 0) {
+                    $bimestresIncompletos[] = $bimestre->bimestre;
                 }
             }
 
-            if (!$hayNotas) {
-                $resultado = [];
-                foreach ($todasLasConductasDB as $conducta) {
+            $estadoMensaje = $this->generarEstadoMensaje($bimestresCompletos, $bimestresIncompletos, $totalBimestres);
+            $tieneTooltip = $estadoMensaje !== "{$totalBimestres}/{$totalBimestres} Bimestres completos";
+
+            if (count($promediosPorBimestre) == $totalBimestres) {
+                $promedioAnual = round(array_sum($promediosPorBimestre) / $totalBimestres, 1);
+                $resultado[] = [
+                    'nombre' => $conducta->nombre,
+                    'nota' => $this->redondearNota($promedioAnual),
+                    'nota_original' => $this->redondearNota($promedioAnual),
+                    'estado' => $estadoMensaje,
+                    'tiene_tooltip' => $tieneTooltip,
+                    'es_guion' => false
+                ];
+            } else {
+                foreach ($promediosPorBimestre as $bimestreNum => $promedio) {
+                    $bimestreSigla = $this->getSiglaByBimestre($bimestreNum);
                     $resultado[] = [
-                        'nombre' => $conducta->nombre,
-                        'nota' => '-',
-                        'nota_original' => '-',
-                        'estado' => "0/{$totalBimestres} Bimestres - Sin notas registradas",
-                        'tiene_tooltip' => true,
-                        'es_guion' => true
-                    ];
-                }
-                return $resultado;
-            }
-
-            $todasLasConductas = [];
-
-            foreach ($todasLasConductasDB as $conducta) {
-                $promediosPorBimestre = [];
-                $bimestresCompletos = [];
-                $bimestresIncompletos = [];
-
-                foreach ($bimestres as $bimestre) {
-                    $notasBimestre = [];
-                    $notasEncontradasEnBimestre = 0;
-
-                    foreach ($cursos as $curso) {
-                        $key = $conducta->id . '|' . $curso->id . '|' . $bimestre->id;
-
-                        if (isset($notasMap[$key])) {
-                            $notasBimestre[] = $notasMap[$key];
-                            $notasEncontradasEnBimestre++;
-                        } else {
-                            $notasBimestre[] = 1; // Nota faltante = 1
-                        }
-                    }
-
-                    $promedio = round(array_sum($notasBimestre) / count($notasBimestre), 1);
-                    $promediosPorBimestre[$bimestre->bimestre] = $promedio;
-
-                    if ($notasEncontradasEnBimestre == $cursos->count()) {
-                        $bimestresCompletos[] = $bimestre->bimestre;
-                    } else if ($notasEncontradasEnBimestre > 0) {
-                        $bimestresIncompletos[] = $bimestre->bimestre;
-                    }
-                }
-
-                // Determinar mensaje de estado para tooltip
-                $estadoMensaje = '';
-                $tieneTooltip = false;
-
-                if (count($bimestresCompletos) == $totalBimestres) {
-                    $estadoMensaje = "{$totalBimestres}/{$totalBimestres} Bimestres completos";
-                    $tieneTooltip = false;
-                } else if (count($bimestresCompletos) > 0 || count($bimestresIncompletos) > 0) {
-                    $bimestresConNotas = array_merge($bimestresCompletos, $bimestresIncompletos);
-                    sort($bimestresConNotas);
-                    $bimestresTexto = implode(', ', array_map(function($b) {
-                        $siglas = ['I', 'II', 'III', 'IV'];
-                        return $siglas[$b-1] . ' Bim';
-                    }, $bimestresConNotas));
-                    $estadoMensaje = count($bimestresCompletos) . "/{$totalBimestres} Bim - {$bimestresTexto}" . (count($bimestresIncompletos) > 0 ? " con notas faltantes" : "");
-                    $tieneTooltip = true;
-                } else {
-                    $estadoMensaje = "0/{$totalBimestres} Bimestres - Sin notas registradas";
-                    $tieneTooltip = true;
-                }
-
-                // Mostrar promedios (sin decimales)
-                if (count($promediosPorBimestre) == $totalBimestres) {
-                    $promedioAnual = round(array_sum($promediosPorBimestre) / $totalBimestres, 1);
-                    $promedioAnualRedondeado = $this->redondearNota($promedioAnual);
-                    $todasLasConductas[] = [
-                        'nombre' => $conducta->nombre,
-                        'nota' => $promedioAnualRedondeado,
-                        'nota_original' => $promedioAnualRedondeado,
+                        'nombre' => $conducta->nombre . ' (' . $bimestreSigla . ')',
+                        'nota' => $this->redondearNota($promedio),
+                        'nota_original' => $this->redondearNota($promedio),
                         'estado' => $estadoMensaje,
                         'tiene_tooltip' => $tieneTooltip,
                         'es_guion' => false
                     ];
-                } else {
-                    foreach ($promediosPorBimestre as $bimestreNum => $promedio) {
-                        $bimestreSigla = $this->getSiglaByBimestre($bimestreNum);
-                        $promedioRedondeado = $this->redondearNota($promedio);
-                        $todasLasConductas[] = [
-                            'nombre' => $conducta->nombre . ' (' . $bimestreSigla . ')',
-                            'nota' => $promedioRedondeado,
-                            'nota_original' => $promedioRedondeado,
-                            'estado' => $estadoMensaje,
-                            'tiene_tooltip' => $tieneTooltip,
-                            'es_guion' => false
-                        ];
-                    }
                 }
             }
-
-            return $todasLasConductas;
         }
-        else {
-            // MODO BIMESTRE - Calcular completitud por MATERIA
-            $bimestreId = $periodoBimestreSeleccionado ? $periodoBimestreSeleccionado->id : null;
 
-            // Contar materias completas (las que tienen todas las conductas registradas)
-            $materiasCompletas = 0;
-            $materiasIncompletas = 0;
-
-            foreach ($cursos as $curso) {
-                $conductasCompletas = 0;
-                foreach ($todasLasConductasDB as $conducta) {
-                    $key = $conducta->id . '|' . $curso->id . '|' . $bimestreId;
-                    if (isset($notasMap[$key])) {
-                        $conductasCompletas++;
-                    }
-                }
-                if ($conductasCompletas == $totalConductas) {
-                    $materiasCompletas++;
-                } else if ($conductasCompletas > 0) {
-                    $materiasIncompletas++;
-                }
-            }
-
-            $totalMaterias = $cursos->count();
-            $estadoGeneral = "{$materiasCompletas}/{$totalMaterias} materias completas";
-            if ($materiasIncompletas > 0) {
-                $estadoGeneral .= " - {$materiasIncompletas} con notas faltantes";
-            }
-
-            $resultado = [];
-
-            foreach ($todasLasConductasDB as $conducta) {
-                $notasConducta = [];
-                $materiasConNota = 0;
-
-                foreach ($cursos as $curso) {
-                    $key = $conducta->id . '|' . $curso->id . '|' . $bimestreId;
-
-                    if (isset($notasMap[$key])) {
-                        $notasConducta[] = $notasMap[$key];
-                        $materiasConNota++;
-                    } else {
-                        $notasConducta[] = 1; // Nota faltante = 1
-                    }
-                }
-
-                $promedio = round(array_sum($notasConducta) / count($notasConducta), 1);
-                $promedioRedondeado = $this->redondearNota($promedio);
-
-                $resultado[] = [
-                    'nombre' => $conducta->nombre,
-                    'nota' => $promedioRedondeado,
-                    'nota_original' => $promedioRedondeado,
-                    'estado' => $estadoGeneral,
-                    'tiene_tooltip' => true,
-                    'es_guion' => false
-                ];
-            }
-
-            return $resultado;
-        }
+        return $resultado;
     }
+
+    private function formatoConductasAnualSinNotas($conductas, $totalBimestres)
+    {
+        $resultado = [];
+        foreach ($conductas as $conducta) {
+            $resultado[] = [
+                'nombre' => $conducta->nombre,
+                'nota' => '-',
+                'nota_original' => '-',
+                'estado' => "0/{$totalBimestres} Bimestres - Sin notas registradas",
+                'tiene_tooltip' => true,
+                'es_guion' => true
+            ];
+        }
+        return $resultado;
+    }
+
+    private function procesarConductasBimestral($conductas, $cursos, $periodoBimestre, $notasMap)
+    {
+        $bimestreId = $periodoBimestre ? $periodoBimestre->id : null;
+        $totalConductas = $conductas->count();
+        $totalMaterias = $cursos->count();
+
+        $materiasCompletas = 0;
+        $materiasIncompletas = 0;
+
+        foreach ($cursos as $curso) {
+            $conductasCompletas = 0;
+            foreach ($conductas as $conducta) {
+                $key = $conducta->id . '|' . $curso->id . '|' . $bimestreId;
+                if (isset($notasMap[$key])) {
+                    $conductasCompletas++;
+                }
+            }
+            if ($conductasCompletas == $totalConductas) {
+                $materiasCompletas++;
+            } elseif ($conductasCompletas > 0) {
+                $materiasIncompletas++;
+            }
+        }
+
+        $estadoGeneral = "{$materiasCompletas}/{$totalMaterias} materias completas";
+        if ($materiasIncompletas > 0) {
+            $estadoGeneral .= " - {$materiasIncompletas} con notas faltantes";
+        }
+
+        $resultado = [];
+        foreach ($conductas as $conducta) {
+            $notasConducta = [];
+            foreach ($cursos as $curso) {
+                $key = $conducta->id . '|' . $curso->id . '|' . $bimestreId;
+                $notasConducta[] = isset($notasMap[$key]) ? $notasMap[$key] : 1;
+            }
+
+            $promedio = round(array_sum($notasConducta) / count($notasConducta), 1);
+            $resultado[] = [
+                'nombre' => $conducta->nombre,
+                'nota' => $this->redondearNota($promedio),
+                'nota_original' => $this->redondearNota($promedio),
+                'estado' => $estadoGeneral,
+                'tiene_tooltip' => true,
+                'es_guion' => false
+            ];
+        }
+
+        return $resultado;
+    }
+
+    private function generarEstadoMensaje($bimestresCompletos, $bimestresIncompletos, $totalBimestres)
+    {
+        if (count($bimestresCompletos) == $totalBimestres) {
+            return "{$totalBimestres}/{$totalBimestres} Bimestres completos";
+        }
+
+        if (count($bimestresCompletos) > 0 || count($bimestresIncompletos) > 0) {
+            $bimestresConNotas = array_merge($bimestresCompletos, $bimestresIncompletos);
+            sort($bimestresConNotas);
+            $siglas = ['I', 'II', 'III', 'IV'];
+            $bimestresTexto = implode(', ', array_map(function($b) use ($siglas) {
+                return $siglas[$b-1] . ' Bim';
+            }, $bimestresConNotas));
+
+            return count($bimestresCompletos) . "/{$totalBimestres} Bim - {$bimestresTexto}" .
+                   (count($bimestresIncompletos) > 0 ? " con notas faltantes" : "");
+        }
+
+        return "0/{$totalBimestres} Bimestres - Sin notas registradas";
+    }
+
+    private function getSiglaByBimestre($bimestreNum)
+    {
+        $siglas = ['I', 'II', 'III', 'IV'];
+        return $siglas[$bimestreNum - 1] ?? '';
+    }
+
     private function getEstudiante()
     {
         return Estudiante::with(['user'])
@@ -383,24 +383,13 @@ class LibretaController extends Controller
             })
             ->orderBy('anio', 'desc')
             ->get()
-            ->map(function($periodo) {
-                return [
-                    'id' => $periodo->id,
-                    'anio' => $periodo->anio,
-                    'nombre' => $periodo->nombre,
-                    'estado' => $periodo->estado,
-                    'descripcion' => $periodo->descripcion,
-                ];
-            });
+            ->map(fn($periodo) => $periodo->only(['id', 'anio', 'nombre', 'estado', 'descripcion']));
     }
 
     private function getPeriodoActual($anio, $periodos)
     {
         $periodo = Periodo::where('anio', $anio)->first();
-        if (!$periodo || !collect($periodos)->contains('id', $periodo->id)) {
-            return null;
-        }
-        return $periodo;
+        return ($periodo && collect($periodos)->contains('id', $periodo->id)) ? $periodo : null;
     }
 
     private function getMatriculaActual($estudiante, $periodoActual)
@@ -417,15 +406,13 @@ class LibretaController extends Controller
             ->where('tipo_bimestre', 'A')
             ->orderBy('bimestre')
             ->get()
-            ->map(function($bimestre) {
-                return [
-                    'sigla' => $bimestre->sigla,
-                    'bimestre' => $bimestre->bimestre,
-                    'nombre' => $bimestre->sigla . ' - Bimestre ' . $bimestre->bimestre,
-                    'fecha_inicio' => $bimestre->fecha_inicio,
-                    'fecha_fin' => $bimestre->fecha_fin,
-                ];
-            });
+            ->map(fn($bimestre) => [
+                'sigla' => $bimestre->sigla,
+                'bimestre' => $bimestre->bimestre,
+                'nombre' => $bimestre->sigla . ' - Bimestre ' . $bimestre->bimestre,
+                'fecha_inicio' => $bimestre->fecha_inicio,
+                'fecha_fin' => $bimestre->fecha_fin,
+            ]);
 
         return collect([
             [
@@ -441,10 +428,7 @@ class LibretaController extends Controller
     private function validarSigla($sigla, $bimestres)
     {
         $siglasValidas = $bimestres->pluck('sigla')->toArray();
-        if (!$sigla || !in_array($sigla, $siglasValidas)) {
-            return 'anual';
-        }
-        return $sigla;
+        return ($sigla && in_array($sigla, $siglasValidas)) ? $sigla : 'anual';
     }
 
     private function prepararDatosVista($params)
@@ -454,12 +438,7 @@ class LibretaController extends Controller
         return [
             'estudiante' => $params['estudiante'],
             'matricula_actual' => $params['matriculaActual'],
-            'periodo_actual' => [
-                'id' => $params['periodoActual']->id,
-                'anio' => $params['periodoActual']->anio,
-                'nombre' => $params['periodoActual']->nombre,
-                'descripcion' => $params['periodoActual']->descripcion,
-            ],
+            'periodo_actual' => $params['periodoActual']->only(['id', 'anio', 'nombre', 'descripcion']),
             'periodos' => $params['periodos'],
             'bimestres_disponibles' => $params['bimestres'],
             'bimestre_seleccionado' => $bimestreSeleccionado,
@@ -493,19 +472,54 @@ class LibretaController extends Controller
         return $query->get();
     }
 
-    private function agruparNotasPorMateria($notas, $esAnual = false)
+    private function agruparNotasPorMateria($notas, $esAnual = false, $gradoId = null)
     {
+        $periodoActual = Periodo::where('anio', request()->segment(2))->first();
+        if (!$periodoActual) {
+            return [];
+        }
+
+        $siglaParam = request()->segment(3) ?? 'anual';
+        $periodoBimestreSeleccionado = null;
+
+        if ($siglaParam !== 'anual') {
+            $periodoBimestreSeleccionado = Periodobimestre::where('periodo_id', $periodoActual->id)
+                ->where('sigla', $siglaParam)
+                ->where('tipo_bimestre', 'A')
+                ->first();
+        }
+
+        if (!$gradoId) {
+            $estudiante = $this->getEstudiante();
+            if ($estudiante && $periodoActual) {
+                $matricula = Matricula::where('estudiante_id', $estudiante->id)
+                    ->where('periodo_id', $periodoActual->id)
+                    ->first();
+                $gradoId = $matricula->grado_id ?? null;
+            }
+        }
+
+        if (!$gradoId) {
+            return [];
+        }
+
+        $cursos = Cursogradosecnivanio::with(['materia', 'grado'])
+            ->where('periodo_id', $periodoActual->id)
+            ->where('grado_id', $gradoId)
+            ->get()
+            ->unique('materia_id');
+
+        if ($cursos->isEmpty()) {
+            return [];
+        }
+
         $materias = [];
 
-        foreach ($notas as $nota) {
-            $criterio = $nota->criterio;
-            if (!$criterio) continue;
+        foreach ($cursos as $curso) {
+            $materiaId = $curso->materia_id;
+            $materiaNombre = $curso->materia->nombre ?? 'Sin materia';
 
-            $materiaId = $criterio->materia_id;
-            $materiaNombre = $criterio->materia->nombre ?? 'Sin materia';
-            $competenciaId = $criterio->materia_competencia_id;
-            $competenciaNombre = $criterio->materiaCompetencia->nombre ?? 'Sin competencia';
-            $esTransversal = str_contains(strtoupper($competenciaNombre), 'TRANSVERSAL');
+            $competencias = Materiacompetencia::where('materia_id', $materiaId)->get();
 
             if (!isset($materias[$materiaId])) {
                 $materias[$materiaId] = [
@@ -513,32 +527,84 @@ class LibretaController extends Controller
                     'nombre' => $materiaNombre,
                     'competencias' => [],
                     'competencias_transversales' => [],
-                    'es_transversal' => false
                 ];
             }
 
-            $targetArray = $esTransversal ? 'competencias_transversales' : 'competencias';
+            foreach ($competencias as $competencia) {
+                $competenciaNombre = $competencia->nombre;
+                $esTransversal = str_contains(strtoupper($competenciaNombre), 'TRANSVERSAL');
+                $targetArray = $esTransversal ? 'competencias_transversales' : 'competencias';
 
-            if (!isset($materias[$materiaId][$targetArray][$competenciaId])) {
-                $materias[$materiaId][$targetArray][$competenciaId] = [
-                    'id' => $competenciaId,
-                    'nombre' => $competenciaNombre,
-                    'criterios' => [],
-                    'es_transversal' => $esTransversal
-                ];
+                $criteriosQuery = Materiacriterio::where('materia_competencia_id', $competencia->id)
+                    ->where('grado_id', $gradoId);
+
+                if (!$esAnual && $periodoBimestreSeleccionado) {
+                    $criteriosQuery->where('periodo_bimestre_id', $periodoBimestreSeleccionado->id);
+                }
+
+                $criterios = $criteriosQuery->get();
+
+                if (!isset($materias[$materiaId][$targetArray][$competencia->id])) {
+                    $materias[$materiaId][$targetArray][$competencia->id] = [
+                        'id' => $competencia->id,
+                        'nombre' => $competenciaNombre,
+                        'criterios' => [],
+                        'es_transversal' => $esTransversal
+                    ];
+
+                    foreach ($criterios as $criterio) {
+                        $materias[$materiaId][$targetArray][$competencia->id]['criterios'][$criterio->id] = [
+                            'id' => $criterio->id,
+                            'nombre' => $criterio->nombre,
+                            'nota' => null,
+                            'nota_original' => null,
+                            'publico' => '0',
+                            'tiene_nota' => false
+                        ];
+                    }
+                }
             }
+        }
 
-            $materias[$materiaId][$targetArray][$competenciaId]['criterios'][] = [
-                'id' => $criterio->id,
-                'nombre' => $criterio->nombre,
-                'nota' => $nota->nota,
-                'publico' => $nota->publico
-            ];
+        $notasMap = [];
+        foreach ($notas as $nota) {
+            $criterio = $nota->criterio;
+            if ($criterio) {
+                $key = $criterio->materia_id . '|' . $criterio->materia_competencia_id . '|' . $criterio->id;
+                $notasMap[$key] = $nota;
+            }
+        }
+
+        foreach ($notas as $nota) {
+            $criterio = $nota->criterio;
+            if (!$criterio) continue;
+
+            $materiaId = $criterio->materia_id;
+            $competenciaId = $criterio->materia_competencia_id;
+            $criterioId = $criterio->id;
+
+            if (isset($materias[$materiaId])) {
+                foreach (['competencias', 'competencias_transversales'] as $tipo) {
+                    if (isset($materias[$materiaId][$tipo][$competenciaId])) {
+                        foreach ($materias[$materiaId][$tipo][$competenciaId]['criterios'] as &$criterioItem) {
+                            if ($criterioItem['id'] == $criterioId) {
+                                $criterioItem['nota'] = $nota->nota;
+                                $criterioItem['nota_original'] = $nota->nota;
+                                $criterioItem['publico'] = $nota->publico;
+                                $criterioItem['tiene_nota'] = true;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
         }
 
         foreach ($materias as &$materia) {
             $materia['competencias'] = array_values($materia['competencias']);
             $materia['competencias_transversales'] = array_values($materia['competencias_transversales']);
+
             foreach ($materia['competencias'] as &$competencia) {
                 $competencia['criterios'] = array_values($competencia['criterios']);
             }
@@ -611,5 +677,97 @@ class LibretaController extends Controller
         }
 
         return $totalTransversales > 0 ? round($sumaTransversales / $totalTransversales, 1) : null;
+    }
+    private function calcularRowspanMaterias($materias)
+    {
+        foreach ($materias as &$materia) {
+            $rowspan = 0;
+            foreach ($materia['competencias'] as $competencia) {
+                $rowspan += count($competencia['criterios']) + 1;
+            }
+            $materia['rowspan'] = $rowspan;
+        }
+
+        return $materias;
+    }
+
+    private function getDatosEstudiante($estudiante, $matricula, $colegio)
+    {
+        $nombreCompleto = trim(sprintf(
+            '%s %s, %s',
+            $estudiante->user->apellido_paterno ?? '',
+            $estudiante->user->apellido_materno ?? '',
+            $estudiante->user->nombre ?? ''
+        ));
+
+        return [
+            'UGEL' => $colegio->ugel ?? 'Tacna',
+            'II.EE' => $colegio->nombre ?? 'NO REGISTRADO',
+            'NIVEL' => $matricula->grado->nivel ?? 'No disponible',
+            'GRADO' => ($matricula->grado->grado ?? 'No disponible') . '°',
+            'SECCIÓN' => '"' . ($matricula->grado->seccion ?? 'No disponible') . '"',
+            'ESTUDIANTE' => $nombreCompleto,
+            'DNI' => $estudiante->user->dni ?? 'No disponible',
+        ];
+    }
+
+    private function calcularPromedioGeneralBimestre($materias)
+    {
+        $suma = 0;
+        $total = 0;
+
+        foreach ($materias as $materia) {
+            if (isset($materia['promedio']) && $materia['promedio'] !== null) {
+                $suma += $materia['promedio'];
+                $total++;
+            }
+        }
+
+        return $total > 0 ? round($suma / $total, 1) : 0;
+    }
+
+    private function extraerCompetenciasTransversales($materias)
+    {
+        $competencias = [];
+
+        foreach ($materias as $materia) {
+            if (empty($materia['competencias_transversales'])) {
+                continue;
+            }
+
+            foreach ($materia['competencias_transversales'] as $competencia) {
+                $competencias[] = [
+                    'materia' => $materia['nombre'],
+                    'competencia' => $competencia['nombre'],
+                    'promedio' => $competencia['promedio'] ?? null
+                ];
+            }
+        }
+
+        return $competencias;
+    }
+
+    private function enriquecerConductas($conductas)
+    {
+        if (empty($conductas)) {
+            return [];
+        }
+
+        foreach ($conductas as &$conducta) {
+            $notaRaw = $conducta['nota'] ?? '-';
+            $esBaja = false;
+
+            if ($notaRaw !== '-') {
+                $notaNumerica = is_numeric($notaRaw) ? (float)$notaRaw : (float)$notaRaw;
+                if ($notaNumerica <= 2 || $notaRaw === 'C' || $notaRaw === 'B') {
+                    $esBaja = true;
+                }
+            }
+
+            $conducta['clase_color'] = $esBaja ? 'text-danger fw-bold' : '';
+            $conducta['es_guion'] = $notaRaw === '-';
+        }
+
+        return $conductas;
     }
 }
