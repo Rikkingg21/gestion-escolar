@@ -64,9 +64,8 @@ class LibretaController extends Controller
         $materiasConPromedios = $this->calcularPromedios($materiasAgrupadas, $esAnual);
         $materiasConRowspan = $this->calcularRowspanMaterias($materiasConPromedios);
 
-        $promedioTransversales = $this->calcularPromedioTransversales($materiasConPromedios);
-        $competenciasTransversalesAgrupadas = $this->agruparCompetenciasTransversales($materiasConPromedios);
-        $promedioTransversalesGeneral = $this->calcularPromedioTransversalesGeneral($competenciasTransversalesAgrupadas);
+        $competenciasTransversalesAgrupadas = $this->agruparCompetenciasTransversales($materiasConPromedios, $esAnual);
+        $competenciasTransversalesItems = $this->agruparCompetenciasTransversales($materiasConPromedios);
 
         $todasLasConductas = $this->obtenerTodasLasConductas($estudiante->id, $periodoActual, $sigla, $matriculaActual->grado_id ?? null);
         $conductasEnriquecidas = $this->enriquecerConductas($todasLasConductas);
@@ -85,8 +84,8 @@ class LibretaController extends Controller
         // Agregar los datos adicionales que necesita la vista
         $datosVista['materias'] = $materiasConRowspan;
         $datosVista['todas_las_conductas'] = $conductasEnriquecidas;
+        $datosVista['competencias_transversales_items'] = $competenciasTransversalesItems;
         $datosVista['competencias_transversales_agrupadas'] = $competenciasTransversalesAgrupadas;
-        $datosVista['promedio_transversales_general'] = $promedioTransversalesGeneral;
         $datosVista['titulo_periodo'] = $esAnual ? 'EVALUACIÓN ANUAL' : strtoupper($sigla);
         $datosVista['titulo_conducta'] = $esAnual ? 'PROMEDIO ANUAL' : "CALIFICACIÓN " . strtoupper($sigla);
         $datosVista['datos_estudiante'] = $this->getDatosEstudiante($estudiante, $matriculaActual, $colegio);
@@ -109,7 +108,6 @@ class LibretaController extends Controller
     {
         return ($nota - floor($nota) >= 0.5) ? ceil($nota) : floor($nota);
     }
-
     private function obtenerTodasLasConductas($estudianteId, $periodoActual, $sigla, $gradoId)
     {
         $cursos = Cursogradosecnivanio::with('materia')
@@ -188,7 +186,6 @@ class LibretaController extends Controller
 
         return $this->procesarConductasBimestral($todasLasConductasDB, $cursos, $periodoBimestreSeleccionado, $notasMap);
     }
-
     private function formatoConductasSinNotas($conductas, $cursos)
     {
         $resultado = [];
@@ -204,7 +201,6 @@ class LibretaController extends Controller
         }
         return $resultado;
     }
-
     private function procesarConductasAnual($conductas, $cursos, $bimestres, $notasMap)
     {
         $totalBimestres = $bimestres->count();
@@ -275,7 +271,6 @@ class LibretaController extends Controller
 
         return $resultado;
     }
-
     private function formatoConductasAnualSinNotas($conductas, $totalBimestres)
     {
         $resultado = [];
@@ -291,7 +286,6 @@ class LibretaController extends Controller
         }
         return $resultado;
     }
-
     private function procesarConductasBimestral($conductas, $cursos, $periodoBimestre, $notasMap)
     {
         $bimestreId = $periodoBimestre ? $periodoBimestre->id : null;
@@ -342,7 +336,6 @@ class LibretaController extends Controller
 
         return $resultado;
     }
-
     private function generarEstadoMensaje($bimestresCompletos, $bimestresIncompletos, $totalBimestres)
     {
         if (count($bimestresCompletos) == $totalBimestres) {
@@ -363,20 +356,17 @@ class LibretaController extends Controller
 
         return "0/{$totalBimestres} Bimestres - Sin notas registradas";
     }
-
     private function getSiglaByBimestre($bimestreNum)
     {
         $siglas = ['I', 'II', 'III', 'IV'];
         return $siglas[$bimestreNum - 1] ?? '';
     }
-
     private function getEstudiante()
     {
         return Estudiante::with(['user'])
             ->where('user_id', auth()->user()->id)
             ->first();
     }
-
     private function getPeriodosEstudiante($estudiante)
     {
         return Periodo::whereIn('id', function($query) use ($estudiante) {
@@ -388,13 +378,11 @@ class LibretaController extends Controller
             ->get()
             ->map(fn($periodo) => $periodo->only(['id', 'anio', 'nombre', 'estado', 'descripcion']));
     }
-
     private function getPeriodoActual($anio, $periodos)
     {
         $periodo = Periodo::where('anio', $anio)->first();
         return ($periodo && collect($periodos)->contains('id', $periodo->id)) ? $periodo : null;
     }
-
     private function getMatriculaActual($estudiante, $periodoActual)
     {
         return Matricula::with(['grado', 'periodo'])
@@ -402,7 +390,6 @@ class LibretaController extends Controller
             ->where('periodo_id', $periodoActual->id)
             ->first();
     }
-
     private function getBimestresDisponibles($periodoActual)
     {
         $bimestres = Periodobimestre::where('periodo_id', $periodoActual->id)
@@ -427,13 +414,11 @@ class LibretaController extends Controller
             ]
         ])->concat($bimestres);
     }
-
     private function validarSigla($sigla, $bimestres)
     {
         $siglasValidas = $bimestres->pluck('sigla')->toArray();
         return ($sigla && in_array($sigla, $siglasValidas)) ? $sigla : 'anual';
     }
-
     private function prepararDatosVista($params)
     {
         $bimestreSeleccionado = $params['bimestres']->firstWhere('sigla', $params['sigla']);
@@ -451,7 +436,6 @@ class LibretaController extends Controller
             'sigla_param' => $params['sigla'],
         ];
     }
-
     private function getNotasMaterias($estudianteId, $periodoActual, $sigla)
     {
         $query = Nota::with(['criterio.materiaCompetencia', 'criterio.materia'])
@@ -474,7 +458,6 @@ class LibretaController extends Controller
 
         return $query->get();
     }
-
     private function agruparNotasPorMateria($notas, $esAnual = false, $gradoId = null)
     {
         $periodoActual = Periodo::where('anio', request()->segment(2))->first();
@@ -545,6 +528,7 @@ class LibretaController extends Controller
                     $criteriosQuery->where('periodo_bimestre_id', $periodoBimestreSeleccionado->id);
                 }
 
+                // Para modo anual, NO filtramos por bimestre, pero guardamos la información del bimestre
                 $criterios = $criteriosQuery->get();
 
                 if (!isset($materias[$materiaId][$targetArray][$competencia->id])) {
@@ -556,13 +540,27 @@ class LibretaController extends Controller
                     ];
 
                     foreach ($criterios as $criterio) {
+                        // Obtener la sigla del bimestre
+                        $siglaBimestre = null;
+                        $bimestreNum = null;
+                        if ($criterio->periodo_bimestre_id) {
+                            $periodoBimestre = Periodobimestre::find($criterio->periodo_bimestre_id);
+                            if ($periodoBimestre) {
+                                $siglaBimestre = $periodoBimestre->sigla;
+                                $bimestreNum = $periodoBimestre->bimestre;
+                            }
+                        }
+
                         $materias[$materiaId][$targetArray][$competencia->id]['criterios'][$criterio->id] = [
                             'id' => $criterio->id,
                             'nombre' => $criterio->nombre,
                             'nota' => null,
                             'nota_original' => null,
                             'publico' => '0',
-                            'tiene_nota' => false
+                            'tiene_nota' => false,
+                            'periodo_bimestre_id' => $criterio->periodo_bimestre_id,
+                            'sigla_bimestre' => $siglaBimestre,
+                            'bimestre_num' => $bimestreNum
                         ];
                     }
                 }
@@ -618,7 +616,6 @@ class LibretaController extends Controller
 
         return array_values($materias);
     }
-
     private function calcularPromedios($materias, $esAnual = false)
     {
         foreach ($materias as &$materia) {
@@ -664,23 +661,6 @@ class LibretaController extends Controller
 
         return $materias;
     }
-
-    private function calcularPromedioTransversales($materias)
-    {
-        $sumaTransversales = 0;
-        $totalTransversales = 0;
-
-        foreach ($materias as $materia) {
-            foreach ($materia['competencias_transversales'] as $competencia) {
-                if ($competencia['promedio']) {
-                    $sumaTransversales += $competencia['promedio'];
-                    $totalTransversales++;
-                }
-            }
-        }
-
-        return $totalTransversales > 0 ? round($sumaTransversales / $totalTransversales, 1) : null;
-    }
     private function calcularRowspanMaterias($materias)
     {
         foreach ($materias as &$materia) {
@@ -693,7 +673,6 @@ class LibretaController extends Controller
 
         return $materias;
     }
-
     private function getDatosEstudiante($estudiante, $matricula, $colegio)
     {
         $nombreCompleto = trim(sprintf(
@@ -713,7 +692,6 @@ class LibretaController extends Controller
             'DNI' => $estudiante->user->dni ?? 'No disponible',
         ];
     }
-
     private function calcularPromedioGeneralBimestre($materias)
     {
         $suma = 0;
@@ -728,28 +706,6 @@ class LibretaController extends Controller
 
         return $total > 0 ? round($suma / $total, 1) : 0;
     }
-
-    private function extraerCompetenciasTransversales($materias)
-    {
-        $competencias = [];
-
-        foreach ($materias as $materia) {
-            if (empty($materia['competencias_transversales'])) {
-                continue;
-            }
-
-            foreach ($materia['competencias_transversales'] as $competencia) {
-                $competencias[] = [
-                    'materia' => $materia['nombre'],
-                    'competencia' => $competencia['nombre'],
-                    'promedio' => $competencia['promedio'] ?? null
-                ];
-            }
-        }
-
-        return $competencias;
-    }
-
     private function enriquecerConductas($conductas)
     {
         if (empty($conductas)) {
@@ -773,112 +729,75 @@ class LibretaController extends Controller
 
         return $conductas;
     }
-    private function agruparCompetenciasTransversales($materias)
+    private function agruparCompetenciasTransversales($materias, $esAnual = false)
     {
-        // Estructura: competencia_id => [nombre, criterios => [criterio_id => [nombre, materias => [materia => nota]]]]
-        $competenciasMap = [];
+        $criteriosMap = [];
 
         foreach ($materias as $materia) {
-            $materiaNombre = $materia['nombre'];
-
             foreach ($materia['competencias_transversales'] as $competencia) {
-                $competenciaId = $competencia['id'];
-                $competenciaNombre = $competencia['nombre'];
-
-                if (!isset($competenciasMap[$competenciaId])) {
-                    $competenciasMap[$competenciaId] = [
-                        'id' => $competenciaId,
-                        'nombre' => $competenciaNombre,
-                        'criterios' => [],
-                        'sumaPromediosCompetencia' => 0,
-                        'totalCriteriosConNota' => 0
-                    ];
-                }
-
-                // Procesar cada criterio de esta competencia transversal
                 foreach ($competencia['criterios'] as $criterio) {
-                    $criterioId = $criterio['id'];
                     $criterioNombre = $criterio['nombre'];
                     $nota = $criterio['nota'];
+                    $siglaBimestre = $criterio['sigla_bimestre'] ?? null;
+                    $bimestreNum = $criterio['bimestre_num'] ?? null;
+                    $materiaNombre = $materia['nombre'];
 
-                    if (!isset($competenciasMap[$competenciaId]['criterios'][$criterioId])) {
-                        $competenciasMap[$competenciaId]['criterios'][$criterioId] = [
-                            'id' => $criterioId,
+                    // Clave principal: solo el nombre del criterio (para el promedio general)
+                    if (!isset($criteriosMap[$criterioNombre])) {
+                        $criteriosMap[$criterioNombre] = [
                             'nombre' => $criterioNombre,
-                            'materias' => [],
                             'sumaNotas' => 0,
-                            'totalMateriasConNota' => 0
+                            'totalNotas' => 0,
+                            'totalMaterias' => 0,
+                            'detalle' => []  // Aquí guardamos el detalle por materia y bimestre
                         ];
                     }
 
-                    // Agregar la materia y su nota para este criterio
-                    $competenciasMap[$competenciaId]['criterios'][$criterioId]['materias'][] = [
-                        'nombre' => $materiaNombre,
-                        'nota' => $nota
-                    ];
+                    // Contar total de materias (para el badge)
+                    $criteriosMap[$criterioNombre]['totalMaterias']++;
 
+                    // Sumar para el promedio general
                     if ($nota !== null) {
-                        $competenciasMap[$competenciaId]['criterios'][$criterioId]['sumaNotas'] += $nota;
-                        $competenciasMap[$competenciaId]['criterios'][$criterioId]['totalMateriasConNota']++;
+                        $criteriosMap[$criterioNombre]['sumaNotas'] += $nota;
+                        $criteriosMap[$criterioNombre]['totalNotas']++;
                     }
+
+                    // Guardar detalle (incluye bimestre para modo anual)
+                    $criteriosMap[$criterioNombre]['detalle'][] = [
+                        'materia' => $materiaNombre,
+                        'nota' => $nota,
+                        'sigla_bimestre' => $siglaBimestre,
+                        'bimestre_num' => $bimestreNum
+                    ];
                 }
             }
         }
 
-        // Calcular promedios por criterio y por competencia
         $resultado = [];
-        foreach ($competenciasMap as $competencia) {
-            $criteriosArray = [];
-            $sumaPromediosCriterios = 0;
-            $totalCriteriosConNota = 0;
-
-            foreach ($competencia['criterios'] as $criterio) {
-                // Promedio del criterio (promedio de todas las materias)
-                $promedioCriterio = $criterio['totalMateriasConNota'] > 0
-                    ? round($criterio['sumaNotas'] / $criterio['totalMateriasConNota'], 1)
-                    : null;
-
-                $criteriosArray[] = [
-                    'id' => $criterio['id'],
-                    'nombre' => $criterio['nombre'],
-                    'promedio' => $promedioCriterio,
-                    'materias' => $criterio['materias']
-                ];
-
-                if ($promedioCriterio !== null) {
-                    $sumaPromediosCriterios += $promedioCriterio;
-                    $totalCriteriosConNota++;
-                }
-            }
-
-            // Promedio de la competencia (promedio de todos sus criterios)
-            $promedioCompetencia = $totalCriteriosConNota > 0
-                ? round($sumaPromediosCriterios / $totalCriteriosConNota, 1)
+        foreach ($criteriosMap as $criterio) {
+            $promedioReal = $criterio['totalNotas'] > 0
+                ? $criterio['sumaNotas'] / $criterio['totalNotas']
                 : null;
 
+            $promedioRedondeado = $promedioReal !== null
+                ? $this->redondearNota($promedioReal)
+                : null;
+
+            $materiasCalificadas = $criterio['totalNotas'];
+            $totalMaterias = $criterio['totalMaterias'];
+            $faltantes = $totalMaterias - $materiasCalificadas;
+
             $resultado[] = [
-                'id' => $competencia['id'],
-                'nombre' => $competencia['nombre'],
-                'promedio' => $promedioCompetencia,
-                'criterios' => $criteriosArray
+                'criterio' => $criterio['nombre'],
+                'promedio' => $promedioRedondeado,
+                'promedio_real' => $promedioReal,
+                'total_materias' => $totalMaterias,
+                'materias_calificadas' => $materiasCalificadas,
+                'faltantes' => $faltantes,
+                'detalle' => $criterio['detalle']
             ];
         }
 
         return $resultado;
-    }
-
-    private function calcularPromedioTransversalesGeneral($competenciasTransversalesAgrupadas)
-    {
-        $sumaTotal = 0;
-        $totalCompetenciasConNota = 0;
-
-        foreach ($competenciasTransversalesAgrupadas as $competencia) {
-            if ($competencia['promedio'] !== null) {
-                $sumaTotal += $competencia['promedio'];
-                $totalCompetenciasConNota++;
-            }
-        }
-
-        return $totalCompetenciasConNota > 0 ? round($sumaTotal / $totalCompetenciasConNota, 1) : null;
     }
 }
