@@ -406,8 +406,43 @@
             <div class="mt-4">
                 <div class="border border-1 border-dark rounded-1 p-3">
                     <h5 class="mb-3">
-                        <i class="fas fa-user-check me-2"></i>Asistencias
+                        <i class="fas fa-calendar-check me-2"></i>Asistencias
+                        @if($sigla_param != 'anual')
+                            <span class="badge bg-info ms-2">{{ strtoupper($sigla_param) }}</span>
+                        @endif
                     </h5>
+
+                    @if(count($asistencias) > 0)
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead class="table-light">
+                                    <tr class="text-center">
+                                        <th>TIPO DE ASISTENCIA</th>
+                                        <th>TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($asistencias as $asistencia)
+                                        <tr>
+                                            <td>
+                                                <span class="badge" style="background-color: {{ $asistencia['color'] }}; color: white;">
+                                                    {{ $asistencia['tipo'] }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center fw-bold">
+                                                {{ $asistencia['total'] }}
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No hay registros de asistencia para el período seleccionado.
+                        </div>
+                    @endif
                 </div>
             </div>
         @else

@@ -16,7 +16,7 @@ use App\Models\Conductaperiodobimestrenota;
 use App\Models\Periodobimestre;
 use App\Models\Conducta;
 use App\Models\Colegio;
-use App\Models\Conductanota;
+use App\Models\Asistencia\Tipoasistencia;
 use App\Models\Periodo;
 use App\Models\Matricula;
 use Illuminate\Support\Facades\Log;
@@ -70,6 +70,8 @@ class LibretaController extends Controller
         $todasLasConductas = $this->obtenerTodasLasConductas($estudiante->id, $periodoActual, $sigla, $matriculaActual->grado_id ?? null);
         $conductasEnriquecidas = $this->enriquecerConductas($todasLasConductas);
 
+        $asistencias = $this->obtenerAsistencias($estudiante->id, $periodoActual, $sigla, $matriculaActual->grado_id ?? null);
+
         $datosVista = $this->prepararDatosVista([
             'estudiante' => $estudiante,
             'periodos' => $periodos,
@@ -86,6 +88,7 @@ class LibretaController extends Controller
         $datosVista['todas_las_conductas'] = $conductasEnriquecidas;
         $datosVista['competencias_transversales_items'] = $competenciasTransversalesItems;
         $datosVista['competencias_transversales_agrupadas'] = $competenciasTransversalesAgrupadas;
+        $datosVista['asistencias'] = $asistencias;
         $datosVista['titulo_periodo'] = $esAnual ? 'EVALUACIÓN ANUAL' : strtoupper($sigla);
         $datosVista['titulo_conducta'] = $esAnual ? 'PROMEDIO ANUAL' : "CALIFICACIÓN " . strtoupper($sigla);
         $datosVista['datos_estudiante'] = $this->getDatosEstudiante($estudiante, $matriculaActual, $colegio);
@@ -799,5 +802,52 @@ class LibretaController extends Controller
         }
 
         return $resultado;
+    }
+    private function obtenerAsistencias($estudianteId, $periodoActual, $sigla, $gradoId)
+    {
+        // Obtener los bimestres del periodo
+        $bimestres = Periodobimestre::where('periodo_id', $periodoActual->id)
+            ->where('tipo_bimestre', 'A')
+            ->orderBy('bimestre')
+            ->get();
+
+        // Determinar el bimestre seleccionado
+        $periodoBimestreSeleccionado = ($sigla !== 'anual')
+            ? $bimestres->firstWhere('sigla', $sigla)
+            : null;
+
+        // Construir la consulta de asistencias
+        $query = Asistencia::with(['tipoasistencia'])
+            ->where('estudiante_id', $estudianteId)
+            ->where('periodo_id', $periodoActual->id)
+            ->where('grado_id', $gradoId);
+
+        // Filtrar por bimestre si no es anual
+        if ($sigla !== 'anual' && $periodoBimestreSeleccionado) {
+            $query->where('periodobimestre_id', $periodoBimestreSeleccionado->id);
+        }
+
+        $asistencias = $query->get();
+
+        // Agrupar por tipo de asistencia
+        $tiposAsistencia = Tipoasistencia::all();
+        $resultado = [];
+
+        foreach ($tiposAsistencia as $tipo) {
+            $count = $asistencias->where('tipo_asistencia_id', $tipo->id)->count();
+
+            $resultado[] = [
+                'tipo' => $tipo->nombre,
+                'color' => $tipo->color_hex,
+                'total' => $count
+            ];
+        }
+
+        // Filtrar tipos que tienen al menos un registro
+        $resultado = array_filter($resultado, function($item) {
+            return $item['total'] > 0;
+        });
+
+        return array_values($resultado);
     }
 }
