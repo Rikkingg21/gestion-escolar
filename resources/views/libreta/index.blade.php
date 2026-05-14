@@ -405,12 +405,18 @@
 
             <div class="mt-4">
                 <div class="border border-1 border-dark rounded-1 p-3">
-                    <h5 class="mb-3">
-                        <i class="fas fa-calendar-check me-2"></i>Asistencias
-                        @if($sigla_param != 'anual')
-                            <span class="badge bg-info ms-2">{{ strtoupper($sigla_param) }}</span>
-                        @endif
-                    </h5>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-check me-2"></i>Asistencias
+                            @if($sigla_param != 'anual')
+                                <span class="badge bg-info ms-2">{{ strtoupper($sigla_param) }}</span>
+                            @endif
+                        </h5>
+                        <a href="{{ route('asistencia.calendario', ['periodo_id' => $periodo_actual['id'], 'periodobimestre_sigla' => $sigla_param]) }}"
+                        class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-calendar-alt me-1"></i> Ver Detalles
+                        </a>
+                    </div>
 
                     @if(count($asistencias) > 0)
                         <div class="table-responsive">
