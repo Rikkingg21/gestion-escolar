@@ -252,115 +252,116 @@
                 </div>
             @endif
 
-@if(count($competencias_transversales_agrupadas) > 0)
-<div class="mt-4">
-    <div class="border border-1 border-dark rounded-1 p-3">
-        <h5 class="mb-3">
-            <i class="fas fa-chalkboard-user me-2"></i>Competencias Transversales
-        </h5>
-        <p class="text-muted small mb-3">
-            Promedio de cada criterio transversal evaluado en todas las materias.
-        </p>
+            @if(count($competencias_transversales_agrupadas) > 0)
+            <div class="mt-4">
+                <div class="border border-1 border-dark rounded-1 p-3">
+                    <h5 class="mb-3">
+                        <i class="fas fa-chalkboard-user me-2"></i>Competencias Transversales
+                    </h5>
+                    <p class="text-muted small mb-3">
+                        Promedio de cada criterio transversal evaluado en todas las materias.
+                    </p>
 
-        <div>
-            <table class="table table-bordered mb-0 mt-3">
-                <thead class="table-light">
-                    <tr class="text-center">
-                        <th style="width: 70%">CRITERIO TRANSVERSAL</th>
-                        <th style="width: 30%">PROMEDIO GENERAL</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($competencias_transversales_agrupadas as $item)
-                        <tr>
-                            <td class="fw-bold">
-                                <i class="fas fa-check-circle text-info me-2"></i>
-                                {{ $item['criterio'] }}
-                                @if($item['faltantes'] > 0)
-                                    <span class="badge bg-warning text-dark ms-2">
-                                        {{ $item['materias_calificadas'] }}/{{ $item['total_materias'] }} materias
-                                    </span>
-                                @else
-                                    <span class="badge bg-success ms-2">
-                                        {{ $item['total_materias'] }}/{{ $item['total_materias'] }}
-                                    </span>
-                                @endif
-                            </td>
-                            <td class="text-center fw-bold">
-                                @if($item['promedio'] !== null)
-                                    <span class="nota-promedio" data-valor="{{ $item['promedio'] }}">
-                                        {{ $item['promedio'] }}
-                                    </span>
-                                @else
-                                    <span class="text-muted">--</span>
-                                @endif
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Detalle por materia y bimestre (expandible) -->
-        <div class="mt-3">
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#detalleTransversales" aria-expanded="false">
-                <i class="fas fa-table me-1"></i> Ver detalle por materia y bimestre
-            </button>
-
-            <div class="collapse mt-3" id="detalleTransversales">
-                <div class="card card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-bordered mb-0 table-sm">
+                    <div>
+                        <table class="table table-bordered mb-0 mt-3">
                             <thead class="table-light">
                                 <tr class="text-center">
-                                    <th>CRITERIO TRANSVERSAL</th>
-                                    @if($sigla_param == 'anual')
-                                        <th>BIMESTRE</th>
-                                    @endif
-                                    <th>MATERIA</th>
-                                    <th>NOTA</th>
+                                    <th style="width: 70%">CRITERIO TRANSVERSAL</th>
+                                    <th style="width: 30%">PROMEDIO GENERAL</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($competencias_transversales_agrupadas as $item)
-                                    @foreach($item['detalle'] as $detalle)
-                                        <tr>
-                                            <td>{{ $item['criterio'] }}</td>
-                                            @if($sigla_param == 'anual')
-                                                <td class="text-center">
-                                                    @if($detalle['sigla_bimestre'])
-                                                        <span class="badge bg-primary">{{ $detalle['sigla_bimestre'] }}</span>
-                                                    @else
-                                                        <span class="text-muted">--</span>
-                                                    @endif
-                                                </td>
+                                    <tr>
+                                        <td class="fw-bold">
+                                            <i class="fas fa-check-circle text-info me-2"></i>
+                                            {{ $item['criterio'] }}
+                                            @if($item['faltantes'] > 0)
+                                                <span class="badge bg-warning text-dark ms-2">
+                                                    {{ $item['materias_calificadas'] }}/{{ $item['total_materias'] }} materias
+                                                </span>
+                                            @else
+                                                <span class="badge bg-success ms-2">
+                                                    {{ $item['total_materias'] }}/{{ $item['total_materias'] }}
+                                                </span>
                                             @endif
-                                            <td class="fw-bold">{{ $detalle['materia'] }}</td>
-                                            <td class="text-center">
-                                                @if($detalle['nota'] !== null)
-                                                    @php
-                                                        $notaRedondeada = $detalle['nota'];
-                                                        $notaOriginal = $detalle['nota'];
-                                                    @endphp
-                                                    <span class="nota-valor" data-valor="{{ $notaOriginal }}">
-                                                        {{ $notaRedondeada }}
-                                                    </span>
-                                                @else
-                                                    <span class="text-muted">--</span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @endforeach
+                                        </td>
+                                        <td class="text-center fw-bold">
+                                            @if($item['promedio'] !== null)
+                                                <span class="nota-promedio" data-valor="{{ $item['promedio'] }}">
+                                                    {{ $item['promedio'] }}
+                                                </span>
+                                            @else
+                                                <span class="text-muted">--</span>
+                                            @endif
+                                        </td>
+                                    </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Detalle por materia y bimestre (expandible) -->
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#detalleTransversales" aria-expanded="false">
+                            <i class="fas fa-table me-1"></i> Ver detalle por materia y bimestre
+                        </button>
+
+                        <div class="collapse mt-3" id="detalleTransversales">
+                            <div class="card card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered mb-0 table-sm">
+                                        <thead class="table-light">
+                                            <tr class="text-center">
+                                                <th>CRITERIO TRANSVERSAL</th>
+                                                @if($sigla_param == 'anual')
+                                                    <th>BIMESTRE</th>
+                                                @endif
+                                                <th>MATERIA</th>
+                                                <th>NOTA</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($competencias_transversales_agrupadas as $item)
+                                                @foreach($item['detalle'] as $detalle)
+                                                    <tr>
+                                                        <td>{{ $item['criterio'] }}</td>
+                                                        @if($sigla_param == 'anual')
+                                                            <td class="text-center">
+                                                                @if($detalle['sigla_bimestre'])
+                                                                    <span class="badge bg-primary">{{ $detalle['sigla_bimestre'] }}</span>
+                                                                @else
+                                                                    <span class="text-muted">--</span>
+                                                                @endif
+                                                            </td>
+                                                        @endif
+                                                        <td class="fw-bold">{{ $detalle['materia'] }}</td>
+                                                        <td class="text-center">
+                                                            @if($detalle['nota'] !== null)
+                                                                @php
+                                                                    $notaRedondeada = $detalle['nota'];
+                                                                    $notaOriginal = $detalle['nota'];
+                                                                @endphp
+                                                                <span class="nota-valor" data-valor="{{ $notaOriginal }}">
+                                                                    {{ $notaRedondeada }}
+                                                                </span>
+                                                            @else
+                                                                <span class="text-muted">--</span>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
-@endif
+            @endif
+
             @if(count($todas_las_conductas) > 0)
                 <div class="mt-4">
                     <div class="border border-1 border-dark rounded-1 p-3">
