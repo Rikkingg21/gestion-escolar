@@ -26,7 +26,7 @@ class AsistenciahistorialController extends Controller
         });
     }
 
-    public function calendarioAsistencia(Request $request, $periodo_id = null, $periodobimestre_id = null)
+    public function calendarioAsistencia(Request $request, $periodo_id = null, $periodobimestre_sigla = null)
     {
         // Obtener el ID del usuario de la sesión sub (si existe) o el actual
         $userId = session('sub_session_user_id') ?? auth()->id();
@@ -67,9 +67,18 @@ class AsistenciahistorialController extends Controller
         // Obtener período seleccionado
         $periodoSeleccionado = $periodo_id ? Periodo::find($periodo_id) : null;
 
-        // Si no se proporciona periodobimestre_id, usar null
-        if (!$periodobimestre_id || $periodobimestre_id == 'todos') {
-            $periodobimestre_id = null;
+        // Obtener el bimestre por su sigla
+        $periodobimestreSeleccionado = null;
+        $periodobimestre_id = null;
+
+        if ($periodo_id && $periodobimestre_sigla && $periodobimestre_sigla !== 'anual') {
+            $periodobimestreSeleccionado = Periodobimestre::where('periodo_id', $periodo_id)
+                ->where('sigla', $periodobimestre_sigla)
+                ->first();
+
+            if ($periodobimestreSeleccionado) {
+                $periodobimestre_id = $periodobimestreSeleccionado->id;
+            }
         }
 
         // Construir consulta base
@@ -81,7 +90,7 @@ class AsistenciahistorialController extends Controller
             $query->where('periodo_id', $periodo_id);
         }
 
-        // Aplicar filtro por bimestre (periodobimestre_id)
+        // Aplicar filtro por bimestre (si no es anual)
         if ($periodobimestre_id) {
             $query->where('periodobimestre_id', $periodobimestre_id);
         }
@@ -109,7 +118,7 @@ class AsistenciahistorialController extends Controller
             $color = $asistencia->tipoasistencia->color_hex ?? '#6c757d';
 
             // Obtener nombre del bimestre
-            $bimestreNombre = $asistencia->periodobimestre ? $asistencia->periodobimestre->bimestre : 'Sin bimestre';
+            $bimestreNombre = $asistencia->periodobimestre ? $asistencia->periodobimestre->sigla : 'Anual';
 
             $eventosCalendario[] = [
                 'title' => $asistencia->tipoasistencia->nombre ?? 'Sin tipo',
@@ -133,20 +142,22 @@ class AsistenciahistorialController extends Controller
             $estadisticas['total']++;
         }
 
-        // Obtener bimestres disponibles para el período seleccionado
+        // Obtener bimestres disponibles para el período seleccionado (con sigla)
         $bimestresDisponibles = collect();
         if ($periodo_id) {
             $bimestresDisponibles = Periodobimestre::where('periodo_id', $periodo_id)
-                ->orderBy('fecha_inicio', 'asc')
-                ->get(['id', 'bimestre', 'fecha_inicio', 'fecha_fin']);
+                ->where('tipo_bimestre', 'A')
+                ->orderBy('bimestre', 'asc')
+                ->get(['id', 'bimestre', 'sigla', 'fecha_inicio', 'fecha_fin']);
         }
 
         // PRECARGAR TODOS LOS BIMESTRES POR PERÍODO
         $todosLosBimestres = [];
         foreach ($periodosConAsistencias as $periodo) {
             $todosLosBimestres[$periodo->id] = Periodobimestre::where('periodo_id', $periodo->id)
-                ->orderBy('fecha_inicio', 'asc')
-                ->get(['id', 'bimestre', 'fecha_inicio', 'fecha_fin', 'tipo_bimestre']);
+                ->where('tipo_bimestre', 'A')
+                ->orderBy('bimestre', 'asc')
+                ->get(['id', 'bimestre', 'sigla', 'fecha_inicio', 'fecha_fin']);
         }
 
         return view('asistencia.calendario', compact(
@@ -158,7 +169,7 @@ class AsistenciahistorialController extends Controller
             'periodosConAsistencias',
             'bimestresDisponibles',
             'periodo_id',
-            'periodobimestre_id',
+            'periodobimestre_sigla',
             'periodoSeleccionado',
             'todosLosBimestres'
         ));

@@ -41,8 +41,8 @@
                         </div>
                         <div class="col-md-5">
                             <label class="form-label">Bimestre</label>
-                            <select name="periodobimestre_id" class="form-select" id="selectBimestre" disabled>
-                                <option value="todos">Primero seleccione un período</option>
+                            <select name="periodobimestre_sigla" class="form-select" id="selectBimestre" disabled>
+                                <option value="anual">Anual</option>
                             </select>
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
@@ -236,8 +236,10 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Datos precargados desde el backend (pasados directamente)
+    // Datos precargados desde el backend
     const todosLosBimestres = @json($todosLosBimestres);
+    const periodoIdInicial = '{{ $periodo_id }}';
+    const bimestreSiglaInicial = '{{ $periodobimestre_sigla ?? "anual" }}';
 
     function getResponsiveConfig() {
         const isMobile = window.innerWidth < 768;
@@ -271,7 +273,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const periodoActual = @json($periodoSeleccionado);
-    const bimestreActual = @json($bimestresDisponibles->firstWhere('id', $periodobimestre_id));
+    const bimestreActualSigla = '{{ $periodobimestre_sigla }}';
+
+    // Obtener el bimestre seleccionado de la lista de bimestres
+    let bimestreActual = null;
+    if (periodoActual && bimestreActualSigla && bimestreActualSigla !== 'anual') {
+        const bimestresDelPeriodo = todosLosBimestres[periodoActual.id] || [];
+        bimestreActual = bimestresDelPeriodo.find(b => b.sigla === bimestreActualSigla);
+    }
 
     let fechaMin = null;
     let fechaMax = null;
@@ -316,10 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </span>
                 </div>
                 <table class="table table-sm">
-                    <tr>
-                        <th width="100">Fecha:</th>
-                        <td>${evento.startStr.split('T')[0]}</td>
-                    </td>
+                    <tr><th width="100">Fecha:</th><td>${evento.startStr.split('T')[0]}</td></tr>
                     <tr><th>Período:</th><td>${extendedProps.periodo || 'N/A'}</td></tr>
                     <tr><th>Grado:</th><td>${extendedProps.grado || 'N/A'}</td></tr>
                     <tr><th>Hora:</th><td>${extendedProps.hora || 'N/A'}</td></tr>
@@ -339,40 +345,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectBimestre = document.getElementById('selectBimestre');
     const btnLimpiar = document.getElementById('btnLimpiar');
 
-    function cargarBimestres(periodoId, bimestreSeleccionado = null) {
+    function cargarBimestres(periodoId, bimestreSiglaSeleccionada = null) {
         if (!periodoId) {
-            selectBimestre.innerHTML = '<option value="todos">Primero seleccione un período</option>';
+            selectBimestre.innerHTML = '<option value="anual">Anual</option>';
             selectBimestre.disabled = true;
             return;
         }
 
         const bimestres = todosLosBimestres[periodoId] || [];
 
-        selectBimestre.innerHTML = '<option value="todos">Todos los bimestres</option>';
+        selectBimestre.innerHTML = '<option value="anual">Anual</option>';
         if (bimestres.length > 0) {
             bimestres.forEach(bimestre => {
-                const selected = bimestreSeleccionado && bimestreSeleccionado == bimestre.id ? 'selected' : '';
-                selectBimestre.innerHTML += `<option value="${bimestre.id}" ${selected} data-fecha-inicio="${bimestre.fecha_inicio}" data-fecha-fin="${bimestre.fecha_fin}">${bimestre.bimestre}</option>`;
+                const selected = (bimestreSiglaSeleccionada && bimestreSiglaSeleccionada === bimestre.sigla) ? 'selected' : '';
+                selectBimestre.innerHTML += `<option value="${bimestre.sigla}" ${selected} data-fecha-inicio="${bimestre.fecha_inicio}" data-fecha-fin="${bimestre.fecha_fin}">${bimestre.sigla} - Bimestre ${bimestre.bimestre}</option>`;
             });
             selectBimestre.disabled = false;
         } else {
-            selectBimestre.innerHTML = '<option value="todos">No hay bimestres disponibles</option>';
-            selectBimestre.disabled = true;
+            selectBimestre.innerHTML = '<option value="anual">Anual</option>';
+            selectBimestre.disabled = false;
         }
+
+        return selectBimestre.value;
     }
 
     function aplicarFiltros() {
         const periodoId = selectPeriodo.value;
-        const bimestreId = selectBimestre.value;
+        const bimestreSigla = selectBimestre.value;
 
         if (!periodoId) {
             alert('Por favor, seleccione un período');
             return;
         }
 
-        let url = `{{ route("asistencia.calendario", ["periodo_id" => ":periodo", "periodobimestre_id" => ":bimestre"]) }}`
+        let url = "{{ route('asistencia.calendario', ['periodo_id' => ':periodo', 'periodobimestre_sigla' => ':bimestre']) }}"
             .replace(':periodo', periodoId)
-            .replace(':bimestre', bimestreId);
+            .replace(':bimestre', bimestreSigla);
 
         window.location.href = url;
     }
@@ -380,9 +388,10 @@ document.addEventListener('DOMContentLoaded', function() {
     selectPeriodo.addEventListener('change', function() {
         const periodoId = this.value;
         if (periodoId) {
-            cargarBimestres(periodoId, null);
+            cargarBimestres(periodoId, 'anual');
+            aplicarFiltros();
         } else {
-            selectBimestre.innerHTML = '<option value="todos">Primero seleccione un período</option>';
+            selectBimestre.innerHTML = '<option value="anual">Anual</option>';
             selectBimestre.disabled = true;
         }
     });
@@ -397,30 +406,16 @@ document.addEventListener('DOMContentLoaded', function() {
     btnLimpiar.addEventListener('click', function() {
         const primerPeriodo = selectPeriodo.querySelector('option:not([value=""])');
         if (primerPeriodo) {
-            window.location.href = "{{ route('asistencia.calendario', ['periodo_id' => ':periodo', 'periodobimestre_id' => 'todos']) }}"
-                .replace(':periodo', primerPeriodo.value);
+            const periodoId = primerPeriodo.value;
+            window.location.href = "{{ route('asistencia.calendario', ['periodo_id' => ':periodo', 'periodobimestre_sigla' => 'anual']) }}"
+                .replace(':periodo', periodoId);
         } else {
-            window.location.href = "{{ route('asistencia.calendario', ['periodo_id' => '', 'periodobimestre_id' => 'todos']) }}";
+            window.location.href = "{{ route('asistencia.calendario', ['periodo_id' => '', 'periodobimestre_sigla' => 'anual']) }}";
         }
     });
 
-    const btnAplicar = document.createElement('button');
-    btnAplicar.type = 'button';
-    btnAplicar.className = 'btn btn-primary w-100 mt-2 mt-md-0';
-    btnAplicar.innerHTML = '<i class="fas fa-search me-1"></i> Aplicar Filtros';
-    btnAplicar.onclick = aplicarFiltros;
-
-    const filtrosContainer = document.querySelector('#filtroForm .row.g-3');
-    if (filtrosContainer && !document.querySelector('#btnAplicarExistente')) {
-        btnAplicar.id = 'btnAplicarExistente';
-        const colBtn = document.createElement('div');
-        colBtn.className = 'col-md-12 d-flex justify-content-end';
-        colBtn.appendChild(btnAplicar);
-        filtrosContainer.parentNode.appendChild(colBtn);
-    }
-
     @if($periodo_id)
-        cargarBimestres('{{ $periodo_id }}', '{{ $periodobimestre_id }}');
+        cargarBimestres('{{ $periodo_id }}', '{{ $periodobimestre_sigla ?? "anual" }}');
     @endif
 });
 </script>

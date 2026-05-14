@@ -263,7 +263,5 @@ Route::middleware('auth')->group(function () {
     Route::post('/asistencia/liberar-masivo', [AsistenciabloqueoController::class, 'liberarMasivo'])->name('asistencia.liberar-masivo');
     Route::post('/asistencia/liberar-definitivo-masivo', [AsistenciabloqueoController::class, 'liberarDefinitivoMasivo'])->name('asistencia.liberar-definitivo-masivo');
 
-
-    Route::get('/historial-asistencia/bimestres-por-periodo/{periodo_id}', [AsistenciahistorialController::class, 'getBimestresByPeriodo'])->name('historial.bimestres-por-periodo');
-    Route::get('/historial-asistencia/{periodo_id?}/{periodobimestre_id?}', [AsistenciahistorialController::class, 'calendarioAsistencia'])->name('asistencia.calendario');
+    Route::get('/historial-asistencia/{periodo_id?}/{periodobimestre_sigla?}', [AsistenciahistorialController::class, 'calendarioAsistencia'])->name('asistencia.calendario');
 });
