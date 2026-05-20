@@ -4,44 +4,44 @@
 <div class="container-fluid">
     <!-- Encabezado y Filtros -->
     <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card-body">
-                <h1 class="h3 mb-3">
-                    <i class="fas fa-user-graduate"></i> Dashboard Estudiante
-                </h1>
-                <form method="GET" action="{{ request()->url() }}" class="row g-3">
-                    <div class="col-md-5">
-                        <select name="periodo_id" class="form-select" onchange="this.form.submit()">
-                            @foreach($periodos as $periodo)
-                                <option value="{{ $periodo->id }}"
-                                    {{ $periodoSeleccionado && $periodoSeleccionado->id == $periodo->id ? 'selected' : '' }}>
-                                    {{ $periodo->anio }}
-                                    @if($periodo->semestre)
-                                        - Semestre {{ $periodo->semestre }}
-                                    @endif
-                                    @if($periodo->estado == 1)
-                                        <span class="text-success">(Activo)</span>
-                                    @endif
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-5">
-                        <select name="bimestre" class="form-select" onchange="this.form.submit()">
-                            <option value="anual" {{ request('bimestre', 'anual') == 'anual' ? 'selected' : '' }}>Todos los Bimestres</option>
-                            @for ($i = 1; $i <= 4; $i++)
-                                <option value="{{ $i }}" {{ request('bimestre') == $i ? 'selected' : '' }}>
-                                    {{ $i }}° Bimestre
-                                </option>
-                            @endfor
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-filter me-1"></i> Filtrar
-                        </button>
-                    </div>
-                </form>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="h3 mb-3">
+                        <i class="fas fa-user-graduate"></i> Dashboard Estudiante
+                    </h1>
+                    <form method="GET" action="{{ request()->url() }}" class="row g-3">
+                        <div class="col-md-5">
+                            <label class="form-label">Período Escolar</label>
+                            <select name="periodo_id" class="form-select" onchange="this.form.submit()">
+                                @foreach($periodos as $periodo)
+                                    <option value="{{ $periodo->id }}"
+                                        {{ $periodoSeleccionado && $periodoSeleccionado->id == $periodo->id ? 'selected' : '' }}>
+                                        {{ $periodo->anio }}
+                                        @if($periodo->estado == 1)
+                                            <span class="text-success">(Activo)</span>
+                                        @endif
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Bimestre</label>
+                            <select name="bimestre" class="form-select" onchange="this.form.submit()">
+                                <option value="anual" {{ request('bimestre', 'anual') == 'anual' ? 'selected' : '' }}>Promedio Anual</option>
+                                <option value="B1" {{ request('bimestre') == 'B1' ? 'selected' : '' }}>1° Bimestre</option>
+                                <option value="B2" {{ request('bimestre') == 'B2' ? 'selected' : '' }}>2° Bimestre</option>
+                                <option value="B3" {{ request('bimestre') == 'B3' ? 'selected' : '' }}>3° Bimestre</option>
+                                <option value="B4" {{ request('bimestre') == 'B4' ? 'selected' : '' }}>4° Bimestre</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-filter me-1"></i> Filtrar
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -56,8 +56,7 @@
                 </h4>
                 @if($infoEstudiante['total_cursos'] > 0 || $infoEstudiante['total_conducta'] > 0)
                     <span class="badge bg-light text-primary fs-6">
-                        {{ $infoEstudiante['total_cursos'] }} curso(s) /
-                        {{ $infoEstudiante['total_conducta'] }} conducta(s)
+                        {{ $infoEstudiante['total_cursos'] }} curso(s) / {{ $infoEstudiante['total_conducta'] }} conducta(s)
                     </span>
                 @endif
             </div>
@@ -90,7 +89,7 @@
                         <button class="nav-link" id="conducta-tab"
                                 data-bs-toggle="tab" data-bs-target="#conducta"
                                 type="button" role="tab">
-                            <i class="fas fa-users me-1"></i> Conducta
+                            <i class="fas fa-hand-peace me-1"></i> Conducta
                             @if($infoEstudiante['total_conducta'] > 0)
                                 <span class="badge bg-success ms-1">{{ $infoEstudiante['total_conducta'] }}</span>
                             @endif
@@ -111,13 +110,13 @@
                                         $todasNotas = array_merge($todasNotas, $notasValidas);
                                     }
                                     $promedioGeneral = count($todasNotas) > 0 ?
-                                        round(array_sum($todasNotas) / count($todasNotas), 2) : null;
+                                        round(array_sum($todasNotas) / count($todasNotas), 1) : null;
 
                                     $cursosAprobados = 0;
                                     $cursosReprobados = 0;
                                     foreach($infoEstudiante['progreso_cursos'] as $curso) {
                                         if ($curso['promedio_general'] !== null) {
-                                            if ($curso['promedio_general'] >= 2.5) {
+                                            if ($curso['promedio_general'] > 2) {
                                                 $cursosAprobados++;
                                             } else {
                                                 $cursosReprobados++;
@@ -181,65 +180,71 @@
                                 </div>
                             </div>
 
-                            <!-- Gráfico de notas -->
+                            <!-- Gráfico de notas (solo en modo anual) -->
+                            @if($bimestreFiltro == 'anual')
                             <div class="mb-4">
                                 <h5 class="mb-3">
-                                    <i class="fas fa-chart-line me-2"></i> Progreso Académico
+                                    <i class="fas fa-chart-line me-2"></i> Progreso Académico por Bimestre
                                 </h5>
                                 <div style="height: 400px;">
                                     <canvas id="progresoChart"></canvas>
                                 </div>
                             </div>
+                            @endif
 
                             <!-- Tabla de notas -->
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped">
                                     <thead class="table-dark">
-                                        <tr>
+                                        <tr class="text-center">
                                             <th>Curso / Materia</th>
-                                            <th class="text-center">Bimestre 1</th>
-                                            <th class="text-center">Bimestre 2</th>
-                                            <th class="text-center">Bimestre 3</th>
-                                            <th class="text-center">Bimestre 4</th>
-                                            <th class="text-center">Promedio</th>
-                                            <th class="text-center">Estado</th>
+                                            @if($bimestreFiltro == 'anual')
+                                                <th>Bimestre 1</th>
+                                                <th>Bimestre 2</th>
+                                                <th>Bimestre 3</th>
+                                                <th>Bimestre 4</th>
+                                            @endif
+                                            <th>Promedio</th>
+                                            <th>Estado</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @foreach($infoEstudiante['progreso_cursos'] as $curso)
                                         <tr>
                                             <td class="fw-bold">{{ $curso['curso'] }}</td>
-                                            @foreach($curso['promedios'] as $bimestre => $promedio)
-                                            <td class="text-center">
-                                                @if($promedio !== null)
-                                                    <span class="badge
-                                                        @if($promedio >= 3.5) bg-success
-                                                        @elseif($promedio >= 2.5) bg-warning
-                                                        @else bg-danger
-                                                        @endif">
-                                                        {{ $promedio }}
-                                                    </span>
-                                                @else
-                                                    <span class="badge bg-secondary">-</span>
-                                                @endif
-                                            </td>
-                                            @endforeach
+                                            @if($bimestreFiltro == 'anual')
+                                                @foreach($curso['promedios'] as $bimestre => $promedio)
+                                                <td class="text-center">
+                                                    @if($promedio !== null)
+                                                        <span class="badge
+                                                            @if($promedio > 3) bg-success
+                                                            @elseif($promedio > 2) bg-warning
+                                                            @else bg-danger
+                                                            @endif fs-6">
+                                                            {{ $promedio }}
+                                                        </span>
+                                                    @else
+                                                        <span class="badge bg-secondary">--</span>
+                                                    @endif
+                                                </td>
+                                                @endforeach
+                                            @endif
                                             <td class="text-center fw-bold">
                                                 @if($curso['promedio_general'] !== null)
                                                     <span class="badge
-                                                        @if($curso['promedio_general'] >= 3.5) bg-success
-                                                        @elseif($curso['promedio_general'] >= 2.5) bg-warning
+                                                        @if($curso['promedio_general'] > 3) bg-success
+                                                        @elseif($curso['promedio_general'] > 2) bg-warning
                                                         @else bg-danger
-                                                        @endif">
+                                                        @endif fs-6">
                                                         {{ $curso['promedio_general'] }}
                                                     </span>
                                                 @else
-                                                    <span class="badge bg-secondary">-</span>
+                                                    <span class="badge bg-secondary">--</span>
                                                 @endif
                                             </td>
                                             <td class="text-center">
                                                 @if($curso['promedio_general'] !== null)
-                                                    @if($curso['promedio_general'] >= 2.5)
+                                                    @if($curso['promedio_general'] > 2)
                                                         <span class="badge bg-success">
                                                             <i class="fas fa-check me-1"></i>Aprobado
                                                         </span>
@@ -271,25 +276,23 @@
                             <!-- Resumen estadístico de conducta -->
                             <div class="row mb-4">
                                 @php
-                                    $todasConductas = [];
-                                    foreach($infoEstudiante['progreso_conducta'] as $conducta) {
-                                        $conductasValidas = array_filter($conducta['promedios'], function($c) { return $c !== null; });
-                                        $todasConductas = array_merge($todasConductas, $conductasValidas);
-                                    }
-                                    $promedioConductaGeneral = count($todasConductas) > 0 ?
-                                        round(array_sum($todasConductas) / count($todasConductas), 2) : null;
-
+                                    $promedioConductaGeneral = 0;
+                                    $totalConductas = 0;
                                     $conductasAdecuadas = 0;
                                     $conductasInadecuadas = 0;
+
                                     foreach($infoEstudiante['progreso_conducta'] as $conducta) {
                                         if ($conducta['promedio_general'] !== null) {
-                                            if ($conducta['promedio_general'] >= 2.5) {
+                                            $promedioConductaGeneral += $conducta['promedio_general'];
+                                            $totalConductas++;
+                                            if ($conducta['promedio_general'] > 2) {
                                                 $conductasAdecuadas++;
                                             } else {
                                                 $conductasInadecuadas++;
                                             }
                                         }
                                     }
+                                    $promedioConductaGeneral = $totalConductas > 0 ? round($promedioConductaGeneral / $totalConductas, 1) : null;
                                 @endphp
 
                                 @if($promedioConductaGeneral)
@@ -351,57 +354,38 @@
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped">
                                     <thead class="table-dark">
-                                        <tr>
+                                        <tr class="text-center">
                                             <th>Competencia / Área</th>
-                                            <th class="text-center">Bimestre 1</th>
-                                            <th class="text-center">Bimestre 2</th>
-                                            <th class="text-center">Bimestre 3</th>
-                                            <th class="text-center">Bimestre 4</th>
-                                            <th class="text-center">Promedio</th>
-                                            <th class="text-center">Estado</th>
+                                            <th>Promedio</th>
+                                            <th>Estado</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @foreach($infoEstudiante['progreso_conducta'] as $conducta)
                                         <tr>
-                                            <td class="fw-bold">{{ $conducta['curso'] }}</td>
-                                            @foreach($conducta['promedios'] as $bimestre => $promedio)
-                                            <td class="text-center">
-                                                @if($promedio !== null)
-                                                    <span class="badge
-                                                        @if($promedio >= 3.5) bg-success
-                                                        @elseif($promedio >= 2.5) bg-warning
-                                                        @else bg-danger
-                                                        @endif">
-                                                        {{ $promedio }}
-                                                    </span>
-                                                @else
-                                                    <span class="badge bg-secondary">-</span>
-                                                @endif
-                                            </td>
-                                            @endforeach
+                                            <td class="fw-bold">{{ $conducta['nombre'] }}</td>
                                             <td class="text-center fw-bold">
                                                 @if($conducta['promedio_general'] !== null)
                                                     <span class="badge
-                                                        @if($conducta['promedio_general'] >= 3.5) bg-success
-                                                        @elseif($conducta['promedio_general'] >= 2.5) bg-warning
+                                                        @if($conducta['promedio_general'] > 3) bg-success
+                                                        @elseif($conducta['promedio_general'] > 2) bg-warning
                                                         @else bg-danger
-                                                        @endif">
+                                                        @endif fs-6">
                                                         {{ $conducta['promedio_general'] }}
                                                     </span>
                                                 @else
-                                                    <span class="badge bg-secondary">-</span>
+                                                    <span class="badge bg-secondary">--</span>
                                                 @endif
                                             </td>
                                             <td class="text-center">
                                                 @if($conducta['promedio_general'] !== null)
-                                                    @if($conducta['promedio_general'] >= 2.5)
+                                                    @if($conducta['promedio_general'] > 2)
                                                         <span class="badge bg-success">
-                                                            <i class="fas fa-check me-1"></i>Adecuada
+                                                            <i class="fas fa-check me-1"></i>Adecuado
                                                         </span>
                                                     @else
                                                         <span class="badge bg-danger">
-                                                            <i class="fas fa-times me-1"></i>Inadecuada
+                                                            <i class="fas fa-times me-1"></i>Inadecuado
                                                         </span>
                                                     @endif
                                                 @else
@@ -430,217 +414,50 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const infoEstudiante = @json($infoEstudiante);
-        const labelsBimestres = @json($labelsBimestres);
+        const bimestreFiltro = @json($bimestreFiltro);
 
-        // Paleta de colores para los cursos
-        const colores = [
-            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
-            '#9966FF', '#FF9F40', '#8AC926', '#1982C4',
-            '#6A4C93', '#F15BB5', '#00BBF9', '#00F5D4'
-        ];
+        if (bimestreFiltro === 'anual' && infoEstudiante.progreso_cursos && infoEstudiante.progreso_cursos.length > 0) {
+            const colores = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
 
-        // Gráfico de notas académicas
-        if (infoEstudiante.progreso_cursos && infoEstudiante.progreso_cursos.length > 0) {
-            const ctxNotas = document.getElementById('progresoChart');
-            if (ctxNotas) {
-                const datasetsNotas = infoEstudiante.progreso_cursos.map((curso, cursoIndex) => {
-                    const color = colores[cursoIndex % colores.length];
+            const datasets = infoEstudiante.progreso_cursos.map((curso, index) => ({
+                label: curso.curso,
+                data: [curso.promedios[1], curso.promedios[2], curso.promedios[3], curso.promedios[4]],
+                borderColor: colores[index % colores.length],
+                tension: 0,
+                fill: false
+            }));
 
-                    return {
-                        label: curso.curso,
-                        data: [1,2,3,4].map(bimestre => {
-                            const promedio = curso.promedios[bimestre];
-                            return promedio !== null ? promedio : null;
-                        }),
-                        borderColor: color,
-                        backgroundColor: color + '40',
-                        tension: 0.3,
-                        fill: false,
-                        pointBackgroundColor: color,
-                        pointBorderColor: '#fff',
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                        spanGaps: true
-                    };
-                });
-
-                new Chart(ctxNotas.getContext('2d'), {
-                    type: 'line',
-                    data: {
-                        labels: labelsBimestres,
-                        datasets: datasetsNotas
+            const config = {
+                type: 'line',
+                data: {
+                    labels: ['B1', 'B2', 'B3', 'B4'],
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Progreso Académico' }
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Progreso Académico - ' + infoEstudiante.nombre_completo,
-                                font: {
-                                    size: 14,
-                                    weight: 'bold'
-                                }
-                            },
-                            legend: {
-                                display: true,
-                                position: 'top'
-                            },
-                            tooltip: {
-                                mode: 'index',
-                                intersect: false,
-                                callbacks: {
-                                    label: function(context) {
-                                        return context.dataset.label + ': ' + context.parsed.y.toFixed(2);
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: false,
-                                min: 1,
-                                max: 4,
-                                title: {
-                                    display: true,
-                                    text: 'Notas (1-4)'
-                                },
-                                ticks: {
-                                    stepSize: 0.5,
-                                    callback: function(value) {
-                                        if (value === 2.5) {
-                                            return value.toFixed(1) + ' (Mínimo)';
-                                        }
-                                        return value.toFixed(1);
-                                    }
-                                }
-                            },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Bimestres'
-                                }
-                            }
-                        }
+                    scales: {
+                        y: { min: 1, max: 4, title: { display: true, text: 'Notas' } }
                     }
-                });
-            }
-        }
-
-        // Gráfico de conducta (se crea cuando se hace clic en la pestaña)
-        const conductaTab = document.getElementById('conducta-tab');
-        if (conductaTab) {
-            conductaTab.addEventListener('click', function() {
-                if (infoEstudiante.progreso_conducta && infoEstudiante.progreso_conducta.length > 0) {
-                    setTimeout(() => {
-                        const conductaContent = document.getElementById('conducta');
-                        if (conductaContent && !document.getElementById('conductaChart')) {
-                            // Crear contenedor para el gráfico
-                            const rowContainer = conductaContent.querySelector('.row.mb-4');
-                            if (rowContainer) {
-                                const chartContainer = document.createElement('div');
-                                chartContainer.className = 'mb-4';
-                                chartContainer.innerHTML = `
-                                    <h5 class="mb-3">
-                                        <i class="fas fa-chart-line me-2"></i> Progreso de Conducta
-                                    </h5>
-                                    <div style="height: 400px;">
-                                        <canvas id="conductaChart"></canvas>
-                                    </div>
-                                `;
-                                rowContainer.after(chartContainer);
-
-                                // Crear el gráfico de conducta
-                                const ctxConducta = document.getElementById('conductaChart');
-                                if (ctxConducta) {
-                                    const datasetsConducta = infoEstudiante.progreso_conducta.map((conducta, conductaIndex) => {
-                                        const color = colores[conductaIndex % colores.length];
-
-                                        return {
-                                            label: conducta.curso,
-                                            data: [1,2,3,4].map(bimestre => {
-                                                const promedio = conducta.promedios[bimestre];
-                                                return promedio !== null ? promedio : null;
-                                            }),
-                                            borderColor: color,
-                                            backgroundColor: color + '40',
-                                            tension: 0.3,
-                                            fill: false,
-                                            pointBackgroundColor: color,
-                                            pointBorderColor: '#fff',
-                                            pointRadius: 5,
-                                            pointHoverRadius: 7,
-                                            spanGaps: true
-                                        };
-                                    });
-
-                                    new Chart(ctxConducta.getContext('2d'), {
-                                        type: 'line',
-                                        data: {
-                                            labels: labelsBimestres,
-                                            datasets: datasetsConducta
-                                        },
-                                        options: {
-                                            responsive: true,
-                                            maintainAspectRatio: false,
-                                            plugins: {
-                                                title: {
-                                                    display: true,
-                                                    text: 'Progreso de Conducta - ' + infoEstudiante.nombre_completo,
-                                                    font: {
-                                                        size: 14,
-                                                        weight: 'bold'
-                                                    }
-                                                },
-                                                legend: {
-                                                    display: true,
-                                                    position: 'top'
-                                                },
-                                                tooltip: {
-                                                    mode: 'index',
-                                                    intersect: false,
-                                                    callbacks: {
-                                                        label: function(context) {
-                                                            return context.dataset.label + ': ' + context.parsed.y.toFixed(2);
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            scales: {
-                                                y: {
-                                                    beginAtZero: false,
-                                                    min: 1,
-                                                    max: 4,
-                                                    title: {
-                                                        display: true,
-                                                        text: 'Notas (1-4)'
-                                                    },
-                                                    ticks: {
-                                                        stepSize: 0.5,
-                                                        callback: function(value) {
-                                                            if (value === 2.5) {
-                                                                return value.toFixed(1) + ' (Mínimo)';
-                                                            }
-                                                            return value.toFixed(1);
-                                                        }
-                                                    }
-                                                },
-                                                x: {
-                                                    title: {
-                                                        display: true,
-                                                        text: 'Bimestres'
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    });
-                                }
-                            }
-                        }
-                    }, 100);
                 }
-            });
+            };
+
+            new Chart(document.getElementById('progresoChart'), config);
         }
     });
 </script>
+
+<style>
+    .border-left-success { border-left: 4px solid #1cc88a !important; }
+    .border-left-info { border-left: 4px solid #36b9cc !important; }
+    .border-left-danger { border-left: 4px solid #e74a3b !important; }
+    .border-left-primary { border-left: 4px solid #4e73df !important; }
+    .border-left-warning { border-left: 4px solid #f6c23e !important; }
+    .badge { padding: 0.5rem 0.75rem; }
+    .table-responsive { overflow-x: auto; }
+</style>
 @endsection

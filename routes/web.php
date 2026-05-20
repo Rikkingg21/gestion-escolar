@@ -111,7 +111,6 @@ Route::middleware('auth')->group(function () {
     });
     Route::get('/matricula/{nombre}', [MatriculaController::class, 'index'])->name('matricula.index');
     Route::get('/matricula/create', [MatriculaController::class, 'create'])->name('matricula.create');
-
     Route::get('/matricula/{id}/edit', [MatriculaController::class, 'edit'])->name('matricula.edit');
     Route::put('/matricula/{id}', [MatriculaController::class, 'update'])->name('matricula.update');
     Route::delete('/matricula/{id}', [MatriculaController::class, 'destroy'])->name('matricula.destroy');
