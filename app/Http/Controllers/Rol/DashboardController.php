@@ -1298,13 +1298,15 @@ class DashboardController extends Controller
             abort(403, 'Acceso denegado');
         }
 
-        // Obtener el apoderado autenticado
         $apoderado = Apoderado::where('user_id', Auth::id())->first();
 
-        // Obtener todos los estudiantes del apoderado
-        $estudiantes = Estudiante::with(['user'])
+        if (!$apoderado) {
+            abort(403, 'No se encontró el perfil de apoderado');
+        }
+
+        $estudiantes = Estudiante::with(['user', 'grado'])
             ->where('apoderado_id', $apoderado->id)
-            //->where('estado', 1)
+            ->where('estado', 1)
             ->get();
 
         if ($estudiantes->isEmpty()) {
@@ -1313,7 +1315,6 @@ class DashboardController extends Controller
 
         $estudianteIds = $estudiantes->pluck('id')->toArray();
 
-        // Obtener parámetros de filtro
         $periodos = Periodo::whereHas('matriculas', function($query) use ($estudianteIds) {
                 $query->whereIn('estudiante_id', $estudianteIds)
                     ->where('estado', 1);
@@ -1335,186 +1336,301 @@ class DashboardController extends Controller
             return back()->with('error', 'No hay períodos activos disponibles.');
         }
 
-        $bimestreFiltro = $request->input('bimestre');
+        $bimestreFiltro = $request->input('bimestre', 'anual');
         $usuarios = User::with('roles')->get();
 
-        if (!$apoderado) {
-            abort(403, 'No se encontró el perfil de apoderado');
-        }
-
-        // Obtener todos los estudiantes del apoderado
-        $estudiantes = Estudiante::with(['user', 'grado'])
-            ->where('apoderado_id', $apoderado->id)
-            ->where('estado', 1)
+        // Obtener bimestres regulares del periodo
+        $bimestresRegulares = Periodobimestre::where('periodo_id', $periodoSeleccionado->id)
+            ->where('tipo_bimestre', 'A')
+            ->orderBy('bimestre')
             ->get();
 
-        if ($estudiantes->isEmpty()) {
-            return view('rol.apoderado.dashboard', compact(
-                'periodos',
-                'periodoSeleccionado',
-                'usuarios'
-            ))->with('info', 'No tiene estudiantes asignados.');
+        // Obtener periodo_bimestre seleccionado si no es anual
+        $periodoBimestreSeleccionado = null;
+        if ($bimestreFiltro !== 'anual') {
+            $periodoBimestreSeleccionado = $bimestresRegulares->firstWhere('sigla', $bimestreFiltro);
         }
 
         $datosEstudiantes = [];
 
         foreach ($estudiantes as $estudiante) {
-            // Obtener la matrícula del estudiante en el período seleccionado
             $matricula = Matricula::where('estudiante_id', $estudiante->id)
                 ->where('periodo_id', $periodoSeleccionado->id)
                 ->where('estado', 1)
                 ->first();
 
-            // Si no está matriculado en este período, mostrar mensaje
             if (!$matricula) {
                 $datosEstudiantes[] = [
                     'estudiante_id' => $estudiante->id,
-                    'nombre_completo' => $estudiante->user->apellido_paterno . ' ' .
-                                    $estudiante->user->apellido_materno . ' ' .
-                                    $estudiante->user->nombre,
-                    'grado' => $estudiante->grado->getNombreCompletoAttribute() ?? 'Sin grado asignado',
-                    'grado_matricula' => 'No matriculado',
+                    'nombre_completo' => trim(sprintf(
+                        '%s %s, %s',
+                        $estudiante->user->apellido_paterno ?? '',
+                        $estudiante->user->apellido_materno ?? '',
+                        $estudiante->user->nombre ?? ''
+                    )),
+                    'grado' => 'No matriculado',
                     'progreso_cursos' => [],
-                    'progreso_conducta' => [],
                     'total_cursos' => 0,
+                    'progreso_conducta' => [],
                     'total_conducta' => 0,
                     'mensaje' => 'El estudiante no está matriculado en el período seleccionado.'
                 ];
                 continue;
             }
 
-            // IMPORTANTE: Obtener el grado desde la matrícula, no del estudiante
             $gradoMatricula = $matricula->grado;
 
-            // Obtener las asignaciones de cursos para el grado de la matrícula en el período
-            // USAR grado_id de la matrícula
-            $asignaciones = \App\Models\Maya\Cursogradosecnivanio::where('grado_id', $matricula->grado_id)
+            $cursos = Cursogradosecnivanio::where('grado_id', $matricula->grado_id)
                 ->where('periodo_id', $periodoSeleccionado->id)
                 ->with(['materia', 'grado'])
                 ->get();
 
             // =================== NOTAS ACADÉMICAS ===================
             $progresoCursos = [];
-            $progresoConducta = [];
 
-            foreach ($asignaciones as $asignacion) {
-                // Obtener notas académicas para esta asignación
-                $notasAcademicas = Nota::whereHas('criterio', function ($query) use ($asignacion) {
-                    $query->where('materia_id', $asignacion->materia_id)
-                        ->where('grado_id', $asignacion->grado_id)
-                        ->whereDoesntHave('materiaCompetencia', function ($q) {
-                            $q->where('nombre', 'LIKE', '%TRANSVERSAL%');
-                        });
-                })
-                ->where('estudiante_id', $estudiante->id)
-                ->where('periodo_id', $periodoSeleccionado->id)
-                ->when($bimestreFiltro && $bimestreFiltro !== 'anual', function ($query) use ($bimestreFiltro) {
-                    return $query->where('bimestre', $bimestreFiltro);
-                })
-                ->selectRaw('bimestre, AVG(nota) as promedio')
-                ->groupBy('bimestre')
-                ->orderBy('bimestre')
-                ->get();
+            foreach ($cursos as $curso) {
+                $competencias = Materiacompetencia::where('materia_id', $curso->materia_id)
+                    ->whereNot('nombre', 'LIKE', '%TRANSVERSAL%')
+                    ->get();
 
-                if ($notasAcademicas->isNotEmpty()) {
-                    $promediosBimestres = [];
-                    for ($bimestre = 1; $bimestre <= 4; $bimestre++) {
-                        $notaBimestre = $notasAcademicas->firstWhere('bimestre', $bimestre);
-                        $promediosBimestres[$bimestre] = $notaBimestre ? round($notaBimestre->promedio, 2) : null;
+                if ($competencias->isEmpty()) {
+                    continue;
+                }
+
+                $competenciasData = [];
+                $sumaNotasCurso = 0;
+                $totalNotasCurso = 0;
+
+                foreach ($competencias as $competencia) {
+                    $criteriosQuery = Materiacriterio::where('materia_competencia_id', $competencia->id)
+                        ->where('grado_id', $matricula->grado_id);
+
+                    if ($bimestreFiltro !== 'anual' && $periodoBimestreSeleccionado) {
+                        $criteriosQuery->where('periodo_bimestre_id', $periodoBimestreSeleccionado->id);
                     }
 
-                    // Calcular promedio general del curso
-                    $notasValidas = array_filter($promediosBimestres, function($n) { return $n !== null; });
-                    $promedioGeneral = count($notasValidas) > 0 ?
-                        round(array_sum($notasValidas) / count($notasValidas), 2) : null;
+                    $criterios = $criteriosQuery->get();
 
-                    $progresoCursos[] = [
-                        'curso' => $asignacion->materia->nombre ?? 'Sin nombre',
-                        'promedios' => $promediosBimestres,
-                        'promedio_general' => $promedioGeneral,
-                        'estado' => $promedioGeneral !== null ?
-                            ($promedioGeneral >= 2.5 ? 'Aprobado' : 'Reprobado') : 'Sin datos',
-                        'asignacion_id' => $asignacion->id
+                    if ($criterios->isEmpty()) {
+                        continue;
+                    }
+
+                    $sumaNotas = 0;
+                    $totalNotas = 0;
+
+                    foreach ($criterios as $criterio) {
+                        $nota = Nota::where('materia_criterio_id', $criterio->id)
+                            ->where('estudiante_id', $estudiante->id)
+                            ->where('periodo_id', $periodoSeleccionado->id)
+                            ->where('publico', '!=', '0')
+                            ->first();
+
+                        $notaValor = $nota ? $nota->nota : null;
+
+                        if ($notaValor !== null) {
+                            $sumaNotas += $notaValor;
+                            $totalNotas++;
+                            $sumaNotasCurso += $notaValor;
+                            $totalNotasCurso++;
+                        }
+                    }
+
+                    $promedioCompetencia = $totalNotas > 0 ? round($sumaNotas / $totalNotas, 1) : null;
+
+                    $competenciasData[] = [
+                        'nombre' => $competencia->nombre,
+                        'promedio' => $promedioCompetencia
                     ];
                 }
 
-                // =================== NOTAS DE CONDUCTA ===================
-                // Obtener notas de conducta para esta asignación
-                $notasConducta = Conductanota::where('estudiante_id', $estudiante->id)
+                if (empty($competenciasData)) {
+                    continue;
+                }
+
+                $promedioGeneralCurso = $totalNotasCurso > 0 ? round($sumaNotasCurso / $totalNotasCurso, 1) : null;
+
+                // Obtener promedios por bimestre para el gráfico (solo en modo anual)
+                $promediosPorBimestre = [];
+                if ($bimestreFiltro === 'anual') {
+                    foreach ($bimestresRegulares as $bim) {
+                        $criteriosIds = Materiacriterio::whereHas('materiaCompetencia', function($q) use ($curso) {
+                                $q->where('materia_id', $curso->materia_id)
+                                    ->whereNot('nombre', 'LIKE', '%TRANSVERSAL%');
+                            })
+                            ->where('grado_id', $matricula->grado_id)
+                            ->where('periodo_bimestre_id', $bim->id)
+                            ->pluck('id')
+                            ->toArray();
+
+                        if (!empty($criteriosIds)) {
+                            $notasBimestre = Nota::whereIn('materia_criterio_id', $criteriosIds)
+                                ->where('estudiante_id', $estudiante->id)
+                                ->where('periodo_id', $periodoSeleccionado->id)
+                                ->where('publico', '!=', '0')
+                                ->get();
+
+                            $sumaBimestre = $notasBimestre->sum('nota');
+                            $totalBimestre = $notasBimestre->count();
+                            $promediosPorBimestre[$bim->sigla] = $totalBimestre > 0 ? round($sumaBimestre / $totalBimestre, 1) : null;
+                        } else {
+                            $promediosPorBimestre[$bim->sigla] = null;
+                        }
+                    }
+                } else {
+                    // Modo bimestral: solo mostrar el bimestre seleccionado
+                    foreach ($bimestresRegulares as $bim) {
+                        $promediosPorBimestre[$bim->sigla] = ($bim->sigla == $bimestreFiltro) ? $promedioGeneralCurso : null;
+                    }
+                }
+
+                $progresoCursos[] = [
+                    'curso' => $curso->materia->nombre ?? 'Sin nombre',
+                    'competencias' => $competenciasData,
+                    'promedios' => $promediosPorBimestre,
+                    'promedio_general' => $promedioGeneralCurso,
+                    'estado' => $promedioGeneralCurso !== null
+                        ? ($promedioGeneralCurso > 2 ? 'Aprobado' : 'Reprobado')
+                        : 'Sin datos'
+                ];
+            }
+
+            // =================== NOTAS DE CONDUCTA ===================
+            $progresoConducta = [];
+
+            $conductasDB = Conducta::whereHas('periodosBimestres', function($query) use ($periodoSeleccionado) {
+                $query->where('periodo_id', $periodoSeleccionado->id)
+                    ->whereNull('conducta_periodo_bimestres.deleted_at');
+            })->distinct()->get();
+
+            if ($conductasDB->isNotEmpty() && $bimestresRegulares->isNotEmpty()) {
+                $periodoBimestreConducta = ($bimestreFiltro !== 'anual')
+                    ? $bimestresRegulares->firstWhere('sigla', $bimestreFiltro)
+                    : null;
+
+                $queryConducta = Conductaperiodobimestrenota::with([
+                        'conductaPeriodoBimestre.conducta',
+                        'periodoBimestre',
+                        'curso_grado_sec_niv_anio.materia'
+                    ])
+                    ->where('estudiante_id', $estudiante->id)
                     ->where('periodo_id', $periodoSeleccionado->id)
-                    ->where('curso_grado_sec_niv_anio_id', $asignacion->id)
-                    ->when($bimestreFiltro && $bimestreFiltro !== 'anual', function ($query) use ($bimestreFiltro) {
-                        return $query->where('bimestre', $bimestreFiltro);
-                    })
-                    ->selectRaw('bimestre, AVG(nota) as promedio')
-                    ->groupBy('bimestre')
-                    ->orderBy('bimestre')
-                    ->get();
+                    ->where('publico', '!=', '0')
+                    ->whereHas('conductaPeriodoBimestre', function($q) {
+                        $q->whereNull('deleted_at');
+                    });
+
+                if ($bimestreFiltro !== 'anual' && $periodoBimestreConducta) {
+                    $queryConducta->where('periodo_bimestre_id', $periodoBimestreConducta->id);
+                }
+
+                $notasConducta = $queryConducta->get();
 
                 if ($notasConducta->isNotEmpty()) {
-                    $conductaBimestres = [];
-                    for ($bimestre = 1; $bimestre <= 4; $bimestre++) {
-                        $conductaBimestre = $notasConducta->firstWhere('bimestre', $bimestre);
-                        $conductaBimestres[$bimestre] = $conductaBimestre ? round($conductaBimestre->promedio, 2) : null;
+                    $notasMap = [];
+                    foreach ($notasConducta as $nota) {
+                        if (!$nota->conductaPeriodoBimestre || $nota->conductaPeriodoBimestre->trashed()) {
+                            continue;
+                        }
+                        $key = $nota->conductaPeriodoBimestre->conducta_id . '|' . $nota->curso_grado_sec_niv_anio_id;
+                        $notasMap[$key] = $nota->nota;
                     }
 
-                    // Calcular promedio general de conducta
-                    $conductasValidas = array_filter($conductaBimestres, function($c) { return $c !== null; });
-                    $promedioConductaGeneral = count($conductasValidas) > 0 ?
-                        round(array_sum($conductasValidas) / count($conductasValidas), 2) : null;
+                    foreach ($conductasDB as $conducta) {
+                        $sumaNotas = 0;
+                        $totalNotas = 0;
+                        $promediosPorBimestre = [];
 
-                    $progresoConducta[] = [
-                        'curso' => $asignacion->materia->nombre ?? 'Sin nombre',
-                        'promedios' => $conductaBimestres,
-                        'promedio_general' => $promedioConductaGeneral,
-                        'estado' => $promedioConductaGeneral !== null ?
-                            ($promedioConductaGeneral >= 2.5 ? 'Adecuado' : 'Inadecuado') : 'Sin datos',
-                        'asignacion_id' => $asignacion->id
-                    ];
+                        if ($bimestreFiltro === 'anual') {
+                            foreach ($bimestresRegulares as $bim) {
+                                $notasBimestre = [];
+                                foreach ($cursos as $curso) {
+                                    $key = $conducta->id . '|' . $curso->id;
+                                    if (isset($notasMap[$key])) {
+                                        $notasBimestre[] = $notasMap[$key];
+                                    }
+                                }
+                                $promedioBimestre = !empty($notasBimestre)
+                                    ? round(array_sum($notasBimestre) / count($notasBimestre), 1)
+                                    : null;
+
+                                $promediosPorBimestre[$bim->sigla] = $promedioBimestre;
+
+                                if ($promedioBimestre !== null) {
+                                    $sumaNotas += $promedioBimestre;
+                                    $totalNotas++;
+                                }
+                            }
+                        } else {
+                            // Modo bimestral específico
+                            foreach ($cursos as $curso) {
+                                $key = $conducta->id . '|' . $curso->id;
+                                $notaValor = $notasMap[$key] ?? null;
+                                if ($notaValor !== null) {
+                                    $sumaNotas += $notaValor;
+                                    $totalNotas++;
+                                }
+                            }
+
+                            $promedioBimestre = $totalNotas > 0 ? round($sumaNotas / $totalNotas, 1) : null;
+                            foreach ($bimestresRegulares as $bim) {
+                                $promediosPorBimestre[$bim->sigla] = ($bim->sigla == $bimestreFiltro) ? $promedioBimestre : null;
+                            }
+                        }
+
+                        $promedioGeneral = $totalNotas > 0 ? round($sumaNotas / $totalNotas, 1) : null;
+
+                        $progresoConducta[] = [
+                            'nombre' => $conducta->nombre,
+                            'promedios' => $promediosPorBimestre,
+                            'promedio_general' => $promedioGeneral,
+                            'estado' => $promedioGeneral !== null
+                                ? ($promedioGeneral > 2 ? 'Adecuado' : 'Inadecuado')
+                                : 'Sin datos'
+                        ];
+                    }
                 }
             }
 
-            // Información del estudiante
-            // IMPORTANTE: Usar el grado de la matrícula, no del estudiante
-            $gradoActual = $estudiante->grado; // Grado actual (opcional, para referencia)
-            $gradoMatriculaNombre = $gradoMatricula ? $gradoMatricula->getNombreCompletoAttribute() : 'Sin grado asignado';
+            $gradoNombre = $gradoMatricula ? $gradoMatricula->grado . '° ' . $gradoMatricula->seccion : 'Sin grado';
 
             $datosEstudiantes[] = [
                 'estudiante_id' => $estudiante->id,
-                'nombre_completo' => $estudiante->user->apellido_paterno . ' ' .
-                                $estudiante->user->apellido_materno . ' ' .
-                                $estudiante->user->nombre,
-                'grado' => $gradoMatriculaNombre, // Grado de la matrícula en el período
-                'grado_actual' => $gradoActual ? $gradoActual->getNombreCompletoAttribute() : 'Sin grado actual', // Opcional
-                'grado_id' => $matricula->grado_id, // ID del grado de la matrícula
+                'nombre_completo' => trim(sprintf(
+                    '%s %s, %s',
+                    $estudiante->user->apellido_paterno ?? '',
+                    $estudiante->user->apellido_materno ?? '',
+                    $estudiante->user->nombre ?? ''
+                )),
+                'grado' => $gradoNombre,
                 'progreso_cursos' => $progresoCursos,
-                'progreso_conducta' => $progresoConducta,
                 'total_cursos' => count($progresoCursos),
+                'progreso_conducta' => $progresoConducta,
                 'total_conducta' => count($progresoConducta),
-                'mensaje' => count($progresoCursos) == 0 && count($progresoConducta) == 0 ?
-                    'No hay notas registradas para este período' : null
+                'mensaje' => count($progresoCursos) == 0 && count($progresoConducta) == 0
+                    ? 'No hay notas registradas para este período'
+                    : null
             ];
         }
 
-        // Información del apoderado
         $infoApoderado = [
-            'nombre_completo' => $apoderado->user->apellido_paterno . ' ' .
-                            $apoderado->user->apellido_materno . ' ' .
-                            $apoderado->user->nombre,
+            'nombre_completo' => trim(sprintf(
+                '%s %s, %s',
+                $apoderado->user->apellido_paterno ?? '',
+                $apoderado->user->apellido_materno ?? '',
+                $apoderado->user->nombre ?? ''
+            )),
             'parentesco' => $apoderado->parentesco,
             'total_estudiantes' => count($estudiantes)
         ];
-
-        $labelsBimestres = ['Bimestre 1', 'Bimestre 2', 'Bimestre 3', 'Bimestre 4'];
 
         return view('rol.apoderado.dashboard', compact(
             'periodos',
             'periodoSeleccionado',
             'usuarios',
             'datosEstudiantes',
-            'labelsBimestres',
             'infoApoderado',
-            'bimestreFiltro'
+            'bimestreFiltro',
+            'bimestresRegulares'
         ));
     }
     protected function estudiante(Request $request)
