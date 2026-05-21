@@ -8,29 +8,49 @@
         </h1>
 
         <div class="mt-3 mt-sm-0">
-            <form method="GET" action="{{ request()->url() }}" class="d-flex align-items-center">
-                <div class="input-group">
+            <form method="GET" action="{{ request()->url() }}" class="d-flex align-items-center gap-2 flex-wrap">
+                <div class="input-group" style="width: auto;">
                     <span class="input-group-text bg-white text-muted">
                         <i class="bi bi-calendar4-week"></i>
                     </span>
-                    <select name="periodo_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 200px;">
+                    <select name="periodo_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 180px;">
                         @foreach($periodos as $periodo)
                             <option value="{{ $periodo->id }}"
                                 {{ $periodoSeleccionado && $periodoSeleccionado->id == $periodo->id ? 'selected' : '' }}>
-                                {{ $periodo->anio }}
-                                {{ $periodo->semestre ? '- Semestre ' . $periodo->semestre : '' }}
-                                {{ $periodo->estado == 1 ? ' (ACTIVO)' : '' }}
+                                {{ $periodo->nombre }}
+                                @if($periodo->estado == 1) (ACTIVO) @endif
                             </option>
                         @endforeach
                     </select>
-                    <select name="bimestre" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 120px;">
-                        <option value="anual" {{ request('bimestre') == 'anual' ? 'selected' : '' }}>Anual</option>
-                        @for ($i = 1; $i <= 4; $i++)
-                            <option value="{{ $i }}" {{ request('bimestre') == $i ? 'selected' : '' }}>
-                                {{ $i }}° Bimestre
+                </div>
+
+                @php
+                    $bimestresDisponibles = \App\Models\Periodobimestre::where('periodo_id', $periodoSeleccionado?->id)
+                        ->where('tipo_bimestre', 'A')
+                        ->orderBy('bimestre')
+                        ->get();
+                @endphp
+
+                @if($bimestresDisponibles->count() > 0)
+                <div class="input-group" style="width: auto;">
+                    <span class="input-group-text bg-white text-muted">
+                        <i class="bi bi-layers"></i>
+                    </span>
+                    <select name="periodobimestre_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 120px;">
+                        <option value="">Todos los Bimestres</option>
+                        @foreach($bimestresDisponibles as $bim)
+                            <option value="{{ $bim->id }}" {{ request('periodobimestre_id') == $bim->id ? 'selected' : '' }}>
+                                {{ $bim->sigla }} - {{ $bim->nombre ?? $bim->bimestre . '° Bimestre' }}
                             </option>
-                        @endfor
+                        @endforeach
                     </select>
+                </div>
+                @endif
+
+                <div class="input-group" style="width: auto;">
+                    <span class="input-group-text bg-white text-muted">
+                        <i class="bi bi-calendar-month"></i>
+                    </span>
                     <select name="mes" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 120px;">
                         <option value="">Mes (Todos)</option>
                         @php
@@ -46,10 +66,17 @@
                             </option>
                         @endforeach
                     </select>
-                    <button type="submit" class="btn btn-primary btn-sm px-3">
-                        <i class="bi bi-funnel-fill"></i> <span class="d-none d-md-inline">Filtrar</span>
-                    </button>
                 </div>
+
+                <button type="submit" class="btn btn-primary btn-sm px-3">
+                    <i class="bi bi-funnel-fill"></i> Filtrar
+                </button>
+
+                @if(request('periodobimestre_id') || request('mes'))
+                <a href="{{ request()->url() }}?periodo_id={{ $periodoSeleccionado?->id }}" class="btn btn-secondary btn-sm px-3">
+                    <i class="bi bi-eraser-fill"></i> Limpiar
+                </a>
+                @endif
             </form>
         </div>
     </div>
@@ -139,27 +166,26 @@
 
     @if(empty($datosAsistencias))
         <div class="alert alert-info">
-            <i class="fas fa-info-circle"></i>
+            <i class="fas fa-info-circle me-2"></i>
             No hay grados activos con estudiantes para mostrar estadísticas de asistencia.
         </div>
     @else
-        <!-- Acordeón de grados -->
         <div class="accordion" id="gradosAccordion">
             @foreach($datosAsistencias as $index => $gradoData)
             <div class="card shadow mb-3">
-                <div class="card-header" id="heading{{ $index }}">
+                <div class="card-header bg-white" id="heading{{ $index }}">
                     <h2 class="mb-0">
-                        <button class="btn btn-link btn-block text-left d-flex justify-content-between align-items-center text-decoration-none"
+                        <button class="btn btn-link btn-block text-left d-flex justify-content-between align-items-center text-decoration-none w-100"
                                 type="button"
                                 data-bs-toggle="collapse"
                                 data-bs-target="#collapse{{ $index }}"
                                 aria-expanded="{{ $loop->first ? 'true' : 'false' }}"
                                 aria-controls="collapse{{ $index }}">
                             <div>
-                                <i class="fas fa-graduation-cap mr-2"></i>
+                                <i class="fas fa-graduation-cap me-2"></i>
                                 <strong>{{ $gradoData['grado'] }}</strong>
-                                <span class="badge bg-primary ml-2">{{ $gradoData['estadisticas']['totalEstudiantes'] }} estudiantes</span>
-                                <span class="badge bg-success ml-1">{{ $gradoData['estadisticas']['totalAsistencias'] }} asistencias</span>
+                                <span class="badge bg-primary ms-2">{{ $gradoData['estadisticas']['totalEstudiantes'] }} estudiantes</span>
+                                <span class="badge bg-success ms-1">{{ $gradoData['estadisticas']['totalAsistencias'] }} asistencias</span>
                             </div>
                             <div class="text-muted small">
                                 <i class="fas fa-chevron-down"></i>
@@ -176,18 +202,15 @@
                         <!-- Estadísticas del grado -->
                         <div class="row mb-4">
                             <div class="col-12">
-                                <div class="card shadow mb-3">
-                                    <div class="card-header py-2" style="background-color: #f8f9fa; border-left: 4px solid #4e73df;">
+                                <div class="card shadow-sm">
+                                    <div class="card-header py-2 bg-light">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
                                                 <h6 class="m-0 font-weight-bold text-dark">
                                                     <i class="fas fa-chart-pie me-1"></i> Estadísticas de Asistencia - {{ $gradoData['grado'] }}
                                                 </h6>
                                                 <small class="text-muted">
-                                                    Período: {{ $periodoSeleccionado->anio }}
-                                                    @if($periodoSeleccionado->semestre)
-                                                        - Semestre {{ $periodoSeleccionado->semestre }}
-                                                    @endif
+                                                    Período: {{ $periodoSeleccionado->nombre }}
                                                 </small>
                                             </div>
                                             <div class="text-end">
@@ -216,13 +239,12 @@
                                         <div class="row">
                                             @foreach($tiposAsistencia as $tipo)
                                             @php
-                                                $colorHex = $coloresTipos[$tipo->nombre]['hex'] ?? '#6c757d';
-                                                $porcentaje = $gradoData['estadisticas']['porcentajesTipo'][$tipo->nombre];
+                                                $colorHex = $tipo->color_hex ?? '#6c757d';
+                                                $porcentaje = $gradoData['estadisticas']['porcentajesTipo'][$tipo->nombre] ?? 0;
                                                 $conteo = array_sum(array_column($gradoData['estudiantes'], 'conteo_tipos.' . $tipo->nombre));
                                             @endphp
-
                                             <div class="col-xl-2 col-md-4 col-6 mb-3">
-                                                <div class="card h-100 border-0 shadow-sm hover-shadow">
+                                                <div class="card h-100 border-0 shadow-sm">
                                                     <div class="card-body p-3">
                                                         <div class="d-flex align-items-center mb-2">
                                                             <div class="rounded-circle d-flex align-items-center justify-content-center me-2"
@@ -254,7 +276,7 @@
                                                                 <span class="font-weight-bold">{{ $conteo }}</span>
                                                             </div>
                                                             @if($conteo > 0)
-                                                            <div class="progress" style="height: 8px;">
+                                                            <div class="progress" style="height: 6px;">
                                                                 <div class="progress-bar"
                                                                     role="progressbar"
                                                                     style="width: {{ $porcentaje }}%; background-color: {{ $colorHex }}"
@@ -265,14 +287,6 @@
                                                             </div>
                                                             @endif
                                                         </div>
-
-                                                        @if($conteo > 0)
-                                                        <div class="mt-2 text-center small">
-                                                            <span class="text-muted">
-                                                                {{ number_format($conteo / $gradoData['estadisticas']['totalAsistencias'] * 100, 1) }}% del total
-                                                            </span>
-                                                        </div>
-                                                        @endif
                                                     </div>
                                                 </div>
                                             </div>
@@ -283,45 +297,33 @@
                                         <div class="row mt-3">
                                             <div class="col-12">
                                                 <div class="alert alert-light border">
-                                                    <div class="row">
+                                                    <div class="row text-center">
                                                         <div class="col-md-4">
-                                                            <div class="text-center">
-                                                                <div class="text-muted small">Asistencia Total</div>
-                                                                @php
-                                                                    $asistenciaPositiva = 0;
-                                                                    if(isset($gradoData['estadisticas']['porcentajesTipo']['PUNTUALIDAD'])) {
-                                                                        $asistenciaPositiva = $gradoData['estadisticas']['porcentajesTipo']['PUNTUALIDAD'];
-                                                                    }
-                                                                @endphp
-                                                                <div class="h4 font-weight-bold {{ $asistenciaPositiva > 80 ? 'text-success' : ($asistenciaPositiva > 60 ? 'text-warning' : 'text-danger') }}">
-                                                                    {{ $asistenciaPositiva }}%
-                                                                </div>
+                                                            <div class="text-muted small">Asistencia Total</div>
+                                                            @php
+                                                                $asistenciaPositiva = $gradoData['estadisticas']['porcentajesTipo']['PUNTUALIDAD'] ?? 0;
+                                                            @endphp
+                                                            <div class="h4 font-weight-bold {{ $asistenciaPositiva > 80 ? 'text-success' : ($asistenciaPositiva > 60 ? 'text-warning' : 'text-danger') }}">
+                                                                {{ $asistenciaPositiva }}%
                                                             </div>
                                                         </div>
                                                         <div class="col-md-4">
-                                                            <div class="text-center">
-                                                                <div class="text-muted small">Inasistencias</div>
-                                                                @php
-                                                                    $inasistencias = 0;
-                                                                    if(isset($gradoData['estadisticas']['porcentajesTipo']['FALTA'])) {
-                                                                        $inasistencias = $gradoData['estadisticas']['porcentajesTipo']['FALTA'];
-                                                                    }
-                                                                @endphp
-                                                                <div class="h4 font-weight-bold {{ $inasistencias < 10 ? 'text-success' : ($inasistencias < 20 ? 'text-warning' : 'text-danger') }}">
-                                                                    {{ $inasistencias }}%
-                                                                </div>
+                                                            <div class="text-muted small">Inasistencias</div>
+                                                            @php
+                                                                $inasistencias = $gradoData['estadisticas']['porcentajesTipo']['FALTA'] ?? 0;
+                                                            @endphp
+                                                            <div class="h4 font-weight-bold {{ $inasistencias < 10 ? 'text-success' : ($inasistencias < 20 ? 'text-warning' : 'text-danger') }}">
+                                                                {{ $inasistencias }}%
                                                             </div>
                                                         </div>
                                                         <div class="col-md-4">
-                                                            <div class="text-center">
-                                                                <div class="text-muted small">Promedio De Registros Estudiante</div>
-                                                                @php
-                                                                    $promedioPorEstudiante = $gradoData['estadisticas']['totalEstudiantes'] > 0
-                                                                        ? round($gradoData['estadisticas']['totalAsistencias'] / $gradoData['estadisticas']['totalEstudiantes'], 1)
-                                                                        : 0;
-                                                                @endphp
-                                                                <div class="h4 font-weight-bold text-info">{{ $promedioPorEstudiante }}</div>
-                                                            </div>
+                                                            <div class="text-muted small">Promedio Registros/Estudiante</div>
+                                                            @php
+                                                                $promedioPorEstudiante = $gradoData['estadisticas']['totalEstudiantes'] > 0
+                                                                    ? round($gradoData['estadisticas']['totalAsistencias'] / $gradoData['estadisticas']['totalEstudiantes'], 1)
+                                                                    : 0;
+                                                            @endphp
+                                                            <div class="h4 font-weight-bold text-info">{{ $promedioPorEstudiante }}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -336,16 +338,23 @@
                         <!-- Gráfico de barras apiladas -->
                         <div class="row mb-4">
                             <div class="col-12">
-                                <div class="card">
-                                    <div class="card-header py-3">
+                                <div class="card shadow-sm">
+                                    <div class="card-header py-3 bg-light">
                                         <h6 class="m-0 font-weight-bold text-primary">
-                                            <i class="fas fa-chart-bar"></i> Distribución por Estudiante - {{ $gradoData['grado'] }}
+                                            <i class="fas fa-chart-bar me-2"></i> Distribución por Estudiante - {{ $gradoData['grado'] }}
                                         </h6>
                                     </div>
                                     <div class="card-body">
+                                        @if($gradoData['estadisticas']['totalAsistencias'] > 0)
                                         <div style="height: 400px;">
                                             <canvas id="asistenciaChart{{ $index }}"></canvas>
                                         </div>
+                                        @else
+                                        <div class="text-center py-5">
+                                            <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted mb-0">No hay datos suficientes para generar el gráfico</p>
+                                        </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -354,50 +363,53 @@
                         <!-- Tabla detallada -->
                         <div class="row">
                             <div class="col-12">
-                                <div class="card">
-                                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                <div class="card shadow-sm">
+                                    <div class="card-header py-3 bg-light d-flex justify-content-between align-items-center">
                                         <h6 class="m-0 font-weight-bold text-primary">
-                                            <i class="fas fa-table"></i> Detalle por Estudiante
+                                            <i class="fas fa-table me-2"></i> Detalle por Estudiante
                                         </h6>
                                         <span class="badge bg-info">{{ count($gradoData['estudiantes']) }} estudiantes</span>
                                     </div>
                                     <div class="card-body p-0">
-                                        <div class="table-responsive" style="max-height: 400px;">
+                                        <div class="table-responsive" style="max-height: 500px;">
                                             <table class="table table-sm table-bordered table-striped mb-0">
-                                                <thead class="table-dark sticky-top">
-                                                    <tr>
+                                                <thead class="table-dark position-sticky top-0">
+                                                    <tr class="text-center">
                                                         <th class="bg-dark text-white">Estudiante</th>
-                                                        <th class="bg-dark text-white text-center">Total</th>
+                                                        <th class="bg-dark text-white">Total</th>
                                                         @foreach($tiposAsistencia as $tipo)
-                                                        @php
-                                                            $colorHex = $coloresTipos[$tipo->nombre]['hex'] ?? '#6c757d';
-                                                        @endphp
-                                                        <th class="bg-dark text-white text-center" style="background-color: {{ $colorHex }} !important;">
-                                                            {{ $tipo->nombre }}
-                                                        </th>
+                                                        <th class="bg-dark text-white">{{ $tipo->nombre }}</th>
                                                         @endforeach
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     @foreach($gradoData['estudiantes'] as $estudiante)
-                                                    <tr>
-                                                        <td class="font-weight-bold">{{ $estudiante['nombre_completo'] }}</td>
-                                                        <td class="text-center bg-light font-weight-bold">
-                                                            {{ $estudiante['total_asistencias'] }}
-                                                        </td>
+                                                    <tr class="text-center">
+                                                        <td class="fw-bold text-start">{{ $estudiante['nombre_completo'] }}</td>
+                                                        <td class="bg-light fw-bold">{{ $estudiante['total_asistencias'] }}</td>
                                                         @foreach($tiposAsistencia as $tipo)
-                                                        @php
-                                                            $colorHex = $coloresTipos[$tipo->nombre]['hex'] ?? '#6c757d';
-                                                        @endphp
-                                                        <td class="text-center" style="background-color: {{ $colorHex }}20;">
-                                                            {{ $estudiante['porcentajes_tipo'][$tipo->nombre] }}%
+                                                        <td>
+                                                            <span class="fw-bold">{{ $estudiante['porcentajes_tipo'][$tipo->nombre] ?? 0 }}%</span>
                                                             <br>
-                                                            <small class="text-muted">({{ $estudiante['conteo_tipos'][$tipo->nombre] }})</small>
+                                                            <small class="text-muted">({{ $estudiante['conteo_tipos'][$tipo->nombre] ?? 0 }})</small>
                                                         </td>
                                                         @endforeach
                                                     </tr>
                                                     @endforeach
                                                 </tbody>
+                                                <tfoot class="bg-light fw-bold">
+                                                    <tr class="text-center">
+                                                        <td>Totales</td>
+                                                        <td>{{ $gradoData['estadisticas']['totalAsistencias'] }}</td>
+                                                        @foreach($tiposAsistencia as $tipo)
+                                                        <td>
+                                                            {{ round($gradoData['estadisticas']['porcentajesTipo'][$tipo->nombre] ?? 0, 1) }}%
+                                                            <br>
+                                                            <small class="text-muted">({{ array_sum(array_column($gradoData['estudiantes'], 'conteo_tipos.' . $tipo->nombre)) }})</small>
+                                                        </td>
+                                                        @endforeach
+                                                    </table>
+                                                </tfoot>
                                             </table>
                                         </div>
                                     </div>
@@ -419,73 +431,54 @@
         const datosAsistencias = @json($datosAsistencias);
         const tiposAsistencia = @json($tiposAsistencia);
 
-        // Paleta de colores para tipos de asistencia
-        const colores = {
-            'PUNTUALIDAD': '#28a745',
-            'FALTA': '#dc3545',
-            'FALTA JUSTIFICADA': '#fd7e14',
-            'TARDANZA': '#ffc107',
-            'TARDANZA JUSTIFICADA': '#17a2b8',
-        };
-
-        // Funciones para ajustar colores
         function lightenColor(color, percent) {
+            if (!color || color === '#6c757d') return '#6c757d';
             const num = parseInt(color.replace("#", ""), 16);
             const amt = Math.round(2.55 * percent);
             const R = Math.min(255, (num >> 16) + amt);
             const G = Math.min(255, (num >> 8 & 0x00FF) + amt);
             const B = Math.min(255, (num & 0x0000FF) + amt);
-            return "#" + (
-                0x1000000 +
-                (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
-                (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
-                (B < 255 ? B < 1 ? 0 : B : 255)
-            ).toString(16).slice(1);
+            return "#" + (0x1000000 + (R << 16) + (G << 8) + B).toString(16).slice(1);
         }
 
         datosAsistencias.forEach((gradoData, index) => {
-            const ctx = document.getElementById('asistenciaChart' + index);
-            if (!ctx) return;
+            const canvas = document.getElementById('asistenciaChart' + index);
+            if (!canvas) return;
+
+            if (gradoData.estudiantes.length === 0 || gradoData.estadisticas.totalAsistencias === 0) return;
 
             const labels = gradoData.estudiantes.map(e => {
-                // Acortar nombres largos para mejor visualización
-                const names = e.nombre_completo.split(' ');
-                return names.length > 3 ? names[0] + ' ' + names[1] + '...' : e.nombre_completo;
+                const parts = e.nombre_completo.split(' ');
+                return parts.length > 3 ? parts[0] + ' ' + parts[1] : e.nombre_completo;
             });
 
-            const datasets = tiposAsistencia.map(tipo => {
-                const colorBase = colores[tipo.nombre] || '#6c757d';
-                return {
-                    label: tipo.nombre,
-                    data: gradoData.estudiantes.map(estudiante =>
-                        estudiante.porcentajes_tipo[tipo.nombre] || 0
-                    ),
-                    backgroundColor: colorBase,
-                    borderColor: colorBase,
-                    borderWidth: 1,
-                    hoverBackgroundColor: lightenColor(colorBase, 20),
-                };
-            });
+            const datasets = tiposAsistencia
+                .filter(tipo => {
+                    const total = gradoData.estudiantes.reduce((sum, est) => sum + (est.conteo_tipos[tipo.nombre] || 0), 0);
+                    return total > 0;
+                })
+                .map(tipo => {
+                    const colorBase = tipo.color_hex || '#6c757d';
+                    return {
+                        label: tipo.nombre,
+                        data: gradoData.estudiantes.map(est => est.porcentajes_tipo[tipo.nombre] || 0),
+                        backgroundColor: colorBase,
+                        borderColor: colorBase,
+                        borderWidth: 1,
+                        hoverBackgroundColor: lightenColor(colorBase, 20),
+                        stack: 'asistencia'
+                    };
+                });
 
-            new Chart(ctx, {
+            if (datasets.length === 0) return;
+
+            new Chart(canvas, {
                 type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
+                data: { labels, datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        title: {
-                            display: true,
-                            text: 'Distribución de Asistencias por Estudiante',
-                            font: { size: 16, weight: 'bold' }
-                        },
-                        legend: {
-                            display: true,
-                            position: 'top',
-                        },
                         tooltip: {
                             mode: 'nearest',
                             intersect: true,
@@ -494,35 +487,12 @@
                                     return `${context.dataset.label}: ${context.parsed.y}%`;
                                 }
                             }
-                        }
+                        },
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
                     },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            stacked: true,
-                            title: {
-                                display: true,
-                                text: 'Porcentaje (%)'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return value + '%';
-                                }
-                            }
-                        },
-                        x: {
-                            stacked: true,
-                            ticks: {
-                                maxRotation: 45,
-                                minRotation: 45
-                            }
-                        }
-                    },
-                    interaction: {
-                        mode: 'nearest',
-                        axis: 'x',
-                        intersect: false
+                        x: { stacked: true, ticks: { maxRotation: 45, minRotation: 45 } },
+                        y: { stacked: true, min: 0, max: 100, title: { display: true, text: 'Porcentaje (%)' }, ticks: { callback: v => v + '%' } }
                     }
                 }
             });

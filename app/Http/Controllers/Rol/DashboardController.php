@@ -18,6 +18,7 @@ use App\Models\Conducta;
 use App\Models\Conductaperiodobimestrenota;
 use App\Models\Auxiliar;
 use App\Models\Nota;
+use App\Models\Asistencia\Tipoasistencia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -738,8 +739,8 @@ class DashboardController extends Controller
             abort(403, 'Acceso denegado');
         }
 
-        // Obtener parámetros de filtro
         $periodos = Periodo::where('estado', 1)->orderBy('anio', 'desc')->get();
+
         $periodoId = $request->input('periodo_id');
         $periodoSeleccionado = $periodoId
             ? Periodo::find($periodoId)
@@ -749,13 +750,9 @@ class DashboardController extends Controller
             return back()->with('error', 'No hay períodos activos disponibles.');
         }
 
-        $bimestreFiltro = $request->input('bimestre');
+        $periodobimestreId = $request->input('periodobimestre_id');
         $mesFiltro = $request->input('mes');
 
-        $usuarios = User::with('roles')->get();
-        $anio = date('Y');
-
-        // Obtener grados con estudiantes matriculados en el periodo seleccionado
         $grados = Grado::whereHas('matriculas', function ($query) use ($periodoSeleccionado) {
             $query->where('periodo_id', $periodoSeleccionado->id);
         })
@@ -766,14 +763,13 @@ class DashboardController extends Controller
         ->orderBy('seccion')
         ->get();
 
-        $tiposAsistencia = \App\Models\Asistencia\Tipoasistencia::all();
+        $tiposAsistencia = Tipoasistencia::all();
 
         $datosAsistencias = [];
         $estadisticasGenerales = [
             'totalEstudiantes' => 0,
             'totalAsistencias' => 0,
             'porcentajeAsistencia' => 0,
-            'filtros_aplicados' => $this->getTextoFiltros($bimestreFiltro, $mesFiltro)
         ];
 
         foreach ($grados as $grado) {
@@ -786,19 +782,16 @@ class DashboardController extends Controller
                 continue;
             }
 
-            // Obtener estudiantes con asistencias filtradas
             $estudiantes = Estudiante::with([
                 'user',
-                'asistencias' => function($query) use ($periodoSeleccionado, $bimestreFiltro, $mesFiltro) {
+                'asistencias' => function($query) use ($periodoSeleccionado, $periodobimestreId, $mesFiltro) {
                     $query->where('periodo_id', $periodoSeleccionado->id)
                         ->with('tipoasistencia');
 
-                    // Aplicar filtro de bimestre
-                    if ($bimestreFiltro && $bimestreFiltro !== 'anual') {
-                        $query->where('bimestre', $bimestreFiltro);
+                    if ($periodobimestreId) {
+                        $query->where('periodobimestre_id', $periodobimestreId);
                     }
 
-                    // Aplicar filtro de mes
                     if ($mesFiltro && is_numeric($mesFiltro)) {
                         $query->whereMonth('fecha', $mesFiltro);
                     }
@@ -811,12 +804,15 @@ class DashboardController extends Controller
                 return $estudiante->user->apellido_paterno . ' ' . $estudiante->user->apellido_materno;
             });
 
+            if ($estudiantes->isEmpty()) {
+                continue;
+            }
+
             $datosEstudiantes = [];
             $estadisticasGrado = [
                 'totalEstudiantes' => $estudiantes->count(),
                 'totalAsistencias' => 0,
                 'porcentajesTipo' => [],
-                'filtros_aplicados' => $this->getTextoFiltros($bimestreFiltro, $mesFiltro)
             ];
 
             foreach ($tiposAsistencia as $tipo) {
@@ -840,9 +836,12 @@ class DashboardController extends Controller
                 }
 
                 $datosEstudiantes[] = [
-                    'nombre_completo' => $estudiante->user->apellido_paterno . ' ' .
-                                    $estudiante->user->apellido_materno . ', ' .
-                                    $estudiante->user->nombre,
+                    'nombre_completo' => trim(sprintf(
+                        '%s %s, %s',
+                        $estudiante->user->apellido_paterno ?? '',
+                        $estudiante->user->apellido_materno ?? '',
+                        $estudiante->user->nombre ?? ''
+                    )),
                     'total_asistencias' => $totalAsistencias,
                     'porcentajes_tipo' => $porcentajesPorTipo,
                     'conteo_tipos' => $conteoTipos,
@@ -850,22 +849,18 @@ class DashboardController extends Controller
                 ];
             }
 
-            // Calcular porcentajes generales del grado
             foreach ($tiposAsistencia as $tipo) {
                 $totalTipo = 0;
-
                 foreach ($datosEstudiantes as $estudianteData) {
                     $totalTipo += $estudianteData['conteo_tipos'][$tipo->nombre] ?? 0;
                 }
-
-                $porcentajeGrado = $estadisticasGrado['totalAsistencias'] > 0
+                $estadisticasGrado['porcentajesTipo'][$tipo->nombre] = $estadisticasGrado['totalAsistencias'] > 0
                     ? round(($totalTipo / $estadisticasGrado['totalAsistencias']) * 100, 2)
                     : 0;
-                $estadisticasGrado['porcentajesTipo'][$tipo->nombre] = $porcentajeGrado;
             }
 
             $datosAsistencias[] = [
-                'grado' => $grado->getNombreCompletoAttribute(),
+                'grado' => $grado->grado . '° ' . $grado->seccion,
                 'estudiantes' => $datosEstudiantes,
                 'estadisticas' => $estadisticasGrado,
                 'tipos_asistencia' => $tiposAsistencia->pluck('nombre')->toArray(),
@@ -876,68 +871,13 @@ class DashboardController extends Controller
             $estadisticasGenerales['totalAsistencias'] += $estadisticasGrado['totalAsistencias'];
         }
 
-        // Calcular porcentaje general de asistencia
-        if ($estadisticasGenerales['totalEstudiantes'] > 0 && $estadisticasGenerales['totalAsistencias'] > 0) {
-            $totalPuntualidad = 0;
-            foreach ($datosAsistencias as $gradoData) {
-                if (isset($gradoData['estadisticas']['porcentajesTipo']['PUNTUALIDAD'])) {
-                    $totalPuntualidad += $gradoData['estadisticas']['porcentajesTipo']['PUNTUALIDAD'];
-                }
-            }
-            $estadisticasGenerales['porcentajeAsistencia'] = count($datosAsistencias) > 0
-                ? round($totalPuntualidad / count($datosAsistencias), 2)
-                : 0;
-        }
-
-        $coloresTipos = [
-            'PUNTUALIDAD' => ['hex' => '#28a745', 'class' => 'success'],
-            'FALTA' => ['hex' => '#dc3545', 'class' => 'danger'],
-            'FALTA JUSTIFICADA' => ['hex' => '#fd7e14', 'class' => 'warning'],
-            'TARDANZA' => ['hex' => '#ffc107', 'class' => 'info'],
-            'TARDANZA JUSTIFICADA' => ['hex' => '#17a2b8', 'class' => 'primary'],
-        ];
-
         return view('rol.auxiliar.dashboard', compact(
             'periodos',
             'periodoSeleccionado',
-            'usuarios',
             'datosAsistencias',
             'tiposAsistencia',
-            'estadisticasGenerales',
-            'coloresTipos',
-            'bimestreFiltro',
-            'mesFiltro'
+            'estadisticasGenerales'
         ));
-    }
-
-    //Obtener texto descriptivo de los filtros aplicados(Auxiliar)
-    private function getTextoFiltros($bimestreFiltro, $mesFiltro)
-    {
-        $texto = '';
-        $filtros = [];
-
-        if ($bimestreFiltro && $bimestreFiltro !== 'anual') {
-            $filtros[] = "{$bimestreFiltro}° Bimestre";
-        } else {
-            $filtros[] = "Anual";
-        }
-
-        if ($mesFiltro && is_numeric($mesFiltro)) {
-            $meses = [
-                1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
-                5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
-                9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
-            ];
-            if (isset($meses[$mesFiltro])) {
-                $filtros[] = "Mes: " . $meses[$mesFiltro];
-            }
-        }
-
-        if (!empty($filtros)) {
-            $texto = implode(' | ', $filtros);
-        }
-
-        return $texto;
     }
     protected function apoderado(Request $request)
     {
