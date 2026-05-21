@@ -19,6 +19,7 @@ use App\Models\Conductaperiodobimestrenota;
 use App\Models\Auxiliar;
 use App\Models\Nota;
 use App\Models\Asistencia\Tipoasistencia;
+use App\Models\Asistencia\Asistencia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -69,7 +70,6 @@ class DashboardController extends Controller
 
         return view('rol.admin.dashboard', compact('usuarios', 'rolesCount', 'docentesCount', 'estudiantesCount', 'apoderadosCount', 'auxiliaresCount'));
     }
-
     protected function director(Request $request)
     {
         if (!Auth::user()->hasRole('director')) {
@@ -79,6 +79,7 @@ class DashboardController extends Controller
 
         // Obtener periodo seleccionado o el activo por defecto
         $periodoSeleccionado = null;
+        $bimestreSeleccionado = null;
 
         if ($request->has('periodo_id')) {
             $periodoSeleccionado = Periodo::find($request->periodo_id);
@@ -88,12 +89,25 @@ class DashboardController extends Controller
             $periodoSeleccionado = Periodo::where('estado', '1')->first();
         }
 
+        // Obtener bimestre seleccionado
+        if ($request->has('periodobimestre_id') && $request->periodobimestre_id) {
+            $bimestreSeleccionado = Periodobimestre::find($request->periodobimestre_id);
+        }
+
         // Obtener todos los periodos para el selector
         $periodos = Periodo::orderBy('anio', 'desc')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Si no hay periodo seleccionado, crear objeto vacío
+        // Obtener bimestres del periodo seleccionado para el filtro
+        $bimestresDisponibles = collect();
+        if ($periodoSeleccionado) {
+            $bimestresDisponibles = Periodobimestre::where('periodo_id', $periodoSeleccionado->id)
+                ->where('tipo_bimestre', 'A')
+                ->orderBy('bimestre')
+                ->get();
+        }
+
         if (!$periodoSeleccionado && $periodos->isNotEmpty()) {
             $periodoSeleccionado = $periodos->first();
         }
@@ -106,43 +120,54 @@ class DashboardController extends Controller
             'promedio_general' => 0,
             'promedio_academico' => 0,
             'promedio_conducta' => 0,
+            'promedio_asistencia' => 0,
             'excelentes' => 0,
             'buenos' => 0,
             'regulares' => 0,
             'bajos' => 0,
             'total_materias' => 0,
+            'total_asistencias' => 0,
+            'porcentaje_puntualidad' => 0,
+            'porcentaje_falta' => 0,
+            'porcentaje_tardanza' => 0,
         ];
 
-        // Si hay periodo seleccionado, cargar datos
         if ($periodoSeleccionado) {
-            // Obtener grados con estudiantes matriculados en el periodo
+            // Obtener SOLO los grados que tienen estudiantes matriculados en el periodo
             $grados = Grado::where('estado', '1')
+                ->whereHas('matriculas', function($query) use ($periodoSeleccionado) {
+                    $query->where('periodo_id', $periodoSeleccionado->id)
+                        ->where('estado', '1');
+                })
                 ->with(['matriculas' => function($query) use ($periodoSeleccionado) {
                     $query->where('periodo_id', $periodoSeleccionado->id)
                         ->where('estado', '1')
-                        ->with(['estudiante']);
+                        ->with(['estudiante.user']);
                 }])
+                ->orderBy('nivel')
+                ->orderBy('grado')
+                ->orderBy('seccion')
                 ->get();
 
             // Obtener IDs de estudiantes por grado
             $estudiantesPorGrado = [];
+            $todosEstudianteIds = [];
+
             foreach ($grados as $grado) {
-                $estudiantesPorGrado[$grado->id] = $grado->matriculas->pluck('estudiante_id')->toArray();
+                $estudianteIds = $grado->matriculas->pluck('estudiante_id')->toArray();
+                $estudiantesPorGrado[$grado->id] = $estudianteIds;
+                $todosEstudianteIds = array_merge($todosEstudianteIds, $estudianteIds);
             }
 
-            // Obtener todos los IDs de estudiantes
-            $todosEstudianteIds = collect($estudiantesPorGrado)->flatten()->unique()->toArray();
+            $todosEstudianteIds = array_unique($todosEstudianteIds);
 
-            // Obtener promedios si hay estudiantes
             $promediosNotas = [];
             $promediosConducta = [];
+            $promediosAsistencia = [];
 
             if (!empty($todosEstudianteIds)) {
                 // Obtener IDs de competencias transversales para excluir
-                $competenciasTransversalesIds = Materiacompetencia::where('nombre', 'like', '%TRANSVERSAL%')
-                    ->orWhere('nombre', 'like', '%TRANSVERSALES%')
-                    ->orWhere('descripcion', 'like', '%TRANSVERSAL%')
-                    ->orWhere('descripcion', 'like', '%TRANSVERSALES%')
+                $competenciasTransversalesIds = Materiacompetencia::where('nombre', 'LIKE', '%TRANSVERSAL%')
                     ->pluck('id')
                     ->toArray();
 
@@ -152,16 +177,17 @@ class DashboardController extends Controller
                     ->toArray();
 
                 // Obtener promedios de notas académicas EXCLUYENDO competencias transversales
-                $notasPromedio = Nota::selectRaw('estudiante_id, AVG(nota) as promedio')
+                $notasQuery = Nota::selectRaw('estudiante_id, AVG(nota) as promedio')
                     ->whereIn('estudiante_id', $todosEstudianteIds)
                     ->where('periodo_id', $periodoSeleccionado->id)
                     ->whereNotIn('materia_criterio_id', $criteriosTransversalesIds)
-                    ->where(function($query) {
-                        $query->where('publico', '1')
-                            ->orWhere('publico', '2')
-                            ->orWhere('publico', '3');
-                    })
-                    ->groupBy('estudiante_id')
+                    ->where('publico', '!=', '0');
+
+                if ($bimestreSeleccionado) {
+                    $notasQuery->where('periodo_bimestre_id', $bimestreSeleccionado->id);
+                }
+
+                $notasPromedio = $notasQuery->groupBy('estudiante_id')
                     ->get()
                     ->keyBy('estudiante_id');
 
@@ -170,64 +196,138 @@ class DashboardController extends Controller
                     ->pluck('id')
                     ->toArray();
 
-                // Obtener promedios de notas de conducta para los cursos del periodo
-                $conductaPromedio = Conductanota::selectRaw('estudiante_id, AVG(nota) as promedio')
-                    ->whereIn('estudiante_id', $todosEstudianteIds)
-                    ->where('periodo_id', $periodoSeleccionado->id)
-                    ->whereIn('curso_grado_sec_niv_anio_id', $cursosIds)
-                    ->where(function($query) {
-                        $query->where('publico', '1')
-                            ->orWhere('publico', '2')
-                            ->orWhere('publico', '3');
-                    })
-                    ->groupBy('estudiante_id')
-                    ->get()
-                    ->keyBy('estudiante_id');
+                // Obtener promedios de notas de conducta usando Conductaperiodobimestrenota
+                if (!empty($cursosIds)) {
+                    $conductaQuery = Conductaperiodobimestrenota::selectRaw('estudiante_id, AVG(nota) as promedio')
+                        ->whereIn('estudiante_id', $todosEstudianteIds)
+                        ->where('periodo_id', $periodoSeleccionado->id)
+                        ->whereIn('curso_grado_sec_niv_anio_id', $cursosIds)
+                        ->where('publico', '!=', '0')
+                        ->whereHas('conductaPeriodoBimestre', function($q) {
+                            $q->whereNull('deleted_at');
+                        });
 
-                // Asignar promedios - NOTA: No convertir si ya están en escala 1-4
+                    if ($bimestreSeleccionado) {
+                        $conductaQuery->where('periodo_bimestre_id', $bimestreSeleccionado->id);
+                    }
+
+                    $conductaPromedio = $conductaQuery->groupBy('estudiante_id')
+                        ->get()
+                        ->keyBy('estudiante_id');
+                }
+
+                // Obtener estadísticas de asistencia
+                $asistenciaQuery = Asistencia::whereIn('estudiante_id', $todosEstudianteIds)
+                    ->where('periodo_id', $periodoSeleccionado->id);
+
+                if ($bimestreSeleccionado) {
+                    $asistenciaQuery->where('periodobimestre_id', $bimestreSeleccionado->id);
+                }
+
+                $asistencias = $asistenciaQuery->get()->groupBy('estudiante_id');
+
+                // Obtener los IDs de los tipos de asistencia dinámicamente
+                $tiposAsistencia = Tipoasistencia::all();
+                $tipoPuntualidadId = $tiposAsistencia->where('nombre', 'PUNTUALIDAD')->first()?->id ?? 0;
+                $tipoFaltaId = $tiposAsistencia->where('nombre', 'FALTA')->first()?->id ?? 0;
+                $tipoTardanzaId = $tiposAsistencia->where('nombre', 'TARDANZA')->first()?->id ?? 0;
+
+                foreach ($todosEstudianteIds as $estudianteId) {
+                    $asistenciasEstudiante = $asistencias->get($estudianteId, collect());
+                    $totalAsistencias = $asistenciasEstudiante->count();
+
+                    if ($totalAsistencias > 0) {
+                        $puntualidad = $asistenciasEstudiante->where('tipo_asistencia_id', $tipoPuntualidadId)->count();
+                        $falta = $asistenciasEstudiante->where('tipo_asistencia_id', $tipoFaltaId)->count();
+                        $tardanza = $asistenciasEstudiante->where('tipo_asistencia_id', $tipoTardanzaId)->count();
+
+                        $promediosAsistencia[$estudianteId] = [
+                            'total' => $totalAsistencias,
+                            'puntualidad' => round(($puntualidad / $totalAsistencias) * 100, 2),
+                            'falta' => round(($falta / $totalAsistencias) * 100, 2),
+                            'tardanza' => round(($tardanza / $totalAsistencias) * 100, 2),
+                            'puntualidad_raw' => $puntualidad,
+                            'falta_raw' => $falta,
+                            'tardanza_raw' => $tardanza,
+                        ];
+                    } else {
+                        $promediosAsistencia[$estudianteId] = [
+                            'total' => 0,
+                            'puntualidad' => 0,
+                            'falta' => 0,
+                            'tardanza' => 0,
+                            'puntualidad_raw' => 0,
+                            'falta_raw' => 0,
+                            'tardanza_raw' => 0,
+                        ];
+                    }
+                }
+
                 foreach ($notasPromedio as $estudianteId => $nota) {
-                    // Si las notas ya están en escala 1-4, usar directamente
-                    // Si están en 0-100, usar: $this->convertirEscalaNota($nota->promedio, 0, 100, 1, 4)
                     $promediosNotas[$estudianteId] = round($nota->promedio, 2);
                 }
 
-                foreach ($conductaPromedio as $estudianteId => $nota) {
-                    // Si las notas de conducta ya están en escala 1-4, usar directamente
-                    // Si están en 0-100, usar: $this->convertirEscalaNota($nota->promedio, 0, 100, 1, 4)
-                    $promediosConducta[$estudianteId] = round($nota->promedio, 2);
+                if (isset($conductaPromedio)) {
+                    foreach ($conductaPromedio as $estudianteId => $nota) {
+                        $promediosConducta[$estudianteId] = round($nota->promedio, 2);
+                    }
                 }
             }
 
             // Obtener información de materias por grado para el periodo
             $materiasPorGrado = Cursogradosecnivanio::where('periodo_id', $periodoSeleccionado->id)
-                ->with(['materia', 'docente'])
+                ->with(['materia', 'docente.user'])
                 ->get()
                 ->groupBy('grado_id');
 
             // Calcular promedios por grado
+            $totalPuntualidadGlobal = 0;
+            $totalFaltaGlobal = 0;
+            $totalTardanzaGlobal = 0;
+            $totalRegistrosGlobal = 0;
+
             foreach ($grados as $grado) {
                 $estudianteIds = $estudiantesPorGrado[$grado->id] ?? [];
                 $grado->estudiantes_matriculados = count($estudianteIds);
 
-                // Agregar información de materias del grado en este periodo
                 $materiasGrado = $materiasPorGrado[$grado->id] ?? collect();
                 $grado->total_materias = $materiasGrado->count();
                 $grado->materias_lista = $materiasGrado->pluck('materia.nombre')->unique()->values();
-                $grado->docentes_lista = $materiasGrado->pluck('docente.nombre_completo')->filter()->unique()->values();
+                $grado->docentes_lista = $materiasGrado->pluck('docente.user.nombre_completo')->filter()->unique()->values();
 
                 if (!empty($estudianteIds)) {
                     $sumaNotas = 0;
                     $sumaConducta = 0;
                     $contador = 0;
+                    $sumaAsistenciaPuntualidad = 0;
+                    $sumaAsistenciaFalta = 0;
+                    $sumaAsistenciaTardanza = 0;
+                    $contadorAsistencia = 0;
+
+                    // Totales raw para este grado
+                    $totalPuntualidadRaw = 0;
+                    $totalFaltaRaw = 0;
+                    $totalTardanzaRaw = 0;
 
                     foreach ($estudianteIds as $estudianteId) {
                         if (isset($promediosNotas[$estudianteId])) {
                             $sumaNotas += $promediosNotas[$estudianteId];
+                            $contador++;
                         }
                         if (isset($promediosConducta[$estudianteId])) {
                             $sumaConducta += $promediosConducta[$estudianteId];
                         }
-                        $contador++;
+                        if (isset($promediosAsistencia[$estudianteId])) {
+                            $sumaAsistenciaPuntualidad += $promediosAsistencia[$estudianteId]['puntualidad'];
+                            $sumaAsistenciaFalta += $promediosAsistencia[$estudianteId]['falta'];
+                            $sumaAsistenciaTardanza += $promediosAsistencia[$estudianteId]['tardanza'];
+                            $contadorAsistencia++;
+
+                            // Sumar valores raw
+                            $totalPuntualidadRaw += $promediosAsistencia[$estudianteId]['puntualidad_raw'];
+                            $totalFaltaRaw += $promediosAsistencia[$estudianteId]['falta_raw'];
+                            $totalTardanzaRaw += $promediosAsistencia[$estudianteId]['tardanza_raw'];
+                        }
                     }
 
                     $grado->promedio_notas = $contador > 0 ? round($sumaNotas / $contador, 2) : 0;
@@ -235,29 +335,30 @@ class DashboardController extends Controller
                     $grado->promedio_general = $contador > 0
                         ? round(($grado->promedio_notas + $grado->promedio_conducta) / 2, 2)
                         : 0;
+
+                    // Guardar valores raw para cálculos posteriores
+                    $grado->total_puntualidad_raw = $totalPuntualidadRaw;
+                    $grado->total_falta_raw = $totalFaltaRaw;
+                    $grado->total_tardanza_raw = $totalTardanzaRaw;
+                    $grado->total_asistencias_raw = $totalPuntualidadRaw + $totalFaltaRaw + $totalTardanzaRaw;
+
+                    $grado->promedio_asistencia_puntualidad = $contadorAsistencia > 0 ? round($sumaAsistenciaPuntualidad / $contadorAsistencia, 2) : 0;
+                    $grado->promedio_asistencia_falta = $contadorAsistencia > 0 ? round($sumaAsistenciaFalta / $contadorAsistencia, 2) : 0;
+                    $grado->promedio_asistencia_tardanza = $contadorAsistencia > 0 ? round($sumaAsistenciaTardanza / $contadorAsistencia, 2) : 0;
+
+                    // Acumular para estadísticas globales
+                    $totalPuntualidadGlobal += $totalPuntualidadRaw;
+                    $totalFaltaGlobal += $totalFaltaRaw;
+                    $totalTardanzaGlobal += $totalTardanzaRaw;
+                    $totalRegistrosGlobal += $grado->total_asistencias_raw;
                 } else {
                     $grado->promedio_notas = 0;
                     $grado->promedio_conducta = 0;
                     $grado->promedio_general = 0;
-                }
-
-                // Determinar categoría del grado
-                if ($grado->promedio_general >= 3.5) {
-                    $grado->categoria = 'excelente';
-                    $grado->color_categoria = 'success';
-                    $grado->icono_categoria = 'trophy';
-                } elseif ($grado->promedio_general >= 2.5) {
-                    $grado->categoria = 'bueno';
-                    $grado->color_categoria = 'primary';
-                    $grado->icono_categoria = 'medal';
-                } elseif ($grado->promedio_general >= 2.0) {
-                    $grado->categoria = 'regular';
-                    $grado->color_categoria = 'warning';
-                    $grado->icono_categoria = 'certificate';
-                } else {
-                    $grado->categoria = 'bajo';
-                    $grado->color_categoria = 'danger';
-                    $grado->icono_categoria = 'exclamation-triangle';
+                    $grado->promedio_asistencia_puntualidad = 0;
+                    $grado->promedio_asistencia_falta = 0;
+                    $grado->promedio_asistencia_tardanza = 0;
+                    $grado->total_asistencias_raw = 0;
                 }
             }
 
@@ -269,26 +370,23 @@ class DashboardController extends Controller
                 'promedio_academico' => $grados->avg('promedio_notas') ? round($grados->avg('promedio_notas'), 2) : 0,
                 'promedio_conducta' => $grados->avg('promedio_conducta') ? round($grados->avg('promedio_conducta'), 2) : 0,
                 'promedio_general' => $grados->avg('promedio_general') ? round($grados->avg('promedio_general'), 2) : 0,
+
+                // Estadísticas de asistencia
+                'total_registros_asistencia' => $totalRegistrosGlobal,
+                'total_puntualidad' => $totalPuntualidadGlobal,
+                'total_falta' => $totalFaltaGlobal,
+                'total_tardanza' => $totalTardanzaGlobal,
+                'porcentaje_puntualidad' => $totalRegistrosGlobal > 0 ? round(($totalPuntualidadGlobal / $totalRegistrosGlobal) * 100, 2) : 0,
+                'porcentaje_falta' => $totalRegistrosGlobal > 0 ? round(($totalFaltaGlobal / $totalRegistrosGlobal) * 100, 2) : 0,
+                'porcentaje_tardanza' => $totalRegistrosGlobal > 0 ? round(($totalTardanzaGlobal / $totalRegistrosGlobal) * 100, 2) : 0,
+                'promedio_asistencia' => $totalRegistrosGlobal > 0 ? round(($totalPuntualidadGlobal / $totalRegistrosGlobal) * 100, 2) : 0,
             ];
 
-            // Agregar estadísticas adicionales
-            $estadisticas['excelentes'] = $grados->filter(function($grado) {
-                return $grado->promedio_general >= 3.5;
-            })->count();
+            $estadisticas['excelentes'] = $grados->filter(fn($g) => $g->promedio_general >= 3.5)->count();
+            $estadisticas['buenos'] = $grados->filter(fn($g) => $g->promedio_general >= 2.5 && $g->promedio_general < 3.5)->count();
+            $estadisticas['regulares'] = $grados->filter(fn($g) => $g->promedio_general >= 2.0 && $g->promedio_general < 2.5)->count();
+            $estadisticas['bajos'] = $grados->filter(fn($g) => $g->promedio_general < 2.0)->count();
 
-            $estadisticas['buenos'] = $grados->filter(function($grado) {
-                return $grado->promedio_general >= 2.5 && $grado->promedio_general < 3.5;
-            })->count();
-
-            $estadisticas['regulares'] = $grados->filter(function($grado) {
-                return $grado->promedio_general >= 2.0 && $grado->promedio_general < 2.5;
-            })->count();
-
-            $estadisticas['bajos'] = $grados->filter(function($grado) {
-                return $grado->promedio_general < 2.0;
-            })->count();
-
-            // Estadísticas por nivel
             $estadisticas['por_nivel'] = $grados->groupBy('nivel')->map(function($gradosNivel) {
                 return [
                     'total' => $gradosNivel->count(),
@@ -302,19 +400,19 @@ class DashboardController extends Controller
                 ];
             });
 
-            // Ordenar grados por promedio general descendente
             $grados = $grados->sortByDesc('promedio_general')->values();
         }
 
         return view('rol.director.dashboard', [
             'periodoSeleccionado' => $periodoSeleccionado,
             'periodos' => $periodos,
+            'bimestresDisponibles' => $bimestresDisponibles,
+            'bimestreSeleccionado' => $bimestreSeleccionado,
             'grados' => $grados,
             'estadisticas' => $estadisticas,
             'user' => $user
         ]);
     }
-
     protected function docente(Request $request)
     {
         if (!Auth::user()->hasRole('docente')) {
@@ -708,30 +806,6 @@ class DashboardController extends Controller
             ],
             'total_criterios' => array_sum($criteriosPorBimestre),
         ];
-    }
-    // Función auxiliar para generar colores por bimestre (se mantiene igual)
-    protected function getColorForBimestre($bimestre)
-    {
-        $colores = [
-            1 => '#FF6384', // Bimestre 1 - Rojo
-            2 => '#36A2EB', // Bimestre 2 - Azul
-            3 => '#FFCE56', // Bimestre 3 - Amarillo
-            4 => '#4BC0C0', // Bimestre 4 - Verde
-        ];
-
-        return $colores[$bimestre] ?? '#999999';
-    }
-    protected function getColorForEstudiante($index)
-    {
-        $colores = [
-            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
-            '#9966FF', '#FF9F40', '#8AC926', '#1982C4',
-            '#6A4C93', '#F15BB5', '#00BBF9', '#FB5607',
-            '#8338EC', '#3A86FF', '#FF006E', '#FB5607',
-            '#FFBE0B', '#3A86FF', '#8338EC', '#FF006E'
-        ];
-
-        return $colores[$index % count($colores)] ?? '#999999';
     }
     protected function auxiliar(Request $request)
     {
