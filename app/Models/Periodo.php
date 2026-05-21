@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Maya\Cursogradosecnivanio;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,5 +34,9 @@ class Periodo extends Model
     public function periodobimestres()
     {
         return $this->hasMany(Periodobimestre::class, 'periodo_id');
+    }
+    public function cursosGradoSecNivAnio()
+    {
+        return $this->hasMany(Cursogradosecnivanio::class, 'periodo_id');
     }
 }

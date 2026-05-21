@@ -316,102 +316,46 @@ class DashboardController extends Controller
 
     protected function docente(Request $request)
     {
-        // Verificar que el usuario tenga rol de docente
         if (!Auth::user()->hasRole('docente')) {
             abort(403, 'Acceso denegado');
         }
 
-        // Obtener el docente autenticado usando la relación del User
         $docente = Auth::user()->docente;
 
         if (!$docente) {
             abort(404, 'Perfil de docente no encontrado');
         }
 
-        // Obtener periodos con estado '1' (activos)
-        $periodos = Periodo::where('estado', 1)->orderBy('anio', 'desc')->get();
+        // Obtener solo los periodos donde el docente tiene asignaciones
+        $periodos = Periodo::whereHas('cursosGradoSecNivAnio', function($query) use ($docente) {
+                $query->where('docente_designado_id', $docente->id);
+            })
+            ->where('estado', 1)
+            ->orderBy('anio', 'desc')
+            ->get();
 
-        // Obtener periodo seleccionado (si viene por request o tomar el primero)
+        if ($periodos->isEmpty()) {
+            return view('rol.docente.dashboard', compact('docente', 'periodos'))
+                ->with('error', 'No tiene asignaciones en ningún período activo.');
+        }
+
         $periodoId = $request->input('periodo_id');
         $periodoSeleccionado = $periodoId
             ? Periodo::find($periodoId)
             : $periodos->first();
 
-        // Variables para notas y estadísticas
-        $asignaciones = collect();
-        $grados = collect();
-        $estudiantesPorGrado = collect();
-        $estadisticasNotas = collect();
-        $estadisticasConducta = collect();
-        $datosGraficos = [];
-        $datosGraficosConducta = [];
-        $progresoEstudiantes = collect();
-        $progresoConducta = collect();
-
-        // NUEVAS VARIABLES PARA DATOS PROCESADOS
-        $asignacionesData = []; // Contendrá todos los datos procesados por asignación
+        $asignacionesData = [];
 
         if ($periodoSeleccionado) {
-            // Obtener asignaciones del docente en el periodo seleccionado
             $asignaciones = Cursogradosecnivanio::where('docente_designado_id', $docente->id)
                 ->where('periodo_id', $periodoSeleccionado->id)
-                ->with(['grado', 'materia', 'periodo', 'materia.materiaCompetencia.materiaCriterio'])
+                ->with(['grado', 'materia'])
                 ->get();
 
-            // Obtener grados únicos de las asignaciones
-            $grados = $asignaciones->pluck('grado')->unique('id');
-
-            // Obtener conductas activas (para cálculos)
-            $conductasActivas = \App\Models\Conducta::where('estado', '1')->count();
-
-            // Para cada grado, obtener estudiantes matriculados en el periodo
-            foreach ($grados as $grado) {
-                $estudiantes = \App\Models\Estudiante::whereHas('matriculas', function ($query) use ($grado, $periodoSeleccionado) {
-                    $query->where('grado_id', $grado->id)
-                        ->where('periodo_id', $periodoSeleccionado->id)
-                        ->where('estado', 1);
-                })
-                ->with(['user', 'matriculas' => function ($query) use ($grado, $periodoSeleccionado) {
-                    $query->where('grado_id', $grado->id)
-                        ->where('periodo_id', $periodoSeleccionado->id)
-                        ->where('estado', 1);
-                }])
-                ->get();
-
-                $estudiantesPorGrado->put($grado->id, $estudiantes);
-            }
-
-            // Obtener progreso individual de estudiantes por materia (notas académicas)
             foreach ($asignaciones as $asignacion) {
-                $progresoEstudiantes->put($asignacion->id, $this->obtenerProgresoEstudiantes(
+                $asignacionesData[$asignacion->id] = $this->procesarAsignacionDocente(
                     $asignacion,
-                    $periodoSeleccionado->id,
-                    false
-                ));
-            }
-
-            // Obtener progreso de conducta por materia
-            foreach ($asignaciones as $asignacion) {
-                $progresoConducta->put($asignacion->id, $this->obtenerProgresoConducta(
-                    $asignacion,
-                    $periodoSeleccionado->id
-                ));
-            }
-
-            // Preparar datos para gráficos
-            $datosGraficos = $this->prepararDatosGraficosEstudiantes($progresoEstudiantes);
-            $datosGraficosConducta = $this->prepararDatosGraficosConducta($progresoConducta);
-
-            // NUEVO: PROCESAR TODOS LOS DATOS POR ASIGNACIÓN
-            foreach ($asignaciones as $asignacion) {
-                $asignacionesData[$asignacion->id] = $this->procesarDatosAsignacion(
-                    $asignacion,
-                    $progresoEstudiantes[$asignacion->id] ?? null,
-                    $progresoConducta[$asignacion->id] ?? null,
-                    $estudiantesPorGrado->get($asignacion->grado_id, collect()),
-                    $datosGraficos,
-                    $datosGraficosConducta,
-                    $conductasActivas
+                    $periodoSeleccionado
                 );
             }
         }
@@ -420,647 +364,312 @@ class DashboardController extends Controller
             'docente',
             'periodos',
             'periodoSeleccionado',
-            'asignaciones',
-            'grados',
-            'estudiantesPorGrado',
-            'estadisticasNotas',
-            'estadisticasConducta',
-            'datosGraficos',
-            'datosGraficosConducta',
-            'progresoEstudiantes',
-            'progresoConducta',
-            'asignacionesData', // NUEVA VARIABLE
-            'conductasActivas' // OPCIONAL: si la necesitas en la vista
+            'asignacionesData'
         ));
     }
-    private function procesarDatosAsignacion($asignacion, $progreso, $progresoCond, $estudiantesGrado, $datosGraficos, $datosGraficosConducta, $conductasActivas)
+    private function procesarAsignacionDocente($asignacion, $periodo)
     {
-        $totalEstudiantes = $estudiantesGrado->count();
+        $grado = $asignacion->grado;
+        $materia = $asignacion->materia;
 
-        // Calcular criterios por bimestre para notas académicas
-        $criteriosPorBimestre = $this->calcularCriteriosPorBimestre($asignacion);
+        // Obtener estudiantes matriculados
+        $estudiantes = Estudiante::whereHas('matriculas', function($query) use ($grado, $periodo) {
+            $query->where('grado_id', $grado->id)
+                ->where('periodo_id', $periodo->id)
+                ->where('estado', 1);
+        })->with('user')->get();
 
-        // Procesar estadísticas por bimestre
-        $estadisticasBimestres = $this->procesarEstadisticasBimestres(
-            $progreso,
-            $progresoCond,
-            $totalEstudiantes,
-            $criteriosPorBimestre,
-            $conductasActivas
-        );
-
-        // Calcular resúmenes generales
-        $resumenes = $this->calcularResumenesGenerales($progreso, $progresoCond, $totalEstudiantes, $estadisticasBimestres);
-
-        // Calcular estudiantes con notas/conducta
-        $estudiantesConNotas = $this->contarEstudiantesConDatos($progreso, 'total_criterios_registrados');
-        $estudiantesConConducta = $this->contarEstudiantesConDatos($progresoCond, 'total_conductas_registradas');
-
-        // Preparar datos de estudiantes para la tabla
-        $estudiantesData = $this->prepararDatosEstudiantes($estudiantesGrado, $progreso, $progresoCond);
-
-        // Obtener datos para gráficos
-        $datosGraficoNotas = $datosGraficos['estudiantes_lineas'][$asignacion->id] ?? null;
-        $datosGraficoConducta = $datosGraficosConducta['conducta_lineas'][$asignacion->id] ?? null;
-
-        return [
-            'id' => $asignacion->id,
-            'materia_nombre' => $asignacion->materia->nombre,
-            'grado_nombre' => $asignacion->grado->nombreCompleto,
-            'periodo_anio' => $asignacion->periodo->anio,
-            'total_estudiantes' => $totalEstudiantes,
-            'estudiantes_con_notas' => $estudiantesConNotas,
-            'estudiantes_con_conducta' => $estudiantesConConducta,
-            'estadisticas_bimestres' => $estadisticasBimestres,
-            'resumen_notas' => $resumenes['notas'],
-            'resumen_conducta' => $resumenes['conducta'],
-            'promedio_general_notas' => $resumenes['promedio_general_notas'],
-            'promedio_general_conducta' => $resumenes['promedio_general_conducta'],
-            'total_criterios' => array_sum($criteriosPorBimestre),
-            'criterios_por_bimestre' => $criteriosPorBimestre,
-            'datos_grafico_notas' => $datosGraficoNotas,
-            'datos_grafico_conducta' => $datosGraficoConducta,
-            'estudiantes' => $estudiantesData,
-            'progreso' => $progreso,
-            'progreso_cond' => $progresoCond
-        ];
-    }
-    private function calcularCriteriosPorBimestre($asignacion)
-    {
-        $criteriosPorBimestre = [1 => 0, 2 => 0, 3 => 0, 4 => 0];
-
-        // Obtener todas las competencias de la materia para este grado
-        $competencias = $asignacion->materia->materiaCompetencia()
-            ->whereHas('materiaCriterio', function($q) use ($asignacion) {
-                $q->where('grado_id', $asignacion->grado_id);
-            })
+        // Obtener bimestres regulares
+        $bimestres = Periodobimestre::where('periodo_id', $periodo->id)
+            ->where('tipo_bimestre', 'A')
+            ->orderBy('bimestre')
             ->get();
 
-        // Contar criterios por bimestre (excluyendo TRANSVERSALES)
-        foreach ($competencias as $competencia) {
-            if (strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') === false) {
-                $criterios = $competencia->materiaCriterio()
-                    ->where('grado_id', $asignacion->grado_id)
+        // Obtener competencias de la materia (excluyendo transversales)
+        $competencias = Materiacompetencia::where('materia_id', $materia->id)
+            ->whereNot('nombre', 'LIKE', '%TRANSVERSAL%')
+            ->get();
+
+        // Obtener criterios por bimestre
+        $criteriosPorBimestre = [];
+        foreach ($bimestres as $bim) {
+            $criteriosPorBimestre[$bim->sigla] = Materiacriterio::whereHas('materiaCompetencia', function($q) use ($materia) {
+                $q->where('materia_id', $materia->id)
+                    ->whereNot('nombre', 'LIKE', '%TRANSVERSAL%');
+            })->where('grado_id', $grado->id)
+            ->where('periodo_bimestre_id', $bim->id)
+            ->count();
+        }
+
+        // Obtener conductas activas
+        $conductas = Conducta::whereHas('periodosBimestres', function($q) use ($periodo) {
+            $q->where('periodo_id', $periodo->id)
+                ->whereNull('conducta_periodo_bimestres.deleted_at');
+        })->distinct()->get();
+
+        // Procesar datos de cada estudiante
+        $estudiantesData = [];
+        $sumaNotasGeneral = 0;
+        $totalNotasGeneral = 0;
+        $sumaConductaGeneral = 0;
+        $totalConductaGeneral = 0;
+        $estudiantesConNotas = 0;
+        $estudiantesConConducta = 0;
+
+        // Estadísticas por bimestre
+        $estadisticasNotas = [];
+        $estadisticasConducta = [];
+
+        foreach ($bimestres as $bim) {
+            $estadisticasNotas[$bim->sigla] = [
+                'total_estudiantes_con_notas' => 0,
+                'suma_notas' => 0,
+                'total_notas' => 0,
+                'criterios_en_bimestre' => $criteriosPorBimestre[$bim->sigla] ?? 0,
+                'total_notas_registradas' => 0,
+                'total_notas_posibles' => 0,
+            ];
+            $estadisticasConducta[$bim->sigla] = [
+                'total_estudiantes_con_conducta' => 0,
+                'suma_conducta' => 0,
+                'total_conducta' => 0,
+                'total_conductas_registradas' => 0,
+                'total_conductas_posibles' => 0,
+                'min' => null,
+                'max' => null,
+            ];
+        }
+
+        foreach ($estudiantes as $index => $estudiante) {
+            // Calcular notas por bimestre
+            $notasPorBimestre = [];
+            $criteriosRegistrados = [];
+            $bimestresConNotas = 0;
+            $sumaNotasEstudiante = 0;
+
+            foreach ($bimestres as $bim) {
+                $criteriosIds = Materiacriterio::whereHas('materiaCompetencia', function($q) use ($materia) {
+                    $q->where('materia_id', $materia->id)
+                        ->whereNot('nombre', 'LIKE', '%TRANSVERSAL%');
+                })->where('grado_id', $grado->id)
+                ->where('periodo_bimestre_id', $bim->id)
+                ->pluck('id')
+                ->toArray();
+
+                $notas = Nota::whereIn('materia_criterio_id', $criteriosIds)
+                    ->where('estudiante_id', $estudiante->id)
+                    ->where('periodo_id', $periodo->id)
+                    ->where('publico', '!=', '0')
                     ->get();
 
-                foreach ($criterios as $criterio) {
-                    $bimestresCriterio = explode(',', $criterio->bimestre);
-                    foreach ($bimestresCriterio as $bim) {
-                        $bim = trim($bim);
-                        if (in_array($bim, ['1', '2', '3', '4'])) {
-                            $criteriosPorBimestre[(int)$bim]++;
-                        }
-                    }
-                }
-            }
-        }
+                $criteriosRegistrados[$bim->sigla] = $notas->count();
+                $totalPosibles = count($criteriosIds);
 
-        return $criteriosPorBimestre;
-    }
-    private function procesarEstadisticasBimestres($progreso, $progresoCond, $totalEstudiantes, $criteriosPorBimestre, $conductasActivas)
-    {
-        $estadisticasBimestres = [];
+                $estadisticasNotas[$bim->sigla]['total_notas_registradas'] += $notas->count();
+                $estadisticasNotas[$bim->sigla]['total_notas_posibles'] += $totalPosibles;
 
-        for ($bimestre = 1; $bimestre <= 4; $bimestre++) {
-            // Variables para notas académicas
-            $notasBimestre = [];
-            $estudiantesConNotaEnBimestre = [];
-            $totalRegistrosNotas = 0;
+                if ($notas->isNotEmpty()) {
+                    $promedio = round($notas->avg('nota'), 1);
+                    $notasPorBimestre[$bim->sigla] = $promedio;
+                    $bimestresConNotas++;
+                    $sumaNotasEstudiante += $promedio;
 
-            // Variables para conducta
-            $conductasBimestre = [];
-            $estudiantesConConductaEnBimestre = [];
-            $totalRegistrosConducta = 0;
-
-            // Procesar notas académicas
-            if ($progreso && isset($progreso['progreso'])) {
-                foreach ($progreso['progreso'] as $estudianteId => $estudianteData) {
-                    if (isset($estudianteData['datos'][$bimestre]) && $estudianteData['datos'][$bimestre] !== null) {
-                        $notasBimestre[] = $estudianteData['datos'][$bimestre];
-                        $estudiantesConNotaEnBimestre[$estudianteId] = true;
-                        $totalRegistrosNotas += $estudianteData['criterios_por_bimestre'][$bimestre] ?? 0;
-                    }
+                    $estadisticasNotas[$bim->sigla]['total_estudiantes_con_notas']++;
+                    $estadisticasNotas[$bim->sigla]['suma_notas'] += $promedio;
+                    $estadisticasNotas[$bim->sigla]['total_notas']++;
+                } else {
+                    $notasPorBimestre[$bim->sigla] = null;
                 }
             }
 
-            // Procesar conducta
-            if ($progresoCond && isset($progresoCond['progreso'])) {
-                foreach ($progresoCond['progreso'] as $estudianteId => $estudianteData) {
-                    if (isset($estudianteData['datos'][$bimestre]) && $estudianteData['datos'][$bimestre] !== null) {
-                        $conductasBimestre[] = $estudianteData['datos'][$bimestre];
-                        $estudiantesConConductaEnBimestre[$estudianteId] = true;
-                        $totalRegistrosConducta += $estudianteData['conductas_por_bimestre'][$bimestre] ?? 0;
+            $promedioNotas = $bimestresConNotas > 0 ? round($sumaNotasEstudiante / $bimestresConNotas, 1) : null;
+            if ($promedioNotas !== null) {
+                $sumaNotasGeneral += $promedioNotas;
+                $totalNotasGeneral++;
+                $estudiantesConNotas++;
+            }
+
+            // Calcular conducta por bimestre
+            $conductaPorBimestre = [];
+            $bimestresConConducta = 0;
+            $sumaConductaEstudiante = 0;
+
+            foreach ($bimestres as $bim) {
+                $periodoBimestre = $bim;
+
+                $notasConducta = Conductaperiodobimestrenota::where('estudiante_id', $estudiante->id)
+                    ->where('periodo_id', $periodo->id)
+                    ->where('periodo_bimestre_id', $periodoBimestre->id)
+                    ->where('publico', '!=', '0')
+                    ->whereHas('curso_grado_sec_niv_anio', function($q) use ($asignacion) {
+                        $q->where('id', $asignacion->id);
+                    })
+                    ->get();
+
+                $conductaRegistradas = $notasConducta->count();
+                $totalPosiblesConducta = $conductas->count();
+
+                $estadisticasConducta[$bim->sigla]['total_conductas_registradas'] += $conductaRegistradas;
+                $estadisticasConducta[$bim->sigla]['total_conductas_posibles'] += $totalPosiblesConducta;
+
+                if ($notasConducta->isNotEmpty()) {
+                    $promedio = round($notasConducta->avg('nota'), 1);
+                    $conductaPorBimestre[$bim->sigla] = $promedio;
+                    $bimestresConConducta++;
+                    $sumaConductaEstudiante += $promedio;
+
+                    $estadisticasConducta[$bim->sigla]['total_estudiantes_con_conducta']++;
+                    $estadisticasConducta[$bim->sigla]['suma_conducta'] += $promedio;
+                    $estadisticasConducta[$bim->sigla]['total_conducta']++;
+
+                    if ($estadisticasConducta[$bim->sigla]['min'] === null || $promedio < $estadisticasConducta[$bim->sigla]['min']) {
+                        $estadisticasConducta[$bim->sigla]['min'] = $promedio;
                     }
+                    if ($estadisticasConducta[$bim->sigla]['max'] === null || $promedio > $estadisticasConducta[$bim->sigla]['max']) {
+                        $estadisticasConducta[$bim->sigla]['max'] = $promedio;
+                    }
+                } else {
+                    $conductaPorBimestre[$bim->sigla] = null;
                 }
             }
 
-            // Calcular notas posibles
-            $notasPosiblesBimestre = $totalEstudiantes * ($criteriosPorBimestre[$bimestre] ?? 0);
-
-            // Calcular conductas posibles
-            $conductasPosiblesBimestre = $totalEstudiantes * $conductasActivas;
-
-            // Estadísticas de notas
-            $estadisticasBimestres['notas'][$bimestre] = [
-                'total_estudiantes_con_notas' => count($estudiantesConNotaEnBimestre),
-                'total' => count($notasBimestre),
-                'promedio' => count($notasBimestre) > 0 ? round(array_sum($notasBimestre) / count($notasBimestre), 2) : null,
-                'min' => count($notasBimestre) > 0 ? min($notasBimestre) : null,
-                'max' => count($notasBimestre) > 0 ? max($notasBimestre) : null,
-                'total_notas_registradas' => $totalRegistrosNotas,
-                'total_notas_posibles' => $notasPosiblesBimestre,
-                'porcentaje_avance' => $notasPosiblesBimestre > 0 ? round(($totalRegistrosNotas / $notasPosiblesBimestre) * 100, 1) : 0,
-                'criterios_en_bimestre' => $criteriosPorBimestre[$bimestre] ?? 0
-            ];
-
-            // Estadísticas de conducta
-            $estadisticasBimestres['conducta'][$bimestre] = [
-                'total_estudiantes_con_conducta' => count($estudiantesConConductaEnBimestre),
-                'total' => count($conductasBimestre),
-                'promedio' => count($conductasBimestre) > 0 ? round(array_sum($conductasBimestre) / count($conductasBimestre), 2) : null,
-                'min' => count($conductasBimestre) > 0 ? min($conductasBimestre) : null,
-                'max' => count($conductasBimestre) > 0 ? max($conductasBimestre) : null,
-                'total_conductas_registradas' => $totalRegistrosConducta,
-                'total_conductas_posibles' => $conductasPosiblesBimestre,
-                'porcentaje_avance' => $conductasPosiblesBimestre > 0 ? round(($totalRegistrosConducta / $conductasPosiblesBimestre) * 100, 1) : 0,
-                'porcentaje_estudiantes' => $totalEstudiantes > 0 ? round((count($estudiantesConConductaEnBimestre) / $totalEstudiantes) * 100, 1) : 0
-            ];
-        }
-
-        return $estadisticasBimestres;
-    }
-    private function calcularResumenesGenerales($progreso, $progresoCond, $totalEstudiantes, $estadisticasBimestres)
-    {
-        $resumenNotas = ['total_estudiantes' => $totalEstudiantes, 'suma_promedios' => 0, 'con_datos' => 0];
-        $resumenConducta = ['total_estudiantes' => $totalEstudiantes, 'suma_promedios' => 0, 'con_datos' => 0];
-
-        for ($bimestre = 1; $bimestre <= 4; $bimestre++) {
-            if (isset($estadisticasBimestres['notas'][$bimestre]['promedio']) &&
-                $estadisticasBimestres['notas'][$bimestre]['promedio'] !== null) {
-                $resumenNotas['suma_promedios'] += $estadisticasBimestres['notas'][$bimestre]['promedio'];
-                $resumenNotas['con_datos']++;
+            $promedioConducta = $bimestresConConducta > 0 ? round($sumaConductaEstudiante / $bimestresConConducta, 1) : null;
+            if ($promedioConducta !== null) {
+                $sumaConductaGeneral += $promedioConducta;
+                $totalConductaGeneral++;
+                $estudiantesConConducta++;
             }
 
-            if (isset($estadisticasBimestres['conducta'][$bimestre]['promedio']) &&
-                $estadisticasBimestres['conducta'][$bimestre]['promedio'] !== null) {
-                $resumenConducta['suma_promedios'] += $estadisticasBimestres['conducta'][$bimestre]['promedio'];
-                $resumenConducta['con_datos']++;
+            // Determinar estado del estudiante
+            $estadoTexto = 'Sin datos';
+            $estadoClase = 'danger';
+            if ($promedioNotas !== null && $promedioConducta !== null) {
+                if ($promedioNotas > 2 && $promedioConducta > 2) {
+                    $estadoTexto = 'Completo';
+                    $estadoClase = 'success';
+                } else {
+                    $estadoTexto = 'Parcial';
+                    $estadoClase = 'warning';
+                }
+            } else if ($promedioNotas !== null || $promedioConducta !== null) {
+                $estadoTexto = 'Parcial';
+                $estadoClase = 'warning';
             }
-        }
-
-        $promedioGeneralNotas = $resumenNotas['con_datos'] > 0 ?
-            round($resumenNotas['suma_promedios'] / $resumenNotas['con_datos'], 2) : null;
-        $promedioGeneralConducta = $resumenConducta['con_datos'] > 0 ?
-            round($resumenConducta['suma_promedios'] / $resumenConducta['con_datos'], 2) : null;
-
-        return [
-            'notas' => $resumenNotas,
-            'conducta' => $resumenConducta,
-            'promedio_general_notas' => $promedioGeneralNotas,
-            'promedio_general_conducta' => $promedioGeneralConducta
-        ];
-    }
-    private function contarEstudiantesConDatos($progreso, $campo)
-    {
-        if (!$progreso || !isset($progreso['progreso'])) {
-            return 0;
-        }
-
-        $contador = 0;
-        foreach ($progreso['progreso'] as $estudianteData) {
-            if (($estudianteData[$campo] ?? 0) > 0) {
-                $contador++;
-            }
-        }
-
-        return $contador;
-    }
-    private function prepararDatosEstudiantes($estudiantesGrado, $progreso, $progresoCond)
-    {
-        $estudiantesData = [];
-
-        foreach ($estudiantesGrado as $index => $estudiante) {
-            $progresoEst = $progreso['progreso'][$estudiante->id] ?? null;
-            $progresoCondEst = $progresoCond['progreso'][$estudiante->id] ?? null;
-
-            $tieneNotas = $progresoEst ? ($progresoEst['total_bimestres_con_datos'] ?? 0) > 0 : false;
-            $tieneConducta = $progresoCondEst ? ($progresoCondEst['total_bimestres_con_datos'] ?? 0) > 0 : false;
-
-            $promedioNotas = $progresoEst['promedio_general'] ?? null;
-            $promedioConducta = $progresoCondEst['promedio_general'] ?? null;
 
             $estudiantesData[] = [
-                'index' => $index + 1,
                 'id' => $estudiante->id,
-                'dni' => $estudiante->user->dni ?? 'N/A',
-                'nombre_completo' => trim($estudiante->user->nombre . ' ' .
-                                        $estudiante->user->apellido_paterno . ' ' .
-                                        $estudiante->user->apellido_materno),
-                'tiene_notas' => $tieneNotas,
-                'tiene_conducta' => $tieneConducta,
-                'bimestres_notas' => $progresoEst['total_bimestres_con_datos'] ?? 0,
-                'bimestres_conducta' => $progresoCondEst['total_bimestres_con_datos'] ?? 0,
+                'dni' => $estudiante->user->dni,
+                'nombre_completo' => trim(sprintf(
+                    '%s %s, %s',
+                    $estudiante->user->apellido_paterno ?? '',
+                    $estudiante->user->apellido_materno ?? '',
+                    $estudiante->user->nombre ?? ''
+                )),
+                'notas' => $notasPorBimestre,
                 'promedio_notas' => $promedioNotas,
+                'conducta' => $conductaPorBimestre,
                 'promedio_conducta' => $promedioConducta,
-                'color_nota' => $this->getColorPorPromedio($promedioNotas),
-                'color_conducta' => $this->getColorPorPromedio($promedioConducta),
-                'estado_clase' => $this->getEstadoClase($tieneNotas, $tieneConducta),
-                'estado_texto' => $this->getEstadoTexto($tieneNotas, $tieneConducta)
+                'bimestres_notas' => $bimestresConNotas,
+                'bimestres_conducta' => $bimestresConConducta,
+                'criterios_registrados' => $criteriosRegistrados,
+                'estado_texto' => $estadoTexto,
+                'estado_clase' => $estadoClase,
+                'tiene_notas' => $promedioNotas !== null,
+                'tiene_conducta' => $promedioConducta !== null,
             ];
         }
 
-        return $estudiantesData;
-    }
-    private function getColorPorPromedio($promedio)
-    {
-        if ($promedio === null) return '';
-        return $promedio >= 3 ? 'text-success' : ($promedio >= 2 ? 'text-warning' : 'text-danger');
-    }
-    private function getEstadoClase($tieneNotas, $tieneConducta)
-    {
-        if ($tieneNotas && $tieneConducta) return 'table-success';
-        if ($tieneNotas || $tieneConducta) return 'table-warning';
-        return 'table-danger';
-    }
-    private function getEstadoTexto($tieneNotas, $tieneConducta)
-    {
-        if ($tieneNotas && $tieneConducta) return 'Completo';
-        if ($tieneNotas || $tieneConducta) return 'Parcial';
-        return 'Sin datos';
-    }
+        // Calcular promedios generales por bimestre
+        foreach ($bimestres as $bim) {
+            $sigla = $bim->sigla;
 
-    private function obtenerProgresoEstudiantes($asignacion, $periodoId, $esConducta = false)
-    {
-        // Obtener estudiantes del grado
-        $estudiantes = \App\Models\Estudiante::whereHas('matriculas', function ($query) use ($asignacion, $periodoId) {
-            $query->where('grado_id', $asignacion->grado_id)
-                ->where('periodo_id', $periodoId)
-                ->where('estado', 1);
-        })
-        ->with(['user'])
-        ->get();
-
-        $progreso = [];
-
-        foreach ($estudiantes as $estudiante) {
-            // Obtener notas académicas del estudiante para esta materia (registros individuales por criterio)
-            $notasEstudiante = Nota::whereHas('criterio', function ($query) use ($asignacion) {
-                $query->where('materia_id', $asignacion->materia_id)
-                    ->where('grado_id', $asignacion->grado_id)
-                    ->whereDoesntHave('materiaCompetencia', function ($q) {
-                        $q->where('nombre', 'LIKE', '%TRANSVERSAL%');
-                    });
-            })
-            ->where('estudiante_id', $estudiante->id)
-            ->where('periodo_id', $periodoId)
-            ->get(); // Cambiado: obtener todos los registros, no agrupados
-
-            if ($notasEstudiante->isNotEmpty()) {
-                // Preparar datos por bimestre
-                $datosBimestres = [];
-                $conteoCriteriosPorBimestre = [1 => 0, 2 => 0, 3 => 0, 4 => 0]; // NUEVO: contar criterios por bimestre
-                $sumaNotasPorBimestre = [1 => 0, 2 => 0, 3 => 0, 4 => 0];
-
-                // Agrupar notas por bimestre
-                foreach ($notasEstudiante as $nota) {
-                    $bim = $nota->bimestre;
-                    $sumaNotasPorBimestre[$bim] += $nota->nota;
-                    $conteoCriteriosPorBimestre[$bim]++; // NUEVO: contar cada criterio individual
-                }
-
-                // Calcular promedios y preparar datos
-                $totalNotas = 0;
-                $sumaNotas = 0;
-                $totalCriteriosRegistrados = 0; // NUEVO: total de criterios registrados en todos los bimestres
-
-                for ($bimestre = 1; $bimestre <= 4; $bimestre++) {
-                    $promedioBimestre = $conteoCriteriosPorBimestre[$bimestre] > 0
-                        ? round($sumaNotasPorBimestre[$bimestre] / $conteoCriteriosPorBimestre[$bimestre], 2)
-                        : null;
-
-                    $datosBimestres[$bimestre] = $promedioBimestre;
-
-                    if ($promedioBimestre !== null) {
-                        $totalNotas++;
-                        $sumaNotas += $promedioBimestre;
-                    }
-
-                    // NUEVO: acumular total de criterios registrados
-                    $totalCriteriosRegistrados += $conteoCriteriosPorBimestre[$bimestre];
-                }
-
-                $progreso[$estudiante->id] = [
-                    'estudiante' => $estudiante->user->nombre . ' ' . $estudiante->user->apellido_paterno,
-                    'dni' => $estudiante->user->dni ?? '',
-                    'datos' => $datosBimestres,
-                    'datos_completos' => $notasEstudiante,
-                    'promedio_general' => $totalNotas > 0 ? round($sumaNotas / $totalNotas, 2) : null,
-                    'total_bimestres_con_datos' => $totalNotas,
-                    'estudiante_id' => $estudiante->id,
-                    // NUEVO: añadir conteo de criterios por bimestre
-                    'criterios_por_bimestre' => $conteoCriteriosPorBimestre,
-                    'total_criterios_registrados' => $totalCriteriosRegistrados // NUEVO: total de registros individuales
-                ];
+            if ($estadisticasNotas[$sigla]['total_notas'] > 0) {
+                $estadisticasNotas[$sigla]['promedio'] = round(
+                    $estadisticasNotas[$sigla]['suma_notas'] / $estadisticasNotas[$sigla]['total_notas'],
+                    1
+                );
             } else {
-                // NUEVO: estudiantes sin notas también deben tener estructura para criterios
-                $progreso[$estudiante->id] = [
-                    'estudiante' => $estudiante->user->nombre . ' ' . $estudiante->user->apellido_paterno,
-                    'dni' => $estudiante->user->dni ?? '',
-                    'datos' => [1 => null, 2 => null, 3 => null, 4 => null],
-                    'datos_completos' => collect(),
-                    'promedio_general' => null,
-                    'total_bimestres_con_datos' => 0,
-                    'estudiante_id' => $estudiante->id,
-                    'criterios_por_bimestre' => [1 => 0, 2 => 0, 3 => 0, 4 => 0],
-                    'total_criterios_registrados' => 0
-                ];
+                $estadisticasNotas[$sigla]['promedio'] = null;
             }
+
+            $totalPosibles = $estadisticasNotas[$sigla]['total_notas_posibles'];
+            $totalRegistradas = $estadisticasNotas[$sigla]['total_notas_registradas'];
+            $estadisticasNotas[$sigla]['porcentaje_avance'] = $totalPosibles > 0
+                ? round(($totalRegistradas / $totalPosibles) * 100, 1)
+                : 0;
+
+            if ($estadisticasConducta[$sigla]['total_conducta'] > 0) {
+                $estadisticasConducta[$sigla]['promedio'] = round(
+                    $estadisticasConducta[$sigla]['suma_conducta'] / $estadisticasConducta[$sigla]['total_conducta'],
+                    1
+                );
+            } else {
+                $estadisticasConducta[$sigla]['promedio'] = null;
+            }
+
+            $totalPosiblesCond = $estadisticasConducta[$sigla]['total_conductas_posibles'];
+            $totalRegistradasCond = $estadisticasConducta[$sigla]['total_conductas_registradas'];
+            $estadisticasConducta[$sigla]['porcentaje_avance'] = $totalPosiblesCond > 0
+                ? round(($totalRegistradasCond / $totalPosiblesCond) * 100, 1)
+                : 0;
+
+            $estadisticasConducta[$sigla]['porcentaje_estudiantes'] = $estudiantes->count() > 0
+                ? round(($estadisticasConducta[$sigla]['total_estudiantes_con_conducta'] / $estudiantes->count()) * 100, 1)
+                : 0;
+        }
+
+        // Preparar datos para gráficos
+        $datosGraficoNotas = [];
+        $datosGraficoConducta = [];
+
+        foreach ($estudiantesData as $estudiante) {
+            $datosGraficoNotas[] = [
+                'label' => $estudiante['nombre_completo'],
+                'data' => array_values($estudiante['notas']),
+                'borderColor' => '',
+                'backgroundColor' => '',
+            ];
+            $datosGraficoConducta[] = [
+                'label' => $estudiante['nombre_completo'],
+                'data' => array_values($estudiante['conducta']),
+                'borderColor' => '',
+                'backgroundColor' => '',
+            ];
         }
 
         return [
-            'materia' => $asignacion->materia->nombre,
-            'grado' => $asignacion->grado->nombreCompleto,
-            'grado_id' => $asignacion->grado_id,
-            'materia_id' => $asignacion->materia_id,
-            'progreso' => $progreso
+            'asignacion_id' => $asignacion->id,
+            'materia_nombre' => $materia->nombre,
+            'grado_nombre' => $grado->grado . '° ' . $grado->seccion,
+            'periodo_anio' => $periodo->anio,
+            'total_estudiantes' => $estudiantes->count(),
+            'estudiantes' => $estudiantesData,
+            'estudiantes_con_notas' => $estudiantesConNotas,
+            'estudiantes_con_conducta' => $estudiantesConConducta,
+            'promedio_general_notas' => $totalNotasGeneral > 0 ? round($sumaNotasGeneral / $totalNotasGeneral, 1) : null,
+            'promedio_general_conducta' => $totalConductaGeneral > 0 ? round($sumaConductaGeneral / $totalConductaGeneral, 1) : null,
+            'criterios_por_bimestre' => $criteriosPorBimestre,
+            'estadisticas_bimestres' => [
+                'notas' => $estadisticasNotas,
+                'conducta' => $estadisticasConducta,
+            ],
+            'datos_grafico_notas' => [
+                'labels' => $bimestres->pluck('sigla')->toArray(),
+                'datasets' => $datosGraficoNotas,
+            ],
+            'datos_grafico_conducta' => [
+                'labels' => $bimestres->pluck('sigla')->toArray(),
+                'datasets' => $datosGraficoConducta,
+            ],
+            'resumen_notas' => [
+                'con_datos' => count(array_filter($estadisticasNotas, fn($s) => ($s['total_estudiantes_con_notas'] ?? 0) > 0)),
+            ],
+            'resumen_conducta' => [
+                'con_datos' => count(array_filter($estadisticasConducta, fn($s) => ($s['total_estudiantes_con_conducta'] ?? 0) > 0)),
+            ],
+            'total_criterios' => array_sum($criteriosPorBimestre),
         ];
     }
-    private function obtenerProgresoConducta($asignacion, $periodoId)
-    {
-        // Obtener estudiantes del grado
-        $estudiantes = \App\Models\Estudiante::whereHas('matriculas', function ($query) use ($asignacion, $periodoId) {
-            $query->where('grado_id', $asignacion->grado_id)
-                ->where('periodo_id', $periodoId)
-                ->where('estado', 1);
-        })
-        ->with(['user'])
-        ->get();
-
-        $progreso = [];
-
-        foreach ($estudiantes as $estudiante) {
-            // Obtener TODAS las notas de conducta del estudiante (sin agrupar)
-            $conductaEstudiante = Conductanota::where('estudiante_id', $estudiante->id)
-                ->where('periodo_id', $periodoId)
-                ->where('curso_grado_sec_niv_anio_id', $asignacion->id)
-                ->get(); // Sin groupBy, obtenemos todos los registros individuales
-
-            if ($conductaEstudiante->isNotEmpty()) {
-                // Inicializar arrays para cada bimestre
-                $datosBimestres = [];
-                $conteoConductasPorBimestre = [1 => 0, 2 => 0, 3 => 0, 4 => 0];
-                $sumaConductasPorBimestre = [1 => 0, 2 => 0, 3 => 0, 4 => 0];
-
-                // Procesar cada registro individual de conducta
-                foreach ($conductaEstudiante as $conducta) {
-                    $bim = $conducta->bimestre;
-                    $sumaConductasPorBimestre[$bim] += $conducta->nota;
-                    $conteoConductasPorBimestre[$bim]++; // Contar cada conducta individual
-                }
-
-                // Calcular promedios y preparar datos
-                $totalConductas = 0;
-                $sumaConductas = 0;
-                $totalRegistrosConducta = 0; // Total de registros individuales
-
-                for ($bimestre = 1; $bimestre <= 4; $bimestre++) {
-                    $promedioBimestre = $conteoConductasPorBimestre[$bimestre] > 0
-                        ? round($sumaConductasPorBimestre[$bimestre] / $conteoConductasPorBimestre[$bimestre], 2)
-                        : null;
-
-                    $datosBimestres[$bimestre] = $promedioBimestre;
-
-                    if ($promedioBimestre !== null) {
-                        $totalConductas++;
-                        $sumaConductas += $promedioBimestre;
-                    }
-
-                    // Acumular total de registros individuales
-                    $totalRegistrosConducta += $conteoConductasPorBimestre[$bimestre];
-                }
-
-                $progreso[$estudiante->id] = [
-                    'estudiante' => $estudiante->user->nombre . ' ' . $estudiante->user->apellido_paterno,
-                    'dni' => $estudiante->user->dni ?? '',
-                    'datos' => $datosBimestres,
-                    'datos_completos' => $conductaEstudiante,
-                    'promedio_general' => $totalConductas > 0 ? round($sumaConductas / $totalConductas, 2) : null,
-                    'total_bimestres_con_datos' => $totalConductas,
-                    'estudiante_id' => $estudiante->id,
-                    // NUEVO: añadir conteo de conductas por bimestre
-                    'conductas_por_bimestre' => $conteoConductasPorBimestre,
-                    'total_conductas_registradas' => $totalRegistrosConducta // Total de registros individuales
-                ];
-            } else {
-                // Estudiantes sin conducta
-                $progreso[$estudiante->id] = [
-                    'estudiante' => $estudiante->user->nombre . ' ' . $estudiante->user->apellido_paterno,
-                    'dni' => $estudiante->user->dni ?? '',
-                    'datos' => [1 => null, 2 => null, 3 => null, 4 => null],
-                    'datos_completos' => collect(),
-                    'promedio_general' => null,
-                    'total_bimestres_con_datos' => 0,
-                    'estudiante_id' => $estudiante->id,
-                    'conductas_por_bimestre' => [1 => 0, 2 => 0, 3 => 0, 4 => 0],
-                    'total_conductas_registradas' => 0
-                ];
-            }
-        }
-
-        return [
-            'materia' => $asignacion->materia->nombre,
-            'grado' => $asignacion->grado->nombreCompleto,
-            'grado_id' => $asignacion->grado_id,
-            'materia_id' => $asignacion->materia_id,
-            'es_conducta' => true,
-            'progreso' => $progreso
-        ];
-    }
-
-    private function prepararDatosGraficosEstudiantes($progresoEstudiantes)
-    {
-        $datos = [];
-
-        foreach ($progresoEstudiantes as $asignacionId => $datosAsignacion) {
-            if (!empty($datosAsignacion['progreso'])) {
-                $labels = ['Bim. 1', 'Bim. 2', 'Bim. 3', 'Bim. 4'];
-                $datasets = [];
-
-                // Paleta de colores más grande para más estudiantes
-                $colores = [
-                    'rgb(54, 162, 235)',    // Azul
-                    'rgb(255, 99, 132)',    // Rojo
-                    'rgb(75, 192, 192)',    // Verde azulado
-                    'rgb(255, 159, 64)',    // Naranja
-                    'rgb(153, 102, 255)',   // Morado
-                    'rgb(255, 205, 86)',    // Amarillo
-                    'rgb(201, 203, 207)',   // Gris
-                    'rgb(50, 168, 82)',     // Verde
-                    'rgb(220, 57, 18)',     // Rojo oscuro
-                    'rgb(255, 153, 0)',     // Naranja oscuro
-                    'rgb(0, 152, 216)',     // Azul medio
-                    'rgb(118, 186, 27)',    // Verde claro
-                    'rgb(158, 0, 89)',      // Magenta oscuro
-                    'rgb(0, 131, 143)',     // Azul verdoso
-                    'rgb(194, 24, 91)',     // Rosa oscuro
-                    'rgb(102, 58, 183)',    // Morado oscuro
-                    'rgb(230, 124, 0)',     // Naranja oscuro
-                    'rgb(27, 94, 32)',      // Verde oscuro
-                    'rgb(121, 85, 72)',     // Marrón
-                    'rgb(96, 125, 139)',    // Azul grisáceo
-                    // Agrega más colores según sea necesario
-                ];
-
-                // Generar colores dinámicamente si hay más estudiantes que colores
-                $estudianteCount = count($datosAsignacion['progreso']);
-                if ($estudianteCount > count($colores)) {
-                    $colores = $this->generarColoresDinamicos($estudianteCount);
-                }
-
-                $colorIndex = 0;
-
-                foreach ($datosAsignacion['progreso'] as $estudianteId => $estudianteData) {
-                    // Solo incluir estudiantes con datos suficientes (al menos 1 bimestre con datos)
-                    $datosBimestres = array_values($estudianteData['datos']);
-                    $datosValidos = array_filter($datosBimestres, function($valor) {
-                        return $valor !== null;
-                    });
-
-                    // Mostrar todos los estudiantes que tengan al menos 1 dato
-                    if (count($datosValidos) >= 1) {
-                        $datasets[] = [
-                            'label' => $estudianteData['estudiante'] . ' (' . $estudianteData['dni'] . ')',
-                            'data' => $datosBimestres,
-                            'borderColor' => $colores[$colorIndex % count($colores)],
-                            'backgroundColor' => $colores[$colorIndex % count($colores)] . '20',
-                            'tension' => 0.3,
-                            'fill' => false,
-                            'pointRadius' => 6,
-                            'pointHoverRadius' => 8,
-                            'estudiante_id' => $estudianteId,
-                            'dni' => $estudianteData['dni'],
-                            'hidden' => $colorIndex >= 10 // Ocultar automáticamente después de 10 estudiantes
-                        ];
-
-                        $colorIndex++;
-                    }
-                }
-
-                if (!empty($datasets)) {
-                    $datos['estudiantes_lineas'][$asignacionId] = [
-                        'labels' => $labels,
-                        'datasets' => $datasets,
-                        'materia' => $datosAsignacion['materia'],
-                        'grado' => $datosAsignacion['grado'],
-                        'total_estudiantes' => count($datasets)
-                    ];
-                }
-            }
-        }
-
-        return $datos;
-    }
-
-    private function prepararDatosGraficosConducta($progresoConducta)
-    {
-        $datos = [];
-
-        foreach ($progresoConducta as $asignacionId => $datosAsignacion) {
-            if (!empty($datosAsignacion['progreso'])) {
-                $labels = ['Bim. 1', 'Bim. 2', 'Bim. 3', 'Bim. 4'];
-                $datasets = [];
-
-                // Paleta de colores más grande para conducta
-                $colores = [
-                    'rgb(76, 175, 80)',     // Verde
-                    'rgb(139, 195, 74)',    // Verde claro
-                    'rgb(205, 220, 57)',    // Lima
-                    'rgb(156, 39, 176)',    // Morado
-                    'rgb(103, 58, 183)',    // Morado oscuro
-                    'rgb(63, 81, 181)',     // Azul índigo
-                    'rgb(33, 150, 243)',    // Azul claro
-                    'rgb(0, 150, 136)',     // Verde azulado
-                    'rgb(121, 85, 72)',     // Marrón
-                    'rgb(96, 125, 139)',    // Azul grisáceo
-                    'rgb(56, 142, 60)',     // Verde oscuro
-                    'rgb(104, 159, 56)',    // Verde oliva
-                    'rgb(175, 180, 43)',    // Verde amarillento
-                    'rgb(106, 27, 154)',    // Morado oscuro
-                    'rgb(81, 45, 168)',     // Índigo oscuro
-                    'rgb(48, 63, 159)',     // Azul oscuro
-                    'rgb(25, 118, 210)',    // Azul medio
-                    'rgb(0, 131, 143)',     // Cian oscuro
-                    'rgb(0, 105, 92)',      // Verde azulado oscuro
-                    'rgb(62, 39, 35)',      // Marrón oscuro
-                ];
-
-                // Generar colores dinámicamente si hay más estudiantes que colores
-                $estudianteCount = count($datosAsignacion['progreso']);
-                if ($estudianteCount > count($colores)) {
-                    $colores = $this->generarColoresDinamicos($estudianteCount);
-                }
-
-                $colorIndex = 0;
-
-                foreach ($datosAsignacion['progreso'] as $estudianteId => $estudianteData) {
-                    // Solo incluir estudiantes con datos suficientes (al menos 1 bimestre con datos)
-                    $datosBimestres = array_values($estudianteData['datos']);
-                    $datosValidos = array_filter($datosBimestres, function($valor) {
-                        return $valor !== null;
-                    });
-
-                    // Mostrar todos los estudiantes que tengan al menos 1 dato
-                    if (count($datosValidos) >= 1) {
-                        $datasets[] = [
-                            'label' => $estudianteData['estudiante'] . ' (' . $estudianteData['dni'] . ')',
-                            'data' => $datosBimestres,
-                            'borderColor' => $colores[$colorIndex % count($colores)],
-                            'backgroundColor' => $colores[$colorIndex % count($colores)] . '20',
-                            'tension' => 0.3,
-                            'fill' => false,
-                            'pointRadius' => 6,
-                            'pointHoverRadius' => 8,
-                            'estudiante_id' => $estudianteId,
-                            'dni' => $estudianteData['dni'],
-                            'hidden' => $colorIndex >= 10 // Ocultar automáticamente después de 10 estudiantes
-                        ];
-
-                        $colorIndex++;
-                    }
-                }
-
-                if (!empty($datasets)) {
-                    $datos['conducta_lineas'][$asignacionId] = [
-                        'labels' => $labels,
-                        'datasets' => $datasets,
-                        'materia' => $datosAsignacion['materia'],
-                        'grado' => $datosAsignacion['grado'],
-                        'es_conducta' => true,
-                        'total_estudiantes' => count($datasets)
-                    ];
-                }
-            }
-        }
-        return $datos;
-    }
-
-    // Nueva función auxiliar para generar colores dinámicamente
-    private function generarColoresDinamicos($cantidad)
-    {
-        $colores = [];
-
-        for ($i = 0; $i < $cantidad; $i++) {
-            // Generar colores HSL con diferentes matices
-            $hue = ($i * 360 / $cantidad) % 360;
-            $saturation = 70 + (rand(0, 15)); // 70-85%
-            $lightness = 50 + (rand(0, 10));  // 50-60%
-
-            $colores[] = "hsl($hue, $saturation%, $lightness%)";
-        }
-
-        return $colores;
-    }
-
     // Función auxiliar para generar colores por bimestre (se mantiene igual)
     protected function getColorForBimestre($bimestre)
     {
