@@ -407,6 +407,8 @@ class DashboardController extends Controller
                 ->whereNull('conducta_periodo_bimestres.deleted_at');
         })->distinct()->get();
 
+        $totalConductas = $conductas->count();
+
         // Procesar datos de cada estudiante
         $estudiantesData = [];
         $sumaNotasGeneral = 0;
@@ -435,6 +437,7 @@ class DashboardController extends Controller
                 'total_conducta' => 0,
                 'total_conductas_registradas' => 0,
                 'total_conductas_posibles' => 0,
+                'total_conductas_en_bimestre' => $totalConductas,
                 'min' => null,
                 'max' => null,
             ];
@@ -444,8 +447,11 @@ class DashboardController extends Controller
             // Calcular notas por bimestre
             $notasPorBimestre = [];
             $criteriosRegistrados = [];
+            $criteriosPosibles = [];
             $bimestresConNotas = 0;
             $sumaNotasEstudiante = 0;
+            $totalCriteriosRegistrados = 0;
+            $totalCriteriosPosibles = 0;
 
             foreach ($bimestres as $bim) {
                 $criteriosIds = Materiacriterio::whereHas('materiaCompetencia', function($q) use ($materia) {
@@ -456,16 +462,21 @@ class DashboardController extends Controller
                 ->pluck('id')
                 ->toArray();
 
+                $totalPosibles = count($criteriosIds);
+                $criteriosPosibles[$bim->sigla] = $totalPosibles;
+                $totalCriteriosPosibles += $totalPosibles;
+
                 $notas = Nota::whereIn('materia_criterio_id', $criteriosIds)
                     ->where('estudiante_id', $estudiante->id)
                     ->where('periodo_id', $periodo->id)
                     ->where('publico', '!=', '0')
                     ->get();
 
-                $criteriosRegistrados[$bim->sigla] = $notas->count();
-                $totalPosibles = count($criteriosIds);
+                $registrados = $notas->count();
+                $criteriosRegistrados[$bim->sigla] = $registrados;
+                $totalCriteriosRegistrados += $registrados;
 
-                $estadisticasNotas[$bim->sigla]['total_notas_registradas'] += $notas->count();
+                $estadisticasNotas[$bim->sigla]['total_notas_registradas'] += $registrados;
                 $estadisticasNotas[$bim->sigla]['total_notas_posibles'] += $totalPosibles;
 
                 if ($notas->isNotEmpty()) {
@@ -489,10 +500,19 @@ class DashboardController extends Controller
                 $estudiantesConNotas++;
             }
 
+            // Calcular porcentaje de completitud de notas
+            $porcentajeNotasCompletas = $totalCriteriosPosibles > 0
+                ? round(($totalCriteriosRegistrados / $totalCriteriosPosibles) * 100, 1)
+                : 0;
+            $notasCompletasTexto = "{$totalCriteriosRegistrados}/{$totalCriteriosPosibles}";
+
             // Calcular conducta por bimestre
             $conductaPorBimestre = [];
+            $conductasRegistradas = [];
             $bimestresConConducta = 0;
             $sumaConductaEstudiante = 0;
+            $totalConductasRegistradas = 0;
+            $totalConductasPosibles = $totalConductas * $bimestres->count();
 
             foreach ($bimestres as $bim) {
                 $periodoBimestre = $bim;
@@ -506,11 +526,13 @@ class DashboardController extends Controller
                     })
                     ->get();
 
-                $conductaRegistradas = $notasConducta->count();
-                $totalPosiblesConducta = $conductas->count();
+                $registradas = $notasConducta->count();
+                $conductasRegistradas[$bim->sigla] = $registradas;
+                $totalConductasRegistradas += $registradas;
+                $posibles = $totalConductas;
 
-                $estadisticasConducta[$bim->sigla]['total_conductas_registradas'] += $conductaRegistradas;
-                $estadisticasConducta[$bim->sigla]['total_conductas_posibles'] += $totalPosiblesConducta;
+                $estadisticasConducta[$bim->sigla]['total_conductas_registradas'] += $registradas;
+                $estadisticasConducta[$bim->sigla]['total_conductas_posibles'] += $posibles;
 
                 if ($notasConducta->isNotEmpty()) {
                     $promedio = round($notasConducta->avg('nota'), 1);
@@ -540,19 +562,25 @@ class DashboardController extends Controller
                 $estudiantesConConducta++;
             }
 
+            // Calcular porcentaje de completitud de conducta
+            $porcentajeConductaCompleta = $totalConductasPosibles > 0
+                ? round(($totalConductasRegistradas / $totalConductasPosibles) * 100, 1)
+                : 0;
+            $conductaCompletaTexto = "{$totalConductasRegistradas}/{$totalConductasPosibles}";
+
             // Determinar estado del estudiante
             $estadoTexto = 'Sin datos';
             $estadoClase = 'danger';
             if ($promedioNotas !== null && $promedioConducta !== null) {
                 if ($promedioNotas > 2 && $promedioConducta > 2) {
-                    $estadoTexto = 'Completo';
+                    $estadoTexto = 'Aprobado';
                     $estadoClase = 'success';
                 } else {
-                    $estadoTexto = 'Parcial';
-                    $estadoClase = 'warning';
+                    $estadoTexto = 'Desaprobado';
+                    $estadoClase = 'danger';
                 }
             } else if ($promedioNotas !== null || $promedioConducta !== null) {
-                $estadoTexto = 'Parcial';
+                $estadoTexto = 'S/N';
                 $estadoClase = 'warning';
             }
 
@@ -572,6 +600,16 @@ class DashboardController extends Controller
                 'bimestres_notas' => $bimestresConNotas,
                 'bimestres_conducta' => $bimestresConConducta,
                 'criterios_registrados' => $criteriosRegistrados,
+                'criterios_posibles' => $criteriosPosibles,
+                'total_criterios_registrados' => $totalCriteriosRegistrados,
+                'total_criterios_posibles' => $totalCriteriosPosibles,
+                'porcentaje_notas_completas' => $porcentajeNotasCompletas,
+                'notas_completas_texto' => $notasCompletasTexto,
+                'conductas_registradas' => $conductasRegistradas,
+                'total_conductas_registradas' => $totalConductasRegistradas,
+                'total_conductas_posibles' => $totalConductasPosibles,
+                'porcentaje_conducta_completa' => $porcentajeConductaCompleta,
+                'conducta_completa_texto' => $conductaCompletaTexto,
                 'estado_texto' => $estadoTexto,
                 'estado_clase' => $estadoClase,
                 'tiene_notas' => $promedioNotas !== null,
@@ -579,7 +617,7 @@ class DashboardController extends Controller
             ];
         }
 
-        // Calcular promedios generales por bimestre
+        // Resto del código igual...
         foreach ($bimestres as $bim) {
             $sigla = $bim->sigla;
 
