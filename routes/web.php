@@ -159,6 +159,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/grado', [GradoController::class, 'index'])->name('grado.index');
 
     Route::get('/grado/estudiantes/{id}', [GradoController::class, 'estudiantes'])->name('grado.estudiantes');
+    //Route::get('/grado/{id}/estudiantes', [GradoController::class, 'estudiantes'])->name('grado.estudiantes');
     Route::put('/grado/estudiantes/{grado}', [GradoController::class, 'estudiantesUpdateGrado'])->name('grado.estudiantesupdategrado');
 
     Route::get('/grado/create', [GradoController::class, 'create'])->name('grado.create');

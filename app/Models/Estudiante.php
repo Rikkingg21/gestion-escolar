@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Materia\Materiacriterio;
+use App\Models\Materia\Materiacompetencia;
+use App\Models\Maya\Cursogradosecnivanio;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
