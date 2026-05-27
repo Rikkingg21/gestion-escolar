@@ -159,8 +159,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/grado', [GradoController::class, 'index'])->name('grado.index');
 
     Route::get('/grado/estudiantes/{id}', [GradoController::class, 'estudiantes'])->name('grado.estudiantes');
-    //Route::get('/grado/{id}/estudiantes', [GradoController::class, 'estudiantes'])->name('grado.estudiantes');
     Route::put('/grado/estudiantes/{grado}', [GradoController::class, 'estudiantesUpdateGrado'])->name('grado.estudiantesupdategrado');
+
+    // Rutas para recuperación
+    Route::post('/estudiante/matricular-recuperacion', [GradoController::class, 'matricularRecuperacion'])->name('estudiante.matricular.recuperacion');
+    Route::post('/estudiante/matricular-recuperacion-individual', [GradoController::class, 'matricularRecuperacionIndividual'])->name('estudiante.matricular.recuperacion.individual');
+    Route::get('/estudiante/recuperacion-competencias/{estudianteId}/{periodoRecuperacionId}', [GradoController::class, 'getCompetenciasRecuperacion'])->name('estudiante.recuperacion.competencias');
+    Route::put('/estudiante/recuperacion-nota', [GradoController::class, 'actualizarNotaRecuperacion'])->name('estudiante.recuperacion.nota');
 
     Route::get('/grado/create', [GradoController::class, 'create'])->name('grado.create');
     Route::post('/grado', [GradoController::class, 'store'])->name('grado.store');
