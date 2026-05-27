@@ -14,6 +14,7 @@ use App\Models\Estudiante;
 use App\Services\ProcesarnotasCriterioService;
 use App\Services\ProcesarnotasCompetenciaService;
 use App\Services\ProcesarnotasMateriaService;
+use App\Services\EvaluacionEstudianteService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,11 +24,13 @@ class GradoController extends Controller
     protected $criterioService;
     protected $competenciaService;
     protected $materiaService;
+    protected $evaluacionService;
     //moduleID 10 = Grados
     public function __construct(
         ProcesarnotasCriterioService $criterioService,
         ProcesarnotasCompetenciaService $competenciaService,
-        ProcesarnotasMateriaService $materiaService
+        ProcesarnotasMateriaService $materiaService,
+        EvaluacionEstudianteService $evaluacionService,
     )
     {
         $this->middleware(function ($request, $next) {
@@ -39,6 +42,7 @@ class GradoController extends Controller
         $this->criterioService = $criterioService;
         $this->competenciaService = $competenciaService;
         $this->materiaService = $materiaService;
+        $this->evaluacionService = $evaluacionService;
     }
     public function index()
     {
@@ -182,11 +186,21 @@ class GradoController extends Controller
         $materiaIds = array_keys($materiasArray);
 
         if (empty($materiaIds)) {
-            return $this->returnView($grado, $aniosDisponibles, $anioSeleccionado,
-                $periodoAcademico, $periodoRecuperacion, $estudiantesRegistrados, $estudiantesMatriculadosIds, collect(), collect());
+            $estudiantesMatriculados = collect();
+            $estudiantesNoMatriculados = $estudiantesRegistrados;
+
+            return view('grado.gradoestudiantes', compact(
+                'grado',
+                'aniosDisponibles',
+                'anioSeleccionado',
+                'periodoAcademico',
+                'periodoRecuperacion',
+                'estudiantesMatriculados',
+                'estudiantesNoMatriculados'
+            ));
         }
 
-        // Obtener todas las competencias (excluyendo transversales)
+        // Obtener todas las competencias
         $competenciasQuery = Materiacompetencia::whereIn('materia_id', $materiaIds)
             ->whereRaw('LOWER(nombre) NOT LIKE ?', ['%transversal%'])
             ->whereHas('materiaCriterio', function($query) use ($grado, $periodoAcademico) {
@@ -197,7 +211,6 @@ class GradoController extends Controller
             })
             ->get();
 
-        // Crear arrays de competencias: [competencia_id => materia_id] y [competencia_id => nombre]
         $competenciasArray = [];
         $competenciasNombres = [];
         foreach ($competenciasQuery as $competencia) {
@@ -208,8 +221,18 @@ class GradoController extends Controller
         $competenciaIds = array_keys($competenciasArray);
 
         if (empty($competenciaIds)) {
-            return $this->returnView($grado, $aniosDisponibles, $anioSeleccionado,
-                $periodoAcademico, $periodoRecuperacion, $estudiantesRegistrados, $estudiantesMatriculadosIds, collect(), collect());
+            $estudiantesMatriculados = collect();
+            $estudiantesNoMatriculados = $estudiantesRegistrados;
+
+            return view('grado.gradoestudiantes', compact(
+                'grado',
+                'aniosDisponibles',
+                'anioSeleccionado',
+                'periodoAcademico',
+                'periodoRecuperacion',
+                'estudiantesMatriculados',
+                'estudiantesNoMatriculados'
+            ));
         }
 
         // Obtener criterios
@@ -220,7 +243,6 @@ class GradoController extends Controller
             })
             ->get();
 
-        // Crear array de criterios [criterio_id => competencia_id]
         $criteriosArray = [];
         foreach ($criterios as $criterio) {
             $criteriosArray[$criterio->id] = [
@@ -231,14 +253,14 @@ class GradoController extends Controller
 
         $criterioIds = array_keys($criteriosArray);
 
-        // Obtener todas las notas del período académico
+        // Obtener todas las notas
         $notasQuery = Nota::whereIn('estudiante_id', $estudiantesMatriculadosIds)
             ->whereIn('materia_criterio_id', $criterioIds)
             ->where('periodo_id', $periodoAcademico->id)
             ->select('estudiante_id', 'materia_criterio_id', 'nota')
             ->get();
 
-        // CONSTRUIR ARRAY PARA EL SERVICIO DE CRITERIOS
+        // Construir array para el servicio de criterios
         $notasArray = [];
         foreach ($notasQuery as $nota) {
             if (isset($criteriosArray[$nota->materia_criterio_id])) {
@@ -253,7 +275,7 @@ class GradoController extends Controller
             }
         }
 
-        // OBTENER NOTAS DE RECUPERACIÓN (si existe período de recuperación)
+        // Obtener recuperaciones
         $recuperacionesPorEstudiante = [];
         if ($periodoRecuperacion) {
             $recuperaciones = Recuperacioncompetencia::whereIn('estudiante_id', $estudiantesMatriculadosIds)
@@ -267,36 +289,36 @@ class GradoController extends Controller
                 if (!isset($recuperacionesPorEstudiante[$estId])) {
                     $recuperacionesPorEstudiante[$estId] = [];
                 }
-                // Convertir nivel_logro_final a nota numérica
+
                 $notaRecuperacion = null;
                 if ($rec->nivel_logro_final) {
-                    $notaRecuperacion = $this->convertirEnumANota($rec->nivel_logro_final);
+                    $notaRecuperacion = $this->competenciaService->convertirEnumANota($rec->nivel_logro_final);
                 }
-                $recuperacionesPorEstudiante[$estId][$compId] = $notaRecuperacion;
+
+                $recuperacionesPorEstudiante[$estId][$compId] = [
+                    'nota' => $notaRecuperacion,
+                    'tiene_registro' => true
+                ];
             }
         }
 
-        // FLUJO: Criterio → Competencia → Materia
+        // FLUJO: Procesar datos (solo cálculos)
         $criteriosProcesados = $this->criterioService->procesar($notasArray);
-
-        // Pasar las recuperaciones al servicio de competencia
-        $competenciasProcesadas = $this->competenciaService->procesar(
-            $criteriosProcesados,
-            $periodoRecuperacion?->id,
-            $recuperacionesPorEstudiante
-        );
-
-        // Pasar los nombres de competencias al servicio de materia
+        $competenciasProcesadas = $this->competenciaService->procesar($criteriosProcesados, $recuperacionesPorEstudiante);
         $materiasProcesadas = $this->materiaService->procesar($competenciasProcesadas, $materiasArray, $competenciasNombres);
 
-        // Agrupar por estudiante
+        // Aplicar lógica de negocio (evaluación)
         $resultadosPorEstudiante = [];
         foreach ($materiasProcesadas as $materia) {
             $estId = $materia['estudiante_id'];
             if (!isset($resultadosPorEstudiante[$estId])) {
                 $resultadosPorEstudiante[$estId] = [];
             }
-            $resultadosPorEstudiante[$estId][] = $materia;
+
+            // Enriquecer la materia con información de evaluación
+            $recuperacionesInfoEstudiante = $recuperacionesPorEstudiante[$estId] ?? [];
+            $materiaEnriquecida = $this->evaluacionService->enriquecerMaterias([$materia], $recuperacionesInfoEstudiante)[0];
+            $resultadosPorEstudiante[$estId][] = $materiaEnriquecida;
         }
 
         // Construir estudiantes matriculados
@@ -304,10 +326,11 @@ class GradoController extends Controller
         foreach ($estudiantesRegistrados as $estudiante) {
             if (in_array($estudiante->id, $estudiantesMatriculadosIds)) {
                 $materias = $resultadosPorEstudiante[$estudiante->id] ?? [];
-                $estadoGeneral = $this->materiaService->getEstadoGeneral($materias);
 
+                $totalMaterias = count($materias);
                 $materiasAprobadas = 0;
                 $materiasDesaprobadas = 0;
+
                 foreach ($materias as $materia) {
                     if ($materia['estado'] === 'aprobado') {
                         $materiasAprobadas++;
@@ -316,34 +339,35 @@ class GradoController extends Controller
                     }
                 }
 
+                $recuperacionesInfoEstudiante = $recuperacionesPorEstudiante[$estudiante->id] ?? [];
+                $estadoGeneral = $this->evaluacionService->getEstadoGeneral($materias, $recuperacionesInfoEstudiante);
+
                 $estudiante->estado_aprobacion = $estadoGeneral;
-                $estudiante->total_materias = count($materias);
+                $estudiante->total_materias = $totalMaterias;
                 $estudiante->materias_aprobadas = $materiasAprobadas;
                 $estudiante->materias_desaprobadas_count = $materiasDesaprobadas;
                 $estudiante->detalle_materias = $materias;
 
+                // Verificar si tiene matrícula en recuperación
+                $tieneMatriculaRecuperacion = Matricula::where('estudiante_id', $estudiante->id)
+                    ->where('periodo_id', $periodoRecuperacion?->id)
+                    ->exists();
+
+                $tieneCompetenciasRecuperacion = false;
+                $competenciasRecuperacionCount = 0;
+                if ($periodoRecuperacion) {
+                    $competenciasRecuperacionCount = Recuperacioncompetencia::where('estudiante_id', $estudiante->id)
+                        ->where('periodo_id', $periodoRecuperacion->id)
+                        ->count();
+                    $tieneCompetenciasRecuperacion = $competenciasRecuperacionCount > 0;
+                }
+
+                $estudiante->tiene_matricula_recuperacion = $tieneMatriculaRecuperacion;
+                $estudiante->tiene_competencias_recuperacion = $tieneCompetenciasRecuperacion;
+                $estudiante->competencias_recuperacion_count = $competenciasRecuperacionCount;
+
                 $estudiantesMatriculados->push($estudiante);
             }
-        }
-        foreach ($estudiantesMatriculados as $estudiante) {
-            // Verificar si el estudiante ya tiene matrícula en recuperación
-            $tieneMatriculaRecuperacion = Matricula::where('estudiante_id', $estudiante->id)
-                ->where('periodo_id', $periodoRecuperacion?->id)
-                ->exists();
-
-            // Verificar si tiene competencias registradas en recuperación
-            $tieneCompetenciasRecuperacion = false;
-            $competenciasRecuperacionCount = 0;
-            if ($periodoRecuperacion) {
-                $competenciasRecuperacionCount = Recuperacioncompetencia::where('estudiante_id', $estudiante->id)
-                    ->where('periodo_id', $periodoRecuperacion->id)
-                    ->count();
-                $tieneCompetenciasRecuperacion = $competenciasRecuperacionCount > 0;
-            }
-
-            $estudiante->tiene_matricula_recuperacion = $tieneMatriculaRecuperacion;
-            $estudiante->tiene_competencias_recuperacion = $tieneCompetenciasRecuperacion;
-            $estudiante->competencias_recuperacion_count = $competenciasRecuperacionCount;
         }
 
         // Estudiantes no matriculados
@@ -357,18 +381,7 @@ class GradoController extends Controller
             'estudiantesMatriculados', 'estudiantesNoMatriculados'
         ));
     }
-    private function returnView($grado, $aniosDisponibles, $anioSeleccionado, $periodoAcademico, $periodoRecuperacion, $estudiantesRegistrados, $estudiantesMatriculadosIds, $estudiantesMatriculados, $estudiantesNoMatriculados)
-    {
-        $estudiantesNoMatriculados = $estudiantesRegistrados->filter(function($estudiante) use ($estudiantesMatriculadosIds) {
-            return !in_array($estudiante->id, $estudiantesMatriculadosIds);
-        });
 
-        return view('grado.gradoestudiantes', compact(
-            'grado', 'aniosDisponibles', 'anioSeleccionado',
-            'periodoAcademico', 'periodoRecuperacion',
-            'estudiantesMatriculados', 'estudiantesNoMatriculados'
-        ));
-    }
     public function matricularRecuperacion(Request $request)
     {
         try {
@@ -461,6 +474,38 @@ class GradoController extends Controller
             ], 500);
         }
     }
+    public function getCompetenciasRecuperacion($estudianteId, $periodoRecuperacionId)
+    {
+        $competencias = Recuperacioncompetencia::where('estudiante_id', $estudianteId)
+            ->where('periodo_id', $periodoRecuperacionId)
+            ->with(['materiaCompetencia', 'materia'])
+            ->get();
+
+        return response()->json($competencias);
+    }
+    public function actualizarNotaRecuperacion(Request $request)
+    {
+        try {
+            $request->validate([
+                'recuperacion_id' => 'required|exists:estudiante_recuperacion_competencias,id',
+                'nivel_logro_final' => 'required|string',
+            ]);
+
+            $recuperacion = Recuperacioncompetencia::find($request->recuperacion_id);
+            $recuperacion->nivel_logro_final = $request->nivel_logro_final;
+            $recuperacion->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Nota de recuperación actualizada correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
     // Procesa la matrícula de un estudiante en recuperación
     private function procesarMatriculaRecuperacion($estudianteId, $periodoRecuperacionId, $periodoAcademicoId, $competencias)
     {
@@ -509,9 +554,9 @@ class GradoController extends Controller
                     ->exists();
 
                 if (!$existe) {
-                    // Convertir la nota original a ENUM
+                    // Convertir la nota original a ENUM usando el servicio base
                     $notaOriginal = floatval($competencia['nota_original']);
-                    $valorEnum = $this->convertirNotaAEnum($notaOriginal);
+                    $valorEnum = $this->competenciaService->convertirNotaAEnum($notaOriginal);
 
                     Recuperacioncompetencia::create([
                         'estudiante_id' => $estudianteId,
@@ -520,7 +565,6 @@ class GradoController extends Controller
                         'periodo_id' => $periodoRecuperacionId,
                         'nivel_logro_inicial' => $valorEnum,
                         'nivel_logro_final' => null,
-                        // 'modalidad' => 'RECUPERACION',
                     ]);
                     $registradas++;
                 } else {
@@ -548,59 +592,20 @@ class GradoController extends Controller
             return ['success' => false, 'message' => 'Error interno: ' . $e->getMessage()];
         }
     }
-    // Convierte una nota numérica a ENUM para nivel_logro_inicial
-    // ENUM acepta: 'C', 'B', 'A', 'AD'
-    private function convertirNotaAEnum(float $nota): string
+    // Actualizar el método que usa convertirEnumANota
+    private function returnView($grado, $aniosDisponibles, $anioSeleccionado, $periodoAcademico, $periodoRecuperacion, $estudiantesRegistrados, $estudiantesMatriculadosIds, $estudiantesMatriculados, $estudiantesNoMatriculados)
     {
-        if ($nota >= 3.5) return 'AD';
-        if ($nota >= 2.5) return 'A';
-        if ($nota >= 1.5) return 'B';
-        return 'C';
-    }
-    private function convertirEnumANota(?string $enum): ?float
-    {
-        if ($enum === null) return null;
-        return match ($enum) {
-            'AD' => 4,
-            'A' => 3,
-            'B' => 2,
-            'C' => 1,
-            default => null,
-        };
-    }
-    // Obtener las competencias de recuperación de un estudiante
-    public function getCompetenciasRecuperacion($estudianteId, $periodoRecuperacionId)
-    {
-        $competencias = Recuperacioncompetencia::where('estudiante_id', $estudianteId)
-            ->where('periodo_id', $periodoRecuperacionId)
-            ->with(['materiaCompetencia', 'materia'])
-            ->get();
+        // Este método parece tener un problema en su lógica original
+        // Debería ser revisado, pero manteniendo la funcionalidad:
+        $estudiantesNoMatriculados = $estudiantesRegistrados->filter(function($estudiante) use ($estudiantesMatriculadosIds) {
+            return !in_array($estudiante->id, $estudiantesMatriculadosIds);
+        });
 
-        return response()->json($competencias);
-    }
-    // Actualizar nota final de recuperación
-    public function actualizarNotaRecuperacion(Request $request)
-    {
-        try {
-            $request->validate([
-                'recuperacion_id' => 'required|exists:estudiante_recuperacion_competencias,id',
-                'nivel_logro_final' => 'required|string',
-            ]);
-
-            $recuperacion = Recuperacioncompetencia::find($request->recuperacion_id);
-            $recuperacion->nivel_logro_final = $request->nivel_logro_final;
-            $recuperacion->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Nota de recuperación actualizada correctamente'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
-            ], 500);
-        }
+        return view('grado.gradoestudiantes', compact(
+            'grado', 'aniosDisponibles', 'anioSeleccionado',
+            'periodoAcademico', 'periodoRecuperacion',
+            'estudiantesMatriculados', 'estudiantesNoMatriculados'
+        ));
     }
     public function estudiantesUpdateGrado(Request $request, $gradoId)
     {
