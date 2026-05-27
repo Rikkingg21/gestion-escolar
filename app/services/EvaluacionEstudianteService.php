@@ -8,6 +8,9 @@ class EvaluacionEstudianteService
 
     /**
      * Evalúa si una competencia está aprobada
+     * Una competencia está aprobada si:
+     * - Tiene nota de recuperación >= NOTA_MINIMA_APROBACION, O
+     * - No tiene recuperación y promedio_original >= NOTA_MINIMA_APROBACION
      */
     public function competenciaEstaAprobada(float $promedioFinal): bool
     {
@@ -16,6 +19,10 @@ class EvaluacionEstudianteService
 
     /**
      * Evalúa si una competencia requiere recuperación
+     * Requiere recuperación si:
+     * - No está aprobada Y
+     * - No tiene nota de recuperación Y
+     * - No tiene registro de recuperación pendiente
      */
     public function competenciaRequiereRecuperacion(bool $estaAprobada, ?float $notaRecuperacion, bool $tieneRegistroRecuperacion): bool
     {
@@ -42,10 +49,11 @@ class EvaluacionEstudianteService
             foreach ($materia['competencias'] as $competencia) {
                 $totalCompetencias++;
 
-                $estaAprobada = $this->competenciaEstaAprobada($competencia['promedio_final']);
-                $tieneRegistro = isset($recuperacionesInfo[$competencia['id']]['tiene_registro']);
+                $estaAprobada = $competencia['esta_aprobada'] ?? false;
+                $tieneRegistro = $competencia['tiene_registro_recuperacion'] ?? false;
+                $notaRecuperacion = $competencia['nota_recuperacion'] ?? null;
 
-                if ($this->competenciaRequiereRecuperacion($estaAprobada, $competencia['nota_recuperacion'], $tieneRegistro)) {
+                if ($this->competenciaRequiereRecuperacion($estaAprobada, $notaRecuperacion, $tieneRegistro)) {
                     $totalRequierenRecuperacion++;
                 }
             }
@@ -65,8 +73,15 @@ class EvaluacionEstudianteService
 
         foreach ($competencias as $competencia) {
             $competenciaId = $competencia['id'];
-            $estaAprobada = $this->competenciaEstaAprobada($competencia['promedio_final'] ?? 0);
+
+            // Determinar la nota final real para aprobación
+            // Si tiene nota de recuperación, usarla; si no, usar promedio original
+            $notaFinal = $competencia['promedio_final'] ?? $competencia['promedio_original'];
+            $estaAprobada = $this->competenciaEstaAprobada($notaFinal);
+
+            $tieneNotaRecuperacion = ($competencia['nota_recuperacion'] ?? null) !== null;
             $tieneRegistro = isset($recuperacionesInfo[$competenciaId]['tiene_registro']);
+
             $requiereRecuperacion = $this->competenciaRequiereRecuperacion(
                 $estaAprobada,
                 $competencia['nota_recuperacion'] ?? null,
@@ -75,8 +90,8 @@ class EvaluacionEstudianteService
 
             $resultados[] = array_merge($competencia, [
                 'esta_aprobada' => $estaAprobada,
-                'tiene_recuperacion' => $competencia['tiene_recuperacion'] ?? false,
-                'tiene_registro_recuperacion' => $tieneRegistro,
+                'tiene_recuperacion' => $tieneNotaRecuperacion,
+                'tiene_registro_recuperacion' => $tieneRegistro && !$tieneNotaRecuperacion,
                 'requiere_recuperacion' => $requiereRecuperacion
             ]);
         }
@@ -97,6 +112,7 @@ class EvaluacionEstudianteService
             $competenciasAprobadas = 0;
             $competenciasDesaprobadas = 0;
             $competenciasRequierenRecuperacion = 0;
+            $competenciasPendientesCalificar = 0;
 
             foreach ($competenciasEnriquecidas as $competencia) {
                 if ($competencia['esta_aprobada']) {
@@ -108,19 +124,43 @@ class EvaluacionEstudianteService
                 if ($competencia['requiere_recuperacion']) {
                     $competenciasRequierenRecuperacion++;
                 }
+
+                if ($competencia['tiene_registro_recuperacion']) {
+                    $competenciasPendientesCalificar++;
+                }
             }
 
-            $materiaAprobada = $this->materiaEstaAprobada($materia['promedio']);
+            // Recalcular promedio final de la materia con las notas reales
+            $sumaNotas = 0;
+            foreach ($competenciasEnriquecidas as $competencia) {
+                $sumaNotas += $competencia['promedio_final'];
+            }
+            $promedioMateria = count($competenciasEnriquecidas) > 0
+                ? round($sumaNotas / count($competenciasEnriquecidas), 2)
+                : 0;
+
+            $materiaAprobada = $this->materiaEstaAprobada($promedioMateria);
 
             $resultados[] = array_merge($materia, [
                 'competencias' => $competenciasEnriquecidas,
+                'promedio' => $promedioMateria,
+                'promedio_cualitativo' => $this->convertirACualitativo($promedioMateria),
                 'competencias_aprobadas_count' => $competenciasAprobadas,
                 'competencias_desaprobadas_count' => $competenciasDesaprobadas,
                 'competencias_requieren_recuperacion_count' => $competenciasRequierenRecuperacion,
+                'competencias_pendientes_calificar_count' => $competenciasPendientesCalificar,
                 'estado' => $materiaAprobada ? 'aprobado' : 'desaprobado'
             ]);
         }
 
         return $resultados;
+    }
+
+    private function convertirACualitativo(float $nota): string
+    {
+        if ($nota >= 3.5) return 'AD';
+        if ($nota >= 2.5) return 'A';
+        if ($nota >= 1.5) return 'B';
+        return 'C';
     }
 }

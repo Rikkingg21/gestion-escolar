@@ -391,6 +391,7 @@
                                             <tr>
                                                 <td class="text-center align-middle">
                                                     @if($periodoRecuperacion && ($competencia['requiere_recuperacion'] ?? false))
+                                                        <!-- Solo mostrar checkbox si realmente necesita ser matriculado -->
                                                         <div class="form-check d-flex justify-content-center">
                                                             <input class="form-check-input competencia-recuperacion"
                                                                 type="checkbox"
@@ -402,10 +403,12 @@
                                                                 data-nota-original="{{ $competencia['promedio_original'] }}">
                                                         </div>
                                                     @elseif($competencia['tiene_registro_recuperacion'] ?? false)
+                                                        <!-- Ya tiene registro pero sin nota final -->
                                                         <span class="badge bg-warning text-dark">
                                                             <i class="bi bi-hourglass-split"></i> Pendiente calificar
                                                         </span>
                                                     @elseif($competencia['tiene_recuperacion'] ?? false)
+                                                        <!-- Ya tiene nota de recuperación -->
                                                         <span class="badge bg-info">
                                                             <i class="bi bi-check-circle"></i> Recuperado
                                                         </span>
@@ -414,7 +417,9 @@
                                                             <i class="bi bi-check"></i> Aprobada
                                                         </span>
                                                     @else
-                                                        <span class="text-muted">---</span>
+                                                        <span class="badge bg-danger">
+                                                            <i class="bi bi-exclamation-triangle"></i> Desaprobada
+                                                        </span>
                                                     @endif
                                                 </td>
                                                 <td class="align-middle">
@@ -435,6 +440,7 @@
                                                         <span class="badge bg-warning text-dark">
                                                             <i class="bi bi-hourglass-split"></i> Pendiente
                                                         </span>
+                                                        <br><small>Esperando calificación</small>
                                                     @elseif($competencia['tiene_recuperacion'] ?? false)
                                                         <span class="badge bg-info">
                                                             <i class="bi bi-check-circle"></i> Recuperado
