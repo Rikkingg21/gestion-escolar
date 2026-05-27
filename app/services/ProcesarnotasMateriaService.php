@@ -29,15 +29,21 @@ class ProcesarnotasMateriaService
             $competenciaInfo = [
                 'id' => $competencia['materia_competencia_id'],
                 'nombre' => $competenciasNombres[$competencia['materia_competencia_id']] ?? 'Competencia',
-                'promedio' => $competencia['promedio'],
-                'promedio_cualitativo' => $competencia['promedio_cualitativo'],
+                'promedio_original' => $competencia['promedio_original'],
+                'promedio_original_cualitativo' => $competencia['promedio_original_cualitativo'],
+                'nota_recuperacion' => $competencia['nota_recuperacion'],
+                'nota_final' => $competencia['nota_final'],
+                'nota_final_cualitativo' => $competencia['nota_final_cualitativo'],
                 'esta_aprobada' => $competencia['esta_aprobada'],
+                'tiene_recuperacion' => $competencia['tiene_recuperacion'],
+                'requiere_recuperacion' => !$competencia['esta_aprobada'] && !$competencia['tiene_recuperacion'],
                 'criterios' => $competencia['criterios'] ?? [],
                 'total_criterios' => $competencia['total_criterios'] ?? 0
             ];
 
             $grupos[$key]['competencias'][] = $competenciaInfo;
-            $grupos[$key]['suma_promedios'] += $competencia['promedio'];
+            // Usar nota_final para el promedio de la materia
+            $grupos[$key]['suma_promedios'] += $competencia['nota_final'];
             $grupos[$key]['total_competencias']++;
 
             if ($competencia['esta_aprobada']) {
@@ -54,9 +60,15 @@ class ProcesarnotasMateriaService
                 ? round($grupo['suma_promedios'] / $grupo['total_competencias'], 2)
                 : 0;
 
+            // El estado de la materia se calcula con el promedio (puede estar aprobada aunque tenga competencias C)
             $estadoMateria = $promedioMateria >= self::NOTA_MINIMA_APROBACION
                 ? 'aprobado'
                 : 'desaprobado';
+
+            // Las competencias que requieren recuperación son las que NO están aprobadas Y NO tienen recuperación
+            $competenciasQueRequierenRecuperacion = array_filter($grupo['competencias'], function($comp) {
+                return !$comp['esta_aprobada'] && !$comp['tiene_recuperacion'];
+            });
 
             $competenciasAprobadas = array_filter($grupo['competencias'], function($comp) {
                 return $comp['esta_aprobada'];
@@ -76,34 +88,38 @@ class ProcesarnotasMateriaService
                 'total_competencias' => $grupo['total_competencias'],
                 'competencias_aprobadas_count' => $grupo['competencias_aprobadas_count'],
                 'competencias_desaprobadas_count' => $grupo['competencias_desaprobadas_count'],
+                'competencias_requieren_recuperacion_count' => count($competenciasQueRequierenRecuperacion),
                 'competencias' => $grupo['competencias'],
                 'competencias_aprobadas_list' => array_values($competenciasAprobadas),
-                'competencias_desaprobadas_list' => array_values($competenciasDesaprobadas)
+                'competencias_desaprobadas_list' => array_values($competenciasDesaprobadas),
+                'competencias_requieren_recuperacion_list' => array_values($competenciasQueRequierenRecuperacion)
             ];
         }
 
         return $resultados;
     }
 
+    /**
+     * Calcula el estado general del estudiante basado en competencias desaprobadas
+     * Ahora: si tiene ALGUNA competencia desaprobada (sin recuperar), está en recuperación
+     */
     public function getEstadoGeneral(array $materias): string
     {
-        $materiasAprobadas = 0;
-        $materiasDesaprobadas = 0;
+        $totalCompetenciasRequierenRecuperacion = 0;
+        $totalCompetencias = 0;
 
         foreach ($materias as $materia) {
-            if ($materia['estado'] === 'aprobado') {
-                $materiasAprobadas++;
-            } else {
-                $materiasDesaprobadas++;
-            }
+            $totalCompetenciasRequierenRecuperacion += $materia['competencias_requieren_recuperacion_count'];
+            $totalCompetencias += $materia['total_competencias'];
         }
 
-        $totalMaterias = $materiasAprobadas + $materiasDesaprobadas;
+        if ($totalCompetencias === 0) return 'sin_evaluacion';
 
-        if ($totalMaterias === 0) return 'sin_evaluacion';
-        if ($materiasDesaprobadas === 0) return 'aprobado';
-        if ($materiasAprobadas > 0) return 'recuperacion';
-        return 'desaprobado';
+        // Si no hay competencias que requieren recuperación, está aprobado
+        if ($totalCompetenciasRequierenRecuperacion === 0) return 'aprobado';
+
+        // Si tiene competencias que requieren recuperación
+        return 'recuperacion';
     }
 
     private function convertirACualitativo(float $nota): string

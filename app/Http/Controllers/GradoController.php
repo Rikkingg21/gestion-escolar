@@ -231,7 +231,7 @@ class GradoController extends Controller
 
         $criterioIds = array_keys($criteriosArray);
 
-        // Obtener todas las notas
+        // Obtener todas las notas del período académico
         $notasQuery = Nota::whereIn('estudiante_id', $estudiantesMatriculadosIds)
             ->whereIn('materia_criterio_id', $criterioIds)
             ->where('periodo_id', $periodoAcademico->id)
@@ -253,9 +253,38 @@ class GradoController extends Controller
             }
         }
 
+        // OBTENER NOTAS DE RECUPERACIÓN (si existe período de recuperación)
+        $recuperacionesPorEstudiante = [];
+        if ($periodoRecuperacion) {
+            $recuperaciones = Recuperacioncompetencia::whereIn('estudiante_id', $estudiantesMatriculadosIds)
+                ->whereIn('materia_competencia_id', $competenciaIds)
+                ->where('periodo_id', $periodoRecuperacion->id)
+                ->get();
+
+            foreach ($recuperaciones as $rec) {
+                $estId = $rec->estudiante_id;
+                $compId = $rec->materia_competencia_id;
+                if (!isset($recuperacionesPorEstudiante[$estId])) {
+                    $recuperacionesPorEstudiante[$estId] = [];
+                }
+                // Convertir nivel_logro_final a nota numérica
+                $notaRecuperacion = null;
+                if ($rec->nivel_logro_final) {
+                    $notaRecuperacion = $this->convertirEnumANota($rec->nivel_logro_final);
+                }
+                $recuperacionesPorEstudiante[$estId][$compId] = $notaRecuperacion;
+            }
+        }
+
         // FLUJO: Criterio → Competencia → Materia
         $criteriosProcesados = $this->criterioService->procesar($notasArray);
-        $competenciasProcesadas = $this->competenciaService->procesar($criteriosProcesados);
+
+        // Pasar las recuperaciones al servicio de competencia
+        $competenciasProcesadas = $this->competenciaService->procesar(
+            $criteriosProcesados,
+            $periodoRecuperacion?->id,
+            $recuperacionesPorEstudiante
+        );
 
         // Pasar los nombres de competencias al servicio de materia
         $materiasProcesadas = $this->materiaService->procesar($competenciasProcesadas, $materiasArray, $competenciasNombres);
@@ -295,6 +324,26 @@ class GradoController extends Controller
 
                 $estudiantesMatriculados->push($estudiante);
             }
+        }
+        foreach ($estudiantesMatriculados as $estudiante) {
+            // Verificar si el estudiante ya tiene matrícula en recuperación
+            $tieneMatriculaRecuperacion = Matricula::where('estudiante_id', $estudiante->id)
+                ->where('periodo_id', $periodoRecuperacion?->id)
+                ->exists();
+
+            // Verificar si tiene competencias registradas en recuperación
+            $tieneCompetenciasRecuperacion = false;
+            $competenciasRecuperacionCount = 0;
+            if ($periodoRecuperacion) {
+                $competenciasRecuperacionCount = Recuperacioncompetencia::where('estudiante_id', $estudiante->id)
+                    ->where('periodo_id', $periodoRecuperacion->id)
+                    ->count();
+                $tieneCompetenciasRecuperacion = $competenciasRecuperacionCount > 0;
+            }
+
+            $estudiante->tiene_matricula_recuperacion = $tieneMatriculaRecuperacion;
+            $estudiante->tiene_competencias_recuperacion = $tieneCompetenciasRecuperacion;
+            $estudiante->competencias_recuperacion_count = $competenciasRecuperacionCount;
         }
 
         // Estudiantes no matriculados
@@ -507,6 +556,17 @@ class GradoController extends Controller
         if ($nota >= 2.5) return 'A';
         if ($nota >= 1.5) return 'B';
         return 'C';
+    }
+    private function convertirEnumANota(?string $enum): ?float
+    {
+        if ($enum === null) return null;
+        return match ($enum) {
+            'AD' => 4,
+            'A' => 3,
+            'B' => 2,
+            'C' => 1,
+            default => null,
+        };
     }
     // Obtener las competencias de recuperación de un estudiante
     public function getCompetenciasRecuperacion($estudianteId, $periodoRecuperacionId)

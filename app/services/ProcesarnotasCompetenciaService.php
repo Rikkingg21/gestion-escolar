@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Materia\Recuperacioncompetencia;
+use Illuminate\Support\Collection;
+
 class ProcesarnotasCompetenciaService
 {
     const NOTA_MINIMA_APROBACION = 1.5;
@@ -10,8 +13,16 @@ class ProcesarnotasCompetenciaService
     const NOTA_B = 1.5;
     const NOTA_C = 0;
 
-    public function procesar(array $criterios): array
+    /**
+     * Procesa los promedios de criterios y calcula promedios por competencia
+     *
+     * @param array $criterios Array de criterios procesados
+     * @param int|null $periodoRecuperacionId ID del período de recuperación (opcional)
+     * @param array $recuperaciones Array de recuperaciones [estudiante_id][competencia_id] => nota
+     */
+    public function procesar(array $criterios, ?int $periodoRecuperacionId = null, array $recuperaciones = []): array
     {
+        // Agrupar por estudiante y competencia
         $grupos = [];
 
         foreach ($criterios as $criterio) {
@@ -24,7 +35,9 @@ class ProcesarnotasCompetenciaService
                     'materia_id' => $criterio['materia_id'],
                     'criterios' => [],
                     'total_criterios' => 0,
-                    'suma_promedios' => 0
+                    'suma_promedios' => 0,
+                    'tiene_recuperacion' => false,
+                    'nota_recuperacion' => null
                 ];
             }
 
@@ -38,21 +51,45 @@ class ProcesarnotasCompetenciaService
             $grupos[$key]['total_criterios']++;
         }
 
+        // Aplicar notas de recuperación si existen
+        foreach ($grupos as $key => &$grupo) {
+            $estId = $grupo['estudiante_id'];
+            $compId = $grupo['materia_competencia_id'];
+
+            if (isset($recuperaciones[$estId][$compId])) {
+                $notaRecuperacion = $recuperaciones[$estId][$compId];
+                if ($notaRecuperacion !== null) {
+                    $grupo['tiene_recuperacion'] = true;
+                    $grupo['nota_recuperacion'] = $notaRecuperacion;
+                    // Reemplazar el promedio original con la nota de recuperación
+                    $grupo['suma_promedios'] = $notaRecuperacion * $grupo['total_criterios'];
+                }
+            }
+        }
+
+        // Calcular promedios finales por competencia
         $resultados = [];
 
         foreach ($grupos as $grupo) {
-            $promedio = $grupo['total_criterios'] > 0
+            $promedioOriginal = $grupo['total_criterios'] > 0
                 ? round($grupo['suma_promedios'] / $grupo['total_criterios'], 2)
                 : 0;
+
+            // Si tiene recuperación, la nota final es la de recuperación
+            $notaFinal = $grupo['nota_recuperacion'] ?? $promedioOriginal;
+            $estaAprobada = $notaFinal >= self::NOTA_MINIMA_APROBACION;
 
             $resultados[] = [
                 'estudiante_id' => $grupo['estudiante_id'],
                 'materia_competencia_id' => $grupo['materia_competencia_id'],
                 'materia_id' => $grupo['materia_id'],
-                'nombre' => '',  // Se llenará desde el controlador
-                'promedio' => $promedio,
-                'promedio_cualitativo' => $this->convertirACualitativo($promedio),
-                'esta_aprobada' => $promedio >= self::NOTA_MINIMA_APROBACION,
+                'promedio_original' => $promedioOriginal,
+                'promedio_original_cualitativo' => $this->convertirACualitativo($promedioOriginal),
+                'nota_recuperacion' => $grupo['nota_recuperacion'],
+                'nota_final' => $notaFinal,
+                'nota_final_cualitativo' => $this->convertirACualitativo($notaFinal),
+                'esta_aprobada' => $estaAprobada,
+                'tiene_recuperacion' => $grupo['tiene_recuperacion'],
                 'criterios' => $grupo['criterios'],
                 'total_criterios' => $grupo['total_criterios']
             ];
@@ -67,5 +104,20 @@ class ProcesarnotasCompetenciaService
         if ($nota >= self::NOTA_A) return 'A';
         if ($nota >= self::NOTA_B) return 'B';
         return 'C';
+    }
+
+    /**
+     * Convierte ENUM a nota numérica
+     */
+    public function convertirEnumANota(?string $enum): ?float
+    {
+        if ($enum === null) return null;
+        return match ($enum) {
+            'AD' => 4,
+            'A' => 3,
+            'B' => 2,
+            'C' => 1,
+            default => null,
+        };
     }
 }
