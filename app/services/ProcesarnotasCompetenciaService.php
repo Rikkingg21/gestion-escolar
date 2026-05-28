@@ -24,7 +24,7 @@ class ProcesarnotasCompetenciaService extends BaseNotasService
                     'estudiante_id' => $criterio['estudiante_id'],
                     'materia_competencia_id' => $criterio['materia_competencia_id'],
                     'materia_id' => $criterio['materia_id'],
-                    'suma_promedios' => 0,
+                    'suma_promedios_original' => 0,
                     'total_criterios' => 0,
                     'nota_recuperacion' => null,
                     'tiene_recuperacion' => false,
@@ -32,7 +32,7 @@ class ProcesarnotasCompetenciaService extends BaseNotasService
                 ];
             }
 
-            $grupos[$key]['suma_promedios'] += $criterio['promedio'];
+            $grupos[$key]['suma_promedios_original'] += $criterio['promedio'];
             $grupos[$key]['total_criterios']++;
         }
 
@@ -53,17 +53,18 @@ class ProcesarnotasCompetenciaService extends BaseNotasService
                 if (isset($recuperacionInfo['nota']) && $recuperacionInfo['nota'] !== null) {
                     $grupo['tiene_recuperacion'] = true;
                     $grupo['nota_recuperacion'] = $recuperacionInfo['nota'];
-                    // Reemplazar el promedio original con la nota de recuperación
-                    $grupo['suma_promedios'] = $recuperacionInfo['nota'] * $grupo['total_criterios'];
                 }
             }
         }
 
-        // Calcular promedios finales
+        // Calcular promedios
         $resultados = [];
 
         foreach ($grupos as $grupo) {
-            $promedioOriginal = $this->calcularPromedioDesdeSuma($grupo['suma_promedios'], $grupo['total_criterios']);
+            // Calcular promedio original SIN modificar
+            $promedioOriginal = $this->calcularPromedioDesdeSuma($grupo['suma_promedios_original'], $grupo['total_criterios']);
+
+            // Calcular promedio final: si hay nota de recuperación, usarla; sino la original
             $promedioFinal = $grupo['nota_recuperacion'] ?? $promedioOriginal;
 
             $resultados[] = [

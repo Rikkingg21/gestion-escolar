@@ -91,17 +91,21 @@
                 <!-- Leyenda de estados -->
                 <div class="alert alert-light border mb-4">
                     <div class="row text-center">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <span class="badge bg-success px-3 py-2"><i class="bi bi-check-circle me-1"></i> APROBADO</span>
-                            <small class="text-muted d-block">Puede ascender de grado</small>
+                            <small class="text-muted d-block">100% competencias aprobadas</small>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <span class="badge bg-warning text-dark px-3 py-2"><i class="bi bi-exclamation-triangle me-1"></i> RECUPERACIÓN</span>
-                            <small class="text-muted d-block">Requiere recuperar competencias</small>
+                            <small class="text-muted d-block">Requiere matricular recuperación</small>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <span class="badge bg-info px-3 py-2"><i class="bi bi-hourglass-split me-1"></i> PENDIENTE</span>
+                            <small class="text-muted d-block">Ya matriculado, esperando nota</small>
+                        </div>
+                        <div class="col-md-3">
                             <span class="badge bg-danger px-3 py-2"><i class="bi bi-x-circle me-1"></i> DESAPROBADO</span>
-                            <small class="text-muted d-block">No puede ascender</small>
+                            <small class="text-muted d-block">No cumple requisitos</small>
                         </div>
                     </div>
                 </div>
@@ -159,27 +163,11 @@
                         </thead>
                         <tbody>
                             @foreach($estudiantesMatriculados as $estudiante)
-                            @php
-                                $totalComp = 0;
-                                $compAprobadas = 0;
-                                $compPendientes = 0;
-                                $compRecuperacion = 0;
-
-                                foreach($estudiante->detalle_materias as $materia) {
-                                    foreach($materia['competencias'] as $competencia) {
-                                        $totalComp++;
-                                        if($competencia['esta_aprobada'] ?? false) $compAprobadas++;
-                                        if(($competencia['requiere_recuperacion'] ?? false)) $compPendientes++;
-                                        if(($competencia['tiene_recuperacion'] ?? false) || ($competencia['tiene_registro_recuperacion'] ?? false)) $compRecuperacion++;
-                                    }
-                                }
-                                $porcentaje = $totalComp > 0 ? round(($compAprobadas / $totalComp) * 100) : 0;
-                            @endphp
                             <tr>
                                 <td class="text-center">
-                                    @if($estudiante->estado_aprobacion == 'aprobado')
+                                    @if($estudiante->estado_final == 'aprobado')
                                         <input class="form-check-input estudiante-aprobado-checkbox" type="checkbox" value="{{ $estudiante->id }}" style="transform: scale(1.1);">
-                                    @elseif($estudiante->estado_aprobacion == 'recuperacion')
+                                    @elseif($estudiante->estado_final == 'recuperacion')
                                         <input class="form-check-input estudiante-recuperacion-checkbox" type="checkbox" value="{{ $estudiante->id }}" style="transform: scale(1.1);">
                                     @else
                                         <span class="text-muted">---</span>
@@ -194,26 +182,31 @@
                                     <div class="d-flex align-items-center gap-2">
                                         <div class="flex-grow-1" style="min-width: 80px;">
                                             <div class="progress" style="height: 6px;">
-                                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ $porcentaje }}%;"></div>
+                                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ $estudiante->porcentaje_aprobacion }}%;"></div>
                                             </div>
                                         </div>
                                         <div class="text-nowrap">
-                                            <span class="badge bg-success" style="font-size: 0.7rem;">{{ $compAprobadas }}</span>
+                                            <span class="badge bg-success" style="font-size: 0.7rem;">{{ $estudiante->competencias_aprobadas }}</span>
                                             <span class="text-muted mx-1">/</span>
-                                            <span class="badge bg-secondary" style="font-size: 0.7rem;">{{ $totalComp }}</span>
-                                            @if($compPendientes > 0)
-                                                <span class="badge bg-warning text-dark ms-1" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle"></i>{{ $compPendientes }}</span>
+                                            <span class="badge bg-secondary" style="font-size: 0.7rem;">{{ $estudiante->total_competencias }}</span>
+                                            @if($estudiante->competencias_pendientes > 0)
+                                                <span class="badge bg-warning text-dark ms-1" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle"></i>{{ $estudiante->competencias_pendientes }}</span>
+                                            @endif
+                                            @if($estudiante->competencias_pendientes_calificar > 0)
+                                                <span class="badge bg-info ms-1" style="font-size: 0.7rem;"><i class="bi bi-hourglass-split"></i>{{ $estudiante->competencias_pendientes_calificar }}</span>
                                             @endif
                                         </div>
                                     </div>
-                                    <small class="text-muted">{{ $porcentaje }}% aprobadas</small>
+                                    <small class="text-muted">{{ $estudiante->porcentaje_aprobacion }}% aprobadas</small>
                                 </td>
                                 <td>
-                                    @if($estudiante->estado_aprobacion == 'aprobado')
+                                    @if($estudiante->estado_final == 'aprobado')
                                         <span class="badge bg-success w-100 py-2"><i class="bi bi-check-circle"></i> APROBADO</span>
-                                    @elseif($estudiante->estado_aprobacion == 'recuperacion')
+                                    @elseif($estudiante->estado_final == 'pendiente_calificar')
+                                        <span class="badge bg-info w-100 py-2"><i class="bi bi-hourglass-split"></i> PENDIENTE CALIFICAR</span>
+                                    @elseif($estudiante->estado_final == 'recuperacion')
                                         <span class="badge bg-warning text-dark w-100 py-2"><i class="bi bi-arrow-repeat"></i> RECUPERACIÓN</span>
-                                    @elseif($estudiante->estado_aprobacion == 'desaprobado')
+                                    @elseif($estudiante->estado_final == 'desaprobado')
                                         <span class="badge bg-danger w-100 py-2"><i class="bi bi-x-circle"></i> DESAPROBADO</span>
                                     @else
                                         <span class="badge bg-secondary w-100 py-2"><i class="bi bi-question-circle"></i> SIN EVALUACIÓN</span>
@@ -280,11 +273,11 @@
     </form>
 
     <!-- Botón flotante para matricular en recuperación masivamente -->
-    @if($periodoRecuperacion && $estudiantesMatriculados->where('estado_aprobacion', 'recuperacion')->count() > 0)
+    @if($periodoRecuperacion && $estudiantesParaRecuperacion > 0)
     <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
         <button type="button" class="btn btn-warning btn-lg rounded-pill shadow-lg" id="btnMatricularRecuperacionMasivo" style="background: linear-gradient(45deg, #ffc107, #ff9800); border: none;">
             <i class="bi bi-arrow-repeat me-2"></i>
-            Matricular Recuperación ({{ $estudiantesMatriculados->where('estado_aprobacion', 'recuperacion')->count() }})
+            Matricular Recuperación ({{ $estudiantesParaRecuperacion }})
         </button>
     </div>
     @endif
@@ -328,10 +321,7 @@
                                     </div>
                                 </div>
                                 <div class="col-md-3">
-                                    @php
-                                        $totalCompReq = collect($estudiante->detalle_materias)->sum('competencias_requieren_recuperacion_count');
-                                    @endphp
-                                    <span class="display-6 fw-bold text-warning">{{ $totalCompReq }}</span>
+                                    <span class="display-6 fw-bold text-warning">{{ $estudiante->total_competencias_recuperar }}</span>
                                     <p class="text-muted mb-0">Competencias a Recuperar</p>
                                 </div>
                             </div>
@@ -343,7 +333,7 @@
                         <div class="card-header bg-light">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0"><i class="bi bi-table me-2"></i>Detalle de Competencias</h6>
-                                @if($periodoRecuperacion && $estudiante->estado_aprobacion == 'recuperacion' && $totalCompReq > 0)
+                                @if($periodoRecuperacion && $estudiante->total_competencias_recuperar > 0)
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="selectAllCompetencias{{ $estudiante->id }}">
                                         <label class="form-check-label" for="selectAllCompetencias{{ $estudiante->id }}">
@@ -388,10 +378,31 @@
                                                 </td>
                                             </tr>
                                             @foreach($materia['competencias'] as $competencia)
+                                            @php
+                                                // Datos de la competencia
+                                                $notaOriginal = $competencia['promedio_original'];
+                                                $notaOriginalCualitativa = $competencia['promedio_original_cualitativo'];
+
+                                                // Datos de recuperación
+                                                $notaRecuperacion = $competencia['nota_recuperacion'] ?? null;
+                                                $notaRecuperacionCualitativa = $competencia['promedio_final_cualitativo'] ?? null;
+                                                $tieneRegistroRecuperacion = $competencia['tiene_registro_recuperacion'] ?? false;
+
+                                                // Nota final: si hay nota de recuperación usarla, sino la original
+                                                $notaFinal = $notaRecuperacion ?? $notaOriginal;
+                                                $notaFinalCualitativa = $notaRecuperacionCualitativa ?? $notaOriginalCualitativa;
+
+                                                // Estados
+                                                $estaAprobadaOriginal = $notaOriginal >= 1.5;
+                                                $estaAprobadaFinal = $notaFinal >= 1.5;
+
+                                                // Requiere recuperación (para mostrar checkbox)
+                                                $requiereRecuperacion = !$estaAprobadaOriginal && $notaRecuperacion === null && !$tieneRegistroRecuperacion;
+                                            @endphp
                                             <tr>
+                                                <!-- Checkbox / Estado de selección -->
                                                 <td class="text-center align-middle">
-                                                    @if($periodoRecuperacion && ($competencia['requiere_recuperacion'] ?? false))
-                                                        <!-- Solo mostrar checkbox si realmente necesita ser matriculado -->
+                                                    @if($periodoRecuperacion && $requiereRecuperacion)
                                                         <div class="form-check d-flex justify-content-center">
                                                             <input class="form-check-input competencia-recuperacion"
                                                                 type="checkbox"
@@ -400,19 +411,17 @@
                                                                 data-materia-nombre="{{ $materia['materia_nombre'] }}"
                                                                 data-competencia-id="{{ $competencia['id'] }}"
                                                                 data-competencia-nombre="{{ $competencia['nombre'] }}"
-                                                                data-nota-original="{{ $competencia['promedio_original'] }}">
+                                                                data-nota-original="{{ $notaOriginal }}">
                                                         </div>
-                                                    @elseif($competencia['tiene_registro_recuperacion'] ?? false)
-                                                        <!-- Ya tiene registro pero sin nota final -->
+                                                    @elseif($tieneRegistroRecuperacion && $notaRecuperacion === null)
                                                         <span class="badge bg-warning text-dark">
                                                             <i class="bi bi-hourglass-split"></i> Pendiente calificar
                                                         </span>
-                                                    @elseif($competencia['tiene_recuperacion'] ?? false)
-                                                        <!-- Ya tiene nota de recuperación -->
+                                                    @elseif($notaRecuperacion !== null)
                                                         <span class="badge bg-info">
                                                             <i class="bi bi-check-circle"></i> Recuperado
                                                         </span>
-                                                    @elseif($competencia['esta_aprobada'] ?? false)
+                                                    @elseif($estaAprobadaOriginal)
                                                         <span class="badge bg-success">
                                                             <i class="bi bi-check"></i> Aprobada
                                                         </span>
@@ -422,46 +431,56 @@
                                                         </span>
                                                     @endif
                                                 </td>
+
+                                                <!-- Materia / Competencia -->
                                                 <td class="align-middle">
                                                     <div class="fw-bold">{{ $competencia['nombre'] }}</div>
                                                     @if(isset($competencia['criterios']) && count($competencia['criterios']) > 0)
                                                         <small class="text-muted"><i class="bi bi-list"></i> {{ count($competencia['criterios']) }} criterios</small>
                                                     @endif
                                                 </td>
-                                                <td class="text-center align-middle nota-original" data-valor="{{ $competencia['promedio_original'] }}">
-                                                    <span class="badge bg-secondary px-3 py-2">{{ number_format($competencia['promedio_original'], 1) }}</span>
-                                                    <br><small>({{ $competencia['promedio_original_cualitativo'] }})</small>
+
+                                                <!-- NOTA ORIGINAL - Del período académico (año escolar) -->
+                                                <td class="text-center align-middle nota-original" data-valor="{{ $notaOriginal }}">
+                                                    <span class="badge bg-secondary px-3 py-2">{{ number_format($notaOriginal, 1) }}</span>
+                                                    <br><small>({{ $notaOriginalCualitativa }})</small>
                                                 </td>
+
+                                                <!-- RECUPERACIÓN - nivel_logro_final del período recuperación -->
                                                 <td class="text-center align-middle">
-                                                    @if($competencia['nota_recuperacion'])
-                                                        <span class="badge bg-success px-3 py-2">{{ number_format($competencia['nota_recuperacion'], 1) }}</span>
-                                                        <br><small class="text-success">({{ $competencia['promedio_final_cualitativo'] }})</small>
-                                                    @elseif($competencia['tiene_registro_recuperacion'] ?? false)
+                                                    @if($notaRecuperacion !== null)
+                                                        <span class="badge bg-success px-3 py-2">{{ number_format($notaRecuperacion, 1) }}</span>
+                                                        <br><small class="text-success">({{ $notaRecuperacionCualitativa }})</small>
+                                                    @elseif($tieneRegistroRecuperacion)
                                                         <span class="badge bg-warning text-dark">
                                                             <i class="bi bi-hourglass-split"></i> Pendiente
                                                         </span>
                                                         <br><small>Esperando calificación</small>
-                                                    @elseif($competencia['tiene_recuperacion'] ?? false)
-                                                        <span class="badge bg-info">
-                                                            <i class="bi bi-check-circle"></i> Recuperado
-                                                        </span>
                                                     @else
                                                         <span class="text-muted">---</span>
                                                     @endif
                                                 </td>
-                                                <td class="text-center align-middle nota-final" data-valor="{{ $competencia['promedio_final'] }}">
-                                                    <strong class="fs-5">{{ number_format($competencia['promedio_final'], 1) }}</strong>
-                                                    <br><small>({{ $competencia['promedio_final_cualitativo'] }})</small>
+
+                                                <!-- NOTA FINAL - Si hay recuperación y es aprobatoria, usa esa; si no, mantiene la original -->
+                                                <td class="text-center align-middle nota-final" data-valor="{{ $notaFinal }}">
+                                                    <strong class="fs-5 {{ !$estaAprobadaFinal && !$estaAprobadaOriginal ? 'text-danger' : '' }}">{{ number_format($notaFinal, 1) }}</strong>
+                                                    <br><small>({{ $notaFinalCualitativa }})</small>
                                                 </td>
+
+                                                <!-- Estado final de la competencia -->
                                                 <td class="text-center align-middle">
-                                                    @if($competencia['esta_aprobada'] ?? false)
+                                                    @if($estaAprobadaOriginal && $notaRecuperacion === null)
                                                         <span class="badge bg-success"><i class="bi bi-check-circle"></i> Aprobada</span>
-                                                    @elseif($competencia['tiene_registro_recuperacion'] ?? false)
+                                                    @elseif($tieneRegistroRecuperacion && $notaRecuperacion === null)
                                                         <span class="badge bg-warning text-dark"><i class="bi bi-clock-history"></i> Pendiente calificar</span>
-                                                    @elseif($competencia['tiene_recuperacion'] ?? false)
-                                                        <span class="badge bg-info"><i class="bi bi-arrow-repeat"></i> Recuperado</span>
-                                                    @else
+                                                    @elseif($notaRecuperacion !== null && $estaAprobadaFinal)
+                                                        <span class="badge bg-info"><i class="bi bi-arrow-repeat"></i> Recuperado (Aprobado)</span>
+                                                    @elseif($notaRecuperacion !== null && !$estaAprobadaFinal)
+                                                        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Recuperación reprobada</span>
+                                                    @elseif(!$estaAprobadaOriginal)
                                                         <span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Requiere recuperación</span>
+                                                    @else
+                                                        <span class="badge bg-secondary"><i class="bi bi-question-circle"></i> Sin evaluación</span>
                                                     @endif
                                                 </td>
                                             </tr>
@@ -474,18 +493,12 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    @if($periodoRecuperacion && $estudiante->estado_aprobacion == 'recuperacion')
-                        @if($totalCompReq > 0)
-                            <button type="button"
-                                    class="btn btn-warning"
-                                    onclick="matricularRecuperacion({{ $estudiante->id }}, {{ $periodoRecuperacion->id }}, {{ $periodoAcademico->id }})">
-                                <i class="bi bi-save me-1"></i> Matricular en Recuperación
-                            </button>
-                        @else
-                            <button type="button" class="btn btn-success" disabled>
-                                <i class="bi bi-check-circle me-1"></i> Sin competencias pendientes
-                            </button>
-                        @endif
+                    @if($periodoRecuperacion && $estudiante->total_competencias_recuperar > 0)
+                        <button type="button"
+                                class="btn btn-warning"
+                                onclick="matricularRecuperacion({{ $estudiante->id }}, {{ $periodoRecuperacion->id }}, {{ $periodoAcademico->id }})">
+                            <i class="bi bi-save me-1"></i> Matricular en Recuperación ({{ $estudiante->total_competencias_recuperar }})
+                        </button>
                     @endif
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                         <i class="bi bi-x-circle me-1"></i> Cerrar
@@ -497,7 +510,6 @@
     @endforeach
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 // Conversión de notas
 function convertirNota(valor, toCualitativo = true) {

@@ -24,7 +24,7 @@ class Recuperacioncompetencia extends Model
         'docente_id',
         'nivel_logro_inicial',
         'nivel_logro_final',
-        'modalidad',
+        //'modalidad',
     ];
     public function estudiante()
     {

@@ -331,22 +331,69 @@ class GradoController extends Controller
                 $materiasAprobadas = 0;
                 $materiasDesaprobadas = 0;
 
+                // Calcular estadísticas de competencias
+                $totalComp = 0;
+                $compAprobadas = 0;
+                $compPendientes = 0;
+                $compPendientesCalificar = 0;
+
                 foreach ($materias as $materia) {
                     if ($materia['estado'] === 'aprobado') {
                         $materiasAprobadas++;
                     } else {
                         $materiasDesaprobadas++;
                     }
+
+                    foreach ($materia['competencias'] as $competencia) {
+                        $totalComp++;
+                        if ($competencia['esta_aprobada'] ?? false) $compAprobadas++;
+                        if (($competencia['requiere_recuperacion'] ?? false)) $compPendientes++;
+                        if (($competencia['tiene_registro_recuperacion'] ?? false)) $compPendientesCalificar++;
+                    }
                 }
 
-                $recuperacionesInfoEstudiante = $recuperacionesPorEstudiante[$estudiante->id] ?? [];
-                $estadoGeneral = $this->evaluacionService->getEstadoGeneral($materias, $recuperacionesInfoEstudiante);
+                $porcentaje = $totalComp > 0 ? round(($compAprobadas / $totalComp) * 100) : 0;
 
-                $estudiante->estado_aprobacion = $estadoGeneral;
+                // Calcular estado final del estudiante
+                $estadoFinal = 'sin_evaluacion';
+                if ($totalComp > 0) {
+                    if ($totalComp === $compAprobadas && $compPendientesCalificar === 0) {
+                        $estadoFinal = 'aprobado';
+                    } elseif ($compPendientesCalificar > 0) {
+                        $estadoFinal = 'pendiente_calificar';
+                    } elseif ($compPendientes > 0) {
+                        $estadoFinal = 'recuperacion';
+                    } else {
+                        $estadoFinal = 'desaprobado';
+                    }
+                }
+
+                // Calcular total de competencias a recuperar para el modal
+                $totalCompReqEstudiante = 0;
+                foreach ($materias as $materia) {
+                    foreach ($materia['competencias'] as $competencia) {
+                        $notaOriginal = $competencia['promedio_original'];
+                        $tieneNotaRecuperacion = ($competencia['nota_recuperacion'] ?? null) !== null;
+                        $tieneRegistro = $competencia['tiene_registro_recuperacion'] ?? false;
+
+                        if ($notaOriginal < 1.5 && !$tieneNotaRecuperacion && !$tieneRegistro) {
+                            $totalCompReqEstudiante++;
+                        }
+                    }
+                }
+
+                $estudiante->estado_aprobacion = $estadoGeneral = $estadoFinal;
                 $estudiante->total_materias = $totalMaterias;
                 $estudiante->materias_aprobadas = $materiasAprobadas;
                 $estudiante->materias_desaprobadas_count = $materiasDesaprobadas;
                 $estudiante->detalle_materias = $materias;
+                $estudiante->total_competencias = $totalComp;
+                $estudiante->competencias_aprobadas = $compAprobadas;
+                $estudiante->competencias_pendientes = $compPendientes;
+                $estudiante->competencias_pendientes_calificar = $compPendientesCalificar;
+                $estudiante->porcentaje_aprobacion = $porcentaje;
+                $estudiante->total_competencias_recuperar = $totalCompReqEstudiante;
+                $estudiante->estado_final = $estadoFinal;
 
                 // Verificar si tiene matrícula en recuperación
                 $tieneMatriculaRecuperacion = Matricula::where('estudiante_id', $estudiante->id)
@@ -370,6 +417,11 @@ class GradoController extends Controller
             }
         }
 
+        // Calcular estudiantes que necesitan recuperación para el botón flotante
+        $estudiantesParaRecuperacion = $estudiantesMatriculados->filter(function($est) {
+            return $est->estado_final === 'recuperacion';
+        })->count();
+
         // Estudiantes no matriculados
         $estudiantesNoMatriculados = $estudiantesRegistrados->filter(function($estudiante) use ($estudiantesMatriculadosIds) {
             return !in_array($estudiante->id, $estudiantesMatriculadosIds);
@@ -378,10 +430,10 @@ class GradoController extends Controller
         return view('grado.gradoestudiantes', compact(
             'grado', 'aniosDisponibles', 'anioSeleccionado',
             'periodoAcademico', 'periodoRecuperacion',
-            'estudiantesMatriculados', 'estudiantesNoMatriculados'
+            'estudiantesMatriculados', 'estudiantesNoMatriculados',
+            'estudiantesParaRecuperacion'
         ));
     }
-
     public function matricularRecuperacion(Request $request)
     {
         try {
@@ -591,21 +643,6 @@ class GradoController extends Controller
             Log::error('Error procesando matrícula de recuperación: ' . $e->getMessage());
             return ['success' => false, 'message' => 'Error interno: ' . $e->getMessage()];
         }
-    }
-    // Actualizar el método que usa convertirEnumANota
-    private function returnView($grado, $aniosDisponibles, $anioSeleccionado, $periodoAcademico, $periodoRecuperacion, $estudiantesRegistrados, $estudiantesMatriculadosIds, $estudiantesMatriculados, $estudiantesNoMatriculados)
-    {
-        // Este método parece tener un problema en su lógica original
-        // Debería ser revisado, pero manteniendo la funcionalidad:
-        $estudiantesNoMatriculados = $estudiantesRegistrados->filter(function($estudiante) use ($estudiantesMatriculadosIds) {
-            return !in_array($estudiante->id, $estudiantesMatriculadosIds);
-        });
-
-        return view('grado.gradoestudiantes', compact(
-            'grado', 'aniosDisponibles', 'anioSeleccionado',
-            'periodoAcademico', 'periodoRecuperacion',
-            'estudiantesMatriculados', 'estudiantesNoMatriculados'
-        ));
     }
     public function estudiantesUpdateGrado(Request $request, $gradoId)
     {
