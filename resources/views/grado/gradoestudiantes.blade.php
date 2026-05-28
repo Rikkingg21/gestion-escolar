@@ -645,25 +645,60 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ascender estudiantes
     if (ascenderBtn) {
         ascenderBtn.addEventListener('click', function() {
-            const selectedCount = document.querySelectorAll('.estudiante-aprobado-checkbox:checked').length;
-            if (selectedCount === 0) {
-                Swal.fire({ icon: 'warning', title: 'Sin selección', text: 'No hay estudiantes seleccionados para ascender', confirmButtonColor: '#3085d6' });
+            // Obtener los checkboxes de estudiantes aprobados que están seleccionados
+            const selectedCheckboxes = document.querySelectorAll('.estudiante-aprobado-checkbox:checked');
+            const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+            if (selectedIds.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin selección',
+                    text: 'No hay estudiantes seleccionados para ascender',
+                    confirmButtonColor: '#3085d6'
+                });
                 return;
             }
+
             if (!nuevoGrado.value || !nuevaSeccion.value || !nuevoNivel.value) {
-                Swal.fire({ icon: 'warning', title: 'Campos incompletos', text: 'Seleccione el grado, sección y nivel de destino', confirmButtonColor: '#3085d6' });
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Campos incompletos',
+                    text: 'Seleccione el grado, sección y nivel de destino',
+                    confirmButtonColor: '#3085d6'
+                });
                 return;
             }
+
             Swal.fire({
                 title: '¿Confirmar ascenso?',
-                text: `¿Ascender ${selectedCount} estudiante(s) al ${nuevoGrado.value}° "${nuevaSeccion.value}" - ${nuevoNivel.value}?`,
+                text: `¿Ascender ${selectedIds.length} estudiante(s) al ${nuevoGrado.value}° "${nuevaSeccion.value}" - ${nuevoNivel.value}?`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#28a745',
                 cancelButtonColor: '#6c757d',
                 confirmButtonText: 'Sí, ascender',
                 cancelButtonText: 'Cancelar'
-            }).then((result) => { if (result.isConfirmed) document.getElementById('ascenderForm').submit(); });
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Crear un array con los IDs seleccionados y enviar el formulario
+                    const form = document.getElementById('ascenderForm');
+
+                    // Limpiar checkboxes existentes en el formulario
+                    const existingInputs = form.querySelectorAll('input[name="estudiantes[]"]');
+                    existingInputs.forEach(input => input.remove());
+
+                    // Agregar los IDs seleccionados al formulario
+                    selectedIds.forEach(id => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'estudiantes[]';
+                        input.value = id;
+                        form.appendChild(input);
+                    });
+
+                    form.submit();
+                }
+            });
         });
     }
 });
