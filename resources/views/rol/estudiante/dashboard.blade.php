@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container-fluid">
-    <!-- Encabezado y Filtros -->
+    <!-- Encabezdo y Filtros -->
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
@@ -55,6 +55,19 @@
             </div>
         </div>
     </div>
+
+    <!-- ✅ NUEVO: Mensaje contextual para período de recuperación -->
+    @if(isset($mensajeRecuperacion))
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ $mensajeRecuperacion }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+    @endif
 
     <!-- Información del estudiante -->
     <div class="card mb-4 shadow">
@@ -145,19 +158,6 @@
                                 @endif
 
                                 <div class="col-md-3 mb-3">
-                                    <div class="card border-left-info shadow h-100">
-                                        <div class="card-body">
-                                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                                Cursos Aprobados
-                                            </div>
-                                            <div class="h3 mb-0 font-weight-bold text-gray-800">
-                                                {{ $cursosAprobados }} / {{ $infoEstudiante['total_cursos'] }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-3 mb-3">
                                     <div class="card border-left-warning shadow h-100">
                                         <div class="card-body">
                                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
@@ -169,22 +169,9 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                <div class="col-md-3 mb-3">
-                                    <div class="card border-left-danger shadow h-100">
-                                        <div class="card-body">
-                                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                                En Recuperación
-                                            </div>
-                                            <div class="h3 mb-0 font-weight-bold text-gray-800">
-                                                {{ $competenciasEnRecuperacion }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
 
-                            <!-- Gráfico de progreso por bimestre (solo modo anual) -->
+                            <!-- Gráfico de progreso por bimestre (solo modo anual y NO período de recuperación) -->
                             @if($bimestreFiltro == 'anual' && !empty($chartData))
                             <div class="mb-5">
                                 <h5 class="mb-3">
@@ -214,7 +201,7 @@
                                             @endif
                                             <th style="width: 15%">Promedio Final</th>
                                             <th style="width: 15%">Estado</th>
-                                        </tr>
+                                        </td>
                                     </thead>
                                     <tbody>
                                         @forelse($infoEstudiante['progreso_cursos'] as $curso)
@@ -236,6 +223,13 @@
                                                             <span class="badge bg-info ms-1" title="Nota de recuperación aplicada">
                                                                 <i class="fas fa-sync-alt"></i> Rec
                                                             </span>
+                                                        @endif
+                                                        <!-- Mostrar nota original si tiene recuperación -->
+                                                        @if(($competencia['nota_recuperacion'] ?? false) && isset($competencia['promedio_original']))
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                Original: {{ number_format($competencia['promedio_original'], 1) }}
+                                                            </small>
                                                         @endif
                                                     </td>
 
@@ -458,7 +452,6 @@
                                     </div>
                                 </div>
                             </div>
-
                             <!-- Tabla de conducta -->
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped">
@@ -467,37 +460,45 @@
                                             <th>Competencia / Área</th>
                                             <th>Promedio</th>
                                             <th>Estado</th>
-                                        </table>
+                                        </tr>
                                     </thead>
                                     <tbody>
                                         @foreach($infoEstudiante['progreso_conducta'] as $conducta)
-                                        <tr>
-                                            <td class="fw-bold">{{ $conducta['nombre'] }}</td>
-                                            <td class="text-center fw-bold">
-                                                @if($conducta['promedio_general'] !== null)
-                                                    <strong class="@if($conducta['promedio_general'] < 1.5) text-danger @endif">
-                                                        {{ number_format($conducta['promedio_general'], 1) }}
-                                                    </strong>
-                                                @else
-                                                    <span class="text-muted">--</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center">
-                                                @if($conducta['promedio_general'] !== null)
-                                                    @if($conducta['promedio_general'] >= 1.5)
-                                                        <span class="badge bg-success">
-                                                            <i class="fas fa-check me-1"></i>Adecuado
+                                            <tr>
+                                                <td class="fw-bold">
+                                                    {{ $conducta['nombre'] }}
+                                                </td>
+
+                                                <td class="text-center fw-bold">
+                                                    @if($conducta['promedio_general'] !== null)
+                                                        <span class="{{ $conducta['promedio_general'] < 1.5 ? 'text-danger' : 'text-success' }}">
+                                                            {{ number_format($conducta['promedio_general'], 1) }}
                                                         </span>
                                                     @else
-                                                        <span class="badge bg-danger">
-                                                            <i class="fas fa-times me-1"></i>Inadecuado
+                                                        <span class="text-muted">--</span>
+                                                    @endif
+                                                </td>
+
+                                                <td class="text-center">
+                                                    @if($conducta['promedio_general'] !== null)
+                                                        @if($conducta['promedio_general'] >= 1.5)
+                                                            <span class="badge bg-success">
+                                                                <i class="fas fa-check me-1"></i>
+                                                                Adecuado
+                                                            </span>
+                                                        @else
+                                                            <span class="badge bg-danger">
+                                                                <i class="fas fa-times me-1"></i>
+                                                                Inadecuado
+                                                            </span>
+                                                        @endif
+                                                    @else
+                                                        <span class="badge bg-secondary">
+                                                            Sin datos
                                                         </span>
                                                     @endif
-                                                @else
-                                                    <span class="badge bg-secondary">Sin datos</span>
-                                                @endif
-                                            </td>
-                                        </tr>
+                                                </td>
+                                            </tr>
                                         @endforeach
                                     </tbody>
                                 </table>

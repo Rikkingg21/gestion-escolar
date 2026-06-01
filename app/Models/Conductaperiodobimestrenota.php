@@ -42,7 +42,7 @@ class Conductaperiodobimestrenota extends Model
     }
     public function periodoBimestre()
     {
-        return $this->belongsTo(Bimestre::class, 'periodo_bimestre_id');
+        return $this->belongsTo(Periodobimestre::class, 'periodo_bimestre_id');
     }
     public function curso_grado_sec_niv_anio()
     {
