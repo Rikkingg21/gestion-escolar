@@ -161,14 +161,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/grado/estudiantes/{id}', [GradoController::class, 'estudiantes'])->name('grado.estudiantes');
     Route::put('/grado/estudiantes/{grado}', [GradoController::class, 'estudiantesUpdateGrado'])->name('grado.estudiantesupdategrado');
 
-    // Rutas de recuperación
-    Route::prefix('estudiante')->group(function () {
-        Route::post('/matricular-recuperacion', [GradoController::class, 'matricularRecuperacion'])->name('estudiante.matricular.recuperacion');
-        Route::post('/matricular-recuperacion-individual', [GradoController::class, 'matricularRecuperacionIndividual'])->name('estudiante.matricular.recuperacion.individual');
-        Route::put('/recuperacion-nota', [GradoController::class, 'actualizarNotaRecuperacion'])->name('estudiante.recuperacion.nota');
-        Route::post('/cambiar-estado-notas', [GradoController::class, 'cambiarEstadoNotasRecuperacion'])->name('estudiante.cambiar.estado.notas');
-        Route::get('/recuperacion-competencias/{estudianteId}/{periodoRecuperacionId}', [GradoController::class, 'getCompetenciasRecuperacion'])->name('estudiante.recuperacion.competencias');
-    });
+    Route::post('/estudiante/matricular-recuperacion', [GradoController::class, 'matricularRecuperacion'])->name('estudiante.matricular.recuperacion');
+    Route::post('/estudiante/matricular-recuperacion-individual', [GradoController::class, 'matricularRecuperacionIndividual'])->name('estudiante.matricular.recuperacion.individual');
+    Route::put('/estudiante/recuperacion-nota', [GradoController::class, 'actualizarNotaRecuperacion'])->name('estudiante.recuperacion.nota');
+    Route::post('/estudiante/cambiar-estado-notas', [GradoController::class, 'cambiarEstadoNotasRecuperacion'])->name('estudiante.cambiar.estado.notas');
+    Route::get('/estudiante/recuperacion-competencias/{estudianteId}/{periodoRecuperacionId}', [GradoController::class, 'getCompetenciasRecuperacion'])->name('estudiante.recuperacion.competencias');
+    Route::get('/estudiante/datos/{estudianteId}', [GradoController::class, 'getDatosEstudiante'])->name('estudiante.datos');
 
     Route::get('/grado/create', [GradoController::class, 'create'])->name('grado.create');
     Route::post('/grado', [GradoController::class, 'store'])->name('grado.store');

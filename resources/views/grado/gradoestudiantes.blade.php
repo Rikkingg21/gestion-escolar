@@ -622,7 +622,7 @@ function actualizarFormatoNotas(modoCualitativo) {
             const cuali = convertirNota(valorOriginal, true);
             el.innerHTML = `<span class="badge bg-secondary px-3 py-2">${cuali}</span><br><small>(${cuali})</small>`;
         } else {
-            el.innerHTML = `<span class="badge bg-secondary px-3 py-2">${valorOriginal}</span><br><small>(${valorOriginal})</small>`;
+            el.innerHTML = `<span class="badge bg-secondary px-3 py-2">${valorOriginal.toFixed(1)}</span><br><small>(${valorOriginal.toFixed(1)})</small>`;
         }
     });
 
@@ -631,24 +631,427 @@ function actualizarFormatoNotas(modoCualitativo) {
         const valorFinal = parseFloat(el.getAttribute('data-valor'));
         if (modoCualitativo) {
             const cuali = convertirNota(valorFinal, true);
-            el.innerHTML = `<strong class="fs-5">${cuali}</strong><br><small>(${cuali})</small>`;
+            const estaAprobada = valorFinal >= 1.5;
+            el.innerHTML = `<strong class="fs-5 ${!estaAprobada ? 'text-danger' : ''}">${cuali}</strong><br><small>(${cuali})</small>`;
         } else {
-            el.innerHTML = `<strong class="fs-5">${valorFinal}</strong><br><small>(${valorFinal})</small>`;
+            const estaAprobada = valorFinal >= 1.5;
+            el.innerHTML = `<strong class="fs-5 ${!estaAprobada ? 'text-danger' : ''}">${valorFinal.toFixed(1)}</strong><br><small>(${valorFinal.toFixed(1)})</small>`;
         }
     });
 }
 
-// FUNCIONES DE SELECCIÓN
-function seleccionarCompetenciasEstudiante(estudianteId, seleccionar) {
-    const checkboxesComp = document.querySelectorAll(`#modal${estudianteId} .competencia-recuperacion`);
-    checkboxesComp.forEach(cb => {
-        cb.checked = seleccionar;
-    });
-    const selectAllComp = document.getElementById(`selectAllCompetencias${estudianteId}`);
-    if (selectAllComp) selectAllComp.checked = seleccionar;
+// FUNCIONES DE ACTUALIZACIÓN DINÁMICA
+// Actualizar contadores y estadísticas en tiempo real
+function actualizarContadoresEstudiante(estudianteId, data) {
+    const modal = document.getElementById(`modal${estudianteId}`);
+    if (!modal) return;
+
+    // Actualizar badges en el modal
+    const materiasAprobadas = modal.querySelector('.display-6.fw-bold.text-success');
+    if (materiasAprobadas && data.materias_aprobadas !== undefined) {
+        materiasAprobadas.textContent = data.materias_aprobadas;
+    }
+
+    const totalMaterias = modal.querySelector('.display-6.fw-bold.text-secondary');
+    if (totalMaterias && data.total_materias !== undefined) {
+        totalMaterias.textContent = data.total_materias;
+    }
+
+    const materiasDesaprobadas = modal.querySelector('.display-6.fw-bold.text-danger');
+    if (materiasDesaprobadas && data.materias_desaprobadas !== undefined) {
+        materiasDesaprobadas.textContent = data.materias_desaprobadas;
+    }
+
+    const competenciasRecuperar = modal.querySelector('.display-6.fw-bold.text-warning');
+    if (competenciasRecuperar && data.total_competencias_recuperar !== undefined) {
+        competenciasRecuperar.textContent = data.total_competencias_recuperar;
+    }
+
+    // Actualizar badge de estado en la tabla principal
+    const row = document.querySelector(`#tablaEstudiantes tbody tr td:first-child input[value="${estudianteId}"]`)?.closest('tr');
+    if (row && data.estado_final) {
+        const estadoBadge = row.querySelector('.badge:not(.bg-success):not(.bg-secondary):not(.bg-danger)') || row.querySelector('td:nth-child(5) .badge');
+        if (estadoBadge) {
+            let badgeClass = '';
+            let badgeIcon = '';
+
+            switch(data.estado_final) {
+                case 'aprobado':
+                    badgeClass = 'bg-success';
+                    badgeIcon = 'bi-check-circle';
+                    break;
+                case 'recuperacion':
+                    badgeClass = 'bg-warning text-dark';
+                    badgeIcon = 'bi-arrow-repeat';
+                    break;
+                case 'pendiente_calificar':
+                    badgeClass = 'bg-info';
+                    badgeIcon = 'bi-hourglass-split';
+                    break;
+                case 'desaprobado':
+                    badgeClass = 'bg-danger';
+                    badgeIcon = 'bi-x-circle';
+                    break;
+                default:
+                    badgeClass = 'bg-secondary';
+                    badgeIcon = 'bi-question-circle';
+            }
+
+            estadoBadge.className = `badge ${badgeClass} w-100 py-2`;
+            estadoBadge.innerHTML = `<i class="bi ${badgeIcon} me-1"></i> ${data.estado_final.toUpperCase().replace('_', ' ')}`;
+        }
+
+        // Actualizar checkbox según estado
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+            checkbox.classList.remove('estudiante-aprobado-checkbox', 'estudiante-recuperacion-checkbox');
+            if (data.estado_final === 'aprobado') {
+                checkbox.classList.add('estudiante-aprobado-checkbox');
+            } else if (data.estado_final === 'recuperacion') {
+                checkbox.classList.add('estudiante-recuperacion-checkbox');
+            }
+        }
+    }
 }
 
-// FUNCIONES DE MATRÍCULA DE RECUPERACIÓN
+// Actualizar fila de estudiante en la tabla principal
+function actualizarFilaEstudiante(estudianteId, nuevosDatos) {
+    const row = document.querySelector(`#tablaEstudiantes tbody tr td:first-child input[value="${estudianteId}"]`)?.closest('tr');
+    if (!row) return;
+
+    // Actualizar barra de progreso
+    const progressBar = row.querySelector('.progress-bar');
+    if (progressBar && nuevosDatos.porcentaje_aprobacion !== undefined) {
+        progressBar.style.width = `${nuevosDatos.porcentaje_aprobacion}%`;
+    }
+
+    // Actualizar badges de competencias
+    const competenciasBadge = row.querySelector('.badge.bg-success:not(.w-100)');
+    const totalBadge = row.querySelector('.badge.bg-secondary:not(.w-100)');
+
+    if (competenciasBadge && nuevosDatos.competencias_aprobadas !== undefined) {
+        competenciasBadge.textContent = nuevosDatos.competencias_aprobadas;
+    }
+    if (totalBadge && nuevosDatos.total_competencias !== undefined) {
+        totalBadge.textContent = nuevosDatos.total_competencias;
+    }
+
+    // Actualizar badges de pendientes
+    const badgesContainer = row.querySelector('td:nth-child(4) .text-nowrap');
+    if (badgesContainer && nuevosDatos.competencias_pendientes !== undefined) {
+        const pendienteBadge = badgesContainer.querySelector('.badge.bg-warning');
+        if (nuevosDatos.competencias_pendientes > 0) {
+            if (pendienteBadge) {
+                pendienteBadge.innerHTML = `<i class="bi bi-exclamation-triangle"></i>${nuevosDatos.competencias_pendientes}`;
+            } else {
+                const newBadge = document.createElement('span');
+                newBadge.className = 'badge bg-warning text-dark ms-1';
+                newBadge.style.fontSize = '0.7rem';
+                newBadge.innerHTML = `<i class="bi bi-exclamation-triangle"></i>${nuevosDatos.competencias_pendientes}`;
+                badgesContainer.appendChild(newBadge);
+            }
+        } else if (pendienteBadge) {
+            pendienteBadge.remove();
+        }
+    }
+
+    if (badgesContainer && nuevosDatos.competencias_pendientes_calificar !== undefined) {
+        const pendienteCalificarBadge = badgesContainer.querySelector('.badge.bg-info');
+        if (nuevosDatos.competencias_pendientes_calificar > 0) {
+            if (pendienteCalificarBadge) {
+                pendienteCalificarBadge.innerHTML = `<i class="bi bi-hourglass-split"></i>${nuevosDatos.competencias_pendientes_calificar}`;
+            } else {
+                const newBadge = document.createElement('span');
+                newBadge.className = 'badge bg-info ms-1';
+                newBadge.style.fontSize = '0.7rem';
+                newBadge.innerHTML = `<i class="bi bi-hourglass-split"></i>${nuevosDatos.competencias_pendientes_calificar}`;
+                badgesContainer.appendChild(newBadge);
+            }
+        } else if (pendienteCalificarBadge) {
+            pendienteCalificarBadge.remove();
+        }
+    }
+
+    // Actualizar porcentaje
+    const porcentajeSpan = row.querySelector('td:nth-child(4) small.text-muted');
+    if (porcentajeSpan && nuevosDatos.porcentaje_aprobacion !== undefined) {
+        porcentajeSpan.textContent = `${nuevosDatos.porcentaje_aprobacion}% aprobadas`;
+    }
+}
+
+// Recargar datos del estudiante sin recargar página
+async function recargarDatosEstudiante(estudianteId) {
+    try {
+        const response = await fetch(`/estudiante/datos/${estudianteId}?periodo_academico_id={{ $periodoAcademico->id }}&periodo_recuperacion_id={{ $periodoRecuperacion->id ?? '' }}`);
+        const data = await response.json();
+
+        if (data.success) {
+            // Actualizar contadores
+            actualizarContadoresEstudiante(estudianteId, data);
+
+            // Actualizar tabla de competencias en el modal
+            actualizarTablaCompetencias(estudianteId, data.competencias);
+
+            // Actualizar fila en tabla principal
+            actualizarFilaEstudiante(estudianteId, data);
+
+            // Actualizar el contador de estudiantes para recuperación en el botón flotante
+            if (data.total_estudiantes_recuperacion !== undefined) {
+                const btnMasivo = document.getElementById('btnMatricularRecuperacionMasivo');
+                if (btnMasivo) {
+                    const count = data.total_estudiantes_recuperacion;
+                    if (count > 0) {
+                        btnMasivo.innerHTML = `<i class="bi bi-arrow-repeat me-2"></i>Matricular Recuperación (${count})`;
+                        btnMasivo.style.display = 'flex';
+                    } else {
+                        btnMasivo.style.display = 'none';
+                    }
+                }
+            }
+
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error recargando datos:', error);
+        return false;
+    }
+}
+
+// Actualizar tabla de competencias en el modal
+function actualizarTablaCompetencias(estudianteId, competenciasData) {
+    const modal = document.getElementById(`modal${estudianteId}`);
+    if (!modal || !competenciasData) return;
+
+    const tbody = modal.querySelector('.table tbody');
+    if (!tbody) return;
+
+    const modoCualitativo = document.getElementById('formatoNotas')?.checked || false;
+
+    competenciasData.forEach(competencia => {
+        const row = tbody.querySelector(`tr:has(td:contains("${competencia.nombre}"))`);
+        if (!row) return;
+
+        // Actualizar nota original
+        const notaOriginalCell = row.querySelector('.nota-original');
+        if (notaOriginalCell && competencia.nota_original !== undefined) {
+            const valorOriginal = competencia.nota_original;
+            notaOriginalCell.setAttribute('data-valor', valorOriginal);
+
+            if (modoCualitativo) {
+                const cuali = convertirNota(valorOriginal, true);
+                notaOriginalCell.innerHTML = `<span class="badge bg-secondary px-3 py-2">${cuali}</span><br><small>(${cuali})</small>`;
+            } else {
+                notaOriginalCell.innerHTML = `<span class="badge bg-secondary px-3 py-2">${valorOriginal.toFixed(1)}</span><br><small>(${valorOriginal.toFixed(1)})</small>`;
+            }
+        }
+
+        // Actualizar celda de recuperación
+        const recuperacionCell = row.querySelector('td:nth-child(4)');
+        if (recuperacionCell && competencia.recuperacion) {
+            const tieneRegistro = competencia.recuperacion.tiene_registro;
+            const notaRecuperacion = competencia.recuperacion.nota;
+            const estadoRecuperacion = competencia.recuperacion.estado;
+            const recuperacionId = competencia.recuperacion.id;
+            const nivelLogroFinal = competencia.recuperacion.nivel_logro_final;
+
+            if (estadoRecuperacion == '1') {
+                // Bloqueado - solo mostrar nota
+                if (notaRecuperacion !== null && notaRecuperacion !== undefined) {
+                    const notaCualitativa = convertirNota(notaRecuperacion, true);
+                    recuperacionCell.innerHTML = `
+                        <span class="badge bg-success px-3 py-2">${notaRecuperacion.toFixed(1)}</span>
+                        <br><small class="text-success">(${notaCualitativa})</small>
+                        <br><small class="text-muted"><i class="bi bi-lock"></i> Bloqueada</small>
+                    `;
+                } else {
+                    recuperacionCell.innerHTML = `
+                        <span class="badge bg-secondary">Sin nota asignada</span>
+                        <br><small class="text-muted"><i class="bi bi-lock"></i> Bloqueada</small>
+                    `;
+                }
+            } else if (tieneRegistro) {
+                // Editable - mostrar select
+                recuperacionCell.innerHTML = `
+                    <div class="recuperacion-container" data-rec-id="${recuperacionId}">
+                        <select class="form-select form-select-sm nota-recuperacion-select mb-1"
+                                data-rec-id="${recuperacionId}"
+                                data-estudiante-id="${estudianteId}"
+                                data-competencia-id="${competencia.id}"
+                                style="min-width: 130px;">
+                            <option value="">Seleccionar nota</option>
+                            <option value="C" ${nivelLogroFinal === 'C' ? 'selected' : ''}>C (1.0 - 1.4)</option>
+                            <option value="B" ${nivelLogroFinal === 'B' ? 'selected' : ''}>B (1.5 - 2.4)</option>
+                            <option value="A" ${nivelLogroFinal === 'A' ? 'selected' : ''}>A (2.5 - 3.4)</option>
+                            <option value="AD" ${nivelLogroFinal === 'AD' ? 'selected' : ''}>AD (3.5 - 4.0)</option>
+                        </select>
+                        <button class="btn btn-sm btn-primary w-100 guardar-nota-rec"
+                                data-rec-id="${recuperacionId}">
+                            <i class="bi bi-save"></i> Guardar
+                        </button>
+                    </div>
+                `;
+
+                // Rebind eventos al nuevo select
+                const newButton = recuperacionCell.querySelector('.guardar-nota-rec');
+                if (newButton) {
+                    newButton.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const container = this.closest('.recuperacion-container');
+                        const select = container.querySelector('.nota-recuperacion-select');
+                        const nivelLogro = select.value;
+
+                        if (!nivelLogro) {
+                            Swal.fire('Advertencia', 'Seleccione una nota', 'warning');
+                            return;
+                        }
+
+                        guardarNotaRecuperacion(recuperacionId, nivelLogro, estudianteId, competencia.id);
+                    });
+                }
+            } else {
+                recuperacionCell.innerHTML = '<span class="text-muted">---</span>';
+            }
+        }
+
+        // Actualizar nota final
+        const notaFinalCell = row.querySelector('.nota-final');
+        if (notaFinalCell && competencia.nota_final !== undefined) {
+            const valorFinal = competencia.nota_final;
+            notaFinalCell.setAttribute('data-valor', valorFinal);
+
+            const estaAprobada = valorFinal >= 1.5;
+
+            if (modoCualitativo) {
+                const cuali = convertirNota(valorFinal, true);
+                notaFinalCell.innerHTML = `<strong class="fs-5 ${!estaAprobada ? 'text-danger' : ''}">${cuali}</strong><br><small>(${cuali})</small>`;
+            } else {
+                notaFinalCell.innerHTML = `<strong class="fs-5 ${!estaAprobada ? 'text-danger' : ''}">${valorFinal.toFixed(1)}</strong><br><small>(${valorFinal.toFixed(1)})</small>`;
+            }
+        }
+
+        // Actualizar estado final
+        const estadoCell = row.querySelector('td:last-child');
+        if (estadoCell && competencia.estado_final) {
+            let badgeClass = '', badgeIcon = '', texto = '';
+
+            switch(competencia.estado_final) {
+                case 'aprobada':
+                    badgeClass = 'bg-success';
+                    badgeIcon = 'bi-check-circle';
+                    texto = 'Aprobada';
+                    break;
+                case 'recuperado_aprobado':
+                    badgeClass = 'bg-info';
+                    badgeIcon = 'bi-arrow-repeat';
+                    texto = 'Recuperado (Aprobado)';
+                    break;
+                case 'recuperacion_reprobada':
+                    badgeClass = 'bg-danger';
+                    badgeIcon = 'bi-x-circle';
+                    texto = 'Recuperación reprobada';
+                    break;
+                case 'pendiente_calificar':
+                    badgeClass = 'bg-warning text-dark';
+                    badgeIcon = 'bi-clock-history';
+                    texto = 'Pendiente calificar';
+                    break;
+                case 'requiere_recuperacion':
+                    badgeClass = 'bg-danger';
+                    badgeIcon = 'bi-exclamation-triangle';
+                    texto = 'Requiere recuperación';
+                    break;
+                default:
+                    badgeClass = 'bg-secondary';
+                    badgeIcon = 'bi-question-circle';
+                    texto = 'Sin evaluación';
+            }
+
+            estadoCell.innerHTML = `<span class="badge ${badgeClass}"><i class="bi ${badgeIcon}"></i> ${texto}</span>`;
+        }
+    });
+}
+
+// FUNCIONES PRINCIPALES SIN RELOAD
+
+// Guardar nota de recuperación (sin recargar página)
+async function guardarNotaRecuperacion(recuperacionId, nivelLogro, estudianteId, competenciaId) {
+
+    if (!recuperacionId || recuperacionId === '') {
+        await Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'ID de recuperación no encontrado.',
+            confirmButtonColor: '#dc3545'
+        });
+        return;
+    }
+
+    const result = await Swal.fire({
+        title: '¿Guardar nota?',
+        text: `¿Asignar la nota ${nivelLogro} a esta competencia?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, guardar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+        Swal.fire({
+            title: 'Guardando...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const response = await fetch('{{ route("estudiante.recuperacion.nota") }}', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    recuperacion_id: parseInt(recuperacionId),
+                    nivel_logro_final: nivelLogro
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Actualizar dinámicamente sin recargar
+                await recargarDatosEstudiante(estudianteId);
+
+                await Swal.fire({
+                    icon: 'success',
+                    title: '¡Nota guardada!',
+                    text: data.message,
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            } else {
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message,
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            await Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al guardar la nota: ' + error.message,
+                confirmButtonColor: '#dc3545'
+            });
+        }
+    }
+}
+
+// Matricular estudiante en recuperación (sin recargar página)
 async function matricularRecuperacion(estudianteId, periodoRecuperacionId, periodoAcademicoId) {
     const checkboxes = document.querySelectorAll(`#modal${estudianteId} .competencia-recuperacion:checked`);
 
@@ -706,13 +1109,21 @@ async function matricularRecuperacion(estudianteId, periodoRecuperacionId, perio
             const data = await response.json();
 
             if (data.success) {
+                // Recargar datos del estudiante sin recargar página
+                await recargarDatosEstudiante(estudianteId);
+
+                // Limpiar checkboxes seleccionados
+                checkboxes.forEach(cb => cb.checked = false);
+                const selectAll = document.getElementById(`selectAllCompetencias${estudianteId}`);
+                if (selectAll) selectAll.checked = false;
+
                 await Swal.fire({
                     icon: 'success',
                     title: '¡Matriculado!',
                     text: data.message,
-                    confirmButtonColor: '#28a745'
+                    timer: 1500,
+                    showConfirmButton: false
                 });
-                location.reload();
             } else {
                 await Swal.fire({
                     icon: 'error',
@@ -733,6 +1144,7 @@ async function matricularRecuperacion(estudianteId, periodoRecuperacionId, perio
     }
 }
 
+// Matricular múltiples estudiantes (sin recargar página)
 async function matricularRecuperacionMasiva(periodoRecuperacionId, periodoAcademicoId) {
     if (!periodoRecuperacionId) {
         await Swal.fire({
@@ -821,13 +1233,18 @@ async function matricularRecuperacionMasiva(periodoRecuperacionId, periodoAcadem
             const data = await response.json();
 
             if (data.success) {
+                // Recargar datos de todos los estudiantes afectados
+                for (const est of estudiantes) {
+                    await recargarDatosEstudiante(est.estudiante_id);
+                }
+
                 await Swal.fire({
                     icon: 'success',
                     title: '¡Proceso completado!',
                     text: data.message,
-                    confirmButtonColor: '#28a745'
+                    timer: 1500,
+                    showConfirmButton: false
                 });
-                location.reload();
             } else {
                 await Swal.fire({
                     icon: 'error',
@@ -848,82 +1265,7 @@ async function matricularRecuperacionMasiva(periodoRecuperacionId, periodoAcadem
     }
 }
 
-// FUNCIONES DE NOTAS DE RECUPERACIÓN
-async function guardarNotaRecuperacion(recuperacionId, nivelLogro, estudianteId, competenciaId) {
-    console.log('Intentando guardar - ID:', recuperacionId, 'Nota:', nivelLogro);
-
-    if (!recuperacionId || recuperacionId === '') {
-        await Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'ID de recuperación no encontrado. Por favor, recargue la página y vuelva a intentar.',
-            confirmButtonColor: '#dc3545'
-        });
-        return;
-    }
-
-    const result = await Swal.fire({
-        title: '¿Guardar nota?',
-        text: `¿Asignar la nota ${nivelLogro} a esta competencia?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, guardar',
-        cancelButtonText: 'Cancelar'
-    });
-
-    if (result.isConfirmed) {
-        Swal.fire({
-            title: 'Guardando...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
-
-        try {
-            const response = await fetch('{{ route("estudiante.recuperacion.nota") }}', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    recuperacion_id: parseInt(recuperacionId),
-                    nivel_logro_final: nivelLogro
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                await Swal.fire({
-                    icon: 'success',
-                    title: '¡Nota guardada!',
-                    text: data.message,
-                    confirmButtonColor: '#28a745'
-                });
-                location.reload();
-            } else {
-                await Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: data.message,
-                    confirmButtonColor: '#dc3545'
-                });
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            await Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Error al guardar la nota: ' + error.message,
-                confirmButtonColor: '#dc3545'
-            });
-        }
-    }
-}
-
-// FUNCIONES DE CAMBIO DE ESTADO
+// Cambiar estado de notas (bloquear/liberar) sin recargar página
 async function cambiarEstadoNotasRecuperacion(estudianteId, nuevoEstado) {
     const accion = nuevoEstado == '1' ? 'bloquear' : 'liberar';
     const textoConfirmacion = nuevoEstado == '1'
@@ -932,10 +1274,8 @@ async function cambiarEstadoNotasRecuperacion(estudianteId, nuevoEstado) {
 
     const result = await Swal.fire({
         title: `${accion === 'bloquear' ? '🔒 Bloquear' : '🔓 Liberar'} Notas de Recuperación`,
-        html: `
-            <p>¿Estás seguro de que deseas ${accion} las notas de recuperación?</p>
-            <small class="text-muted">${textoConfirmacion}</small>
-        `,
+        html: `<p>¿Estás seguro de que deseas ${accion} las notas de recuperación?</p>
+               <small class="text-muted">${textoConfirmacion}</small>`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: nuevoEstado == '1' ? '#d33' : '#28a745',
@@ -969,13 +1309,27 @@ async function cambiarEstadoNotasRecuperacion(estudianteId, nuevoEstado) {
             const data = await response.json();
 
             if (data.success) {
+                // Recargar datos del estudiante sin recargar página
+                await recargarDatosEstudiante(estudianteId);
+
+                // Actualizar el botón de estado en el modal
+                const modal = document.getElementById(`modal${estudianteId}`);
+                if (modal) {
+                    const estadoBtn = modal.querySelector('.btn-cambiar-estado');
+                    if (estadoBtn) {
+                        estadoBtn.dataset.estadoActual = nuevoEstado;
+                        estadoBtn.className = `btn ${nuevoEstado == '0' ? 'btn-danger' : 'btn-success'} flex-grow-1 btn-cambiar-estado`;
+                        estadoBtn.innerHTML = `<i class="bi ${nuevoEstado == '0' ? 'bi-lock' : 'bi-unlock'} me-1"></i> ${nuevoEstado == '0' ? 'Bloquear Notas' : 'Liberar Notas'}`;
+                    }
+                }
+
                 await Swal.fire({
                     icon: 'success',
                     title: '¡Completado!',
                     text: data.message,
-                    confirmButtonColor: '#28a745'
+                    timer: 1500,
+                    showConfirmButton: false
                 });
-                location.reload();
             } else {
                 await Swal.fire({
                     icon: 'error',
@@ -996,7 +1350,7 @@ async function cambiarEstadoNotasRecuperacion(estudianteId, nuevoEstado) {
     }
 }
 
-// FUNCIONES DE ASCENSO DE ESTUDIANTES
+// Versión alternativa usando submit de formulario sin recargar
 async function ascenderEstudiantes() {
     const selectedCheckboxes = document.querySelectorAll('.estudiante-aprobado-checkbox:checked');
     const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
@@ -1036,10 +1390,14 @@ async function ascenderEstudiantes() {
     });
 
     if (result.isConfirmed) {
+        // Usar el formulario existente pero con submit normal
         const form = document.getElementById('ascenderForm');
+
+        // Limpiar inputs existentes
         const existingInputs = form.querySelectorAll('input[name="estudiantes[]"]');
         existingInputs.forEach(input => input.remove());
 
+        // Agregar estudiantes seleccionados
         selectedIds.forEach(id => {
             const input = document.createElement('input');
             input.type = 'hidden';
@@ -1048,8 +1406,75 @@ async function ascenderEstudiantes() {
             form.appendChild(input);
         });
 
+        // Agregar campos adicionales si es necesario
+        if (!form.querySelector('input[name="nuevo_grado"]')) {
+            const gradoInput = document.createElement('input');
+            gradoInput.type = 'hidden';
+            gradoInput.name = 'nuevo_grado';
+            gradoInput.value = nuevoGrado;
+            form.appendChild(gradoInput);
+        }
+
+        if (!form.querySelector('input[name="nueva_seccion"]')) {
+            const seccionInput = document.createElement('input');
+            seccionInput.type = 'hidden';
+            seccionInput.name = 'nueva_seccion';
+            seccionInput.value = nuevaSeccion;
+            form.appendChild(seccionInput);
+        }
+
+        if (!form.querySelector('input[name="nuevo_nivel"]')) {
+            const nivelInput = document.createElement('input');
+            nivelInput.type = 'hidden';
+            nivelInput.name = 'nuevo_nivel';
+            nivelInput.value = nuevoNivel;
+            form.appendChild(nivelInput);
+        }
+
+        // Mostrar loading
+        Swal.fire({
+            title: 'Procesando...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        // Enviar formulario
         form.submit();
     }
+}
+
+//  FUNCIONES DE SELECCIÓN
+function seleccionarCompetenciasEstudiante(estudianteId, seleccionar) {
+    const checkboxesComp = document.querySelectorAll(`#modal${estudianteId} .competencia-recuperacion`);
+    checkboxesComp.forEach(cb => {
+        cb.checked = seleccionar;
+    });
+    const selectAllComp = document.getElementById(`selectAllCompetencias${estudianteId}`);
+    if (selectAllComp) selectAllComp.checked = seleccionar;
+}
+
+function updateAscensoButtonState() {
+    const ascenderBtn = document.getElementById('ascenderBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+
+    if (!ascenderBtn || !selectedCountSpan) {
+        return;
+    }
+
+    const selectedCheckboxes = document.querySelectorAll('.estudiante-aprobado-checkbox:checked');
+    const selectedCount = selectedCheckboxes.length;
+
+    const nuevoGrado = document.getElementById('nuevo_grado');
+    const nuevaSeccion = document.getElementById('nueva_seccion');
+    const nuevoNivel = document.getElementById('nuevo_nivel');
+
+    const destinoCompleto = nuevoGrado && nuevaSeccion && nuevoNivel &&
+                           nuevoGrado.value &&
+                           nuevaSeccion.value &&
+                           nuevoNivel.value;
+
+    ascenderBtn.disabled = selectedCount === 0 || !destinoCompleto;
+    selectedCountSpan.textContent = selectedCount;
 }
 
 // INICIALIZACIÓN DE EVENTOS
@@ -1077,22 +1502,6 @@ function initEventos() {
     // Selección de estudiantes aprobados
     const selectAllAprobados = document.getElementById('selectAllAprobados');
     const checkboxesAprobados = document.querySelectorAll('.estudiante-aprobado-checkbox');
-
-    function updateAscensoButtonState() {
-        const ascenderBtn = document.getElementById('ascenderBtn');
-        const selectedCountSpan = document.getElementById('selectedCount');
-        const selectedCount = document.querySelectorAll('.estudiante-aprobado-checkbox:checked').length;
-        const destinoCompleto = document.getElementById('nuevo_grado').value &&
-                               document.getElementById('nueva_seccion').value &&
-                               document.getElementById('nuevo_nivel').value;
-
-        if (ascenderBtn) {
-            ascenderBtn.disabled = selectedCount === 0 || !destinoCompleto;
-        }
-        if (selectedCountSpan) {
-            selectedCountSpan.textContent = selectedCount;
-        }
-    }
 
     if (selectAllAprobados) {
         selectAllAprobados.addEventListener('change', function() {
@@ -1159,7 +1568,6 @@ function initEventos() {
 
     // Botones de guardar nota de recuperación
     const botonesGuardar = document.querySelectorAll('.guardar-nota-rec');
-    console.log('Botones de guardar encontrados:', botonesGuardar.length);
 
     botonesGuardar.forEach(button => {
         button.addEventListener('click', function(e) {
@@ -1182,8 +1590,6 @@ function initEventos() {
             const estudianteId = select.getAttribute('data-estudiante-id');
             const competenciaId = select.getAttribute('data-competencia-id');
 
-            console.log('Datos obtenidos:', { recuperacionId, nivelLogro, estudianteId, competenciaId });
-
             if (!nivelLogro) {
                 Swal.fire({
                     icon: 'warning',
@@ -1200,7 +1606,6 @@ function initEventos() {
 
     // Botones de cambiar estado (bloquear/liberar)
     const botonesCambiarEstado = document.querySelectorAll('.btn-cambiar-estado');
-    console.log('Botones de cambiar estado encontrados:', botonesCambiarEstado.length);
 
     botonesCambiarEstado.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -1212,9 +1617,14 @@ function initEventos() {
     });
 }
 
-// INICIALIZACIÓN PRINCIPAL
+// Agregar ID a la tabla principal para selectores más precisos
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Inicializando aplicación...');
+    // Agregar ID a la tabla de estudiantes matriculados si no tiene
+    const tablaMatriculados = document.querySelector('.card-body .table');
+    if (tablaMatriculados && !tablaMatriculados.id) {
+        tablaMatriculados.id = 'tablaEstudiantes';
+    }
+
     initEventos();
 });
 </script>

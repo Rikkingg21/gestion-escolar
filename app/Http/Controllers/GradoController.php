@@ -151,6 +151,42 @@ class GradoController extends Controller
 
         return compact('grado', 'aniosDisponibles', 'anioSeleccionado', 'periodoAcademico', 'periodoRecuperacion');
     }
+    public function getDatosEstudiante($estudianteId, Request $request)
+    {
+        try {
+            $periodoAcademicoId = $request->periodo_academico_id;
+            $periodoRecuperacionId = $request->periodo_recuperacion_id;
+
+            $estudiante = Estudiante::with(['user'])->findOrFail($estudianteId);
+
+            // Obtener datos actualizados (reutiliza tu lógica existente)
+            $periodoAcademico = Periodo::find($periodoAcademicoId);
+            $periodoRecuperacion = $periodoRecuperacionId ? Periodo::find($periodoRecuperacionId) : null;
+
+            // Aquí llamas a tus servicios para obtener los datos actualizados
+            // Similar a lo que haces en el método estudiantes()
+
+            return response()->json([
+                'success' => true,
+                'estado_final' => $estudiante->estado_final,
+                'materias_aprobadas' => $estudiante->materias_aprobadas,
+                'total_materias' => $estudiante->total_materias,
+                'materias_desaprobadas' => $estudiante->materias_desaprobadas_count,
+                'total_competencias_recuperar' => $estudiante->total_competencias_recuperar,
+                'porcentaje_aprobacion' => $estudiante->porcentaje_aprobacion,
+                'competencias_aprobadas' => $estudiante->competencias_aprobadas,
+                'total_competencias' => $estudiante->total_competencias,
+                'competencias_pendientes' => $estudiante->competencias_pendientes,
+                'competencias_pendientes_calificar' => $estudiante->competencias_pendientes_calificar,
+                'competencias' => $this->getCompetenciasDetalle($estudiante, $periodoAcademico, $periodoRecuperacion)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 
     // Obtener materias del grado
     private function getMateriasGrado($periodoAcademico, $gradoId)
@@ -620,26 +656,63 @@ class GradoController extends Controller
     //Ascender estudiantes de grado
     public function estudiantesUpdateGrado(Request $request, $gradoId)
     {
-        $request->validate([
-            'nuevo_grado' => 'required|integer',
-            'nueva_seccion' => 'required|string|max:1',
-            'nuevo_nivel' => 'required|string',
-            'estudiantes' => 'required|array',
-            'estudiantes.*' => 'exists:estudiantes,id'
-        ]);
+        try {
+            $request->validate([
+                'nuevo_grado' => 'required|integer',
+                'nueva_seccion' => 'required|string|max:1',
+                'nuevo_nivel' => 'required|string',
+                'estudiantes' => 'required|array',
+                'estudiantes.*' => 'exists:estudiantes,id'
+            ]);
 
-        $nuevoGrado = Grado::firstOrCreate(
-            [
-                'grado' => $request->nuevo_grado,
-                'seccion' => $request->nueva_seccion,
-                'nivel' => $request->nuevo_nivel
-            ],
-            ['estado' => '1']
-        );
+            $nuevoGrado = Grado::firstOrCreate(
+                [
+                    'grado' => $request->nuevo_grado,
+                    'seccion' => $request->nueva_seccion,
+                    'nivel' => $request->nuevo_nivel
+                ],
+                ['estado' => '1']
+            );
 
-        Estudiante::whereIn('id', $request->estudiantes)->update(['grado_id' => $nuevoGrado->id]);
+            $estudiantesActualizados = Estudiante::whereIn('id', $request->estudiantes)->update(['grado_id' => $nuevoGrado->id]);
 
-        return redirect()->route('grado.estudiantes', $gradoId)
-            ->with('success', "Estudiantes ascendidos al grado {$nuevoGrado->grado}° \"{$nuevoGrado->seccion}\" - {$nuevoGrado->nivel}");
+            // Verificar si la solicitud es AJAX/JSON
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Estudiantes ascendidos al grado {$nuevoGrado->grado}° \"{$nuevoGrado->seccion}\" - {$nuevoGrado->nivel}",
+                    'estudiantes_actualizados' => $estudiantesActualizados,
+                    'nuevo_grado' => [
+                        'id' => $nuevoGrado->id,
+                        'grado' => $nuevoGrado->grado,
+                        'seccion' => $nuevoGrado->seccion,
+                        'nivel' => $nuevoGrado->nivel
+                    ]
+                ]);
+            }
+
+            // Para solicitudes normales (no AJAX)
+            return redirect()->route('grado.estudiantes', $gradoId)
+                ->with('success', "Estudiantes ascendidos al grado {$nuevoGrado->grado}° \"{$nuevoGrado->seccion}\" - {$nuevoGrado->nivel}");
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de validación',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            throw $e;
+
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al ascender estudiantes: ' . $e->getMessage()
+                ], 500);
+            }
+            throw $e;
+        }
     }
 }
