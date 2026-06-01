@@ -4,16 +4,8 @@ namespace App\Services;
 
 class ProcesarnotasCompetenciaService extends BaseNotasService
 {
-    /**
-     * Procesa los promedios de criterios y calcula promedios por competencia
-     *
-     * @return array Cada elemento tiene: estudiante_id, materia_competencia_id,
-     *               materia_id, promedio_original, promedio_original_cualitativo,
-     *               nota_recuperacion (si existe), promedio_final
-     */
     public function procesar(array $criterios, array $recuperaciones = []): array
     {
-        // Agrupar por estudiante y competencia
         $grupos = [];
 
         foreach ($criterios as $criterio) {
@@ -28,7 +20,9 @@ class ProcesarnotasCompetenciaService extends BaseNotasService
                     'total_criterios' => 0,
                     'nota_recuperacion' => null,
                     'tiene_recuperacion' => false,
-                    'tiene_registro_recuperacion' => false
+                    'tiene_registro_recuperacion' => false,
+                    'recuperacion_estado' => null,
+                    'recuperacion_id' => null  // Asegurar que existe
                 ];
             }
 
@@ -44,12 +38,20 @@ class ProcesarnotasCompetenciaService extends BaseNotasService
             if (isset($recuperaciones[$estId][$compId])) {
                 $recuperacionInfo = $recuperaciones[$estId][$compId];
 
-                // Verificar si tiene registro (aunque no tenga nota)
+                // IMPORTANTE: Asignar el ID aunque no tenga nota
+                if (isset($recuperacionInfo['recuperacion_id'])) {
+                    $grupo['recuperacion_id'] = $recuperacionInfo['recuperacion_id'];
+                    $grupo['tiene_registro_recuperacion'] = true;
+                }
+
+                if (isset($recuperacionInfo['estado'])) {
+                    $grupo['recuperacion_estado'] = $recuperacionInfo['estado'];
+                }
+
                 if (isset($recuperacionInfo['tiene_registro']) && $recuperacionInfo['tiene_registro']) {
                     $grupo['tiene_registro_recuperacion'] = true;
                 }
 
-                // Verificar si tiene nota de recuperación
                 if (isset($recuperacionInfo['nota']) && $recuperacionInfo['nota'] !== null) {
                     $grupo['tiene_recuperacion'] = true;
                     $grupo['nota_recuperacion'] = $recuperacionInfo['nota'];
@@ -61,10 +63,7 @@ class ProcesarnotasCompetenciaService extends BaseNotasService
         $resultados = [];
 
         foreach ($grupos as $grupo) {
-            // Calcular promedio original SIN modificar
             $promedioOriginal = $this->calcularPromedioDesdeSuma($grupo['suma_promedios_original'], $grupo['total_criterios']);
-
-            // Calcular promedio final: si hay nota de recuperación, usarla; sino la original
             $promedioFinal = $grupo['nota_recuperacion'] ?? $promedioOriginal;
 
             $resultados[] = [
@@ -77,7 +76,9 @@ class ProcesarnotasCompetenciaService extends BaseNotasService
                 'promedio_final' => $promedioFinal,
                 'promedio_final_cualitativo' => $this->convertirACualitativo($promedioFinal),
                 'tiene_recuperacion' => $grupo['tiene_recuperacion'],
-                'tiene_registro_recuperacion' => $grupo['tiene_registro_recuperacion']
+                'tiene_registro_recuperacion' => $grupo['tiene_registro_recuperacion'],
+                'recuperacion_estado' => $grupo['recuperacion_estado'],
+                'recuperacion_id' => $grupo['recuperacion_id']  // Asegurar que se incluye
             ];
         }
 

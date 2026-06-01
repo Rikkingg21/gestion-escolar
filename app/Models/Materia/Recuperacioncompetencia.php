@@ -22,8 +22,9 @@ class Recuperacioncompetencia extends Model
         'materia_id',
         'periodo_id',
         'docente_id',
-        'nivel_logro_inicial',
-        'nivel_logro_final',
+        'nivel_logro_inicial',  //ENUM 'C'
+        'nivel_logro_final',    //ENUM 'C','B','A','AD'
+        'estado',             //ENUM '0' es editable, '1' es no editable
         //'modalidad',
     ];
     public function estudiante()

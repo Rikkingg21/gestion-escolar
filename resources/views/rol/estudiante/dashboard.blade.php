@@ -4,38 +4,48 @@
 <div class="container-fluid">
     <!-- Encabezado y Filtros -->
     <div class="row mb-4">
-        <div class="col-md-8">
+        <div class="col-md-12">
             <div class="card">
                 <div class="card-body">
-                    <h1 class="h3 mb-3">
-                        <i class="fas fa-user-graduate"></i> Dashboard Estudiante
-                    </h1>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h1 class="h3 mb-0">
+                            <i class="fas fa-user-graduate"></i> Dashboard Estudiante
+                        </h1>
+                        <!-- Switch de visualización -->
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-primary active" id="btnCuantitativo" onclick="cambiarVisualizacion('cuantitativo')">
+                                <i class="fas fa-chart-line me-1"></i> Cuantitativo (Notas)
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="btnCualitativo" onclick="cambiarVisualizacion('cualitativo')">
+                                <i class="fas fa-tag me-1"></i> Cualitativo (AD/A/B/C)
+                            </button>
+                        </div>
+                    </div>
+
                     <form method="GET" action="{{ request()->url() }}" class="row g-3">
-                        <div class="col-md-5">
+                        <div class="col-md-4">
                             <label class="form-label">Período Escolar</label>
                             <select name="periodo_id" class="form-select" onchange="this.form.submit()">
                                 @foreach($periodos as $periodo)
                                     <option value="{{ $periodo->id }}"
                                         {{ $periodoSeleccionado && $periodoSeleccionado->id == $periodo->id ? 'selected' : '' }}>
-                                        {{ $periodo->anio }}
-                                        @if($periodo->estado == 1)
-                                            <span class="text-success">(Activo)</span>
-                                        @endif
+                                        {{ $periodo->nombre }}
                                     </option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-5">
+                        <div class="col-md-4">
                             <label class="form-label">Bimestre</label>
                             <select name="bimestre" class="form-select" onchange="this.form.submit()">
                                 <option value="anual" {{ request('bimestre', 'anual') == 'anual' ? 'selected' : '' }}>Promedio Anual</option>
-                                <option value="B1" {{ request('bimestre') == 'B1' ? 'selected' : '' }}>1° Bimestre</option>
-                                <option value="B2" {{ request('bimestre') == 'B2' ? 'selected' : '' }}>2° Bimestre</option>
-                                <option value="B3" {{ request('bimestre') == 'B3' ? 'selected' : '' }}>3° Bimestre</option>
-                                <option value="B4" {{ request('bimestre') == 'B4' ? 'selected' : '' }}>4° Bimestre</option>
+                                @foreach($bimestresDisponibles as $bimestre)
+                                    <option value="{{ $bimestre->sigla }}" {{ request('bimestre') == $bimestre->sigla ? 'selected' : '' }}>
+                                        {{ $bimestre->sigla }}
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
-                        <div class="col-md-2 d-flex align-items-end">
+                        <div class="col-md-4 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="fas fa-filter me-1"></i> Filtrar
                             </button>
@@ -104,24 +114,18 @@
                             <!-- Resumen estadístico de notas -->
                             <div class="row mb-4">
                                 @php
-                                    $todasNotas = [];
-                                    foreach($infoEstudiante['progreso_cursos'] as $curso) {
-                                        $notasValidas = array_filter($curso['promedios'], function($n) { return $n !== null; });
-                                        $todasNotas = array_merge($todasNotas, $notasValidas);
-                                    }
-                                    $promedioGeneral = count($todasNotas) > 0 ?
-                                        round(array_sum($todasNotas) / count($todasNotas), 1) : null;
+                                    $promedioGeneral = $infoEstudiante['promedio_general'] ?? null;
+                                    $cursosAprobados = $infoEstudiante['cursos_aprobados'] ?? 0;
+                                    $cursosDesaprobados = $infoEstudiante['cursos_desaprobados'] ?? 0;
 
-                                    $cursosAprobados = 0;
-                                    $cursosReprobados = 0;
+                                    // Calcular competencias totales
+                                    $totalCompetencias = 0;
+                                    $competenciasAprobadas = 0;
+                                    $competenciasEnRecuperacion = 0;
                                     foreach($infoEstudiante['progreso_cursos'] as $curso) {
-                                        if ($curso['promedio_general'] !== null) {
-                                            if ($curso['promedio_general'] > 2) {
-                                                $cursosAprobados++;
-                                            } else {
-                                                $cursosReprobados++;
-                                            }
-                                        }
+                                        $totalCompetencias += $curso['total_competencias'];
+                                        $competenciasAprobadas += $curso['competencias_aprobadas'];
+                                        $competenciasEnRecuperacion += $curso['competencias_recuperacion'];
                                     }
                                 @endphp
 
@@ -133,7 +137,7 @@
                                                 Promedio General
                                             </div>
                                             <div class="h3 mb-0 font-weight-bold text-gray-800">
-                                                {{ $promedioGeneral }}
+                                                {{ number_format($promedioGeneral, 1) }}
                                             </div>
                                         </div>
                                     </div>
@@ -144,23 +148,23 @@
                                     <div class="card border-left-info shadow h-100">
                                         <div class="card-body">
                                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                                Cursos con notas
+                                                Cursos Aprobados
                                             </div>
                                             <div class="h3 mb-0 font-weight-bold text-gray-800">
-                                                {{ $infoEstudiante['total_cursos'] }}
+                                                {{ $cursosAprobados }} / {{ $infoEstudiante['total_cursos'] }}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="col-md-3 mb-3">
-                                    <div class="card border-left-success shadow h-100">
+                                    <div class="card border-left-warning shadow h-100">
                                         <div class="card-body">
-                                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                                Cursos Aprobados
+                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                                Competencias Aprobadas
                                             </div>
                                             <div class="h3 mb-0 font-weight-bold text-gray-800">
-                                                {{ $cursosAprobados }}
+                                                {{ $competenciasAprobadas }} / {{ $totalCompetencias }}
                                             </div>
                                         </div>
                                     </div>
@@ -170,97 +174,202 @@
                                     <div class="card border-left-danger shadow h-100">
                                         <div class="card-body">
                                             <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                                Cursos Reprobados
+                                                En Recuperación
                                             </div>
                                             <div class="h3 mb-0 font-weight-bold text-gray-800">
-                                                {{ $cursosReprobados }}
+                                                {{ $competenciasEnRecuperacion }}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Gráfico de notas (solo en modo anual) -->
-                            @if($bimestreFiltro == 'anual')
-                            <div class="mb-4">
+                            <!-- Gráfico de progreso por bimestre (solo modo anual) -->
+                            @if($bimestreFiltro == 'anual' && !empty($chartData))
+                            <div class="mb-5">
                                 <h5 class="mb-3">
-                                    <i class="fas fa-chart-line me-2"></i> Progreso Académico por Bimestre
+                                    <i class="fas fa-chart-line me-2"></i> Progreso de Competencias por Bimestre
                                 </h5>
-                                <div style="height: 400px;">
-                                    <canvas id="progresoChart"></canvas>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div style="height: 450px;">
+                                            <canvas id="competenciasChart"></canvas>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             @endif
 
-                            <!-- Tabla de notas -->
+                            <!-- Tabla de notas por Materia y Competencia -->
                             <div class="table-responsive">
-                                <table class="table table-bordered table-striped">
+                                <table class="table table-bordered table-striped table-hover" id="notasTable">
                                     <thead class="table-dark">
                                         <tr class="text-center">
-                                            <th>Curso / Materia</th>
+                                            <th style="width: 20%">Materia</th>
+                                            <th style="width: 30%">Competencia</th>
                                             @if($bimestreFiltro == 'anual')
-                                                <th>Bimestre 1</th>
-                                                <th>Bimestre 2</th>
-                                                <th>Bimestre 3</th>
-                                                <th>Bimestre 4</th>
+                                                @foreach($bimestresDisponibles as $bimestre)
+                                                    <th style="width: 10%">{{ $bimestre->sigla }}</th>
+                                                @endforeach
                                             @endif
-                                            <th>Promedio</th>
-                                            <th>Estado</th>
+                                            <th style="width: 15%">Promedio Final</th>
+                                            <th style="width: 15%">Estado</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($infoEstudiante['progreso_cursos'] as $curso)
-                                        <tr>
-                                            <td class="fw-bold">{{ $curso['curso'] }}</td>
-                                            @if($bimestreFiltro == 'anual')
-                                                @foreach($curso['promedios'] as $bimestre => $promedio)
-                                                <td class="text-center">
-                                                    @if($promedio !== null)
-                                                        <span class="badge
-                                                            @if($promedio > 3) bg-success
-                                                            @elseif($promedio > 2) bg-warning
-                                                            @else bg-danger
-                                                            @endif fs-6">
-                                                            {{ $promedio }}
-                                                        </span>
-                                                    @else
-                                                        <span class="badge bg-secondary">--</span>
+                                        @forelse($infoEstudiante['progreso_cursos'] as $curso)
+                                            @foreach($curso['competencias'] as $competenciaIndex => $competencia)
+                                                @php
+                                                    $tienePendiente = $competencia['tiene_registro_recuperacion'] ?? false;
+                                                    $claseFila = $tienePendiente ? 'table-danger' : '';
+                                                @endphp
+                                                <tr class="competencia-row {{ $claseFila }}" data-visualizacion="cuantitativo">
+                                                    @if($loop->first)
+                                                    <td class="align-middle text-center fw-bold bg-light" rowspan="{{ count($curso['competencias']) }}">
+                                                        {{ $curso['curso'] }}
+                                                    </td>
                                                     @endif
+
+                                                    <td class="align-middle">
+                                                        <strong>{{ $competencia['nombre'] }}</strong>
+                                                        @if($competencia['nota_recuperacion'] ?? false)
+                                                            <span class="badge bg-info ms-1" title="Nota de recuperación aplicada">
+                                                                <i class="fas fa-sync-alt"></i> Rec
+                                                            </span>
+                                                        @endif
+                                                    </td>
+
+                                                    @if($bimestreFiltro == 'anual')
+                                                        @php
+                                                            $promediosBimestres = $competencia['promedios_bimestres'] ?? [];
+                                                        @endphp
+                                                        @foreach($bimestresDisponibles as $bimestre)
+                                                            <td class="text-center">
+                                                                <span class="badge-nota-cuantitativo">
+                                                                    @if(isset($promediosBimestres[$bimestre->bimestre]) && $promediosBimestres[$bimestre->bimestre] !== null)
+                                                                        <strong class="
+                                                                            @if($promediosBimestres[$bimestre->bimestre] >= 1.5)
+                                                                            @else text-danger
+                                                                            @endif">
+                                                                            {{ number_format($promediosBimestres[$bimestre->bimestre], 1) }}
+                                                                        </strong>
+                                                                    @else
+                                                                        <span class="text-muted">--</span>
+                                                                    @endif
+                                                                </span>
+                                                                <span class="badge-nota-cualitativo" style="display: none;">
+                                                                    @if(isset($promediosBimestres[$bimestre->bimestre]) && $promediosBimestres[$bimestre->bimestre] !== null)
+                                                                        <strong class="
+                                                                            @if($promediosBimestres[$bimestre->bimestre] >= 3.5)
+                                                                            @elseif($promediosBimestres[$bimestre->bimestre] >= 2.5)
+                                                                            @elseif($promediosBimestres[$bimestre->bimestre] >= 1.5)
+                                                                            @else text-danger
+                                                                            @endif">
+                                                                            @if($promediosBimestres[$bimestre->bimestre] >= 3.5) AD
+                                                                            @elseif($promediosBimestres[$bimestre->bimestre] >= 2.5) A
+                                                                            @elseif($promediosBimestres[$bimestre->bimestre] >= 1.5) B
+                                                                            @else C
+                                                                            @endif
+                                                                        </strong>
+                                                                    @else
+                                                                        <span class="text-muted">--</span>
+                                                                    @endif
+                                                                </span>
+                                                            </td>
+                                                        @endforeach
+                                                    @endif
+
+                                                    @php
+                                                        $promedioFinal = $competencia['promedio_final'] ?? $competencia['promedio_original'];
+                                                        $notaOriginal = $competencia['promedio_original'];
+                                                        $tieneRecuperacion = $competencia['nota_recuperacion'] ?? false;
+                                                        $estaAprobada = $competencia['esta_aprobada'] ?? false;
+                                                    @endphp
+
+                                                    <td class="text-center">
+                                                        <span class="promedio-final-cuantitativo">
+                                                            @if($promedioFinal !== null)
+                                                                <div>
+                                                                    <strong class="@if(!$estaAprobada) text-danger @endif">
+                                                                        {{ number_format($promedioFinal, 1) }}
+                                                                    </strong>
+                                                                </div>
+                                                                @if($tieneRecuperacion && $promedioFinal != $notaOriginal)
+                                                                    <small class="text-muted">
+                                                                        (orig: {{ number_format($notaOriginal, 1) }})
+                                                                    </small>
+                                                                @endif
+                                                            @else
+                                                                <span class="text-muted">--</span>
+                                                            @endif
+                                                        </span>
+                                                        <span class="promedio-final-cualitativo" style="display: none;">
+                                                            @if($promedioFinal !== null)
+                                                                <div>
+                                                                    <strong class="@if(!$estaAprobada) text-danger @endif">
+                                                                        {{ $competencia['promedio_final_cualitativo'] ?? $competencia['promedio_original_cualitativo'] }}
+                                                                    </strong>
+                                                                </div>
+                                                                @if($tieneRecuperacion && $promedioFinal != $notaOriginal)
+                                                                    <small class="text-muted">
+                                                                        (orig: {{ number_format($notaOriginal, 1) }})
+                                                                    </small>
+                                                                @endif
+                                                            @else
+                                                                <span class="text-muted">--</span>
+                                                            @endif
+                                                        </span>
+                                                    </td>
+
+                                                    <td class="text-center">
+                                                        @if($competencia['requiere_recuperacion'] ?? false)
+                                                            <span class="badge bg-warning text-dark">
+                                                                <i class="fas fa-exclamation-triangle me-1"></i>Recuperación
+                                                            </span>
+                                                        @elseif($estaAprobada)
+                                                            <span class="badge bg-success">
+                                                                <i class="fas fa-check me-1"></i>Aprobado
+                                                            </span>
+                                                        @else
+                                                            <span class="badge bg-danger">
+                                                                <i class="fas fa-times me-1"></i>Desaprobado
+                                                            </span>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        @empty
+                                            <tr>
+                                                <td colspan="{{ $bimestreFiltro == 'anual' ? (4 + count($bimestresDisponibles)) : 4 }}" class="text-center">
+                                                    No hay datos disponibles
                                                 </td>
-                                                @endforeach
-                                            @endif
-                                            <td class="text-center fw-bold">
-                                                @if($curso['promedio_general'] !== null)
-                                                    <span class="badge
-                                                        @if($curso['promedio_general'] > 3) bg-success
-                                                        @elseif($curso['promedio_general'] > 2) bg-warning
-                                                        @else bg-danger
-                                                        @endif fs-6">
-                                                        {{ $curso['promedio_general'] }}
-                                                    </span>
-                                                @else
-                                                    <span class="badge bg-secondary">--</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center">
-                                                @if($curso['promedio_general'] !== null)
-                                                    @if($curso['promedio_general'] > 2)
-                                                        <span class="badge bg-success">
-                                                            <i class="fas fa-check me-1"></i>Aprobado
-                                                        </span>
-                                                    @else
-                                                        <span class="badge bg-danger">
-                                                            <i class="fas fa-times me-1"></i>Reprobado
-                                                        </span>
-                                                    @endif
-                                                @else
-                                                    <span class="badge bg-secondary">Sin datos</span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                        @endforeach
+                                            </tr>
+                                        @endforelse
                                     </tbody>
                                 </table>
+                            </div>
+
+                            <!-- Leyenda de colores -->
+                            <div class="mt-4 p-3 bg-light rounded">
+                                <h6 class="mb-2"><i class="fas fa-info-circle me-1"></i> Leyenda:</h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <i class="fas fa-sync-alt text-info me-1"></i> Rec = Nota mejorada por recuperación
+                                    </div>
+                                    <div class="col-md-4">
+                                        <span class="text-danger fw-bold me-1">Nota roja</span> = Nota desaprobatoria (&lt; 1.5)
+                                    </div>
+                                    <div class="col-md-4">
+                                        <span class="bg-danger text-white px-2 me-1">Fila roja</span> = Competencia con recuperación pendiente
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-12">
+                                        <small class="text-muted">
+                                            Umbral de aprobación: Nota ≥ 1.5 (equivalente a B)
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
                         @else
                             <div class="alert alert-info">
@@ -285,7 +394,7 @@
                                         if ($conducta['promedio_general'] !== null) {
                                             $promedioConductaGeneral += $conducta['promedio_general'];
                                             $totalConductas++;
-                                            if ($conducta['promedio_general'] > 2) {
+                                            if ($conducta['promedio_general'] >= 1.5) {
                                                 $conductasAdecuadas++;
                                             } else {
                                                 $conductasInadecuadas++;
@@ -358,7 +467,7 @@
                                             <th>Competencia / Área</th>
                                             <th>Promedio</th>
                                             <th>Estado</th>
-                                        </tr>
+                                        </table>
                                     </thead>
                                     <tbody>
                                         @foreach($infoEstudiante['progreso_conducta'] as $conducta)
@@ -366,20 +475,16 @@
                                             <td class="fw-bold">{{ $conducta['nombre'] }}</td>
                                             <td class="text-center fw-bold">
                                                 @if($conducta['promedio_general'] !== null)
-                                                    <span class="badge
-                                                        @if($conducta['promedio_general'] > 3) bg-success
-                                                        @elseif($conducta['promedio_general'] > 2) bg-warning
-                                                        @else bg-danger
-                                                        @endif fs-6">
-                                                        {{ $conducta['promedio_general'] }}
-                                                    </span>
+                                                    <strong class="@if($conducta['promedio_general'] < 1.5) text-danger @endif">
+                                                        {{ number_format($conducta['promedio_general'], 1) }}
+                                                    </strong>
                                                 @else
-                                                    <span class="badge bg-secondary">--</span>
+                                                    <span class="text-muted">--</span>
                                                 @endif
                                             </td>
                                             <td class="text-center">
                                                 @if($conducta['promedio_general'] !== null)
-                                                    @if($conducta['promedio_general'] > 2)
+                                                    @if($conducta['promedio_general'] >= 1.5)
                                                         <span class="badge bg-success">
                                                             <i class="fas fa-check me-1"></i>Adecuado
                                                         </span>
@@ -412,52 +517,170 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const infoEstudiante = @json($infoEstudiante);
-        const bimestreFiltro = @json($bimestreFiltro);
+// Variable global para almacenar la visualización actual
+let visualizacionActual = localStorage.getItem('visualizacionNotas') || 'cuantitativo';
 
-        if (bimestreFiltro === 'anual' && infoEstudiante.progreso_cursos && infoEstudiante.progreso_cursos.length > 0) {
-            const colores = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
+// Función para cambiar entre cuantitativo y cualitativo
+function cambiarVisualizacion(tipo) {
+    visualizacionActual = tipo;
+    localStorage.setItem('visualizacionNotas', tipo);
 
-            const datasets = infoEstudiante.progreso_cursos.map((curso, index) => ({
-                label: curso.curso,
-                data: [curso.promedios[1], curso.promedios[2], curso.promedios[3], curso.promedios[4]],
-                borderColor: colores[index % colores.length],
-                tension: 0,
-                fill: false
-            }));
+    // Actualizar botones
+    document.getElementById('btnCuantitativo').classList.remove('active');
+    document.getElementById('btnCualitativo').classList.remove('active');
 
+    if (tipo === 'cuantitativo') {
+        document.getElementById('btnCuantitativo').classList.add('active');
+        // Mostrar cuantitativo, ocultar cualitativo
+        document.querySelectorAll('.promedio-final-cuantitativo').forEach(el => el.style.display = '');
+        document.querySelectorAll('.promedio-final-cualitativo').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.badge-nota-cuantitativo').forEach(el => el.style.display = '');
+        document.querySelectorAll('.badge-nota-cualitativo').forEach(el => el.style.display = 'none');
+    } else {
+        document.getElementById('btnCualitativo').classList.add('active');
+        // Mostrar cualitativo, ocultar cuantitativo
+        document.querySelectorAll('.promedio-final-cuantitativo').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.promedio-final-cualitativo').forEach(el => el.style.display = '');
+        document.querySelectorAll('.badge-nota-cuantitativo').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.badge-nota-cualitativo').forEach(el => el.style.display = '');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const bimestreFiltro = @json($bimestreFiltro);
+    const chartData = @json($chartData ?? []);
+
+    if (bimestreFiltro === 'anual' && chartData.length > 0) {
+        const colores = [
+            '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+            '#858796', '#5a5c69', '#2e59d9', '#17a673', '#2c9faf'
+        ];
+
+        const datasets = [];
+        const competenciasMostrar = chartData.slice(0, 8);
+
+        competenciasMostrar.forEach((competencia, index) => {
+            const tieneDatos = Object.values(competencia.promedios).some(v => v !== null && v !== undefined);
+
+            if (tieneDatos) {
+                datasets.push({
+                    label: competencia.nombre.length > 40 ? competencia.nombre.substring(0, 37) + '...' : competencia.nombre,
+                    data: [
+                        competencia.promedios[1] || null,
+                        competencia.promedios[2] || null,
+                        competencia.promedios[3] || null,
+                        competencia.promedios[4] || null
+                    ],
+                    borderColor: colores[index % colores.length],
+                    backgroundColor: colores[index % colores.length] + '15',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: colores[index % colores.length],
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                });
+            }
+        });
+
+        if (datasets.length > 0) {
             const config = {
                 type: 'line',
                 data: {
-                    labels: ['B1', 'B2', 'B3', 'B4'],
+                    labels: @json($bimestresDisponibles->pluck('nombre')),
                     datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
                     plugins: {
-                        legend: { position: 'top' },
-                        title: { display: true, text: 'Progreso Académico' }
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { size: 11 },
+                                usePointStyle: true,
+                                boxWidth: 10
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Evolución del Rendimiento por Competencia',
+                            font: { size: 14, weight: 'bold' },
+                            padding: { bottom: 20 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null && context.parsed.y !== undefined) {
+                                        const nota = context.parsed.y;
+                                        label += nota.toFixed(1);
+                                        if (nota >= 3.5) label += ' (AD)';
+                                        else if (nota >= 2.5) label += ' (A)';
+                                        else if (nota >= 1.5) label += ' (B)';
+                                        else label += ' (C)';
+                                    } else {
+                                        label += 'Sin datos';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
                     },
                     scales: {
-                        y: { min: 1, max: 4, title: { display: true, text: 'Notas' } }
+                        y: {
+                            min: 0,
+                            max: 4.2,
+                            title: {
+                                display: true,
+                                text: 'Notas',
+                                font: { weight: 'bold' }
+                            },
+                            ticks: {
+                                stepSize: 0.5,
+                                callback: function(value) {
+                                    return value.toFixed(1);
+                                }
+                            },
+                            grid: {
+                                color: '#e3e6f0',
+                                drawBorder: true
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Bimestres',
+                                font: { weight: 'bold' }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
                     }
                 }
             };
 
-            new Chart(document.getElementById('progresoChart'), config);
+            const canvas = document.getElementById('competenciasChart');
+            if (canvas) {
+                const existingChart = Chart.getChart(canvas);
+                if (existingChart) {
+                    existingChart.destroy();
+                }
+                new Chart(canvas, config);
+            }
         }
-    });
-</script>
+    }
 
-<style>
-    .border-left-success { border-left: 4px solid #1cc88a !important; }
-    .border-left-info { border-left: 4px solid #36b9cc !important; }
-    .border-left-danger { border-left: 4px solid #e74a3b !important; }
-    .border-left-primary { border-left: 4px solid #4e73df !important; }
-    .border-left-warning { border-left: 4px solid #f6c23e !important; }
-    .badge { padding: 0.5rem 0.75rem; }
-    .table-responsive { overflow-x: auto; }
-</style>
+    // Aplicar la visualización guardada
+    cambiarVisualizacion(visualizacionActual);
+});
+</script>
 @endsection

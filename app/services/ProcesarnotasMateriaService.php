@@ -4,12 +4,6 @@ namespace App\Services;
 
 class ProcesarnotasMateriaService extends BaseNotasService
 {
-    /**
-     * Procesa las competencias y calcula promedios por materia
-     *
-     * @return array Cada elemento tiene: estudiante_id, materia_id, materia_nombre,
-     *               promedio, promedio_cualitativo, competencias (lista con sus datos)
-     */
     public function procesar(array $competencias, array $materias = [], array $competenciasNombres = []): array
     {
         $grupos = [];
@@ -28,6 +22,7 @@ class ProcesarnotasMateriaService extends BaseNotasService
                 ];
             }
 
+            // Incluir todos los datos de la competencia, incluyendo recuperacion_id
             $competenciaInfo = [
                 'id' => $competencia['materia_competencia_id'],
                 'nombre' => $competenciasNombres[$competencia['materia_competencia_id']] ?? 'Competencia',
@@ -37,7 +32,9 @@ class ProcesarnotasMateriaService extends BaseNotasService
                 'promedio_final' => $competencia['promedio_final'],
                 'promedio_final_cualitativo' => $competencia['promedio_final_cualitativo'],
                 'tiene_recuperacion' => $competencia['tiene_recuperacion'] ?? false,
-                'tiene_registro_recuperacion' => $competencia['tiene_registro_recuperacion'] ?? false
+                'tiene_registro_recuperacion' => $competencia['tiene_registro_recuperacion'] ?? false,
+                'recuperacion_estado' => $competencia['recuperacion_estado'] ?? null,
+                'recuperacion_id' => $competencia['recuperacion_id'] ?? null  // Agregar esta línea
             ];
 
             $grupos[$key]['competencias'][] = $competenciaInfo;
