@@ -468,13 +468,4 @@
         }
     });
 </script>
-
-<style>
-    .border-left-success { border-left: 4px solid #1cc88a !important; }
-    .border-left-info { border-left: 4px solid #36b9cc !important; }
-    .border-left-danger { border-left: 4px solid #e74a3b !important; }
-    .border-left-primary { border-left: 4px solid #4e73df !important; }
-    .border-left-warning { border-left: 4px solid #f6c23e !important; }
-    .badge { padding: 0.5rem 0.75rem; }
-</style>
 @endsection

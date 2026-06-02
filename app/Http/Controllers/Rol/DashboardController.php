@@ -1418,7 +1418,7 @@ class DashboardController extends Controller
             // En período de recuperación, obtenemos los datos de Recuperacioncompetencia
             $recuperaciones = Recuperacioncompetencia::where('estudiante_id', $estudiante->id)
                 ->where('periodo_id', $periodoSeleccionado->id)
-                ->where('estado', '!=', '0') // Solo recuperaciones finalizadas
+                ->where('estado', '!=', '0')
                 ->with(['materiaCompetencia', 'materia'])
                 ->get();
 
@@ -1468,7 +1468,6 @@ class DashboardController extends Controller
                     ];
                 }
 
-                // Obtener nota numérica desde el enum
                 $notaFinal = $this->competenciaService->convertirEnumANota($rec->nivel_logro_final);
                 $notaInicial = $this->competenciaService->convertirEnumANota($rec->nivel_logro_inicial);
 
@@ -1484,7 +1483,7 @@ class DashboardController extends Controller
                     'esta_aprobada' => ($notaFinal ?? $notaInicial) >= 1.5,
                     'requiere_recuperacion' => false,
                     'tiene_registro_recuperacion' => false,
-                    'promedios_bimestres' => [] // No aplica para recuperación
+                    'promedios_bimestres' => []
                 ];
             }
 
@@ -1534,7 +1533,7 @@ class DashboardController extends Controller
                 'grado' => $matricula->grado ? $matricula->grado->grado . '° ' . $matricula->grado->seccion . ' - ' . $matricula->grado->nivel : 'Sin grado',
                 'grado_id' => $matricula->grado_id,
                 'progreso_cursos' => $progresoCursos,
-                'progreso_conducta' => [], // No hay conducta en período de recuperación
+                'progreso_conducta' => [],
                 'total_cursos' => count($progresoCursos),
                 'total_conducta' => 0,
                 'cursos_aprobados' => $cursosAprobados,
@@ -1744,9 +1743,9 @@ class DashboardController extends Controller
                 }
             }
 
-            // Preparar datos para el gráfico - CORREGIDO INCLUYENDO LA MATERIA
+            // Preparar datos para el gráfico
             foreach ($materiasEnriquecidas as $materia) {
-                $materiaNombre = $materia['materia_nombre']; // ← Obtener nombre de la materia
+                $materiaNombre = $materia['materia_nombre'];
                 foreach ($materia['competencias'] as $competencia) {
                     $tieneDatos = false;
                     foreach ($bimestres as $bim) {
@@ -1759,7 +1758,7 @@ class DashboardController extends Controller
                     if ($tieneDatos) {
                         $chartData[] = [
                             'nombre' => $competencia['nombre'],
-                            'materia' => $materiaNombre,  // ← AGREGAR ESTO
+                            'materia' => $materiaNombre,
                             'promedios' => $competencia['promedios_bimestres']
                         ];
                     }
@@ -1788,8 +1787,84 @@ class DashboardController extends Controller
             ];
         }
 
-        // Procesar conducta
-        $progresoConducta = $this->procesarConducta($estudiante, $periodoSeleccionado, $bimestreFiltro, $materiasAsignadas);
+        // ==================== PROCESAR CONDUCTA (BLOQUE INTERNO) ====================
+        $progresoConducta = [];
+
+        $conductasDB = Conducta::whereHas('periodosBimestres', function($query) use ($periodoSeleccionado) {
+            $query->where('periodo_id', $periodoSeleccionado->id)
+                ->whereNull('conducta_periodo_bimestres.deleted_at');
+        })->distinct()->get();
+
+        if ($conductasDB->isNotEmpty()) {
+            $bimestresList = Periodobimestre::where('periodo_id', $periodoSeleccionado->id)
+                ->where('tipo_bimestre', 'A')
+                ->orderBy('bimestre')
+                ->get();
+
+            $periodoBimestreConducta = ($bimestreFiltro !== 'anual')
+                ? $bimestresList->firstWhere('sigla', $bimestreFiltro)
+                : null;
+
+            $queryConducta = Conductaperiodobimestrenota::with([
+                    'conductaPeriodoBimestre.conducta',
+                    'periodoBimestre',
+                    'curso_grado_sec_niv_anio.materia'
+                ])
+                ->where('estudiante_id', $estudiante->id)
+                ->where('periodo_id', $periodoSeleccionado->id)
+                ->where('publico', '!=', '0')
+                ->whereHas('conductaPeriodoBimestre', function($q) {
+                    $q->whereNull('deleted_at');
+                });
+
+            if ($bimestreFiltro !== 'anual' && $periodoBimestreConducta) {
+                $queryConducta->where('periodo_bimestre_id', $periodoBimestreConducta->id);
+            }
+
+            $notasConducta = $queryConducta->get();
+
+            if ($notasConducta->isNotEmpty()) {
+                $notasMap = [];
+                foreach ($notasConducta as $nota) {
+                    if (!$nota->conductaPeriodoBimestre || $nota->conductaPeriodoBimestre->trashed()) {
+                        continue;
+                    }
+                    $key = $nota->conductaPeriodoBimestre->conducta_id . '|' . $nota->curso_grado_sec_niv_anio_id;
+                    $notasMap[$key] = $nota->nota;
+                }
+
+                foreach ($conductasDB as $conducta) {
+                    $notasConductaCurso = [];
+                    $sumaNotas = 0;
+                    $totalNotas = 0;
+
+                    foreach ($materiasAsignadas as $curso) {
+                        $key = $conducta->id . '|' . $curso->id;
+                        $notaValor = $notasMap[$key] ?? null;
+                        $notasConductaCurso[] = [
+                            'curso' => $curso->materia->nombre ?? 'Sin nombre',
+                            'nota' => $notaValor
+                        ];
+                        if ($notaValor !== null) {
+                            $sumaNotas += $notaValor;
+                            $totalNotas++;
+                        }
+                    }
+
+                    $promedioGeneral = $totalNotas > 0 ? round($sumaNotas / $totalNotas, 2) : null;
+                    $estado = $promedioGeneral !== null
+                        ? ($promedioGeneral >= 1.5 ? 'adecuado' : 'inadecuado')
+                        : 'sin_datos';
+
+                    $progresoConducta[] = [
+                        'nombre' => $conducta->nombre,
+                        'cursos' => $notasConductaCurso,
+                        'promedio_general' => $promedioGeneral,
+                        'estado' => $estado
+                    ];
+                }
+            }
+        }
 
         // Estadísticas generales
         $cursosAprobados = 0;
@@ -1844,91 +1919,6 @@ class DashboardController extends Controller
             'mensajeRecuperacion',
             'esPeriodoRecuperacion'
         ));
-    }
-    private function procesarConducta($estudiante, $periodoSeleccionado, $bimestreFiltro, $materiasAsignadas)
-    {
-        $progresoConducta = [];
-
-        $conductasDB = Conducta::whereHas('periodosBimestres', function($query) use ($periodoSeleccionado) {
-            $query->where('periodo_id', $periodoSeleccionado->id)
-                ->whereNull('conducta_periodo_bimestres.deleted_at');
-        })->distinct()->get();
-
-        if ($conductasDB->isEmpty()) {
-            return $progresoConducta;
-        }
-
-        $bimestresList = Periodobimestre::where('periodo_id', $periodoSeleccionado->id)
-            ->where('tipo_bimestre', 'A')
-            ->orderBy('bimestre')
-            ->get();
-
-        $periodoBimestreConducta = ($bimestreFiltro !== 'anual')
-            ? $bimestresList->firstWhere('sigla', $bimestreFiltro)
-            : null;
-
-        $queryConducta = Conductaperiodobimestrenota::with([
-                'conductaPeriodoBimestre.conducta',
-                'periodoBimestre',
-                'curso_grado_sec_niv_anio.materia'
-            ])
-            ->where('estudiante_id', $estudiante->id)
-            ->where('periodo_id', $periodoSeleccionado->id)
-            ->where('publico', '!=', '0')
-            ->whereHas('conductaPeriodoBimestre', function($q) {
-                $q->whereNull('deleted_at');
-            });
-
-        if ($bimestreFiltro !== 'anual' && $periodoBimestreConducta) {
-            $queryConducta->where('periodo_bimestre_id', $periodoBimestreConducta->id);
-        }
-
-        $notasConducta = $queryConducta->get();
-
-        if ($notasConducta->isNotEmpty()) {
-            $notasMap = [];
-            foreach ($notasConducta as $nota) {
-                if (!$nota->conductaPeriodoBimestre || $nota->conductaPeriodoBimestre->trashed()) {
-                    continue;
-                }
-                $key = $nota->conductaPeriodoBimestre->conducta_id . '|' . $nota->curso_grado_sec_niv_anio_id;
-                $notasMap[$key] = $nota->nota;
-            }
-
-            foreach ($conductasDB as $conducta) {
-                $notasConductaCurso = [];
-                $sumaNotas = 0;
-                $totalNotas = 0;
-
-                foreach ($materiasAsignadas as $curso) {
-                    $key = $conducta->id . '|' . $curso->id;
-                    $notaValor = $notasMap[$key] ?? null;
-                    $notasConductaCurso[] = [
-                        'curso' => $curso->materia->nombre ?? 'Sin nombre',
-                        'nota' => $notaValor
-                    ];
-                    if ($notaValor !== null) {
-                        $sumaNotas += $notaValor;
-                        $totalNotas++;
-                    }
-                }
-
-                $promedioGeneral = $totalNotas > 0 ? round($sumaNotas / $totalNotas, 2) : null;
-                // Usar el mismo umbral de aprobación (1.5)
-                $estado = $promedioGeneral !== null
-                    ? ($promedioGeneral >= 1.5 ? 'adecuado' : 'inadecuado')
-                    : 'sin_datos';
-
-                $progresoConducta[] = [
-                    'nombre' => $conducta->nombre,
-                    'cursos' => $notasConductaCurso,
-                    'promedio_general' => $promedioGeneral,
-                    'estado' => $estado
-                ];
-            }
-        }
-
-        return $progresoConducta;
     }
     protected function NuevoRol()
     {
