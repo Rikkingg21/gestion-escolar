@@ -56,7 +56,7 @@
         </div>
     </div>
 
-    <!-- ✅ NUEVO: Mensaje contextual para período de recuperación -->
+    <!-- Mensaje contextual para período de recuperación -->
     @if(isset($mensajeRecuperacion))
     <div class="row mb-3">
         <div class="col-md-12">
@@ -171,7 +171,6 @@
                                 </div>
                             </div>
 
-                            <!-- Gráfico de progreso por bimestre (solo modo anual y NO período de recuperación) -->
                             @if($bimestreFiltro == 'anual' && !empty($chartData))
                             <div class="mb-5">
                                 <h5 class="mb-3">
@@ -180,7 +179,7 @@
                                 <div class="card">
                                     <div class="card-body">
                                         <div style="height: 450px;">
-                                            <canvas id="competenciasChart"></canvas>
+                                            <canvas id="competenciasChart"></canvas>  <!-- ← ESTE CANVAS DEBE EXISTIR -->
                                         </div>
                                     </div>
                                 </div>
@@ -207,7 +206,7 @@
                                         @forelse($infoEstudiante['progreso_cursos'] as $curso)
                                             @foreach($curso['competencias'] as $competenciaIndex => $competencia)
                                                 @php
-                                                    $tienePendiente = $competencia['tiene_registro_recuperacion'] ?? false;
+                                                    $tienePendiente = ($bimestreFiltro == 'anual' && ($competencia['tiene_registro_recuperacion'] ?? false));
                                                     $claseFila = $tienePendiente ? 'table-danger' : '';
                                                 @endphp
                                                 <tr class="competencia-row {{ $claseFila }}" data-visualizacion="cuantitativo">
@@ -316,18 +315,31 @@
                                                     </td>
 
                                                     <td class="text-center">
-                                                        @if($competencia['requiere_recuperacion'] ?? false)
-                                                            <span class="badge bg-warning text-dark">
-                                                                <i class="fas fa-exclamation-triangle me-1"></i>Recuperación
-                                                            </span>
-                                                        @elseif($estaAprobada)
-                                                            <span class="badge bg-success">
-                                                                <i class="fas fa-check me-1"></i>Aprobado
-                                                            </span>
+                                                        @if($bimestreFiltro == 'anual')
+                                                            @if($competencia['requiere_recuperacion'] ?? false)
+                                                                <span class="badge bg-warning text-dark">
+                                                                    <i class="fas fa-exclamation-triangle me-1"></i>Recuperación
+                                                                </span>
+                                                            @elseif($estaAprobada)
+                                                                <span class="badge bg-success">
+                                                                    <i class="fas fa-check me-1"></i>Aprobado
+                                                                </span>
+                                                            @else
+                                                                <span class="badge bg-danger">
+                                                                    <i class="fas fa-times me-1"></i>Desaprobado
+                                                                </span>
+                                                            @endif
                                                         @else
-                                                            <span class="badge bg-danger">
-                                                                <i class="fas fa-times me-1"></i>Desaprobado
-                                                            </span>
+                                                            {{-- Modo bimestre específico: solo Aprobado/Desaprobado --}}
+                                                            @if($estaAprobada)
+                                                                <span class="badge bg-success">
+                                                                    <i class="fas fa-check me-1"></i>Aprobado
+                                                                </span>
+                                                            @else
+                                                                <span class="badge bg-danger">
+                                                                    <i class="fas fa-times me-1"></i>Desaprobado
+                                                                </span>
+                                                            @endif
                                                         @endif
                                                     </td>
                                                 </tr>
@@ -468,17 +480,26 @@
                                                 <td class="fw-bold">
                                                     {{ $conducta['nombre'] }}
                                                 </td>
-
-                                                <td class="text-center fw-bold">
+                                                <td class="text-center fw-bold conducta-nota" data-nota="{{ $conducta['promedio_general'] }}">
                                                     @if($conducta['promedio_general'] !== null)
-                                                        <span class="{{ $conducta['promedio_general'] < 1.5 ? 'text-danger' : 'text-success' }}">
-                                                            {{ number_format($conducta['promedio_general'], 1) }}
+                                                        <span class="conducta-nota-cuantitativo">
+                                                            <span class="{{ $conducta['promedio_general'] < 1.5 ? 'text-danger' : 'text-success' }}">
+                                                                {{ number_format($conducta['promedio_general'], 1) }}
+                                                            </span>
+                                                        </span>
+                                                        <span class="conducta-nota-cualitativo" style="display: none;">
+                                                            <span class="{{ $conducta['promedio_general'] < 1.5 ? 'text-danger' : 'text-success' }}">
+                                                                @if($conducta['promedio_general'] >= 3.5) AD
+                                                                @elseif($conducta['promedio_general'] >= 2.5) A
+                                                                @elseif($conducta['promedio_general'] >= 1.5) B
+                                                                @else C
+                                                                @endif
+                                                            </span>
                                                         </span>
                                                     @else
                                                         <span class="text-muted">--</span>
                                                     @endif
                                                 </td>
-
                                                 <td class="text-center">
                                                     @if($conducta['promedio_general'] !== null)
                                                         @if($conducta['promedio_general'] >= 1.5)
@@ -520,168 +541,349 @@
 <script>
 // Variable global para almacenar la visualización actual
 let visualizacionActual = localStorage.getItem('visualizacionNotas') || 'cuantitativo';
+let chartInstance = null;
+let materiasFiltradas = new Map();
 
 // Función para cambiar entre cuantitativo y cualitativo
 function cambiarVisualizacion(tipo) {
     visualizacionActual = tipo;
     localStorage.setItem('visualizacionNotas', tipo);
 
-    // Actualizar botones
     document.getElementById('btnCuantitativo').classList.remove('active');
     document.getElementById('btnCualitativo').classList.remove('active');
 
     if (tipo === 'cuantitativo') {
         document.getElementById('btnCuantitativo').classList.add('active');
-        // Mostrar cuantitativo, ocultar cualitativo
+
         document.querySelectorAll('.promedio-final-cuantitativo').forEach(el => el.style.display = '');
         document.querySelectorAll('.promedio-final-cualitativo').forEach(el => el.style.display = 'none');
         document.querySelectorAll('.badge-nota-cuantitativo').forEach(el => el.style.display = '');
         document.querySelectorAll('.badge-nota-cualitativo').forEach(el => el.style.display = 'none');
+
+        document.querySelectorAll('.conducta-nota-cuantitativo').forEach(el => el.style.display = '');
+        document.querySelectorAll('.conducta-nota-cualitativo').forEach(el => el.style.display = 'none');
+
     } else {
         document.getElementById('btnCualitativo').classList.add('active');
-        // Mostrar cualitativo, ocultar cuantitativo
+
         document.querySelectorAll('.promedio-final-cuantitativo').forEach(el => el.style.display = 'none');
         document.querySelectorAll('.promedio-final-cualitativo').forEach(el => el.style.display = '');
         document.querySelectorAll('.badge-nota-cuantitativo').forEach(el => el.style.display = 'none');
         document.querySelectorAll('.badge-nota-cualitativo').forEach(el => el.style.display = '');
+
+        document.querySelectorAll('.conducta-nota-cuantitativo').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.conducta-nota-cualitativo').forEach(el => el.style.display = '');
     }
+}
+
+// Función para convertir nota a cualitativo
+function convertirNotaCualitativo(nota) {
+    if (nota === null || nota === undefined) return '--';
+    if (nota >= 3.5) return 'AD';
+    if (nota >= 2.5) return 'A';
+    if (nota >= 1.5) return 'B';
+    return 'C';
+}
+
+// Función para actualizar el gráfico basado en materias filtradas
+function actualizarGrafico() {
+    if (!chartInstance) return;
+
+    chartInstance.data.datasets.forEach(dataset => {
+        const materiaVisible = materiasFiltradas.get(dataset.materia);
+        dataset.hidden = !materiaVisible;
+    });
+
+    chartInstance.update();
+}
+
+// Función para toggle de materia
+function toggleMateria(materia, element) {
+    const nuevaVisibilidad = !materiasFiltradas.get(materia);
+    materiasFiltradas.set(materia, nuevaVisibilidad);
+
+    if (nuevaVisibilidad) {
+        element.classList.remove('btn-outline-secondary');
+        element.classList.add('btn-primary');
+    } else {
+        element.classList.remove('btn-primary');
+        element.classList.add('btn-outline-secondary');
+    }
+
+    actualizarGrafico();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     const bimestreFiltro = @json($bimestreFiltro);
-    const chartData = @json($chartData ?? []);
+    let chartData = @json($chartData ?? []);
+    const bimestresDisponibles = @json($bimestresDisponibles);
 
-    if (bimestreFiltro === 'anual' && chartData.length > 0) {
-        const colores = [
-            '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
-            '#858796', '#5a5c69', '#2e59d9', '#17a673', '#2c9faf'
-        ];
+    // Configurar visualización de conducta desde el inicio
+    document.querySelectorAll('.conducta-nota').forEach(el => {
+        const nota = parseFloat(el.getAttribute('data-nota'));
+        if (!isNaN(nota)) {
+            const spanCuantitativo = document.createElement('span');
+            spanCuantitativo.className = 'conducta-nota-cuantitativo';
+            spanCuantitativo.textContent = nota.toFixed(1);
 
-        const datasets = [];
-        const competenciasMostrar = chartData.slice(0, 8);
+            const spanCualitativo = document.createElement('span');
+            spanCualitativo.className = 'conducta-nota-cualitativo';
+            spanCualitativo.style.display = 'none';
+            spanCualitativo.textContent = convertirNotaCualitativo(nota);
 
-        competenciasMostrar.forEach((competencia, index) => {
-            const tieneDatos = Object.values(competencia.promedios).some(v => v !== null && v !== undefined);
+            el.innerHTML = '';
+            el.appendChild(spanCuantitativo);
+            el.appendChild(spanCualitativo);
+        }
+    });
+
+    if (bimestreFiltro !== 'anual' || chartData.length === 0) {
+        cambiarVisualizacion(visualizacionActual);
+        return;
+    }
+
+    // Obtener bimestres académicos ordenados
+    const bimestresAcademicos = bimestresDisponibles
+        .filter(bim => bim.tipo_bimestre === 'A' || bim.tipo_bimestre === null)
+        .sort((a, b) => a.bimestre - b.bimestre);
+
+    const labels = bimestresAcademicos.map(bim => bim.sigla || `B${bim.bimestre}`);
+
+    // Agrupar competencias por materia
+    const competenciasPorMateria = new Map();
+
+    chartData.forEach(item => {
+        const materia = item.materia || 'Sin materia';
+        if (!competenciasPorMateria.has(materia)) {
+            competenciasPorMateria.set(materia, []);
+        }
+        competenciasPorMateria.get(materia).push({
+            nombre: item.nombre,
+            promedios: item.promedios
+        });
+    });
+
+    // Paleta de colores profesionales
+    const paletaColores = [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+        '#FF9F40', '#8A2BE2', '#5F9EA0', '#D2691E', '#7B68EE',
+        '#20B2AA', '#FF69B4', '#87CEEB', '#FFA07A', '#6A5ACD',
+        '#48D1CC', '#FFB6C1', '#98FB98', '#F0E68C', '#DDA0DD'
+    ];
+
+    // Asignar colores por materia
+    const materias = Array.from(competenciasPorMateria.keys());
+    const colorPorMateria = new Map();
+    materias.forEach((materia, idx) => {
+        colorPorMateria.set(materia, paletaColores[idx % paletaColores.length]);
+        materiasFiltradas.set(materia, true);
+    });
+
+    // Crear HTML para los filtros de materias (top)
+    const filtrosHTML = `
+        <div class="mb-4">
+            <label class="form-label fw-bold mb-2">
+                <i class="fas fa-filter me-1"></i> Filtrar por Materia:
+            </label>
+            <div class="d-flex flex-wrap gap-2" id="filtrosMaterias">
+                ${materias.map(materia => `
+                    <button type="button"
+                            class="btn btn-primary btn-sm materia-filter"
+                            data-materia="${materia.replace(/"/g, '&quot;')}"
+                            onclick="toggleMateria('${materia.replace(/'/g, "\\'")}', this)"
+                            style="font-size: 0.85rem;">
+                        ${materia}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="mt-2">
+                <button type="button" class="btn btn-link btn-sm" onclick="seleccionarTodasMaterias(true)" style="font-size: 0.8rem;">
+                    <i class="fas fa-check-square me-1"></i> Seleccionar todas
+                </button>
+                <button type="button" class="btn btn-link btn-sm" onclick="seleccionarTodasMaterias(false)" style="font-size: 0.8rem;">
+                    <i class="fas fa-square me-1"></i> Limpiar todas
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Insertar filtros antes del gráfico
+    const chartContainer = document.querySelector('#competenciasChart')?.closest('.card');
+    if (chartContainer && !document.getElementById('filtrosContainer')) {
+        const filtrosDiv = document.createElement('div');
+        filtrosDiv.id = 'filtrosContainer';
+        filtrosDiv.innerHTML = filtrosHTML;
+        chartContainer.parentNode.insertBefore(filtrosDiv, chartContainer);
+    }
+
+    // Crear datasets
+    const datasets = [];
+
+    for (const [materia, competencias] of competenciasPorMateria) {
+        const materiaColor = colorPorMateria.get(materia);
+        competencias.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+        competencias.forEach(competencia => {
+            const data = bimestresAcademicos.map(bim => {
+                const promedio = competencia.promedios[bim.bimestre];
+                return (promedio !== undefined && promedio !== null) ? promedio : null;
+            });
+
+            const tieneDatos = data.some(v => v !== null);
 
             if (tieneDatos) {
                 datasets.push({
-                    label: competencia.nombre.length > 40 ? competencia.nombre.substring(0, 37) + '...' : competencia.nombre,
-                    data: [
-                        competencia.promedios[1] || null,
-                        competencia.promedios[2] || null,
-                        competencia.promedios[3] || null,
-                        competencia.promedios[4] || null
-                    ],
-                    borderColor: colores[index % colores.length],
-                    backgroundColor: colores[index % colores.length] + '15',
+                    label: `${materia} - ${competencia.nombre}`,
+                    data: data,
+                    borderColor: materiaColor,
+                    backgroundColor: materiaColor + '10',
                     borderWidth: 2,
-                    tension: 0.3,
-                    fill: true,
-                    pointRadius: 4,
+                    tension: 0,
+                    fill: false,
+                    pointRadius: 3,
                     pointHoverRadius: 6,
-                    pointBackgroundColor: colores[index % colores.length],
+                    pointBackgroundColor: materiaColor,
                     pointBorderColor: '#fff',
-                    pointBorderWidth: 2
+                    pointBorderWidth: 1.5,
+                    materia: materia,
+                    hidden: false
                 });
             }
         });
+    }
 
-        if (datasets.length > 0) {
-            const config = {
-                type: 'line',
-                data: {
-                    labels: @json($bimestresDisponibles->pluck('nombre')),
-                    datasets: datasets
+    const canvas = document.getElementById('competenciasChart');
+    if (canvas && datasets.length > 0) {
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(canvas, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                font: { size: 11 },
-                                usePointStyle: true,
-                                boxWidth: 10
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Evolución del Rendimiento por Competencia',
-                            font: { size: 14, weight: 'bold' },
-                            padding: { bottom: 20 }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) label += ': ';
-                                    if (context.parsed.y !== null && context.parsed.y !== undefined) {
-                                        const nota = context.parsed.y;
-                                        label += nota.toFixed(1);
-                                        if (nota >= 3.5) label += ' (AD)';
-                                        else if (nota >= 2.5) label += ' (A)';
-                                        else if (nota >= 1.5) label += ' (B)';
-                                        else label += ' (C)';
-                                    } else {
-                                        label += 'Sin datos';
-                                    }
-                                    return label;
-                                }
-                            }
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        align: 'start',
+                        labels: {
+                            font: { size: 9, family: "'Segoe UI', sans-serif" },
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            boxWidth: 8,
+                            padding: 6
                         }
                     },
-                    scales: {
-                        y: {
-                            min: 0,
-                            max: 4.2,
-                            title: {
-                                display: true,
-                                text: 'Notas',
-                                font: { weight: 'bold' }
+                    tooltip: {
+                        mode: 'nearest',
+                        intersect: true,
+                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        titleColor: '#fff',
+                        bodyColor: '#ddd',
+                        borderColor: '#666',
+                        borderWidth: 1,
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                return tooltipItems[0].label;
                             },
-                            ticks: {
-                                stepSize: 0.5,
-                                callback: function(value) {
-                                    return value.toFixed(1);
-                                }
-                            },
-                            grid: {
-                                color: '#e3e6f0',
-                                drawBorder: true
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Bimestres',
-                                font: { weight: 'bold' }
-                            },
-                            grid: {
-                                display: false
+                            label: function(context) {
+                                const dataset = context.dataset;
+                                const nota = context.parsed.y;
+                                if (nota === null) return null;
+
+                                let cualitativo = '';
+                                if (nota >= 3.5) cualitativo = 'AD';
+                                else if (nota >= 2.5) cualitativo = 'A';
+                                else if (nota >= 1.5) cualitativo = 'B';
+                                else cualitativo = 'C';
+
+                                return `${dataset.label}: ${nota.toFixed(1)} (${cualitativo})`;
                             }
                         }
                     }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 4.2,
+                        title: {
+                            display: true,
+                            text: 'Nota',
+                            font: { weight: 'bold', size: 12 }
+                        },
+                        ticks: {
+                            stepSize: 0.5,
+                            callback: (value) => value.toFixed(1),
+                            font: { size: 11 }
+                        },
+                        grid: {
+                            color: '#e9ecef',
+                            drawBorder: true
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Bimestre',
+                            font: { weight: 'bold', size: 12 }
+                        },
+                        ticks: { font: { size: 11 } },
+                        grid: { display: false }
+                    }
+                },
+                elements: {
+                    line: {
+                        borderWidth: 2,
+                        tension: 0
+                    },
+                    point: {
+                        radius: 3,
+                        hoverRadius: 7,
+                        hitRadius: 10
+                    }
+                },
+                hover: {
+                    mode: 'nearest',
+                    intersect: true,
+                    animationDuration: 150
                 }
-            };
-
-            const canvas = document.getElementById('competenciasChart');
-            if (canvas) {
-                const existingChart = Chart.getChart(canvas);
-                if (existingChart) {
-                    existingChart.destroy();
-                }
-                new Chart(canvas, config);
             }
-        }
+        });
     }
 
-    // Aplicar la visualización guardada
     cambiarVisualizacion(visualizacionActual);
 });
+
+// Funciones globales para los filtros
+function seleccionarTodasMaterias(visibles) {
+    const botones = document.querySelectorAll('.materia-filter');
+    botones.forEach(btn => {
+        const materia = btn.getAttribute('data-materia');
+        materiasFiltradas.set(materia, visibles);
+
+        if (visibles) {
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-primary');
+        } else {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline-secondary');
+        }
+    });
+
+    actualizarGrafico();
+}
+
+window.toggleMateria = toggleMateria;
+window.seleccionarTodasMaterias = seleccionarTodasMaterias;
+window.actualizarGrafico = actualizarGrafico;
+window.cambiarVisualizacion = cambiarVisualizacion;
+window.convertirNotaCualitativo = convertirNotaCualitativo;
 </script>
 @endsection
