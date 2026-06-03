@@ -236,8 +236,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('/reporte/{id}', [ReporteController::class, 'destroy'])->name('reporte.destroy');
 
     //Route::get('/libreta/{anio}/{bimestre}', [LibretaController::class, 'index'])->name('libreta.index');
-    Route::get('/libreta/{anio}/{sigla?}', [LibretaController::class, 'index'])->name('libreta.index');
-    Route::post('/libreta/{anio}/{bimestre}/pdf', [LibretaController::class, 'pdf'])->name('libreta.pdf');
+    //Route::get('/libreta/{anio}/{sigla?}', [LibretaController::class, 'index'])->name('libreta.index');
+    Route::get('/libreta', [LibretaController::class, 'index'])->name('libreta.index');
+    //Route::post('/libreta/{anio}/{bimestre}/pdf', [LibretaController::class, 'pdf'])->name('libreta.pdf');
+    Route::post('/libreta/pdf', [LibretaController::class, 'pdf'])->name('libreta.pdf');
 
     Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asistencia.index');
     Route::get('/asistencia/bimestres-por-periodo/{periodo_id}', [AsistenciaController::class, 'getBimestresByPeriodo'])->name('asistencia.bimestres-por-periodo');

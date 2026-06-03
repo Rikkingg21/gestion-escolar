@@ -2,15 +2,12 @@
 
 namespace App\Services;
 
-class EvaluacionEstudianteService
+class EvaluacionEstudianteService extends BaseNotasService
 {
     const NOTA_MINIMA_APROBACION = 1.5;
 
     /**
      * Evalúa si una competencia está aprobada
-     * Una competencia está aprobada si:
-     * - Tiene nota de recuperación >= NOTA_MINIMA_APROBACION, O
-     * - No tiene recuperación y promedio_original >= NOTA_MINIMA_APROBACION
      */
     public function competenciaEstaAprobada(float $promedioFinal): bool
     {
@@ -19,10 +16,6 @@ class EvaluacionEstudianteService
 
     /**
      * Evalúa si una competencia requiere recuperación
-     * Requiere recuperación si:
-     * - No está aprobada Y
-     * - No tiene nota de recuperación Y
-     * - No tiene registro de recuperación pendiente
      */
     public function competenciaRequiereRecuperacion(bool $estaAprobada, ?float $notaRecuperacion, bool $tieneRegistroRecuperacion): bool
     {
@@ -74,8 +67,6 @@ class EvaluacionEstudianteService
         foreach ($competencias as $competencia) {
             $competenciaId = $competencia['id'];
 
-            // Determinar la nota final real para aprobación
-            // Si tiene nota de recuperación, usarla; si no, usar promedio original
             $notaFinal = $competencia['promedio_final'] ?? $competencia['promedio_original'];
             $estaAprobada = $this->competenciaEstaAprobada($notaFinal);
 
@@ -130,7 +121,6 @@ class EvaluacionEstudianteService
                 }
             }
 
-            // Recalcular promedio final de la materia con las notas reales
             $sumaNotas = 0;
             foreach ($competenciasEnriquecidas as $competencia) {
                 $sumaNotas += $competencia['promedio_final'];
@@ -154,13 +144,5 @@ class EvaluacionEstudianteService
         }
 
         return $resultados;
-    }
-
-    private function convertirACualitativo(float $nota): string
-    {
-        if ($nota >= 3.5) return 'AD';
-        if ($nota >= 2.5) return 'A';
-        if ($nota >= 1.5) return 'B';
-        return 'C';
     }
 }
