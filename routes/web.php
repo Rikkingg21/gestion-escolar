@@ -42,6 +42,8 @@ use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\Materia\MateriaCompetenciaController;
 use App\Http\Controllers\Materia\MateriaCriterioController;
 
+use App\Http\Controllers\Metodopago\TipopagoController;
+
 use App\Http\Controllers\ReporteController;
 
 
@@ -272,4 +274,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/asistencia/liberar-definitivo-masivo', [AsistenciabloqueoController::class, 'liberarDefinitivoMasivo'])->name('asistencia.liberar-definitivo-masivo');
 
     Route::get('/historial-asistencia/{periodo_id?}/{periodobimestre_sigla?}', [AsistenciahistorialController::class, 'calendarioAsistencia'])->name('asistencia.calendario');
+
+    Route::prefix('metodos-de-pago')->name('metodopago.')->group(function () {
+        Route::get('/', [TipopagoController::class, 'index'])->name('index');
+        Route::get('/create', [TipopagoController::class, 'create'])->name('create');
+        Route::post('/', [TipopagoController::class, 'store'])->name('store');
+        Route::get('/{id}', [TipopagoController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [TipopagoController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [TipopagoController::class, 'update'])->name('update');
+        Route::delete('/{id}', [TipopagoController::class, 'destroy'])->name('destroy');
+        Route::patch('/{id}/status', [TipopagoController::class, 'changeStatus'])->name('status');
+    });
 });
