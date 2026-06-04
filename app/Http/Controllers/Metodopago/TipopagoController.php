@@ -9,6 +9,16 @@ use Illuminate\Support\Facades\Validator;
 
 class TipopagoController extends Controller
 {
+    //moduleID 20 = Tipos de Pago
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if (!auth()->user()->canAccessModule('20')) {
+                abort(403, 'No tienes permiso para acceder a este módulo.');
+            }
+            return $next($request);
+        });
+    }
     public function index(Request $request)
     {
         $search = $request->get('search');
