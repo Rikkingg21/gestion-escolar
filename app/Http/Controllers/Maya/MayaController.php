@@ -35,7 +35,26 @@ class MayaController extends Controller
             $periodos = Periodo::orderBy('anio', 'desc')
                 ->orderBy('nombre')
                 ->get();
-        } else {
+        }
+        // Si el usuario tiene rol docente, mostrar solo periodos donde tiene cursos asignados
+        elseif ($user->hasRole('docente')) {
+            $docente = Docente::where('user_id', $user->id)->first();
+
+            if ($docente) {
+                // Obtener IDs de períodos donde el docente tiene cursos asignados
+                $periodosIds = Cursogradosecnivanio::where('docente_designado_id', $docente->id)
+                    ->distinct()
+                    ->pluck('periodo_id');
+
+                $periodos = Periodo::whereIn('id', $periodosIds)
+                    ->orderBy('anio', 'desc')
+                    ->orderBy('nombre')
+                    ->get();
+            } else {
+                $periodos = collect();
+            }
+        }
+        else {
             $periodos = Periodo::where('estado', 1)
                 ->orderBy('anio', 'desc')
                 ->orderBy('nombre')
