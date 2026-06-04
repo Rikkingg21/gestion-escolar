@@ -3,7 +3,7 @@
 @section('content')
 <div class="container-fluid p-0">
     <div class="card-body bg-light p-3">
-        <form id="pdfForm" action="{{ route('libreta.pdf') }}" method="POST">
+        <form id="pdfForm" action="{{ route('libreta.pdf') }}" method="POST" target="_blank">
             @csrf
             <input type="hidden" name="tipo_pdf" id="tipoPdf" value="cuantitativo">
             <input type="hidden" name="periodo_id" id="periodoIdHidden" value="{{ $periodo_id_param ?? '' }}">
@@ -37,9 +37,8 @@
                 </div>
 
                 <div class="col-12 col-md-4 text-end">
-                    <button type="button" class="btn btn-danger btn-lg w-100 shadow-lg py-2 mt-3 mt-md-0"
-                            data-bs-toggle="modal" data-bs-target="#pdfModal">
-                        <i class="fas fa-file-pdf me-2"></i> Descargar PDF
+                    <button type="submit" class="btn btn-danger btn-lg w-100 shadow-lg py-2 mt-3 mt-md-0" id="btnDescargarPDF">
+                        <i class="bi bi-download me-2"></i> Descargar PDF
                     </button>
                 </div>
             </div>
@@ -298,7 +297,7 @@
                                             <th style="width: 25%;">MATERIA</th>
                                             <th style="width: 55%;">COMPETENCIA</th>
                                             <th style="width: 20%;">PROMEDIO</th>
-                                        </tr>
+                                        <tr>
                                     </thead>
                                     <tbody>
                                         @foreach($materias as $materia)
@@ -317,7 +316,7 @@
                                                             <br><small class="text-muted">(orig: {{ number_format($competencia['promedio_original'], 1) }})</small>
                                                         @endif
                                                     </td>
-                                                    <td class="text-center">
+                                                    <td class="text-center fw-bold">
                                                         @if($competencia['promedio'])
                                                             <span class="nota-promedio cuantitativo">{{ number_format($competencia['promedio'], 1) }}</span>
                                                             <span class="nota-promedio cualitativo" style="display:none;">{{ $competencia['promedio_cualitativo'] ?? 'C' }}</span>
@@ -332,9 +331,8 @@
                         </div>
                     @endif
 
-                    <!-- Conducta -->
                     @if(isset($todas_las_conductas) && count($todas_las_conductas) > 0)
-                        <div class="border border-dark border-top-0">
+                        <div class="border border-dark border-top-0 fw-bold">
                             <div class="border-bottom border-dark p-1 bg-light text-center">
                                 <strong>CALIFICACIONES DE CONDUCTA - {{ $titulo_conducta }}</strong>
                             </div>
@@ -359,12 +357,17 @@
                                                     <span class="nota-conducta cuantitativo {{ $conducta['clase_color'] }}">{{ $conducta['nota'] }}</span>
                                                     <span class="nota-conducta cualitativo" style="display:none;">
                                                         @if(!$conducta['es_guion'])
-                                                            @php $n = $conducta['nota_original']; echo ($n >= 3.5 ? 'AD' : ($n >= 2.5 ? 'A' : ($n >= 1.5 ? 'B' : 'C'))); @endphp
-                                                        @else - @endif
+                                                            @php
+                                                                $n = $conducta['nota_original'];
+                                                                $letra = ($n >= 3.5) ? 'AD' : (($n >= 2.5) ? 'A' : (($n >= 1.5) ? 'B' : 'C'));
+                                                            @endphp
+                                                            {{ $letra }}
+                                                        @else
+                                                            -
+                                                        @endif
                                                     </span>
                                                 </td>
-                                            </tr>
-                                        @endforeach
+                                            </tr> @endforeach
                                     </tbody>
                                 </table>
                             </div>
@@ -414,60 +417,19 @@
     </div>
 </div>
 
-<!-- Modal para PDF -->
-<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="pdfModalLabel">Descargar PDF</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <div class="card option-card" data-tipo="cuantitativo" style="cursor: pointer;">
-                            <div class="card-body text-center">
-                                <i class="fas fa-chart-line fa-3x text-primary mb-2"></i>
-                                <h5 class="card-title">Cuantitativo</h5>
-                                <p class="card-text text-muted small">Notas numéricas (1-4)</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="card option-card" data-tipo="cualitativo" style="cursor: pointer;">
-                            <div class="card-body text-center">
-                                <i class="fas fa-tag fa-3x text-success mb-2"></i>
-                                <h5 class="card-title">Cualitativo</h5>
-                                <p class="card-text text-muted small">Calificación literal (AD/A/B/C)</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="btnGenerarPdf" disabled onclick="generarPdf()">
-                    <i class="fas fa-download me-2"></i>Generar PDF
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
-.animate-pulse {
-    animation: pulse 0.5s ease-in-out;
-}
-</style>
-
 <script>
+// Función para actualizar el tipo de PDF antes de enviar el formulario
+document.getElementById('pdfForm').addEventListener('submit', function(e) {
+    var tipoSeleccionado = localStorage.getItem('tipoPdfSeleccionado') || 'cuantitativo';
+    document.getElementById('tipoPdf').value = tipoSeleccionado;
+    document.getElementById('periodoIdHidden').value = document.getElementById('periodo_id').value;
+    document.getElementById('bimestreHidden').value = document.getElementById('bimestre').value;
+});
+
 // Función para cambiar entre cuantitativo y cualitativo
 function cambiarVisualizacion(tipo) {
+    localStorage.setItem('tipoPdfSeleccionado', tipo);
+
     document.getElementById('btnCuantitativo').classList.remove('active');
     document.getElementById('btnCualitativo').classList.remove('active');
 
@@ -540,6 +502,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     aplicarColorNotasNumericas();
     aplicarColorNotasCualitativas();
+
+    // Restaurar tipo de visualización guardado
+    var tipoGuardado = localStorage.getItem('tipoPdfSeleccionado') || 'cuantitativo';
+    cambiarVisualizacion(tipoGuardado);
 });
 
 function cambiarPeriodo(periodoId) {
@@ -555,61 +521,5 @@ function cambiarBimestre(bimestre) {
         window.location.href = "{{ route('libreta.index') }}?periodo_id=" + periodoIdActual + "&bimestre=" + bimestre;
     }
 }
-
-let tipoSeleccionado = null;
-
-function seleccionarTipo(tipo) {
-    document.querySelectorAll('.option-card').forEach(card => {
-        card.classList.remove('selected');
-        card.style.backgroundColor = '#fff';
-    });
-
-    const card = document.querySelector(`.option-card[data-tipo="${tipo}"]`);
-    card.classList.add('selected');
-    card.style.backgroundColor = '#f0f8ff';
-
-    tipoSeleccionado = tipo;
-    document.getElementById('tipoPdf').value = tipo;
-    const btn = document.getElementById('btnGenerarPdf');
-    btn.disabled = false;
-
-    if (tipo === 'cualitativo') {
-        btn.className = 'btn btn-success';
-        btn.innerHTML = '<i class="fas fa-download me-2"></i>Generar PDF Cualitativo';
-    } else {
-        btn.className = 'btn btn-primary';
-        btn.innerHTML = '<i class="fas fa-download me-2"></i>Generar PDF Cuantitativo';
-    }
-}
-
-function generarPdf() {
-    if (!tipoSeleccionado) {
-        alert('Por favor seleccione un formato para el PDF');
-        return;
-    }
-
-    const btn = document.getElementById('btnGenerarPdf');
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generando...';
-    btn.disabled = true;
-
-    bootstrap.Modal.getInstance(document.getElementById('pdfModal')).hide();
-
-    setTimeout(() => {
-        document.getElementById('pdfForm').submit();
-        setTimeout(() => {
-            btn.innerHTML = '<i class="fas fa-download me-2"></i>Generar PDF';
-            btn.disabled = false;
-            tipoSeleccionado = null;
-            document.querySelectorAll('.option-card').forEach(card => {
-                card.classList.remove('selected');
-                card.style.backgroundColor = '#fff';
-            });
-        }, 3000);
-    }, 500);
-}
-
-document.querySelectorAll('.option-card').forEach(card => {
-    card.onclick = () => seleccionarTipo(card.dataset.tipo);
-});
 </script>
 @endsection

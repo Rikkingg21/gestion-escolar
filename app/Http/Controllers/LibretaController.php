@@ -176,11 +176,6 @@ class LibretaController extends Controller
             ->get()
             ->map(fn($periodo) => $periodo->only(['id', 'anio', 'nombre', 'estado', 'descripcion']));
     }
-    private function getPeriodoActual($anio, $periodos)
-    {
-        $periodo = Periodo::where('anio', $anio)->first();
-        return ($periodo && collect($periodos)->contains('id', $periodo->id)) ? $periodo : null;
-    }
     private function getMatriculaActual($estudiante, $periodoActual)
     {
         return Matricula::with(['grado', 'periodo'])
@@ -879,6 +874,116 @@ class LibretaController extends Controller
         }
 
         return $resultado;
+    }
+    public function pdf(Request $request)
+    {
+        $periodoId = $request->input('periodo_id');
+        $sigla = $request->input('bimestre', 'anual');
+
+        // Obtener los mismos datos que en index()
+        $estudiante = $this->getEstudiante();
+        if (!$estudiante) abort(404, 'Estudiante no encontrado.');
+
+        $periodos = $this->getPeriodosEstudiante($estudiante);
+        if ($periodos->isEmpty()) abort(404, 'No se encontraron periodos para este estudiante.');
+
+        $periodoActual = Periodo::find($periodoId);
+        if (!$periodoActual) {
+            $periodoActual = $periodos->first();
+            $periodoActual = Periodo::find($periodoActual['id']);
+        }
+
+        $esPeriodoRecuperacion = in_array($periodoActual->tipo_periodo ?? '', ['recuperacion', 'recuperación']);
+
+        $recuperaciones = [];
+        if ($esPeriodoRecuperacion) {
+            $recuperaciones = Recuperacioncompetencia::where('estudiante_id', $estudiante->id)
+                ->where('periodo_id', $periodoActual->id)
+                ->where('estado', '!=', '0')
+                ->with(['materia', 'materiaCompetencia'])
+                ->get();
+        }
+
+        $matriculaActual = $this->getMatriculaActual($estudiante, $periodoActual);
+        if (!$matriculaActual) {
+            return redirect()->back()->with('error', 'No se encontró matrícula para este período.');
+        }
+
+        $bimestres = $this->getBimestresDisponibles($periodoActual);
+        $sigla = $this->validarSigla($sigla, $bimestres);
+        $colegio = Colegio::configuracion();
+        $esAnual = ($sigla === 'anual');
+
+        // Procesar el logo para el PDF
+        $logoBase64 = null;
+        if ($colegio->logo_path) {
+            $logoFullPath = public_path('storage/' . $colegio->logo_path);
+            if (file_exists($logoFullPath)) {
+                $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoFullPath));
+            }
+        }
+
+        // Si no hay logo o no existe, usar un logo por defecto
+        if (!$logoBase64) {
+            $defaultLogoPath = public_path('storage/logo/logo-actual.png');
+            if (file_exists($defaultLogoPath)) {
+                $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($defaultLogoPath));
+            }
+        }
+
+        $notasMaterias = $this->getNotasMaterias($estudiante->id, $periodoActual, $sigla);
+        $materiasAgrupadas = $this->agruparNotasPorMateria($notasMaterias, $esAnual, $matriculaActual->grado_id ?? null, $periodoActual, $sigla);
+        $materiasConPromedios = $this->calcularPromedios($materiasAgrupadas, $esAnual);
+        $materiasConRowspan = $this->calcularRowspanMaterias($materiasConPromedios);
+
+        $competenciasTransversalesAgrupadas = $this->agruparCompetenciasTransversales($materiasConPromedios, $esAnual);
+        $competenciasTransversalesItems = $this->agruparCompetenciasTransversales($materiasConPromedios);
+
+        $todasLasConductas = $this->obtenerTodasLasConductas($estudiante->id, $periodoActual, $sigla, $matriculaActual->grado_id ?? null);
+        $conductasEnriquecidas = $this->enriquecerConductas($todasLasConductas);
+
+        $asistencias = $this->obtenerAsistencias($estudiante->id, $periodoActual, $sigla, $matriculaActual->grado_id ?? null);
+
+        $datosVista = [
+            'estudiante' => $estudiante,
+            'matricula_actual' => $matriculaActual,
+            'periodo_actual' => $periodoActual->only(['id', 'anio', 'nombre', 'descripcion']),
+            'periodos' => $periodos,
+            'bimestres_disponibles' => $bimestres,
+            'sigla_param' => $sigla,
+            'colegio' => $colegio,
+            'logo_base64' => $logoBase64,  // <- PASAR EL LOGO EN BASE64
+            'titulo_periodo' => $esAnual ? 'EVALUACIÓN ANUAL' : strtoupper($sigla),
+            'titulo_conducta' => $esAnual ? 'PROMEDIO ANUAL' : "CALIFICACIÓN " . strtoupper($sigla),
+            'datos_estudiante' => $this->getDatosEstudiante($estudiante, $matriculaActual, $colegio),
+            'materias' => $materiasConRowspan,
+            'todas_las_conductas' => $conductasEnriquecidas,
+            'competencias_transversales_agrupadas' => $competenciasTransversalesAgrupadas,
+            'asistencias' => $asistencias,
+            'sin_criterios' => $this->calcularSinCriterios($materiasConRowspan),
+            'promedio_general_bimestre' => $this->calcularPromedioGeneralBimestre($materiasConRowspan),
+            'esPeriodoRecuperacion' => $esPeriodoRecuperacion,
+            'recuperaciones' => $recuperaciones,
+        ];
+
+        // Generar PDF
+        $pdf = Pdf::loadView('libreta.pdf', $datosVista);
+        $pdf->setPaper('a4', 'portrait');
+
+        $pdf->setOptions([
+            'defaultFont' => 'Helvetica',
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+        ]);
+
+        $nombreArchivo = sprintf(
+            'libreta_%s_%s_%s.pdf',
+            $estudiante->user->dni ?? 'estudiante',
+            $periodoActual->anio,
+            $sigla
+        );
+
+        return $pdf->download($nombreArchivo);
     }
 }
 
