@@ -42,6 +42,8 @@ use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\Materia\MateriaCompetenciaController;
 use App\Http\Controllers\Materia\MateriaCriterioController;
 
+use App\Http\Controllers\Tramite\TramiteController;
+use App\Http\Controllers\Tramite\TramiteadminController;
 use App\Http\Controllers\Metodopago\TipopagoController;
 
 use App\Http\Controllers\ReporteController;
@@ -284,5 +286,23 @@ Route::middleware('auth')->group(function () {
         Route::put('/{id}', [TipopagoController::class, 'update'])->name('update');
         Route::delete('/{id}', [TipopagoController::class, 'destroy'])->name('destroy');
         Route::patch('/{id}/status', [TipopagoController::class, 'changeStatus'])->name('status');
+    });
+    // Administración de trámites
+    Route::prefix('tramite-admin')->name('tramiteadmin.')->group(function () {
+        Route::get('/', [TramiteadminController::class, 'index'])->name('index');
+        Route::get('/tipos-tramite', [TramiteadminController::class, 'tipoTramiteIndex'])->name('tipos-tramite.index');
+        Route::post('/tipos-tramite', [TramiteadminController::class, 'tipoTramiteStore'])->name('tipos-tramite.store');
+        Route::put('/tipos-tramite/{id}', [TramiteadminController::class, 'tipoTramiteUpdate'])->name('tipos-tramite.update');
+        Route::delete('/tipos-tramite/{id}', [TramiteadminController::class, 'tipoTramiteDestroy'])->name('tipos-tramite.destroy');
+        Route::get('/tramites/{id}', [TramiteadminController::class, 'show'])->name('tramites.show');
+    });
+    // Para usuarios (estudiantes, padres, docentes)
+    Route::prefix('tramite')->name('tramite.')->group(function () {
+        Route::get('/', [TramiteController::class, 'index'])->name('index');  // Mis trámites
+        Route::get('/create', [TramiteController::class, 'create'])->name('create');
+        Route::post('/', [TramiteController::class, 'store'])->name('store');
+        Route::get('/{id}', [TramiteController::class, 'show'])->name('show');  // Seguimiento
+        Route::get('/{id}/seguimiento', [TramiteController::class, 'seguimiento'])->name('seguimiento');
+        Route::delete('/{id}/cancelar', [TramiteController::class, 'cancelar'])->name('cancelar');
     });
 });
