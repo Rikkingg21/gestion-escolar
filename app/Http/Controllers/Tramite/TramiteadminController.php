@@ -118,4 +118,27 @@ class TramiteadminController extends Controller
         return redirect()->route('tramiteadmin.tipos-tramite.index')
             ->with('success', 'Tipo de trámite eliminado correctamente.');
     }
+    public function updateEstado($id, Request $request)
+    {
+        $tramite = Tramite::findOrFail($id);
+
+        $request->validate([
+            'estado_tramite_id' => 'required|exists:estado_tramites,id',
+            'estado_pago_id' => 'required|exists:estado_pagos,id',
+            'monto_pagado' => 'nullable|numeric|min:0',
+            'fecha_resolucion' => 'nullable|date',
+            'observaciones' => 'nullable|string',
+        ]);
+
+        $tramite->update([
+            'estado_tramite_id' => $request->estado_tramite_id,
+            'estado_pago_id' => $request->estado_pago_id,
+            'monto_pagado' => $request->monto_pagado ?? $tramite->monto_pagado,
+            'fecha_resolucion' => $request->fecha_resolucion ?? $tramite->fecha_resolucion,
+            'observaciones' => $request->observaciones ?? $tramite->observaciones,
+        ]);
+
+        return redirect()->route('tramiteadmin.tramites.show', $tramite->id)
+            ->with('success', 'Estado del trámite actualizado correctamente.');
+    }
 }

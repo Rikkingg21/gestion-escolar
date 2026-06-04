@@ -295,6 +295,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/tipos-tramite/{id}', [TramiteadminController::class, 'tipoTramiteUpdate'])->name('tipos-tramite.update');
         Route::delete('/tipos-tramite/{id}', [TramiteadminController::class, 'tipoTramiteDestroy'])->name('tipos-tramite.destroy');
         Route::get('/tramites/{id}', [TramiteadminController::class, 'show'])->name('tramites.show');
+        Route::put('/tramites/{id}/estado', [TramiteadminController::class, 'updateEstado'])->name('tramites.update.estado'); // ← Agregar esta ruta
     });
     // Para usuarios (estudiantes, padres, docentes)
     Route::prefix('tramite')->name('tramite.')->group(function () {
