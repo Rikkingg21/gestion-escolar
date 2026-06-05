@@ -85,4 +85,25 @@ class TramiteController extends Controller
         return redirect()->route('tramite.index')
             ->with('success', 'Trámite cancelado correctamente.');
     }
+    public function pago($id, Request $request)
+    {
+        $tramite = Tramite::where('user_id', auth()->id())
+            ->where('estado_pago_id', 1) // Solo pendientes de pago
+            ->findOrFail($id);
+
+        $request->validate([
+            'metodo_pago' => 'required|string',
+            'numero_operacion' => 'required|string|max:50',
+        ]);
+
+        // Actualizar estado del pago a "Pagado"
+        $tramite->estado_pago_id = 2; // Pagado
+        $tramite->save();
+
+        // Aquí puedes guardar el comprobante de pago en otra tabla si lo necesitas
+        // Por ejemplo: PagoComprobante::create([...])
+
+        return redirect()->route('tramite.show', $tramite->id)
+            ->with('success', 'Pago registrado correctamente. Su trámite está en proceso de revisión.');
+    }
 }

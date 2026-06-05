@@ -299,11 +299,12 @@ Route::middleware('auth')->group(function () {
     });
     // Para usuarios (estudiantes, padres, docentes)
     Route::prefix('tramite')->name('tramite.')->group(function () {
-        Route::get('/', [TramiteController::class, 'index'])->name('index');  // Mis trámites
+        Route::get('/', [TramiteController::class, 'index'])->name('index');
         Route::get('/create', [TramiteController::class, 'create'])->name('create');
         Route::post('/', [TramiteController::class, 'store'])->name('store');
-        Route::get('/{id}', [TramiteController::class, 'show'])->name('show');  // Seguimiento
+        Route::get('/{id}', [TramiteController::class, 'show'])->name('show');
         Route::get('/{id}/seguimiento', [TramiteController::class, 'seguimiento'])->name('seguimiento');
         Route::delete('/{id}/cancelar', [TramiteController::class, 'cancelar'])->name('cancelar');
+        Route::post('/{id}/pago', [TramiteController::class, 'pago'])->name('pago'); // ← Agregar esta ruta
     });
 });

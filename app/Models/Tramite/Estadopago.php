@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class EstadoPago extends Model
+class Estadopago extends Model
 {
     use HasFactory;
     use SoftDeletes;

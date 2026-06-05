@@ -23,8 +23,8 @@ class Tramite extends Model
         'tipo_tramite_id',
         'estudiante_id',
         'relacion',
-        'estado_tramite_id',
-        'estado_pago_id',
+        //'estado_tramite_id',
+        //'estado_pago_id',
         'monto_pagado',
         'fecha_solicitud',
         'fecha_resolucion',
@@ -52,7 +52,7 @@ class Tramite extends Model
     {
         return $this->belongsTo(Estudiante::class, 'estudiante_id');
     }
-
+    /*
     public function estadoTramite()
     {
         return $this->belongsTo(EstadoTramite::class, 'estado_tramite_id');
@@ -62,4 +62,5 @@ class Tramite extends Model
     {
         return $this->belongsTo(EstadoPago::class, 'estado_pago_id');
     }
+    */
 }
