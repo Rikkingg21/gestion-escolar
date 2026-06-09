@@ -1,136 +1,237 @@
 @extends('layouts.app')
-
+@section('title', 'Administración de Trámites')
 @section('content')
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <h2 class="mb-4">
-                <i class="fas fa-tasks me-2"></i>Panel de Administración de Trámites
-            </h2>
-        </div>
-    </div>
 
+<div class="container-fluid">
+    {{-- Tarjetas de estadísticas --}}
     <div class="row">
-        <div class="col-md-3 mb-3">
-            <div class="card text-white bg-primary">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title">Tipos de Trámites</h5>
-                            <h2 class="mb-0">{{ $totalTipos }}</h2>
-                        </div>
-                        <i class="fas fa-file-alt fa-3x opacity-50"></i>
-                    </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-info">
+                <div class="inner">
+                    <h3>{{ $totalTramites }}</h3>
+                    <p>Total Trámites</p>
                 </div>
-                <div class="card-footer bg-transparent border-0">
-                    <a href="{{ route('tramiteadmin.tipos-tramite.index') }}" class="text-white text-decoration-none">Gestionar <i class="fas fa-arrow-right"></i></a>
+                <div class="icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-warning">
+                <div class="inner">
+                    <h3>{{ $totalPendientes }}</h3>
+                    <p>Pendientes</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-primary">
+                <div class="inner">
+                    <h3>{{ $totalEnProceso }}</h3>
+                    <p>En Proceso</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-spinner"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-success">
+                <div class="inner">
+                    <h3>{{ $totalCompletados }}</h3>
+                    <p>Completados</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-check-circle"></i>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Tabla de Trámites -->
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-clipboard-list me-2"></i>Lista de Trámites
-                    </h5>
+    {{-- Segunda fila de estadísticas - Pagos --}}
+    <div class="row">
+        <div class="col-lg-4 col-6">
+            <div class="small-box bg-secondary">
+                <div class="inner">
+                    <h3>{{ $totalPagosPendientes }}</h3>
+                    <p>Pagos Pendientes</p>
                 </div>
-                <div class="card-body">
-                    <!-- Filtros -->
-                    <form method="GET" action="{{ route('tramiteadmin.index') }}" class="mb-4">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label">Estado de Trámite</label>
-                                <select name="estado_tramite_id" class="form-select">
-                                    <option value="">Todos</option>
-                                    @foreach($estadosTramite as $estado)
-                                        <option value="{{ $estado->id }}" {{ request('estado_tramite_id') == $estado->id ? 'selected' : '' }}>
-                                            {{ $estado->nombre }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Estado de Pago</label>
-                                <select name="estado_pago_id" class="form-select">
-                                    <option value="">Todos</option>
-                                    @foreach($estadosPago as $estado)
-                                        <option value="{{ $estado->id }}" {{ request('estado_pago_id') == $estado->id ? 'selected' : '' }}>
-                                            {{ $estado->nombre }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-4 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100 me-2">
-                                    <i class="fas fa-search me-1"></i> Filtrar
-                                </button>
-                                <a href="{{ route('tramiteadmin.index') }}" class="btn btn-secondary w-100">
-                                    <i class="fas fa-eraser me-1"></i> Limpiar
+                <div class="icon">
+                    <i class="fas fa-hourglass-half"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-6">
+            <div class="small-box bg-success">
+                <div class="inner">
+                    <h3>{{ $totalPagosAprobados }}</h3>
+                    <p>Pagos Aprobados</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-check-double"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-6">
+            <div class="small-box bg-danger">
+                <div class="inner">
+                    <h3>{{ $totalPagosRechazados }}</h3>
+                    <p>Pagos Rechazados</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Tabla de trámites --}}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-list me-2"></i>
+                Listado de Trámites
+            </h3>
+            <div class="card-tools">
+                <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                    <i class="fas fa-minus"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {{-- Filtros --}}
+            <form method="GET" action="{{ route('tramiteadmin.index') }}" class="mb-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <input type="text" name="buscar" class="form-control" placeholder="Buscar por código, DNI, nombre..." value="{{ request('buscar') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <select name="tipo_tramite" class="form-select">
+                            <option value="">Todos los tipos</option>
+                            @foreach($tiposTramite as $tipo)
+                                <option value="{{ $tipo->id }}" {{ request('tipo_tramite') == $tipo->id ? 'selected' : '' }}>
+                                    {{ $tipo->nombre }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="estado_tramite" class="form-select">
+                            <option value="">Todos los estados</option>
+                            @foreach($estadosTramite as $estado)
+                                <option value="{{ $estado->id }}" {{ request('estado_tramite') == $estado->id ? 'selected' : '' }}>
+                                    {{ $estado->nombre }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="estado_pago" class="form-select">
+                            <option value="">Todos los pagos</option>
+                            @foreach($estadosPago as $estado)
+                                <option value="{{ $estado->id }}" {{ request('estado_pago') == $estado->id ? 'selected' : '' }}>
+                                    {{ $estado->nombre }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                        <a href="{{ route('tramiteadmin.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-undo"></i> Limpiar
+                        </a>
+                    </div>
+                </div>
+            </form>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Código</th>
+                            <th>Solicitante</th>
+                            <th>Estudiante</th>
+                            <th>Tipo de Trámite</th>
+                            <th>Estado Trámite</th>
+                            <th>Estado Pago</th>
+                            <th>Monto</th>
+                            <th>Pagado</th>
+                            <th>Fecha Solicitud</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($tramites as $tramite)
+                        <tr>
+                            <td>{{ $tramite->id }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ $tramite->codigo_tramite }}</span>
+                            </td>
+                            <td>
+                                {{ $tramite->user->nombre ?? 'N/A' }} {{ $tramite->user->apellido_paterno ?? '' }}<br>
+                                <small class="text-muted">DNI: {{ $tramite->user->dni ?? 'N/A' }}</small>
+                            </td>
+                            <td>
+                                {{ $tramite->estudiante->user->nombre ?? 'N/A' }}<br>
+                                <small class="text-muted">DNI: {{ $tramite->estudiante->user->dni ?? 'N/A' }}</small>
+                            </td>
+                            <td>{{ $tramite->tipoTramite->nombre ?? 'N/A' }}</td>
+                            <td>
+                                @php
+                                    $ultimoEstado = $tramite->tramiteRegistros->first();
+                                @endphp
+                                @if($ultimoEstado && $ultimoEstado->estadoTramite)
+                                    <span class="badge" style="background-color: {{ $ultimoEstado->estadoTramite->color ?? '#6c757d' }}">
+                                        {{ $ultimoEstado->estadoTramite->nombre }}
+                                    </span>
+                                @else
+                                    <span class="badge bg-secondary">Sin estado</span>
+                                @endif
+                            </td>
+                            <td>
+                                @php
+                                    $ultimoPago = $tramite->tramitePagoRegistros->first();
+                                @endphp
+                                @if($ultimoPago && $ultimoPago->estadoPago)
+                                    <span class="badge" style="background-color: {{ $ultimoPago->estadoPago->color ?? '#6c757d' }}">
+                                        {{ $ultimoPago->estadoPago->nombre }}
+                                    </span>
+                                @else
+                                    <span class="badge bg-secondary">Sin pago</span>
+                                @endif
+                            </td>
+                            <td>S/ {{ number_format($tramite->tipoTramite->costo ?? 0, 2) }}</td>
+                            <td>S/ {{ number_format($tramite->monto_pagado, 2) }}</td>
+                            <td>{{ $tramite->fecha_solicitud ? $tramite->fecha_solicitud->format('d/m/Y') : 'N/A' }}</td>
+                            <td>
+                                <a href="{{ route('tramiteadmin.show', $tramite->id) }}" class="btn btn-sm btn-info" title="Ver detalle">
+                                    <i class="fas fa-eye"></i>
                                 </a>
-                            </div>
-                        </div>
-                    </form>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="11" class="text-center text-muted">
+                                <i class="fas fa-folder-open fa-2x mb-2 d-block"></i>
+                                No hay trámites registrados
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
 
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover">
-                            <thead class="table-light">
-                                <tr class="text-center">
-                                    <th style="width: 10%;">Código</th>
-                                    <th style="width: 15%;">Solicitante</th>
-                                    <th style="width: 20%;">Tipo</th>
-                                    <th style="width: 10%;">Monto</th>
-                                    <th style="width: 10%;">Estado Trámite</th>
-                                    <th style="width: 10%;">Estado Pago</th>
-                                    <th style="width: 10%;">Fecha</th>
-                                    <th style="width: 10%;">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($tramites as $tramite)
-                                <tr>
-                                    <td class="text-center fw-bold">{{ $tramite->codigo_tramite }}</td>
-                                    <td>{{ $tramite->user->name ?? 'N/A' }}</td>
-                                    <td>{{ $tramite->tipoTramite->nombre ?? 'N/A' }}</td>
-                                    <td class="text-end">S/ {{ number_format($tramite->monto_pagado ?? 0, 2) }}</td>
-                                    <td class="text-center">
-                                        <span class="badge" style="background-color: {{ $tramite->estadoTramite->color ?? '#6c757d' }}">
-                                            {{ $tramite->estadoTramite->nombre ?? 'N/A' }}
-                                        </span>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge" style="background-color: {{ $tramite->estadoPago->color ?? '#6c757d' }}">
-                                            {{ $tramite->estadoPago->nombre ?? 'N/A' }}
-                                        </span>
-                                    </td>
-                                    <td class="text-center">{{ $tramite->created_at->format('d/m/Y') }}</td>
-                                    <td class="text-center">
-                                        <a href="{{ route('tramiteadmin.tramites.show', $tramite->id) }}" class="btn btn-sm btn-info">
-                                            <i class="fas fa-eye"></i> Ver
-                                        </a>
-                                    </td>
-                                </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="8" class="text-center text-muted py-4">
-                                            <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
-                                            No hay trámites registrados.
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="d-flex justify-content-center mt-4">
-                        {{ $tramites->appends(request()->query())->links() }}
-                    </div>
-                </div>
+            <div class="mt-3">
+                {{ $tramites->appends(request()->query())->links() }}
             </div>
         </div>
     </div>
 </div>
+
 @endsection

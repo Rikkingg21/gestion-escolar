@@ -22,7 +22,7 @@ class Tramite extends Model
         'user_id',
         'tipo_tramite_id',
         'estudiante_id',
-        'relacion',
+        //'relacion',
         //'estado_tramite_id',
         //'estado_pago_id',
         'monto_pagado',
@@ -63,4 +63,28 @@ class Tramite extends Model
         return $this->belongsTo(EstadoPago::class, 'estado_pago_id');
     }
     */
+    public function tramiteRegistros()
+    {
+        return $this->hasMany(Tramiteregistro::class, 'tramite_id');
+    }
+
+    public function tramitePagoRegistros()
+    {
+        return $this->hasMany(Tramitepagoregistro::class, 'tramite_id');
+    }
+
+    public function comprobantes()
+    {
+        return $this->hasMany(Pagocomprobante::class, 'tramite_id');
+    }
+
+    public function ultimoEstadoTramite()
+    {
+        return $this->hasOne(Tramiteregistro::class, 'tramite_id')->latest();
+    }
+
+    public function ultimoEstadoPago()
+    {
+        return $this->hasOne(Tramitepagoregistro::class, 'tramite_id')->latest('fecha_registro');
+    }
 }

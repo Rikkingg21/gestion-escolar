@@ -3,6 +3,7 @@ use Illuminate\Support\Facades\Route;
 use App\Models\Grado;
 use App\Models\Periodobimestre;
 use App\Models\Materia\Materiacompetencia;
+use \App\Models\Metodopago\Tipopago;
 
 Route::get('/grados-por-nivel/{nivel}', function($nivel) {
     return response()->json(
@@ -22,3 +23,7 @@ Route::get('/secciones-por-grado/{nivel}/{grado}', function($nivel, $grado) {
             ->values()
     );
 });
+Route::get('/tipo-pago/{id}', function ($id) {
+    $tipoPago = Tipopago::find($id);
+    return response()->json($tipoPago);
+})->middleware('auth');

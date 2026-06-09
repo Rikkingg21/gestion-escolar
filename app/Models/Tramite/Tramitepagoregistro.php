@@ -63,16 +63,4 @@ class Tramitepagoregistro extends Model
     {
         return $this->fecha_registro ? $this->fecha_registro->format('d/m/Y H:i:s') : null;
     }
-
-    // Scope para filtrar por estado de pago
-    public function scopePorEstadoPago($query, $estadoPagoId)
-    {
-        return $query->where('estado_pago_id', $estadoPagoId);
-    }
-
-    // Scope para filtrar por trámite
-    public function scopePorTramite($query, $tramiteId)
-    {
-        return $query->where('tramite_id', $tramiteId);
-    }
 }

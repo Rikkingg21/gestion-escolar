@@ -4,15 +4,17 @@ namespace App\Models\Tramite;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Metodopago\Tipopago;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class Pagocomprobante extends Model
 {
     use HasFactory;
     use SoftDeletes;
 
-    protected $table = 'pago_comprobantes';
+    protected $table = 'm_tramite_pago_comprobantes';
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -42,20 +44,14 @@ class Pagocomprobante extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
-
+    public function metodoPago()
+    {
+        return $this->belongsTo(Tipopago::class, 'metodo_pago_id');
+    }
     // Accessor para monto formateado
     public function getMontoFormateadoAttribute()
     {
         return 'S/ ' . number_format($this->monto, 2);
-    }
-
-    // Accessor para URL del comprobante
-    public function getComprobanteUrlAttribute()
-    {
-        if ($this->comprobante_path) {
-            return asset('storage/' . $this->comprobante_path);
-        }
-        return null;
     }
 
     // Accessor para saber si es imagen

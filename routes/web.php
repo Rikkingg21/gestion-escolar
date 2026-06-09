@@ -290,21 +290,24 @@ Route::middleware('auth')->group(function () {
     // Administración de trámites
     Route::prefix('tramite-admin')->name('tramiteadmin.')->group(function () {
         Route::get('/', [TramiteadminController::class, 'index'])->name('index');
+        Route::get('/tramites/{id}', [TramiteadminController::class, 'show'])->name('show');
+        Route::put('/tramites/{id}/estado', [TramiteadminController::class, 'updateEstado'])->name('tramites.update.estado');
+        Route::post('/{id}/estado-tramite', [TramiteadminController::class, 'updateEstadoTramite'])->name('update-estado-tramite');
+        Route::post('/{id}/estado-pago', [TramiteadminController::class, 'updateEstadoPago'])->name('update-estado-pago');
+        Route::get('/comprobante/{id}', [TramiteadminController::class, 'verComprobante'])->name('ver-comprobante');
+
         Route::get('/tipos-tramite', [TramiteadminController::class, 'tipoTramiteIndex'])->name('tipos-tramite.index');
         Route::post('/tipos-tramite', [TramiteadminController::class, 'tipoTramiteStore'])->name('tipos-tramite.store');
         Route::put('/tipos-tramite/{id}', [TramiteadminController::class, 'tipoTramiteUpdate'])->name('tipos-tramite.update');
         Route::delete('/tipos-tramite/{id}', [TramiteadminController::class, 'tipoTramiteDestroy'])->name('tipos-tramite.destroy');
-        Route::get('/tramites/{id}', [TramiteadminController::class, 'show'])->name('tramites.show');
-        Route::put('/tramites/{id}/estado', [TramiteadminController::class, 'updateEstado'])->name('tramites.update.estado'); // ← Agregar esta ruta
     });
     // Para usuarios (estudiantes, padres, docentes)
-    Route::prefix('tramite')->name('tramite.')->group(function () {
+    Route::prefix('mis-tramites')->name('mis-tramites.')->group(function () {
         Route::get('/', [TramiteController::class, 'index'])->name('index');
         Route::get('/create', [TramiteController::class, 'create'])->name('create');
         Route::post('/', [TramiteController::class, 'store'])->name('store');
         Route::get('/{id}', [TramiteController::class, 'show'])->name('show');
-        Route::get('/{id}/seguimiento', [TramiteController::class, 'seguimiento'])->name('seguimiento');
-        Route::delete('/{id}/cancelar', [TramiteController::class, 'cancelar'])->name('cancelar');
-        Route::post('/{id}/pago', [TramiteController::class, 'pago'])->name('pago'); // ← Agregar esta ruta
+        Route::post('/{id}/comprobante', [TramiteController::class, 'subirComprobante'])->name('comprobante');
+        Route::get('/comprobante/{id}', [TramiteController::class, 'verComprobante'])->name('ver-comprobante');
     });
 });
