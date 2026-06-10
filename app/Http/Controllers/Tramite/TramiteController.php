@@ -31,36 +31,55 @@ class TramiteController extends Controller
             return $next($request);
         });
     }
-    public function index()
+    public function index(Request $request)
     {
         $tipoTramitesActivos = Tramitetipo::where('estado', '1')->get();
 
-        $tramites = Tramite::with(['tipoTramite', 'tramiteRegistros.estadoTramite', 'tramitePagoRegistros.estadoPago'])
-            ->where('user_id', auth()->id())
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = Tramite::with(['tipoTramite', 'tramiteRegistros.estadoTramite', 'tramitePagoRegistros.estadoPago'])
+            ->where('user_id', auth()->id());
+
+        // Aplicar filtro de fechas
+        if ($request->filled('fecha_inicio')) {
+            $fechaInicio = $request->fecha_inicio;
+            $query->whereDate('fecha_solicitud', '>=', $fechaInicio);
+        } else {
+            // Por defecto: desde el 1 de enero del año actual
+            $query->whereDate('fecha_solicitud', '>=', now()->startOfYear());
+        }
+
+        if ($request->filled('fecha_fin')) {
+            $fechaFin = $request->fecha_fin;
+            $query->whereDate('fecha_solicitud', '<=', $fechaFin);
+        } else {
+            // Por defecto: hasta hoy
+            $query->whereDate('fecha_solicitud', '<=', now());
+        }
+
+        // Aplicar filtro por tipo de trámite
+        if ($request->filled('tipo_tramite_id')) {
+            $query->where('tipo_tramite_id', $request->tipo_tramite_id);
+        }
+
+        $tramites = $query->orderBy('created_at', 'desc')->get();
 
         // Obtener estudiantes del usuario autenticado
         $estudiantes = collect();
-        $parentesco = null; // Variable para almacenar el parentesco
+        $parentesco = null;
         $user = Auth::user();
 
-        // Verificar si el usuario tiene un apoderado registrado
         $apoderado = Apoderado::where('user_id', $user->id)->first();
 
         if ($apoderado) {
-            // Si es apoderado, obtener sus estudiantes y su parentesco
-            $parentesco = $apoderado->parentesco; // ← Aquí está el parentesco
+            $parentesco = $apoderado->parentesco;
             $estudiantes = Estudiante::with('user', 'grado')
                 ->where('apoderado_id', $apoderado->id)
                 ->where('estado', '1')
                 ->get();
         } else {
-            // Si no es apoderado, podría ser el mismo estudiante
             $estudiante = Estudiante::where('user_id', $user->id)->first();
             if ($estudiante) {
                 $estudiantes = collect([$estudiante]);
-                $parentesco = 'Estudiante mismo'; // Parentesco por defecto
+                $parentesco = 'Estudiante mismo';
             }
         }
 

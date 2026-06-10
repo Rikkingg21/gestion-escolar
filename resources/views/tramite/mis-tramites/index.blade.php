@@ -13,13 +13,62 @@
         </div>
     </div>
 
+    <!-- Card de filtros -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-light py-2">
+            <h6 class="mb-0">
+                <i class="bi bi-funnel me-1"></i> Filtros
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ route('mis-tramites.index') }}" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Fecha Inicio</label>
+                    <input type="date" name="fecha_inicio" class="form-control"
+                           value="{{ request('fecha_inicio', \Carbon\Carbon::now()->startOfYear()->format('Y-m-d')) }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Fecha Fin</label>
+                    <input type="date" name="fecha_fin" class="form-control"
+                           value="{{ request('fecha_fin', \Carbon\Carbon::now()->format('Y-m-d')) }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Tipo de Trámite</label>
+                    <select name="tipo_tramite_id" class="form-select">
+                        <option value="">Todos</option>
+                        @foreach($tipoTramitesActivos as $tipo)
+                            <option value="{{ $tipo->id }}" {{ request('tipo_tramite_id') == $tipo->id ? 'selected' : '' }}>
+                                {{ $tipo->nombre }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            <i class="bi bi-search me-1"></i> Filtrar
+                        </button>
+                        <a href="{{ route('mis-tramites.index') }}" class="btn btn-secondary">
+                            <i class="bi bi-eraser me-1"></i> Limpiar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Tabla de trámites -->
     <div class="card shadow-sm">
         <div class="card-header bg-white py-3">
-            <h3 class="card-title mb-0">
-                <i class="bi bi-table me-2 text-primary"></i>
-                <span class="fw-semibold">Mis Trámites</span>
-            </h3>
+            <div class="d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">
+                    <i class="bi bi-table me-2 text-primary"></i>
+                    <span class="fw-semibold">Mis Trámites</span>
+                </h3>
+                <span class="badge bg-secondary rounded-pill px-3 py-2">
+                    <i class="bi bi-file-text me-1"></i> Total: {{ $tramites->count() }}
+                </span>
+            </div>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -42,6 +91,8 @@
                         @php
                             $ultimoRegistro = $tramite->tramiteRegistros()->latest()->first();
                             $ultimoPago = $tramite->tramitePagoRegistros()->latest('fecha_registro')->first();
+                            $montoTotal = $tramite->tipoTramite->costo ?? 0;
+                            $montoPagado = $tramite->monto_pagado_total ?? $tramite->monto_pagado ?? 0;
                         @endphp
                         <tr>
                             <td>
@@ -74,11 +125,11 @@
                                 @endif
                             </td>
                             <td class="text-end fw-semibold text-success">
-                                S/ {{ number_format($tramite->tipoTramite->costo ?? 0, 2) }}
+                                S/ {{ number_format($montoTotal, 2) }}
                             </td>
                             <td class="text-end">
-                                <span class="fw-semibold {{ ($tramite->monto_pagado_total ?? $tramite->monto_pagado) >= ($tramite->tipoTramite->costo ?? 0) ? 'text-success' : 'text-warning' }}">
-                                    S/ {{ number_format($tramite->monto_pagado_total ?? $tramite->monto_pagado, 2) }}
+                                <span class="fw-semibold {{ $montoPagado >= $montoTotal ? 'text-success' : 'text-warning' }}">
+                                    S/ {{ number_format($montoPagado, 2) }}
                                 </span>
                             </td>
                             <td class="text-center">
@@ -89,7 +140,7 @@
                                     <a href="{{ route('mis-tramites.show', $tramite->id) }}" class="btn btn-sm btn-info rounded-pill" title="Ver detalle">
                                         <i class="bi bi-eye me-1"></i> Ver
                                     </a>
-                                    @if($tramite->tipoTramite->requiere_pago && ($tramite->monto_pagado_total ?? $tramite->monto_pagado) < ($tramite->tipoTramite->costo ?? 0))
+                                    @if($tramite->tipoTramite->requiere_pago && $montoPagado < $montoTotal)
                                     <button class="btn btn-sm btn-success rounded-pill" onclick="subirComprobante({{ $tramite->id }})" title="Subir comprobante">
                                         <i class="bi bi-cloud-upload me-1"></i> Pago
                                     </button>
@@ -101,7 +152,7 @@
                         <tr>
                             <td colspan="9" class="text-center py-5">
                                 <i class="bi bi-inbox display-4 d-block text-muted opacity-50 mb-3"></i>
-                                <p class="text-muted mb-0">No tienes trámites registrados</p>
+                                <p class="text-muted mb-0">No tienes trámites registrados en el rango de fechas seleccionado</p>
                             </td>
                         </tr>
                         @endforelse
@@ -112,7 +163,7 @@
     </div>
 </div>
 
-<!-- Modal para crear trámite -->
+<!-- Modal para crear trámite (sin cambios) -->
 <div class="modal fade" id="modalCrearTramite" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -145,7 +196,7 @@
                                 <div><i class="bi bi-card-text me-1 text-muted"></i> DNI: <span class="badge bg-secondary">{{ auth()->user()->dni ?? '-' }}</span></div>
                                 <div><i class="bi bi-envelope me-1 text-muted"></i> {{ auth()->user()->email ?? '-' }}</div>
                                 <div><i class="bi bi-telephone me-1 text-muted"></i> {{ auth()->user()->telefono ?? '-' }}</div>
-                                @if($parentesco)
+                                @if(isset($parentesco) && $parentesco)
                                     <div><i class="bi bi-people me-1 text-muted"></i> Parentesco: <span class="badge bg-info">{{ $parentesco }}</span></div>
                                 @endif
                             </div>
