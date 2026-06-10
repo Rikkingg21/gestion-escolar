@@ -855,20 +855,5 @@ window.actualizarGrafico = actualizarGrafico;
 window.cambiarVisualizacion = cambiarVisualizacion;
 window.convertirNotaCualitativo = convertirNotaCualitativo;
 </script>
-<style>
-.materia-filter-{{ $estudianteIndex }} {
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-.materia-filter-{{ $estudianteIndex }}:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-.btn-link {
-    text-decoration: none;
-}
-.btn-link:hover {
-    text-decoration: underline;
-}
-</style>
+
 @endsection

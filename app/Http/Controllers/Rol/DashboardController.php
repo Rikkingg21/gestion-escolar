@@ -992,7 +992,27 @@ class DashboardController extends Controller
             ->get();
 
         if ($estudiantes->isEmpty()) {
-            return view('rol.apoderado.dashboard')->with('info', 'No tiene estudiantes asignados.');
+            return view('rol.apoderado.dashboard', [
+                'periodos' => collect(),
+                'periodoSeleccionado' => null,
+                'bimestresDisponibles' => collect(),
+                'bimestresRegulares' => collect(),
+                'datosEstudiantes' => [],
+                'infoApoderado' => [
+                    'nombre_completo' => trim(sprintf(
+                        '%s %s, %s',
+                        $apoderado->user->apellido_paterno ?? '',
+                        $apoderado->user->apellido_materno ?? '',
+                        $apoderado->user->nombre ?? ''
+                    )),
+                    'parentesco' => $apoderado->parentesco,
+                    'total_estudiantes' => 0
+                ],
+                'bimestreFiltro' => 'anual',
+                'esPeriodoRecuperacion' => false,
+                'mensajeRecuperacion' => null,
+                'info' => 'No tiene estudiantes asignados.'
+            ]);
         }
 
         $estudianteIds = $estudiantes->pluck('id')->toArray();
@@ -1006,7 +1026,27 @@ class DashboardController extends Controller
             ->get();
 
         if ($periodos->isEmpty()) {
-            return view('rol.apoderado.dashboard')->with('error', 'No hay períodos con matrículas para sus estudiantes.');
+            return view('rol.apoderado.dashboard', [
+                'periodos' => collect(),
+                'periodoSeleccionado' => null,
+                'bimestresDisponibles' => collect(),
+                'bimestresRegulares' => collect(),
+                'datosEstudiantes' => [],
+                'infoApoderado' => [
+                    'nombre_completo' => trim(sprintf(
+                        '%s %s, %s',
+                        $apoderado->user->apellido_paterno ?? '',
+                        $apoderado->user->apellido_materno ?? '',
+                        $apoderado->user->nombre ?? ''
+                    )),
+                    'parentesco' => $apoderado->parentesco,
+                    'total_estudiantes' => $estudiantes->count()
+                ],
+                'bimestreFiltro' => 'anual',
+                'esPeriodoRecuperacion' => false,
+                'mensajeRecuperacion' => null,
+                'error' => 'No hay períodos con matrículas para sus estudiantes.'
+            ]);
         }
 
         $periodoId = $request->input('periodo_id');
@@ -1109,7 +1149,6 @@ class DashboardController extends Controller
             }
             $materiaIds = array_keys($materiasArray);
 
-            // ==================== PROCESAMIENTO ESPECÍFICO PARA RECUPERACIÓN ====================
             if ($esPeriodoRecuperacion) {
                 $chartData = [];
 
@@ -1229,7 +1268,6 @@ class DashboardController extends Controller
                 continue;
             }
 
-            // ==================== PROCESAMIENTO PARA PERÍODOS ACADÉMICOS NORMALES ====================
             $periodoBimestreSeleccionado = null;
             if ($bimestreFiltro !== 'anual') {
                 $periodoBimestreSeleccionado = $bimestresRegulares->firstWhere('sigla', $bimestreFiltro);
@@ -1433,7 +1471,6 @@ class DashboardController extends Controller
                 ];
             }
 
-            // =================== NOTAS DE CONDUCTA ===================
             $progresoConducta = [];
 
             $conductasDB = Conducta::whereHas('periodosBimestres', function($query) use ($periodoSeleccionado) {
