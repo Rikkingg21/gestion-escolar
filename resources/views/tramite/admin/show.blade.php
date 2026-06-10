@@ -154,16 +154,20 @@
                         @forelse($tramite->tramiteRegistros as $index => $registro)
                         <div class="timeline-item p-3 {{ !$loop->last ? 'border-bottom' : '' }}">
                             <div class="d-flex">
-                                <div class="flex-shrink-0 me-3 text-center" style="width: 50px;">
-                                    <div class="rounded-circle bg-light p-1 d-inline-block">
-                                        <i class="bi bi-check-circle-fill text-success" style="font-size: 18px;"></i>
+                                <!-- Columna del icono fija -->
+                                <div class="flex-shrink-0" style="width: 40px;">
+                                    <div class="text-center">
+                                        <i class="bi bi-check-circle-fill text-success" style="font-size: 20px;"></i>
                                     </div>
                                     @if(!$loop->last)
-                                    <div class="timeline-line mx-auto" style="width: 2px; height: 30px; background: #e0e0e0;"></div>
+                                    <div class="timeline-line mx-auto" style="width: 2px; height: 30px; background: #dee2e6;"></div>
                                     @endif
                                 </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
+
+                                <!-- Contenido principal -->
+                                <div class="flex-grow-1 ps-2">
+                                    <!-- Cabecera: Estado y Fecha -->
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
                                         <span class="badge px-3 py-2 rounded-pill" style="background-color: {{ $registro->estadoTramite->color ?? '#6c757d' }}; color: white;">
                                             <i class="bi bi-tag me-1"></i> {{ $registro->estadoTramite->nombre ?? 'N/A' }}
                                         </span>
@@ -171,22 +175,31 @@
                                             <i class="bi bi-clock me-1"></i> {{ $registro->created_at->format('d/m/Y H:i') }}
                                         </small>
                                     </div>
-                                    <div class="d-flex align-items-center gap-3">
+
+                                    <!-- Usuario -->
+                                    <div class="mb-1">
                                         <small class="text-muted">
                                             <i class="bi bi-person-circle me-1"></i> {{ $registro->user->nombre ?? 'Sistema' }}
                                         </small>
-                                        @if($registro->observacion)
-                                        <small class="text-info">
-                                            <i class="bi bi-chat-dots me-1"></i> {{ \Illuminate\Support\Str::limit($registro->observacion, 50) }}
-                                        </small>
-                                        @endif
                                     </div>
+
+                                    <!-- Observación (si existe) -->
+                                    @if($registro->observacion)
+                                    <div class="mt-2">
+                                        <div class="alert alert-light mb-0 py-2 px-3 rounded-3" style="background-color: #f8f9fa; border-left: 4px solid #0dcaf0;">
+                                            <i class="bi bi-chat-dots text-info me-1"> Observaciones: </i>
+                                            <span class="small text-dark" style="white-space: pre-line; word-break: break-word;">
+                                                {{ $registro->observacion }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
                         @empty
                         <div class="text-center text-muted py-5">
-                            <i class="bi bi-inbox fa-3x mb-3 d-block text-muted opacity-50"></i>
+                            <i class="bi bi-inbox display-4 mb-3 d-block text-muted opacity-50"></i>
                             <p class="mb-0">No hay registros de cambios</p>
                         </div>
                         @endforelse
@@ -219,44 +232,73 @@
                     <div style="max-height: 500px; overflow-y: auto;">
                         @forelse($tramite->tramitePagoRegistros as $index => $registroPago)
                         <div class="payment-item p-3 {{ !$loop->last ? 'border-bottom' : '' }}">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <span class="badge px-3 py-2 rounded-pill" style="background-color: {{ $registroPago->estadoPago->color ?? '#6c757d' }}; color: white;">
-                                    <i class="bi bi-circle me-1" style="font-size: 8px;"></i> {{ $registroPago->estadoPago->nombre ?? 'N/A' }}
-                                </span>
-                                <small class="text-muted">
-                                    <i class="bi bi-clock me-1"></i> {{ $registroPago->fecha_registro ? \Carbon\Carbon::parse($registroPago->fecha_registro)->format('d/m/Y H:i') : 'N/A' }}
-                                </small>
-                            </div>
-
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="d-flex gap-3">
-                                    <div>
-                                        <i class="bi bi-cash-stack text-success me-1"></i>
-                                        <span class="fw-bold">S/ {{ number_format($registroPago->monto, 2) }}</span>
+                            <div class="d-flex">
+                                <!-- Columna del icono fija -->
+                                <div class="flex-shrink-0" style="width: 40px;">
+                                    <div class="text-center">
+                                        <i class="bi bi-credit-card text-primary" style="font-size: 20px;"></i>
                                     </div>
-                                    <div>
-                                        <i class="bi bi-person-circle text-muted me-1"></i>
-                                        <small>{{ $registroPago->user->nombre ?? 'Sistema' }}</small>
-                                    </div>
+                                    @if(!$loop->last)
+                                    <div class="timeline-line mx-auto" style="width: 2px; height: 30px; background: #dee2e6;"></div>
+                                    @endif
                                 </div>
-                                @if($registroPago->pagoComprobante)
-                                <a href="{{ route('tramiteadmin.ver-comprobante', $registroPago->pagoComprobante->id) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill" title="Ver comprobante">
-                                    <i class="bi bi-file-text me-1"></i> Ver
-                                </a>
-                                @else
-                                <span class="text-muted small">Sin comprobante</span>
-                                @endif
-                            </div>
 
-                            @if($registroPago->observacion)
-                            <div class="mt-2 small text-muted bg-light p-2 rounded">
-                                <i class="bi bi-quote me-1 opacity-50"></i> {{ $registroPago->observacion }}
+                                <!-- Contenido principal -->
+                                <div class="flex-grow-1 ps-2">
+                                    <!-- Cabecera: Estado y Fecha -->
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="badge px-3 py-2 rounded-pill" style="background-color: {{ $registroPago->estadoPago->color ?? '#6c757d' }}; color: white;">
+                                            <i class="bi bi-circle me-1" style="font-size: 8px;"></i> {{ $registroPago->estadoPago->nombre ?? 'N/A' }}
+                                        </span>
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock me-1"></i> {{ $registroPago->fecha_registro ? \Carbon\Carbon::parse($registroPago->fecha_registro)->format('d/m/Y H:i') : 'N/A' }}
+                                        </small>
+                                    </div>
+
+                                    <!-- Monto y Usuario -->
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="d-flex gap-3">
+                                            <div>
+                                                <i class="bi bi-cash-stack text-success me-1"></i>
+                                                <span class="fw-bold">S/ {{ number_format($registroPago->monto, 2) }}</span>
+                                            </div>
+                                            <div>
+                                                <i class="bi bi-person-circle text-muted me-1"></i>
+                                                <small>{{ $registroPago->user->nombre ?? 'Sistema' }}</small>
+                                            </div>
+                                        </div>
+                                        @if($registroPago->pagoComprobante)
+                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalVerComprobante"
+                                                data-comprobante-id="{{ $registroPago->pagoComprobante->id }}"
+                                                data-comprobante-url="{{ route('tramiteadmin.ver-comprobante', $registroPago->pagoComprobante->id) }}"
+                                                data-comprobante-nombre="Comprobante_{{ $tramite->codigo_tramite }}_{{ $registroPago->id }}"
+                                                title="Ver comprobante">
+                                            <i class="bi bi-eye me-1"></i> Ver
+                                        </button>
+                                        @else
+                                        <span class="text-muted small">Sin comprobante</span>
+                                        @endif
+                                    </div>
+
+                                    <!-- Observación (si existe) -->
+                                    @if($registroPago->observacion)
+                                    <div class="mt-2">
+                                        <div class="alert alert-light mb-0 py-2 px-3 rounded-3" style="background-color: #f8f9fa; border-left: 4px solid #0dcaf0;">
+                                            <i class="bi bi-chat-dots text-info me-1"> Observaciones: </i>
+                                            <span class="small text-dark" style="white-space: pre-line; word-break: break-word;">
+                                                {{ $registroPago->observacion }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    @endif
+                                </div>
                             </div>
-                            @endif
                         </div>
                         @empty
                         <div class="text-center text-muted py-5">
-                            <i class="bi bi-inbox fa-3x mb-3 d-block text-muted opacity-50"></i>
+                            <i class="bi bi-inbox display-4 mb-3 d-block text-muted opacity-50"></i>
                             <p class="mb-0">No hay registros de pagos</p>
                         </div>
                         @endforelse
@@ -392,4 +434,127 @@
 </div>
 @endif
 
+<!-- MODAL: Ver Comprobante -->
+<div class="modal fade" id="modalVerComprobante" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-file-text me-2"></i> Ver Comprobante de Pago
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="comprobante-contenedor" class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Cargando comprobante...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Cerrar
+                </button>
+                <a href="#" id="btnAbrirNuevaPestana" target="_blank" class="btn btn-info text-white">
+                    <i class="bi bi-box-arrow-up-right me-1"></i> Abrir en nueva pestaña
+                </a>
+                <a href="#" id="btnDescargar" class="btn btn-success">
+                    <i class="bi bi-download me-1"></i> Descargar
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Variables para almacenar datos del comprobante actual
+    let currentComprobanteUrl = '';
+    let currentComprobanteNombre = '';
+
+    // Manejar apertura del modal de comprobante
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('modalVerComprobante');
+
+        modal.addEventListener('show.bs.modal', function(event) {
+            // Botón que abrió el modal
+            const button = event.relatedTarget;
+
+            // Obtener datos del comprobante
+            currentComprobanteUrl = button.getAttribute('data-comprobante-url');
+            currentComprobanteNombre = button.getAttribute('data-comprobante-nombre');
+
+            // Actualizar enlaces del footer
+            document.getElementById('btnAbrirNuevaPestana').href = currentComprobanteUrl;
+            document.getElementById('btnDescargar').href = currentComprobanteUrl;
+            document.getElementById('btnDescargar').setAttribute('download', currentComprobanteNombre);
+
+            // Cargar el comprobante en el modal
+            cargarComprobante(currentComprobanteUrl);
+        });
+
+        // Limpiar al cerrar
+        modal.addEventListener('hidden.bs.modal', function() {
+            document.getElementById('comprobante-contenedor').innerHTML = `
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mt-2 text-muted">Cargando comprobante...</p>
+            `;
+        });
+    });
+
+    function cargarComprobante(url) {
+        const contenedor = document.getElementById('comprobante-contenedor');
+
+        // Mostrar loading
+        contenedor.innerHTML = `
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Cargando comprobante...</p>
+        `;
+
+        // Determinar el tipo de archivo por la URL o hacer una petición HEAD
+        fetch(url, { method: 'HEAD' })
+            .then(response => {
+                const contentType = response.headers.get('Content-Type');
+
+                if (contentType && contentType.includes('pdf')) {
+                    // Mostrar PDF
+                    contenedor.innerHTML = `
+                        <iframe src="${url}" style="width: 100%; height: 70vh; border: none;" class="rounded"></iframe>
+                    `;
+                } else if (contentType && contentType.includes('image')) {
+                    // Mostrar imagen
+                    contenedor.innerHTML = `
+                        <img src="${url}" alt="Comprobante" class="img-fluid rounded shadow-sm" style="max-height: 70vh;">
+                    `;
+                } else {
+                    // Mostrar mensaje y enlace de descarga
+                    contenedor.innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            No se puede previsualizar este tipo de archivo.
+                        </div>
+                        <a href="${url}" class="btn btn-primary" download="${currentComprobanteNombre}">
+                            <i class="bi bi-download me-1"></i> Descargar archivo
+                        </a>
+                    `;
+                }
+            })
+            .catch(error => {
+                contenedor.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-circle me-2"></i>
+                        Error al cargar el comprobante. Por favor, intente de nuevo.
+                    </div>
+                    <a href="${url}" class="btn btn-primary" target="_blank">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Abrir directamente
+                    </a>
+                `;
+                console.error('Error:', error);
+            });
+    }
+</script>
 @endsection
