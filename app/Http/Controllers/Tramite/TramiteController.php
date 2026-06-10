@@ -158,7 +158,7 @@ class TramiteController extends Controller
                 $query->with('estadoTramite', 'user')->orderBy('created_at', 'desc');
             },
             'tramitePagoRegistros' => function($query) {
-                $query->with('estadoPago', 'user', 'pagoComprobante')->orderBy('fecha_registro', 'desc');
+                $query->with(['estadoPago', 'user', 'pagoComprobante'])->orderBy('fecha_registro', 'desc');
             }
         ])->findOrFail($id);
 
@@ -174,18 +174,111 @@ class TramiteController extends Controller
         $estadoActual = $tramite->tramiteRegistros->first();
         $estadoPagoActual = $tramite->tramitePagoRegistros->first();
 
-        return view('tramite.mis-tramites.show', compact('tramite', 'estadoActual', 'estadoPagoActual', 'tiposPago'));
+        // Calcular costo total del trámite
+        $costoTotal = $tramite->tipoTramite->requiere_pago ? ($tramite->tipoTramite->costo ?? 0) : 0;
+
+        // Calcular monto pagado total usando el accessor del modelo
+        $montoPagado = $tramite->requiere_pago ? ($tramite->monto_pagado_total ?? 0) : 0;
+
+        // Calcular saldo pendiente
+        $saldoPendiente = $costoTotal - $montoPagado;
+
+        // Determinar si el trámite requiere pago
+        $requierePago = $tramite->tipoTramite->requiere_pago;
+
+        // Determinar si el botón de subir comprobante debe mostrarse
+        $mostrarBotonSubirComprobante = $requierePago && $saldoPendiente > 0;
+
+        // Preparar datos de pagos enriquecidos para la vista
+        $pagosEnriquecidos = $tramite->tramitePagoRegistros->map(function($registroPago) {
+            $metodoPago = null;
+            $esEfectivo = false;
+
+            if ($registroPago->pagoComprobante) {
+                $metodoPago = Tipopago::find($registroPago->pagoComprobante->metodo_pago_id);
+                $esEfectivo = $metodoPago && $metodoPago->es_efectivo == '1';
+            }
+
+            return [
+                'registro' => $registroPago,
+                'metodo_pago' => $metodoPago,
+                'es_efectivo' => $esEfectivo,
+                'monto_formateado' => 'S/ ' . number_format($registroPago->monto, 2),
+                'fecha_formateada' => $registroPago->fecha_registro
+                    ? \Carbon\Carbon::parse($registroPago->fecha_registro)->format('d/m/Y H:i:s')
+                    : $registroPago->created_at->format('d/m/Y H:i:s'),
+            ];
+        });
+
+        // Preparar datos del solicitante para la vista
+        $solicitante = [
+            'nombre_completo' => ($tramite->user->nombre ?? 'N/A') . ' ' . ($tramite->user->apellido_paterno ?? ''),
+            'dni' => $tramite->user->dni ?? 'N/A',
+            'email' => $tramite->user->email ?? 'N/A',
+            'telefono' => $tramite->user->telefono ?? 'N/A',
+        ];
+
+        // Preparar datos del estudiante para la vista
+        $estudianteData = [
+            'nombre_completo' => ($tramite->estudiante->user->nombre ?? 'N/A') . ' ' . ($tramite->estudiante->user->apellido_paterno ?? ''),
+            'dni' => $tramite->estudiante->user->dni ?? 'N/A',
+        ];
+
+        // Fechas formateadas
+        $fechaSolicitud = $tramite->fecha_solicitud
+            ? \Carbon\Carbon::parse($tramite->fecha_solicitud)->format('d/m/Y')
+            : 'N/A';
+
+        $fechaResolucion = $tramite->fecha_resolucion
+            ? \Carbon\Carbon::parse($tramite->fecha_resolucion)->format('d/m/Y')
+            : 'Pendiente';
+
+        // Tipo de trámite
+        $tipoTramiteNombre = $tramite->tipoTramite->nombre ?? 'Sin nombre';
+
+        // Observación general
+        $observacionGeneral = $tramite->observaciones ?? 'Sin observaciones registradas';
+
+        // Preparar datos para el historial de trámites enriquecidos
+        $historialTramitesEnriquecidos = $tramite->tramiteRegistros->map(function($registro) {
+            return [
+                'registro' => $registro,
+                'fecha_formateada' => $registro->created_at->format('d/m/Y H:i'),
+                'color_estado' => $registro->estadoTramite->color ?? '#6c757d',
+                'nombre_estado' => $registro->estadoTramite->nombre ?? 'N/A',
+                'nombre_usuario' => $registro->user->nombre ?? 'Sistema',
+            ];
+        });
+
+        // Totales para el footer
+        $totalRegistrosTramite = $tramite->tramiteRegistros->count();
+        $totalRegistrosPago = $tramite->tramitePagoRegistros->count();
+
+        return view('tramite.mis-tramites.show', compact(
+            'tramite',
+            'estadoActual',
+            'estadoPagoActual',
+            'tiposPago',
+            // Nuevas variables
+            'costoTotal',
+            'montoPagado',
+            'saldoPendiente',
+            'requierePago',
+            'mostrarBotonSubirComprobante',
+            'pagosEnriquecidos',
+            'solicitante',
+            'estudianteData',
+            'fechaSolicitud',
+            'fechaResolucion',
+            'tipoTramiteNombre',
+            'observacionGeneral',
+            'historialTramitesEnriquecidos',
+            'totalRegistrosTramite',
+            'totalRegistrosPago'
+        ));
     }
     public function subirComprobante(Request $request, $id)
     {
-        $request->validate([
-            'numero_operacion' => 'required|string',
-            'monto' => 'required|numeric|min:0.01',
-            'tipo_pago_id' => 'required|exists:m_tipo_pagos,id',
-            'comprobante' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'observaciones' => 'nullable|string',
-        ]);
-
         $tramite = Tramite::findOrFail($id);
 
         if ($tramite->user_id != auth()->id()) {
@@ -196,25 +289,54 @@ class TramiteController extends Controller
             return redirect()->back()->with('error', 'Este trámite no requiere pago.');
         }
 
-        // Guardar archivo en storage/app/private/comprobantes/
-        $path = $request->file('comprobante')->store('comprobantes/' . date('Y/m'), 'private');
+        // Obtener el tipo de pago seleccionado
+        $tipoPago = Tipopago::findOrFail($request->tipo_pago_id);
 
+        // Validar según el tipo de pago
+        if ($tipoPago->es_efectivo == '1') {
+            // Pago en efectivo - no requiere comprobante ni número de operación
+            $request->validate([
+                'monto' => 'required|numeric|min:0.01',
+                'observaciones' => 'nullable|string',
+            ]);
+
+            $numeroOperacion = 'EFECTIVO_' . date('YmdHis');
+            $comprobantePath = null;
+
+        } else {
+            // Pago con transferencia/depósito - requiere comprobante
+            $request->validate([
+                'numero_operacion' => 'required|string',
+                'monto' => 'required|numeric|min:0.01',
+                'comprobante' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                'observaciones' => 'nullable|string',
+            ]);
+
+            $numeroOperacion = $request->numero_operacion;
+            $comprobantePath = $request->file('comprobante')->store('comprobantes/' . date('Y/m'), 'private');
+        }
+
+        // Crear el comprobante (para efectivo se guarda sin archivo)
         $comprobante = Pagocomprobante::create([
             'tramite_id' => $id,
             'user_id' => auth()->id(),
             'metodo_pago_id' => $request->tipo_pago_id,
-            'numero_operacion' => $request->numero_operacion,
+            'numero_operacion' => $numeroOperacion,
             'monto' => $request->monto,
             'fecha_pago' => now(),
-            'comprobante_path' => $path,
+            'comprobante_path' => $comprobantePath,
             'observaciones' => $request->observaciones,
         ]);
 
-        // Registrar el cambio de estado (Pendiente de revisión, NO suma al monto pagado)
+        // Registrar el cambio de estado
         $estadoPagoEnRevision = Estadopago::where('nombre', 'LIKE', '%Revisión%')->first();
         if (!$estadoPagoEnRevision) {
             $estadoPagoEnRevision = Estadopago::where('nombre', 'LIKE', '%Pendiente%')->first();
         }
+
+        $observacionPago = $tipoPago->es_efectivo == '1'
+            ? 'Usuario registró pago en efectivo - Pendiente de verificación'
+            : 'Usuario subió comprobante de pago - Pendiente de revisión';
 
         Tramitepagoregistro::create([
             'tramite_id' => $id,
@@ -222,14 +344,14 @@ class TramiteController extends Controller
             'estado_pago_id' => $estadoPagoEnRevision ? $estadoPagoEnRevision->id : 1,
             'monto' => $request->monto,
             'fecha_registro' => now(),
-            'observacion' => 'Usuario subió comprobante de pago - Pendiente de revisión',
+            'observacion' => $observacionPago,
             'user_id' => auth()->id(),
         ]);
 
-        // NO actualizar monto_pagado aquí, solo cuando el admin apruebe
-
         return redirect()->route('mis-tramites.show', $id)
-            ->with('success', 'Comprobante subido correctamente. Será revisado por el administrador.');
+            ->with('success', $tipoPago->es_efectivo == '1'
+                ? 'Pago en efectivo registrado. Será verificado por el administrador.'
+                : 'Comprobante subido correctamente. Será revisado por el administrador.');
     }
     public function verComprobante($id)
     {

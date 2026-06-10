@@ -232,17 +232,164 @@ class TramiteadminController extends Controller
                 $query->with('estadoTramite', 'user')->orderBy('created_at', 'desc');
             },
             'tramitePagoRegistros' => function($query) {
-                $query->with('estadoPago', 'user', 'pagoComprobante')->orderBy('fecha_registro', 'desc');
+                $query->with(['estadoPago', 'user', 'pagoComprobante'])->orderBy('fecha_registro', 'desc');
             }
         ])->findOrFail($id);
 
         $estadosTramite = Estadotramite::all();
         $estadosPago = Estadopago::all();
 
-        // Agregar esta variable
+        // Verificar si requiere pago
         $requierePago = $tramite->tipoTramite->requiere_pago ?? false;
 
-        return view('tramite.admin.show', compact('tramite', 'estadosTramite', 'estadosPago', 'requierePago'));
+        // Calcular costo total
+        $costoTotal = $requierePago ? ($tramite->tipoTramite->costo ?? 0) : 0;
+
+        // Calcular monto pagado (usando el campo directo del modelo o el accessor)
+        $montoPagado = $tramite->monto_pagado ?? 0;
+
+        // Calcular saldo pendiente
+        $saldoPendiente = $costoTotal - $montoPagado;
+
+        // Fechas formateadas
+        $fechaSolicitud = $tramite->fecha_solicitud
+            ? \Carbon\Carbon::parse($tramite->fecha_solicitud)->format('d/m/Y')
+            : 'N/A';
+
+        $fechaResolucion = $tramite->fecha_resolucion
+            ? \Carbon\Carbon::parse($tramite->fecha_resolucion)->format('d/m/Y')
+            : 'Pendiente';
+
+        // Datos del solicitante
+        $solicitante = [
+            'nombre_completo' => trim(($tramite->user->nombre ?? 'N/A') . ' ' . ($tramite->user->apellido_paterno ?? '') . ' ' . ($tramite->user->apellido_materno ?? '')),
+            'dni' => $tramite->user->dni ?? 'N/A',
+            'email' => $tramite->user->email ?? 'N/A',
+            'telefono' => $tramite->user->telefono ?? 'N/A',
+        ];
+
+        // Datos del estudiante
+        $estudianteData = [
+            'nombre_completo' => ($tramite->estudiante->user->nombre ?? 'N/A') . ' ' . ($tramite->estudiante->user->apellido_paterno ?? ''),
+            'dni' => $tramite->estudiante->user->dni ?? 'N/A',
+        ];
+
+        // Observación general
+        $observacionGeneral = $tramite->observaciones ?? 'Sin observaciones registradas';
+
+        // Estado actual del trámite
+        $estadoActualTramite = $tramite->tramiteRegistros->first();
+
+        // Historial de trámites enriquecido
+        $historialTramites = $tramite->tramiteRegistros->map(function($registro) {
+            return [
+                'registro' => $registro,
+                'fecha_formateada' => $registro->created_at->format('d/m/Y H:i'),
+                'color_estado' => $registro->estadoTramite->color ?? '#6c757d',
+                'nombre_estado' => $registro->estadoTramite->nombre ?? 'N/A',
+                'nombre_usuario' => $registro->user->nombre ?? 'Sistema',
+                'observacion' => $registro->observacion,
+            ];
+        });
+
+        $totalRegistrosTramite = $tramite->tramiteRegistros->count();
+
+        // Datos de pagos enriquecidos (incluyendo observaciones del comprobante)
+        $pagosEnriquecidos = $tramite->tramitePagoRegistros->map(function($registroPago) {
+            $estadoNombre = strtolower($registroPago->estadoPago->nombre ?? '');
+            $tieneComprobante = !is_null($registroPago->pago_comprobante_id);
+
+            $iconoClase = '';
+            if (str_contains($estadoNombre, 'aprobado')) {
+                $iconoClase = 'bi-check-circle-fill text-success';
+            } elseif (str_contains($estadoNombre, 'rechazado')) {
+                $iconoClase = 'bi-x-circle-fill text-danger';
+            } elseif (str_contains($estadoNombre, 'revisión')) {
+                $iconoClase = 'bi-arrow-repeat text-warning';
+            } elseif (str_contains($estadoNombre, 'pendiente')) {
+                $iconoClase = 'bi-hourglass-split text-secondary';
+            } else {
+                $iconoClase = 'bi-question-circle-fill text-muted';
+            }
+
+            // Determinar si el botón de acciones debe mostrarse (pendiente o en revisión y tiene comprobante)
+            $mostrarBotonesAccion = $tieneComprobante &&
+                !str_contains($estadoNombre, 'aprobado') &&
+                !str_contains($estadoNombre, 'rechazado');
+
+            return [
+                'registro' => $registroPago,
+                'id' => $registroPago->id,
+                'fecha_formateada' => $registroPago->fecha_registro
+                    ? \Carbon\Carbon::parse($registroPago->fecha_registro)->format('d/m/Y H:i')
+                    : $registroPago->created_at->format('d/m/Y H:i'),
+                'color_estado' => $registroPago->estadoPago->color ?? '#6c757d',
+                'nombre_estado' => $registroPago->estadoPago->nombre ?? 'N/A',
+                'nombre_usuario' => $registroPago->user->nombre ?? 'Sistema',
+                'monto_formateado' => 'S/ ' . number_format($registroPago->monto, 2),
+                'observacion' => $registroPago->observacion,
+                'icono_clase' => $iconoClase,
+                'tiene_comprobante' => $tieneComprobante,
+                'mostrar_botones_accion' => $mostrarBotonesAccion,
+                'comprobante' => $tieneComprobante ? [
+                    'id' => $registroPago->pagoComprobante->id,
+                    'numero_operacion' => $registroPago->pagoComprobante->numero_operacion ?? 'N/A',
+                    'observaciones' => $registroPago->pagoComprobante->observaciones ?? 'Sin observaciones',
+                    'metodo_pago_nombre' => $registroPago->pagoComprobante->metodoPago->nombre ?? 'N/A',
+                    'metodo_pago_entidad' => $registroPago->pagoComprobante->metodoPago->entidad_financiera ?? null,
+                    'metodo_pago_cuenta' => $registroPago->pagoComprobante->metodoPago->numero_cuenta ?? null,
+                ] : null,
+            ];
+        });
+
+        $totalRegistrosPago = $tramite->tramitePagoRegistros->count();
+
+        // Preparar opciones para el select de comprobantes en el modal
+        $opcionesComprobantes = $tramite->tramitePagoRegistros
+            ->filter(function($pagoRegistro) {
+                return !is_null($pagoRegistro->pago_comprobante_id);
+            })
+            ->map(function($pagoRegistro) {
+                $estadoNombre = strtolower($pagoRegistro->estadoPago->nombre ?? '');
+                $icono = '';
+                if (str_contains($estadoNombre, 'aprobado')) $icono = '✅';
+                elseif (str_contains($estadoNombre, 'rechazado')) $icono = '❌';
+                elseif (str_contains($estadoNombre, 'revisión')) $icono = '🔄';
+                elseif (str_contains($estadoNombre, 'pendiente')) $icono = '⏳';
+
+                return [
+                    'id' => $pagoRegistro->id,
+                    'fecha' => $pagoRegistro->fecha_registro
+                        ? \Carbon\Carbon::parse($pagoRegistro->fecha_registro)->format('d/m/Y H:i')
+                        : $pagoRegistro->created_at->format('d/m/Y H:i'),
+                    'monto' => $pagoRegistro->monto,
+                    'monto_formateado' => 'S/ ' . number_format($pagoRegistro->monto, 2),
+                    'estado_nombre' => $pagoRegistro->estadoPago->nombre ?? 'N/A',
+                    'icono' => $icono,
+                    'numero_operacion' => $pagoRegistro->pagoComprobante->numero_operacion ?? 'N/A',
+                ];
+            });
+
+        return view('tramite.admin.show', compact(
+            'tramite',
+            'estadosTramite',
+            'estadosPago',
+            'requierePago',
+            'costoTotal',
+            'montoPagado',
+            'saldoPendiente',
+            'fechaSolicitud',
+            'fechaResolucion',
+            'solicitante',
+            'estudianteData',
+            'observacionGeneral',
+            'estadoActualTramite',
+            'historialTramites',
+            'totalRegistrosTramite',
+            'pagosEnriquecidos',
+            'totalRegistrosPago',
+            'opcionesComprobantes'
+        ));
     }
     public function updateEstadoTramite(Request $request, $id)
     {
@@ -272,6 +419,7 @@ class TramiteadminController extends Controller
     public function updateEstadoPago(Request $request, $id)
     {
         $request->validate([
+            'pago_registro_id' => 'required|exists:m_tramite_pago_registros,id',
             'estado_pago_id' => 'required|exists:estado_pagos,id',
             'observacion' => 'nullable|string',
         ]);
@@ -283,46 +431,44 @@ class TramiteadminController extends Controller
             return redirect()->back()->with('error', 'Este trámite no requiere gestión de pagos.');
         }
 
-        // Obtener el último registro de pago
-        $ultimoRegistroPago = $tramite->tramitePagoRegistros()->latest('fecha_registro')->first();
+        // Obtener el registro de pago específico
+        $registroPago = Tramitepagoregistro::findOrFail($request->pago_registro_id);
 
-        $estadoPago = Estadopago::find($request->estado_pago_id);
+        // Validar que el registro tenga comprobante (no sea el registro inicial)
+        if (is_null($registroPago->pago_comprobante_id)) {
+            return redirect()->back()->with('error', 'No se puede cambiar el estado del registro inicial de pago.');
+        }
 
-        // Si el nuevo estado es APROBADO y el estado actual NO era aprobado, sumar el monto
-        if (strtolower($estadoPago->nombre) == 'aprobado') {
-            // Verificar si el estado actual no era aprobado para no duplicar
-            $estadoActual = $ultimoRegistroPago?->estadoPago;
-            if (!$estadoActual || strtolower($estadoActual->nombre) != 'aprobado') {
-                $montoAAprobar = $ultimoRegistroPago?->monto ?? 0;
+        // Obtener el estado actual de ese registro
+        $estadoActual = Estadopago::find($registroPago->estado_pago_id);
+        $nuevoEstado = Estadopago::find($request->estado_pago_id);
 
-                // En lugar de incrementar, recalcular desde cero
-                $totalAprobado = $tramite->tramitePagoRegistros()
-                    ->whereHas('estadoPago', function($q) {
-                        $q->where('nombre', 'LIKE', '%Aprobado%');
-                    })
-                    ->sum('monto');
+        // Verificar que no se esté cambiando al mismo estado
+        if ($estadoActual->id == $nuevoEstado->id) {
+            return redirect()->back()->with('warning', 'El estado ya es el mismo.');
+        }
 
-                // Sumar el nuevo monto aprobado
-                $tramite->update(['monto_pagado' => $totalAprobado + $montoAAprobar]);
+        // Si el nuevo estado es APROBADO
+        if (strtolower($nuevoEstado->nombre) == 'aprobado') {
+            // Verificar que el estado actual no sea ya aprobado
+            if (strtolower($estadoActual->nombre) != 'aprobado') {
+                // Sumar el monto al total pagado
+                $tramite->increment('monto_pagado', $registroPago->monto);
             }
         }
 
-        // Si el nuevo estado es RECHAZADO o PENDIENTE, recalcular todo
-        if (strtolower($estadoPago->nombre) != 'aprobado') {
-            $totalAprobado = $tramite->tramitePagoRegistros()
-                ->whereHas('estadoPago', function($q) {
-                    $q->where('nombre', 'LIKE', '%Aprobado%');
-                })
-                ->sum('monto');
-            $tramite->update(['monto_pagado' => $totalAprobado]);
+        // Si el nuevo estado es RECHAZADO y el estado actual era APROBADO
+        if (strtolower($nuevoEstado->nombre) == 'rechazado' && strtolower($estadoActual->nombre) == 'aprobado') {
+            // Restar el monto que se había aprobado
+            $tramite->decrement('monto_pagado', $registroPago->monto);
         }
 
-        // Crear registro de cambio de estado de pago
+        // Crear un NUEVO registro de cambio de estado para ese comprobante específico
         Tramitepagoregistro::create([
             'tramite_id' => $id,
-            'pago_comprobante_id' => $ultimoRegistroPago?->pago_comprobante_id,
+            'pago_comprobante_id' => $registroPago->pago_comprobante_id,
             'estado_pago_id' => $request->estado_pago_id,
-            'monto' => $ultimoRegistroPago?->monto ?? 0,
+            'monto' => $registroPago->monto,
             'fecha_registro' => now(),
             'observacion' => $request->observacion ?: 'Cambio de estado de pago realizado por administrador',
             'user_id' => auth()->id(),
@@ -354,7 +500,6 @@ class TramiteadminController extends Controller
         $tipos = Tramitetipo::orderBy('created_at', 'desc')->paginate(10);
         return view('tramite.admin.tipo-tramite.index', compact('tipos'));
     }
-
     public function tipoTramiteStore(Request $request)
     {
         $request->validate([
@@ -373,7 +518,6 @@ class TramiteadminController extends Controller
         return redirect()->route('tramiteadmin.tipos-tramite.index')
             ->with('success', 'Tipo de trámite creado correctamente.');
     }
-
     public function tipoTramiteUpdate($id, Request $request)
     {
         $tipo = Tramitetipo::findOrFail($id);
@@ -394,7 +538,6 @@ class TramiteadminController extends Controller
         return redirect()->route('tramiteadmin.tipos-tramite.index')
             ->with('success', 'Tipo de trámite actualizado correctamente.');
     }
-
     public function tipoTramiteDestroy($id)
     {
         $tipo = Tramitetipo::findOrFail($id);

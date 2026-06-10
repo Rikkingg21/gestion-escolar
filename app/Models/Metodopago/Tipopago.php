@@ -25,11 +25,13 @@ class Tipopago extends Model
         'numero_celular',
         'requiere_verificacion',
         'color_hex',
-        'estado',
+        'estado',       //'1' o '0'
+        'es_efectivo',  //'1' o '0'
     ];
 
     protected $casts = [
         'requiere_verificacion' => 'boolean',
         'estado' => 'string',
+        'es_efectivo' => 'string',
     ];
 }

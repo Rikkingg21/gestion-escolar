@@ -13,7 +13,7 @@
         </div>
     </div>
 
-    <!-- SECCIÓN 1: Resumen rápido - Tarjetas de estado (FULL WIDTH) -->
+    <!-- SECCIÓN 1: Resumen rápido (usando variables del controlador) -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm">
@@ -21,30 +21,30 @@
                     <div class="row text-center">
                         <div class="col-md-4 col-sm-6 mb-3 mb-md-0">
                             <div class="d-flex flex-column align-items-center">
-                                <div class="bg-primary bg-opacity-10 rounded-circle p-3 mb-2 d-inline-flex">
-                                    <i class="bi bi-calendar3 fa-2x text-primary"></i>
+                                <div class="bg-primary bg-opacity-10 rounded-circle p-3 mb-2">
+                                    <i class="bi bi-calendar3 text-primary fs-2"></i>
                                 </div>
                                 <h6 class="text-muted mb-1">Fecha Solicitud</h6>
-                                <h5 class="mb-0 fw-bold">{{ $tramite->fecha_solicitud ? \Carbon\Carbon::parse($tramite->fecha_solicitud)->format('d/m/Y') : 'N/A' }}</h5>
+                                <h5 class="mb-0 fw-bold">{{ $fechaSolicitud }}</h5>
                             </div>
                         </div>
                         <div class="col-md-4 col-sm-6 mb-3 mb-md-0">
                             <div class="d-flex flex-column align-items-center">
-                                <div class="bg-success bg-opacity-10 rounded-circle p-3 mb-2 d-inline-flex">
-                                    <i class="bi bi-check-circle fa-2x text-success"></i>
+                                <div class="bg-success bg-opacity-10 rounded-circle p-3 mb-2">
+                                    <i class="bi bi-check-circle text-success fs-2"></i>
                                 </div>
                                 <h6 class="text-muted mb-1">Fecha Resolución</h6>
-                                <h5 class="mb-0 fw-bold">{{ $tramite->fecha_resolucion ? \Carbon\Carbon::parse($tramite->fecha_resolucion)->format('d/m/Y') : 'Pendiente' }}</h5>
+                                <h5 class="mb-0 fw-bold">{{ $fechaResolucion }}</h5>
                             </div>
                         </div>
                         <div class="col-md-4 col-sm-6 mb-3 mb-md-0">
                             <div class="d-flex flex-column align-items-center">
-                                <div class="bg-warning bg-opacity-10 rounded-circle p-3 mb-2 d-inline-flex">
-                                    <i class="bi bi-cash-stack fa-2x text-warning"></i>
+                                <div class="bg-warning bg-opacity-10 rounded-circle p-3 mb-2">
+                                    <i class="bi bi-cash-stack text-warning fs-2"></i>
                                 </div>
                                 <h6 class="text-muted mb-1">{{ $requierePago ? 'Costo Total' : 'Trámite' }}</h6>
                                 @if($requierePago)
-                                    <h5 class="mb-0 fw-bold">S/ {{ number_format($tramite->tipoTramite->costo ?? 0, 2) }}</h5>
+                                    <h5 class="mb-0 fw-bold">S/ {{ number_format($costoTotal, 2) }}</h5>
                                 @else
                                     <h5 class="mb-0 fw-bold">Sin costo</h5>
                                 @endif
@@ -53,16 +53,15 @@
                     </div>
 
                     @if($requierePago)
-                        @php $saldoPendiente = ($tramite->tipoTramite->costo ?? 0) - $tramite->monto_pagado; @endphp
                         @if($saldoPendiente > 0)
-                        <div class="alert alert-warning mb-0 mt-4 text-center">
+                        <div class="alert alert-warning mb-0 mt-4 text-center py-2">
                             <i class="bi bi-exclamation-triangle me-2"></i>
                             <strong>Saldo pendiente:</strong> S/ {{ number_format($saldoPendiente, 2) }}
                         </div>
-                        @elseif($saldoPendiente <= 0 && $tramite->monto_pagado > 0)
-                        <div class="alert alert-success mb-0 mt-4 text-center">
+                        @elseif($saldoPendiente <= 0 && $montoPagado > 0)
+                        <div class="alert alert-success mb-0 mt-4 text-center py-2">
                             <i class="bi bi-check-circle-fill me-2"></i>
-                            <strong>Pago completado</strong> - Total pagado: S/ {{ number_format($tramite->monto_pagado, 2) }}
+                            <strong>Pago completado</strong> - Total pagado: S/ {{ number_format($montoPagado, 2) }}
                         </div>
                         @endif
                     @endif
@@ -71,65 +70,56 @@
         </div>
     </div>
 
-    <!-- SECCIÓN 2: Información + Historiales (layout dinámico según requiere_pago) -->
+    <!-- SECCIÓN 2: Información + Historiales -->
     <div class="row">
-        <!-- Columna Izquierda: Datos del Solicitante + Estudiante + Observación -->
+        <!-- Columna Izquierda: Datos -->
         <div class="col-md-4 mb-4">
             <!-- Card Solicitante -->
             <div class="card shadow-sm mb-4">
-                <div class="card-header bg-primary text-white py-3">
-                    <h5 class="mb-0">
-                        <i class="bi bi-person me-2"></i> Datos del Solicitante
-                    </h5>
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-person me-2"></i> Datos del Solicitante</h6>
                 </div>
                 <div class="card-body">
                     <dl class="row mb-0">
                         <dt class="col-sm-4 text-muted">Nombre:</dt>
-                        <dd class="col-sm-8 fw-semibold">{{ $tramite->user->nombre ?? 'N/A' }} {{ $tramite->user->apellido_paterno ?? '' }} {{ $tramite->user->apellido_materno ?? '' }}</dd>
+                        <dd class="col-sm-8 fw-semibold">{{ $solicitante['nombre_completo'] }}</dd>
 
                         <dt class="col-sm-4 text-muted">DNI:</dt>
-                        <dd class="col-sm-8"><i class="bi bi-card-text me-1 text-muted"></i> {{ $tramite->user->dni ?? 'N/A' }}</dd>
+                        <dd class="col-sm-8">{{ $solicitante['dni'] }}</dd>
 
                         <dt class="col-sm-4 text-muted">Email:</dt>
-                        <dd class="col-sm-8"><i class="bi bi-envelope me-1 text-muted"></i> {{ $tramite->user->email ?? 'N/A' }}</dd>
+                        <dd class="col-sm-8">{{ $solicitante['email'] }}</dd>
 
                         <dt class="col-sm-4 text-muted">Teléfono:</dt>
-                        <dd class="col-sm-8"><i class="bi bi-telephone me-1 text-muted"></i> {{ $tramite->user->telefono ?? 'N/A' }}</dd>
+                        <dd class="col-sm-8">{{ $solicitante['telefono'] }}</dd>
                     </dl>
                 </div>
             </div>
 
             <!-- Card Estudiante -->
             <div class="card shadow-sm mb-4">
-                <div class="card-header bg-success text-white py-3">
-                    <h5 class="mb-0">
-                        <i class="bi bi-mortarboard me-2"></i> Datos del Estudiante
-                    </h5>
+                <div class="card-header bg-success text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-mortarboard me-2"></i> Datos del Estudiante</h6>
                 </div>
                 <div class="card-body">
                     <dl class="row mb-0">
                         <dt class="col-sm-4 text-muted">Nombre:</dt>
-                        <dd class="col-sm-8 fw-semibold">{{ $tramite->estudiante->user->nombre ?? 'N/A' }} {{ $tramite->estudiante->user->apellido_paterno ?? '' }}</dd>
+                        <dd class="col-sm-8 fw-semibold">{{ $estudianteData['nombre_completo'] }}</dd>
 
                         <dt class="col-sm-4 text-muted">DNI:</dt>
-                        <dd class="col-sm-8"><i class="bi bi-card-text me-1 text-muted"></i> {{ $tramite->estudiante->user->dni ?? 'N/A' }}</dd>
+                        <dd class="col-sm-8">{{ $estudianteData['dni'] }}</dd>
                     </dl>
                 </div>
             </div>
 
             <!-- Card Observación -->
             <div class="card shadow-sm">
-                <div class="card-header bg-info text-white py-3">
-                    <h5 class="mb-0">
-                        <i class="bi bi-chat-dots me-2"></i> Observación General
-                    </h5>
+                <div class="card-header bg-info text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-chat-dots me-2"></i> Observación General</h6>
                 </div>
                 <div class="card-body">
                     <p class="mb-0 text-muted">
-                        Tipo tramite: {{ $tramite->tipoTramite->nombre ?? 'Sin nombre' }}
-                    </p>
-                    <p class="mb-0 text-muted">
-                        <i class="bi bi-file-text me-1"></i> {{ $tramite->observaciones ?? 'Sin observaciones registradas' }}
+                        <i class="bi bi-file-text me-1"></i> {{ $observacionGeneral }}
                     </p>
                 </div>
             </div>
@@ -137,13 +127,10 @@
 
         <!-- Columna Central: Historial del Trámite -->
         <div class="{{ $requierePago ? 'col-md-4' : 'col-md-8' }} mb-4">
-            <div class="card shadow-sm h-100 border-0">
-                <div class="card-header bg-warning text-white py-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-warning text-white py-2">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <i class="bi bi-arrow-repeat me-2"></i>
-                            <span class="fw-semibold">Historial del Trámite</span>
-                        </div>
+                        <h6 class="mb-0"><i class="bi bi-arrow-repeat me-2"></i> Historial del Trámite</h6>
                         <button type="button" class="btn btn-sm btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#modalCambiarEstadoTramite">
                             <i class="bi bi-pencil me-1"></i> Cambiar Estado
                         </button>
@@ -151,47 +138,28 @@
                 </div>
                 <div class="card-body p-0">
                     <div style="max-height: 500px; overflow-y: auto;">
-                        @forelse($tramite->tramiteRegistros as $index => $registro)
-                        <div class="timeline-item p-3 {{ !$loop->last ? 'border-bottom' : '' }}">
+                        @forelse($historialTramites as $index => $item)
+                        <div class="p-3 {{ !$loop->last ? 'border-bottom' : '' }}">
                             <div class="d-flex">
-                                <!-- Columna del icono fija -->
-                                <div class="flex-shrink-0" style="width: 40px;">
-                                    <div class="text-center">
-                                        <i class="bi bi-check-circle-fill text-success" style="font-size: 20px;"></i>
-                                    </div>
+                                <div class="flex-shrink-0 me-3 text-center" style="width: 40px;">
+                                    <i class="bi bi-check-circle-fill text-success" style="font-size: 18px;"></i>
                                     @if(!$loop->last)
-                                    <div class="timeline-line mx-auto" style="width: 2px; height: 30px; background: #dee2e6;"></div>
+                                    <div class="mx-auto" style="width: 2px; height: 20px; background: #dee2e6;"></div>
                                     @endif
                                 </div>
-
-                                <!-- Contenido principal -->
-                                <div class="flex-grow-1 ps-2">
-                                    <!-- Cabecera: Estado y Fecha -->
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span class="badge px-3 py-2 rounded-pill" style="background-color: {{ $registro->estadoTramite->color ?? '#6c757d' }}; color: white;">
-                                            <i class="bi bi-tag me-1"></i> {{ $registro->estadoTramite->nombre ?? 'N/A' }}
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <span class="badge px-3 py-2 rounded-pill" style="background-color: {{ $item['color_estado'] }}; color: white;">
+                                            {{ $item['nombre_estado'] }}
                                         </span>
-                                        <small class="text-muted">
-                                            <i class="bi bi-clock me-1"></i> {{ $registro->created_at->format('d/m/Y H:i') }}
-                                        </small>
+                                        <small class="text-muted">{{ $item['fecha_formateada'] }}</small>
                                     </div>
-
-                                    <!-- Usuario -->
                                     <div class="mb-1">
-                                        <small class="text-muted">
-                                            <i class="bi bi-person-circle me-1"></i> {{ $registro->user->nombre ?? 'Sistema' }}
-                                        </small>
+                                        <small class="text-muted"><i class="bi bi-person-circle me-1"></i> {{ $item['nombre_usuario'] }}</small>
                                     </div>
-
-                                    <!-- Observación (si existe) -->
-                                    @if($registro->observacion)
-                                    <div class="mt-2">
-                                        <div class="alert alert-light mb-0 py-2 px-3 rounded-3" style="background-color: #f8f9fa; border-left: 4px solid #0dcaf0;">
-                                            <i class="bi bi-chat-dots text-info me-1"> Observaciones: </i>
-                                            <span class="small text-dark" style="white-space: pre-line; word-break: break-word;">
-                                                {{ $registro->observacion }}
-                                            </span>
-                                        </div>
+                                    @if($item['observacion'])
+                                    <div class="mt-2 small text-muted bg-light p-2 rounded">
+                                        <i class="bi bi-chat-dots me-1"></i> {{ $item['observacion'] }}
                                     </div>
                                     @endif
                                 </div>
@@ -206,23 +174,18 @@
                     </div>
                 </div>
                 <div class="card-footer bg-light py-2 text-center">
-                    <small class="text-muted">
-                        <i class="bi bi-list me-1"></i> Total: {{ $tramite->tramiteRegistros->count() }} registros
-                    </small>
+                    <small class="text-muted"><i class="bi bi-list me-1"></i> Total: {{ $totalRegistrosTramite }} registros</small>
                 </div>
             </div>
         </div>
 
-        <!-- Columna Derecha: Historial de Pagos (SOLO SI requiere_pago = 1) -->
+        <!-- Columna Derecha: Historial de Pagos (solo si requiere pago) -->
         @if($requierePago)
         <div class="col-md-4 mb-4">
-            <div class="card shadow-sm h-100 border-0">
-                <div class="card-header bg-primary text-white py-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white py-2">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <i class="bi bi-credit-card me-2"></i>
-                            <span class="fw-semibold">Historial de Pagos</span>
-                        </div>
+                        <h6 class="mb-0"><i class="bi bi-credit-card me-2"></i> Historial de Pagos</h6>
                         <button type="button" class="btn btn-sm btn-light rounded-pill" data-bs-toggle="modal" data-bs-target="#modalCambiarEstadoPago">
                             <i class="bi bi-pencil me-1"></i> Cambiar Estado
                         </button>
@@ -230,67 +193,91 @@
                 </div>
                 <div class="card-body p-0">
                     <div style="max-height: 500px; overflow-y: auto;">
-                        @forelse($tramite->tramitePagoRegistros as $index => $registroPago)
-                        <div class="payment-item p-3 {{ !$loop->last ? 'border-bottom' : '' }}">
+                        @forelse($pagosEnriquecidos as $index => $pago)
+                        <div class="p-3 {{ !$loop->last ? 'border-bottom' : '' }}">
                             <div class="d-flex">
-                                <!-- Columna del icono fija -->
-                                <div class="flex-shrink-0" style="width: 40px;">
-                                    <div class="text-center">
-                                        <i class="bi bi-credit-card text-primary" style="font-size: 20px;"></i>
-                                    </div>
+                                <div class="flex-shrink-0 me-3 text-center" style="width: 40px;">
+                                    <i class="bi bi-credit-card text-primary" style="font-size: 18px;"></i>
                                     @if(!$loop->last)
-                                    <div class="timeline-line mx-auto" style="width: 2px; height: 30px; background: #dee2e6;"></div>
+                                    <div class="mx-auto" style="width: 2px; height: 20px; background: #dee2e6;"></div>
                                     @endif
                                 </div>
-
-                                <!-- Contenido principal -->
-                                <div class="flex-grow-1 ps-2">
-                                    <!-- Cabecera: Estado y Fecha -->
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span class="badge px-3 py-2 rounded-pill" style="background-color: {{ $registroPago->estadoPago->color ?? '#6c757d' }}; color: white;">
-                                            <i class="bi bi-circle me-1" style="font-size: 8px;"></i> {{ $registroPago->estadoPago->nombre ?? 'N/A' }}
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <span class="badge px-3 py-2 rounded-pill d-flex align-items-center gap-1" style="background-color: {{ $pago['color_estado'] }}; color: white;">
+                                            <i class="{{ $pago['icono_clase'] }}"></i>
+                                            {{ $pago['nombre_estado'] }}
                                         </span>
-                                        <small class="text-muted">
-                                            <i class="bi bi-clock me-1"></i> {{ $registroPago->fecha_registro ? \Carbon\Carbon::parse($registroPago->fecha_registro)->format('d/m/Y H:i') : 'N/A' }}
-                                        </small>
+                                        <small class="text-muted">{{ $pago['fecha_formateada'] }}</small>
                                     </div>
-
-                                    <!-- Monto y Usuario -->
                                     <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <div class="d-flex gap-3">
-                                            <div>
-                                                <i class="bi bi-cash-stack text-success me-1"></i>
-                                                <span class="fw-bold">S/ {{ number_format($registroPago->monto, 2) }}</span>
-                                            </div>
-                                            <div>
-                                                <i class="bi bi-person-circle text-muted me-1"></i>
-                                                <small>{{ $registroPago->user->nombre ?? 'Sistema' }}</small>
-                                            </div>
+                                        <div>
+                                            <small class="text-muted"><i class="bi bi-person-circle me-1"></i> {{ $pago['nombre_usuario'] }}</small>
+                                            <span class="ms-2 badge bg-light text-dark border">{{ $pago['monto_formateado'] }}</span>
                                         </div>
-                                        @if($registroPago->pagoComprobante)
+                                        @if($pago['tiene_comprobante'])
                                         <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#modalVerComprobante"
-                                                data-comprobante-id="{{ $registroPago->pagoComprobante->id }}"
-                                                data-comprobante-url="{{ route('tramiteadmin.ver-comprobante', $registroPago->pagoComprobante->id) }}"
-                                                data-comprobante-nombre="Comprobante_{{ $tramite->codigo_tramite }}_{{ $registroPago->id }}"
+                                                data-comprobante-id="{{ $pago['comprobante']['id'] }}"
+                                                data-comprobante-url="{{ route('tramiteadmin.ver-comprobante', $pago['comprobante']['id']) }}"
+                                                data-comprobante-nombre="Comprobante_{{ $tramite->codigo_tramite }}_{{ $pago['id'] }}"
                                                 title="Ver comprobante">
                                             <i class="bi bi-eye me-1"></i> Ver
                                         </button>
-                                        @else
-                                        <span class="text-muted small">Sin comprobante</span>
                                         @endif
                                     </div>
 
-                                    <!-- Observación (si existe) -->
-                                    @if($registroPago->observacion)
-                                    <div class="mt-2">
-                                        <div class="alert alert-light mb-0 py-2 px-3 rounded-3" style="background-color: #f8f9fa; border-left: 4px solid #0dcaf0;">
-                                            <i class="bi bi-chat-dots text-info me-1"> Observaciones: </i>
-                                            <span class="small text-dark" style="white-space: pre-line; word-break: break-word;">
-                                                {{ $registroPago->observacion }}
-                                            </span>
+                                    <!-- Mostrar observación del registro de pago (Tramitepagoregistro) -->
+                                    @if($pago['observacion'])
+                                    <div class="mt-1 small text-muted bg-light p-2 rounded">
+                                        <i class="bi bi-chat-dots me-1"></i> <strong>Registro:</strong> {{ $pago['observacion'] }}
+                                    </div>
+                                    @endif
+
+                                    <!-- Mostrar datos del comprobante (Pagocomprobante) -->
+                                    @if($pago['tiene_comprobante'])
+                                    <div class="mt-2 small border-start border-3 border-primary ps-2">
+                                        <div class="d-flex flex-wrap gap-3">
+                                            <div>
+                                                <i class="bi bi-upc-scan text-muted me-1"></i>
+                                                <span class="text-muted">N° Operación:</span>
+                                                <strong>{{ $pago['comprobante']['numero_operacion'] }}</strong>
+                                            </div>
+                                            <div>
+                                                <i class="bi bi-cash-stack text-muted me-1"></i>
+                                                <span class="text-muted">Método:</span>
+                                                <strong>{{ $pago['comprobante']['metodo_pago_nombre'] }}</strong>
+                                            </div>
                                         </div>
+                                        @if($pago['comprobante']['metodo_pago_entidad'])
+                                        <div class="mt-1">
+                                            <i class="bi bi-building text-muted me-1"></i>
+                                            <span class="text-muted">Entidad:</span>
+                                            <strong>{{ $pago['comprobante']['metodo_pago_entidad'] }}</strong>
+                                        </div>
+                                        @endif
+                                        @if($pago['comprobante']['observaciones'])
+                                        <div class="mt-1">
+                                            <i class="bi bi-chat-quote text-muted me-1"></i>
+                                            <span class="text-muted">Observaciones del comprobante:</span>
+                                            <strong>{{ $pago['comprobante']['observaciones'] }}</strong>
+                                        </div>
+                                        @endif
+                                    </div>
+                                    @endif
+
+                                    <!-- Botones rápidos de acción -->
+                                    @if($pago['mostrar_botones_accion'])
+                                    <div class="mt-2 d-flex gap-2">
+                                        <button type="button" class="btn btn-sm btn-success rounded-pill"
+                                                onclick="abrirModalConComprobante({{ $tramite->id }}, {{ $pago['id'] }}, 'aprobado')">
+                                            <i class="bi bi-check-lg me-1"></i> Aprobar
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-danger rounded-pill"
+                                                onclick="abrirModalConComprobante({{ $tramite->id }}, {{ $pago['id'] }}, 'rechazado')">
+                                            <i class="bi bi-x-lg me-1"></i> Rechazar
+                                        </button>
                                     </div>
                                     @endif
                                 </div>
@@ -305,9 +292,7 @@
                     </div>
                 </div>
                 <div class="card-footer bg-light py-2 text-center">
-                    <small class="text-muted">
-                        <i class="bi bi-list me-1"></i> Total: {{ $tramite->tramitePagoRegistros->count() }} registros
-                    </small>
+                    <small class="text-muted"><i class="bi bi-list me-1"></i> Total: {{ $totalRegistrosPago }} registros</small>
                 </div>
             </div>
         </div>
@@ -330,10 +315,9 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Estado Actual</label>
-                        @php $estadoActual = $tramite->tramiteRegistros->first(); @endphp
                         <div>
-                            <span class="badge fs-6 px-3 py-2" style="background-color: {{ $estadoActual->estadoTramite->color ?? '#6c757d' }}">
-                                <i class="bi bi-tag me-1"></i> {{ $estadoActual->estadoTramite->nombre ?? 'Sin estado' }}
+                            <span class="badge fs-6 px-3 py-2" style="background-color: {{ $estadoActualTramite->estadoTramite->color ?? '#6c757d' }}">
+                                <i class="bi bi-tag me-1"></i> {{ $estadoActualTramite->estadoTramite->nombre ?? 'Sin estado' }}
                             </span>
                         </div>
                     </div>
@@ -342,7 +326,7 @@
                         <select name="estado_tramite_id" class="form-select" required>
                             <option value="">Seleccione un estado...</option>
                             @foreach($estadosTramite as $estado)
-                                <option value="{{ $estado->id }}" {{ ($estadoActual && $estadoActual->estado_tramite_id == $estado->id) ? 'disabled' : '' }}>
+                                <option value="{{ $estado->id }}" {{ ($estadoActualTramite && $estadoActualTramite->estado_tramite_id == $estado->id) ? 'disabled' : '' }}>
                                     {{ $estado->nombre }}
                                 </option>
                             @endforeach
@@ -364,14 +348,14 @@
     </div>
 </div>
 
-<!-- MODAL: Cambiar Estado del Pago (SOLO SI requiere_pago = 1) -->
+<!-- MODAL: Cambiar Estado del Pago -->
 @if($requierePago)
 <div class="modal fade" id="modalCambiarEstadoPago" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-info">
                 <h5 class="modal-title text-white">
-                    <i class="bi bi-credit-card me-2"></i> Cambiar Estado del Pago
+                    <i class="bi bi-credit-card me-2"></i> Cambiar Estado de Pago
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -379,36 +363,33 @@
                 @csrf
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Estado Actual</label>
-                        @php
-                            $estadoPagoActual = $tramite->tramitePagoRegistros->first();
-                            $ultimoComprobante = $tramite->tramitePagoRegistros->first()?->pagoComprobante;
-                        @endphp
-                        <div>
-                            <span class="badge fs-6 px-3 py-2" style="background-color: {{ $estadoPagoActual->estadoPago->color ?? '#6c757d' }}">
-                                <i class="bi bi-circle me-1"></i> {{ $estadoPagoActual->estadoPago->nombre ?? 'Sin registro' }}
-                            </span>
-                        </div>
+                        <label class="form-label fw-semibold">Seleccione el comprobante</label>
+                        <select name="pago_registro_id" class="form-select" id="selectPagoRegistro" required>
+                            <option value="">Seleccione un comprobante...</option>
+                            @foreach($opcionesComprobantes as $opcion)
+                                <option value="{{ $opcion['id'] }}"
+                                        data-monto="{{ $opcion['monto'] }}"
+                                        data-operacion="{{ $opcion['numero_operacion'] }}"
+                                        data-estado="{{ $opcion['estado_nombre'] }}">
+                                    {{ $opcion['icono'] }} {{ $opcion['fecha'] }}
+                                    - {{ $opcion['monto_formateado'] }}
+                                    - Estado: {{ $opcion['estado_nombre'] }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
 
-                    @if($ultimoComprobante)
-                    <div class="alert alert-info mb-3">
-                        <i class="bi bi-file-text me-2"></i>
-                        <strong>Último comprobante:</strong>
-                        <a href="{{ route('tramiteadmin.ver-comprobante', $ultimoComprobante->id) }}" target="_blank" class="alert-link">
-                            Ver comprobante <i class="bi bi-box-arrow-up-right ms-1"></i>
-                        </a>
-                        <hr class="my-2">
+                    <div id="infoComprobanteSeleccionado" class="alert alert-info mb-3 d-none">
                         <div class="small">
-                            <div><strong><i class="bi bi-cash-stack me-1"></i> Monto:</strong> S/ {{ number_format($estadoPagoActual->monto ?? 0, 2) }}</div>
-                            <div><strong><i class="bi bi-upc-scan me-1"></i> N° Operación:</strong> {{ $ultimoComprobante->numero_operacion ?? 'N/A' }}</div>
+                            <div><strong><i class="bi bi-cash-stack me-1"></i> Monto:</strong> <span id="info_monto"></span></div>
+                            <div><strong><i class="bi bi-upc-scan me-1"></i> N° Operación:</strong> <span id="info_operacion"></span></div>
+                            <div><strong><i class="bi bi-tag me-1"></i> Estado actual:</strong> <span id="info_estado_actual"></span></div>
                         </div>
                     </div>
-                    @endif
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Nuevo Estado <span class="text-danger">*</span></label>
-                        <select name="estado_pago_id" class="form-select" required>
+                        <select name="estado_pago_id" class="form-select" id="selectNuevoEstado" required>
                             <option value="">Seleccione un estado...</option>
                             @foreach($estadosPago as $estado)
                                 <option value="{{ $estado->id }}">
@@ -417,6 +398,7 @@
                             @endforeach
                         </select>
                     </div>
+
                     <div class="mb-0">
                         <label class="form-label fw-semibold">Observación</label>
                         <textarea name="observacion" class="form-control" rows="3" placeholder="Ej: Comprobante verificado, pago aprobado..."></textarea>
@@ -474,68 +456,65 @@
 
     // Manejar apertura del modal de comprobante
     document.addEventListener('DOMContentLoaded', function() {
-        const modal = document.getElementById('modalVerComprobante');
+        const modalComprobante = document.getElementById('modalVerComprobante');
+        if (modalComprobante) {
+            modalComprobante.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                currentComprobanteUrl = button.getAttribute('data-comprobante-url');
+                currentComprobanteNombre = button.getAttribute('data-comprobante-nombre');
+                document.getElementById('btnAbrirNuevaPestana').href = currentComprobanteUrl;
+                document.getElementById('btnDescargar').href = currentComprobanteUrl;
+                document.getElementById('btnDescargar').setAttribute('download', currentComprobanteNombre);
+                cargarComprobante(currentComprobanteUrl);
+            });
 
-        modal.addEventListener('show.bs.modal', function(event) {
-            // Botón que abrió el modal
-            const button = event.relatedTarget;
+            modalComprobante.addEventListener('hidden.bs.modal', function() {
+                document.getElementById('comprobante-contenedor').innerHTML = `
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Cargando comprobante...</p>
+                `;
+            });
+        }
 
-            // Obtener datos del comprobante
-            currentComprobanteUrl = button.getAttribute('data-comprobante-url');
-            currentComprobanteNombre = button.getAttribute('data-comprobante-nombre');
-
-            // Actualizar enlaces del footer
-            document.getElementById('btnAbrirNuevaPestana').href = currentComprobanteUrl;
-            document.getElementById('btnDescargar').href = currentComprobanteUrl;
-            document.getElementById('btnDescargar').setAttribute('download', currentComprobanteNombre);
-
-            // Cargar el comprobante en el modal
-            cargarComprobante(currentComprobanteUrl);
-        });
-
-        // Limpiar al cerrar
-        modal.addEventListener('hidden.bs.modal', function() {
-            document.getElementById('comprobante-contenedor').innerHTML = `
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Cargando...</span>
-                </div>
-                <p class="mt-2 text-muted">Cargando comprobante...</p>
-            `;
-        });
+        // Mostrar información del comprobante seleccionado
+        const selectComprobante = document.getElementById('selectPagoRegistro');
+        if (selectComprobante) {
+            selectComprobante.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const infoDiv = document.getElementById('infoComprobanteSeleccionado');
+                if (this.value) {
+                    document.getElementById('info_monto').innerHTML = `S/ ${selectedOption.dataset.monto || '0'}`;
+                    document.getElementById('info_operacion').innerHTML = selectedOption.dataset.operacion || 'N/A';
+                    document.getElementById('info_estado_actual').innerHTML = selectedOption.dataset.estado || 'N/A';
+                    infoDiv.classList.remove('d-none');
+                } else {
+                    infoDiv.classList.add('d-none');
+                }
+            });
+        }
     });
 
     function cargarComprobante(url) {
         const contenedor = document.getElementById('comprobante-contenedor');
-
-        // Mostrar loading
         contenedor.innerHTML = `
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Cargando...</span>
             </div>
             <p class="mt-2 text-muted">Cargando comprobante...</p>
         `;
-
-        // Determinar el tipo de archivo por la URL o hacer una petición HEAD
         fetch(url, { method: 'HEAD' })
             .then(response => {
                 const contentType = response.headers.get('Content-Type');
-
                 if (contentType && contentType.includes('pdf')) {
-                    // Mostrar PDF
-                    contenedor.innerHTML = `
-                        <iframe src="${url}" style="width: 100%; height: 70vh; border: none;" class="rounded"></iframe>
-                    `;
+                    contenedor.innerHTML = `<iframe src="${url}" style="width: 100%; height: 70vh; border: none;" class="rounded"></iframe>`;
                 } else if (contentType && contentType.includes('image')) {
-                    // Mostrar imagen
-                    contenedor.innerHTML = `
-                        <img src="${url}" alt="Comprobante" class="img-fluid rounded shadow-sm" style="max-height: 70vh;">
-                    `;
+                    contenedor.innerHTML = `<img src="${url}" alt="Comprobante" class="img-fluid rounded shadow-sm" style="max-height: 70vh;">`;
                 } else {
-                    // Mostrar mensaje y enlace de descarga
                     contenedor.innerHTML = `
                         <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            No se puede previsualizar este tipo de archivo.
+                            <i class="bi bi-exclamation-triangle me-2"></i> No se puede previsualizar este tipo de archivo.
                         </div>
                         <a href="${url}" class="btn btn-primary" download="${currentComprobanteNombre}">
                             <i class="bi bi-download me-1"></i> Descargar archivo
@@ -546,15 +525,39 @@
             .catch(error => {
                 contenedor.innerHTML = `
                     <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-circle me-2"></i>
-                        Error al cargar el comprobante. Por favor, intente de nuevo.
+                        <i class="bi bi-exclamation-circle me-2"></i> Error al cargar el comprobante.
                     </div>
                     <a href="${url}" class="btn btn-primary" target="_blank">
                         <i class="bi bi-box-arrow-up-right me-1"></i> Abrir directamente
                     </a>
                 `;
-                console.error('Error:', error);
             });
+    }
+
+    function abrirModalConComprobante(tramiteId, pagoRegistroId, accion) {
+        const select = document.getElementById('selectPagoRegistro');
+        for (let i = 0; i < select.options.length; i++) {
+            if (select.options[i].value == pagoRegistroId) {
+                select.selectedIndex = i;
+                const event = new Event('change');
+                select.dispatchEvent(event);
+                break;
+            }
+        }
+        const estadoSelect = document.getElementById('selectNuevoEstado');
+        for (let i = 0; i < estadoSelect.options.length; i++) {
+            const texto = estadoSelect.options[i].text.toLowerCase();
+            if (accion === 'aprobado' && texto.includes('aprobado')) {
+                estadoSelect.selectedIndex = i;
+                break;
+            }
+            if (accion === 'rechazado' && texto.includes('rechazado')) {
+                estadoSelect.selectedIndex = i;
+                break;
+            }
+        }
+        const modal = new bootstrap.Modal(document.getElementById('modalCambiarEstadoPago'));
+        modal.show();
     }
 </script>
 @endsection
