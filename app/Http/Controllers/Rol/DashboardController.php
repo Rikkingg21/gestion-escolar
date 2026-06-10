@@ -1620,6 +1620,7 @@ class DashboardController extends Controller
         }
 
         $estudianteId = $estudiante->id;
+        $usuarios = User::with('roles')->get();
 
         // Obtener periodos disponibles (incluyendo recuperación)
         $periodos = Periodo::whereHas('matriculas', function($query) use ($estudianteId) {
@@ -1631,7 +1632,18 @@ class DashboardController extends Controller
             ->get();
 
         if ($periodos->isEmpty()) {
-            return view('rol.estudiante.dashboard')->with('error', 'No hay períodos con matrículas.');
+            return view('rol.estudiante.dashboard', [
+                'periodos' => collect(),
+                'periodoSeleccionado' => null,
+                'usuarios' => $usuarios,
+                'infoEstudiante' => null,
+                'bimestreFiltro' => 'anual',
+                'bimestresDisponibles' => collect(),
+                'chartData' => [],
+                'mensajeRecuperacion' => null,
+                'esPeriodoRecuperacion' => false,
+                'error' => 'No hay períodos con matrículas.'
+            ]);
         }
 
         $periodoId = $request->input('periodo_id');
@@ -1644,7 +1656,6 @@ class DashboardController extends Controller
         }
 
         $bimestreFiltro = $request->input('bimestre', 'anual');
-        $usuarios = User::with('roles')->get();
 
         // Obtener TODOS los bimestres del período
         $bimestresDisponibles = Periodobimestre::where('periodo_id', $periodoSeleccionado->id)
@@ -1666,15 +1677,38 @@ class DashboardController extends Controller
             ->first();
 
         if (!$matricula) {
-            return view('rol.estudiante.dashboard', compact(
-                'periodos',
-                'periodoSeleccionado',
-                'usuarios',
-                'bimestreFiltro',
-                'bimestresDisponibles',
-                'mensajeRecuperacion',
-                'esPeriodoRecuperacion'
-            ))->with('error', 'No estás matriculado en el período seleccionado.');
+            $infoEstudiante = [
+                'estudiante_id' => $estudiante->id,
+                'nombre_completo' => trim(sprintf(
+                    '%s %s, %s',
+                    $estudiante->user->apellido_paterno ?? '',
+                    $estudiante->user->apellido_materno ?? '',
+                    $estudiante->user->nombre ?? ''
+                )),
+                'grado' => 'No matriculado',
+                'grado_id' => null,
+                'progreso_cursos' => [],
+                'progreso_conducta' => [],
+                'total_cursos' => 0,
+                'total_conducta' => 0,
+                'cursos_aprobados' => 0,
+                'cursos_desaprobados' => 0,
+                'cursos_sin_datos' => 0,
+                'promedio_general' => null,
+                'mensaje' => 'No estás matriculado en el período seleccionado.'
+            ];
+
+            return view('rol.estudiante.dashboard', [
+                'periodos' => $periodos,
+                'periodoSeleccionado' => $periodoSeleccionado,
+                'usuarios' => $usuarios,
+                'infoEstudiante' => $infoEstudiante,
+                'bimestreFiltro' => $bimestreFiltro,
+                'bimestresDisponibles' => $bimestresDisponibles,
+                'chartData' => [],
+                'mensajeRecuperacion' => $mensajeRecuperacion,
+                'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+            ]);
         }
 
         // Obtener materias del grado
@@ -1684,15 +1718,38 @@ class DashboardController extends Controller
             ->get();
 
         if ($materiasAsignadas->isEmpty()) {
-            return view('rol.estudiante.dashboard', compact(
-                'periodos',
-                'periodoSeleccionado',
-                'usuarios',
-                'bimestreFiltro',
-                'bimestresDisponibles',
-                'mensajeRecuperacion',
-                'esPeriodoRecuperacion'
-            ))->with('error', 'No hay materias asignadas para este grado.');
+            $infoEstudiante = [
+                'estudiante_id' => $estudiante->id,
+                'nombre_completo' => trim(sprintf(
+                    '%s %s, %s',
+                    $estudiante->user->apellido_paterno ?? '',
+                    $estudiante->user->apellido_materno ?? '',
+                    $estudiante->user->nombre ?? ''
+                )),
+                'grado' => $matricula->grado ? $matricula->grado->grado . '° ' . $matricula->grado->seccion . ' - ' . $matricula->grado->nivel : 'Sin grado',
+                'grado_id' => $matricula->grado_id,
+                'progreso_cursos' => [],
+                'progreso_conducta' => [],
+                'total_cursos' => 0,
+                'total_conducta' => 0,
+                'cursos_aprobados' => 0,
+                'cursos_desaprobados' => 0,
+                'cursos_sin_datos' => 0,
+                'promedio_general' => null,
+                'mensaje' => 'No hay materias asignadas para este grado.'
+            ];
+
+            return view('rol.estudiante.dashboard', [
+                'periodos' => $periodos,
+                'periodoSeleccionado' => $periodoSeleccionado,
+                'usuarios' => $usuarios,
+                'infoEstudiante' => $infoEstudiante,
+                'bimestreFiltro' => $bimestreFiltro,
+                'bimestresDisponibles' => $bimestresDisponibles,
+                'chartData' => [],
+                'mensajeRecuperacion' => $mensajeRecuperacion,
+                'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+            ]);
         }
 
         // Array de materias [materia_id => nombre]
@@ -1702,11 +1759,10 @@ class DashboardController extends Controller
         }
         $materiaIds = array_keys($materiasArray);
 
-        // ==================== PROCESAMIENTO ESPECÍFICO PARA RECUPERACIÓN ====================
-        if ($esPeriodoRecuperacion) {
-            // Inicializar chartData vacío para recuperación
-            $chartData = [];
+        // Inicializar chartData
+        $chartData = [];
 
+        if ($esPeriodoRecuperacion) {
             // En período de recuperación, obtenemos los datos de Recuperacioncompetencia
             $recuperaciones = Recuperacioncompetencia::where('estudiante_id', $estudiante->id)
                 ->where('periodo_id', $periodoSeleccionado->id)
@@ -1736,17 +1792,17 @@ class DashboardController extends Controller
                     'mensaje' => 'No hay registros de recuperación para este período.'
                 ];
 
-                return view('rol.estudiante.dashboard', compact(
-                    'periodos',
-                    'periodoSeleccionado',
-                    'usuarios',
-                    'infoEstudiante',
-                    'bimestreFiltro',
-                    'bimestresDisponibles',
-                    'chartData',
-                    'mensajeRecuperacion',
-                    'esPeriodoRecuperacion'
-                ));
+                return view('rol.estudiante.dashboard', [
+                    'periodos' => $periodos,
+                    'periodoSeleccionado' => $periodoSeleccionado,
+                    'usuarios' => $usuarios,
+                    'infoEstudiante' => $infoEstudiante,
+                    'bimestreFiltro' => $bimestreFiltro,
+                    'bimestresDisponibles' => $bimestresDisponibles,
+                    'chartData' => $chartData,
+                    'mensajeRecuperacion' => $mensajeRecuperacion,
+                    'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+                ]);
             }
 
             // Agrupar recuperaciones por materia
@@ -1835,20 +1891,19 @@ class DashboardController extends Controller
                 'mensaje' => null
             ];
 
-            return view('rol.estudiante.dashboard', compact(
-                'periodos',
-                'periodoSeleccionado',
-                'usuarios',
-                'infoEstudiante',
-                'bimestreFiltro',
-                'bimestresDisponibles',
-                'chartData',
-                'mensajeRecuperacion',
-                'esPeriodoRecuperacion'
-            ));
+            return view('rol.estudiante.dashboard', [
+                'periodos' => $periodos,
+                'periodoSeleccionado' => $periodoSeleccionado,
+                'usuarios' => $usuarios,
+                'infoEstudiante' => $infoEstudiante,
+                'bimestreFiltro' => $bimestreFiltro,
+                'bimestresDisponibles' => $bimestresDisponibles,
+                'chartData' => $chartData,
+                'mensajeRecuperacion' => $mensajeRecuperacion,
+                'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+            ]);
         }
 
-        // ==================== PROCESAMIENTO PARA PERÍODOS ACADÉMICOS NORMALES ====================
         // Obtener periodo_bimestre seleccionado si no es anual
         $periodoBimestreSeleccionado = null;
         if ($bimestreFiltro !== 'anual') {
@@ -1898,17 +1953,17 @@ class DashboardController extends Controller
                 'mensaje' => 'No hay competencias registradas para este período.'
             ];
 
-            return view('rol.estudiante.dashboard', compact(
-                'periodos',
-                'periodoSeleccionado',
-                'usuarios',
-                'infoEstudiante',
-                'bimestreFiltro',
-                'bimestresDisponibles',
-                'chartData',
-                'mensajeRecuperacion',
-                'esPeriodoRecuperacion'
-            ));
+            return view('rol.estudiante.dashboard', [
+                'periodos' => $periodos,
+                'periodoSeleccionado' => $periodoSeleccionado,
+                'usuarios' => $usuarios,
+                'infoEstudiante' => $infoEstudiante,
+                'bimestreFiltro' => $bimestreFiltro,
+                'bimestresDisponibles' => $bimestresDisponibles,
+                'chartData' => $chartData,
+                'mensajeRecuperacion' => $mensajeRecuperacion,
+                'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+            ]);
         }
 
         // Obtener criterios
@@ -1990,7 +2045,6 @@ class DashboardController extends Controller
         $materiasEnriquecidas = $this->evaluacionService->enriquecerMaterias($materiasProcesadas, $recuperacionesPorEstudiante);
 
         // Obtener promedios por bimestre para cada competencia (solo en modo anual)
-        $chartData = [];
         if ($bimestreFiltro === 'anual') {
             $bimestres = $bimestresDisponibles->filter(function($bim) {
                 return $bim->tipo_bimestre === 'A';
@@ -2079,7 +2133,6 @@ class DashboardController extends Controller
             ];
         }
 
-        // ==================== PROCESAR CONDUCTA (BLOQUE INTERNO) ====================
         $progresoConducta = [];
 
         $conductasDB = Conducta::whereHas('periodosBimestres', function($query) use ($periodoSeleccionado) {
@@ -2200,17 +2253,17 @@ class DashboardController extends Controller
             'mensaje' => count($progresoCursos) == 0 ? 'No hay notas registradas para este período' : null
         ];
 
-        return view('rol.estudiante.dashboard', compact(
-            'periodos',
-            'periodoSeleccionado',
-            'usuarios',
-            'infoEstudiante',
-            'bimestreFiltro',
-            'bimestresDisponibles',
-            'chartData',
-            'mensajeRecuperacion',
-            'esPeriodoRecuperacion'
-        ));
+        return view('rol.estudiante.dashboard', [
+            'periodos' => $periodos,
+            'periodoSeleccionado' => $periodoSeleccionado,
+            'usuarios' => $usuarios,
+            'infoEstudiante' => $infoEstudiante,
+            'bimestreFiltro' => $bimestreFiltro,
+            'bimestresDisponibles' => $bimestresDisponibles,
+            'chartData' => $chartData,
+            'mensajeRecuperacion' => $mensajeRecuperacion,
+            'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+        ]);
     }
     protected function NuevoRol()
     {

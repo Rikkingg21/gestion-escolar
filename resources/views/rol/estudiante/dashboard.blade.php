@@ -75,9 +75,13 @@
             <div class="d-flex justify-content-between align-items-center">
                 <h4 class="mb-0">
                     <i class="fas fa-user-graduate me-2"></i>
-                    {{ $infoEstudiante['nombre_completo'] }} - {{ $infoEstudiante['grado'] }}
+                    @if($infoEstudiante)
+                        {{ $infoEstudiante['nombre_completo'] ?? 'Estudiante' }} - {{ $infoEstudiante['grado'] ?? 'Sin grado' }}
+                    @else
+                        Información del Estudiante
+                    @endif
                 </h4>
-                @if($infoEstudiante['total_cursos'] > 0 || $infoEstudiante['total_conducta'] > 0)
+                @if($infoEstudiante && ($infoEstudiante['total_cursos'] > 0 || $infoEstudiante['total_conducta'] > 0))
                     <span class="badge bg-light text-primary fs-6">
                         {{ $infoEstudiante['total_cursos'] }} curso(s) / {{ $infoEstudiante['total_conducta'] }} conducta(s)
                     </span>
@@ -85,7 +89,12 @@
             </div>
         </div>
         <div class="card-body">
-            @if(isset($infoEstudiante['mensaje']))
+            @if(!$infoEstudiante)
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    No se pudo cargar la información del estudiante.
+                </div>
+            @elseif(isset($infoEstudiante['mensaje']))
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     {{ $infoEstudiante['mensaje'] }}
@@ -96,6 +105,7 @@
                     No hay notas registradas para este período.
                 </div>
             @else
+                <!-- Resto del contenido (pestañas, tablas, etc.) -->
                 <!-- Pestañas para Notas y Conducta -->
                 <ul class="nav nav-tabs mb-4" id="estudianteTabs" role="tablist">
                     <li class="nav-item" role="presentation">
@@ -179,7 +189,7 @@
                                 <div class="card">
                                     <div class="card-body">
                                         <div style="height: 450px;">
-                                            <canvas id="competenciasChart"></canvas>  <!-- ← ESTE CANVAS DEBE EXISTIR -->
+                                            <canvas id="competenciasChart"></canvas>
                                         </div>
                                     </div>
                                 </div>
@@ -200,7 +210,7 @@
                                             @endif
                                             <th style="width: 15%">Promedio Final</th>
                                             <th style="width: 15%">Estado</th>
-                                        </td>
+                                        </tr>
                                     </thead>
                                     <tbody>
                                         @forelse($infoEstudiante['progreso_cursos'] as $curso)
@@ -223,7 +233,6 @@
                                                                 <i class="fas fa-sync-alt"></i> Rec
                                                             </span>
                                                         @endif
-                                                        <!-- Mostrar nota original si tiene recuperación -->
                                                         @if(($competencia['nota_recuperacion'] ?? false) && isset($competencia['promedio_original']))
                                                             <br>
                                                             <small class="text-muted">
@@ -240,10 +249,7 @@
                                                             <td class="text-center">
                                                                 <span class="badge-nota-cuantitativo">
                                                                     @if(isset($promediosBimestres[$bimestre->bimestre]) && $promediosBimestres[$bimestre->bimestre] !== null)
-                                                                        <strong class="
-                                                                            @if($promediosBimestres[$bimestre->bimestre] >= 1.5)
-                                                                            @else text-danger
-                                                                            @endif">
+                                                                        <strong class="{{ $promediosBimestres[$bimestre->bimestre] < 1.5 ? 'text-danger' : '' }}">
                                                                             {{ number_format($promediosBimestres[$bimestre->bimestre], 1) }}
                                                                         </strong>
                                                                     @else
@@ -252,12 +258,7 @@
                                                                 </span>
                                                                 <span class="badge-nota-cualitativo" style="display: none;">
                                                                     @if(isset($promediosBimestres[$bimestre->bimestre]) && $promediosBimestres[$bimestre->bimestre] !== null)
-                                                                        <strong class="
-                                                                            @if($promediosBimestres[$bimestre->bimestre] >= 3.5)
-                                                                            @elseif($promediosBimestres[$bimestre->bimestre] >= 2.5)
-                                                                            @elseif($promediosBimestres[$bimestre->bimestre] >= 1.5)
-                                                                            @else text-danger
-                                                                            @endif">
+                                                                        <strong>
                                                                             @if($promediosBimestres[$bimestre->bimestre] >= 3.5) AD
                                                                             @elseif($promediosBimestres[$bimestre->bimestre] >= 2.5) A
                                                                             @elseif($promediosBimestres[$bimestre->bimestre] >= 1.5) B
@@ -330,7 +331,6 @@
                                                                 </span>
                                                             @endif
                                                         @else
-                                                            {{-- Modo bimestre específico: solo Aprobado/Desaprobado --}}
                                                             @if($estaAprobada)
                                                                 <span class="badge bg-success">
                                                                     <i class="fas fa-check me-1"></i>Aprobado
@@ -464,6 +464,7 @@
                                     </div>
                                 </div>
                             </div>
+
                             <!-- Tabla de conducta -->
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped">
