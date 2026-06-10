@@ -87,4 +87,13 @@ class Tramite extends Model
     {
         return $this->hasOne(Tramitepagoregistro::class, 'tramite_id')->latest('fecha_registro');
     }
+    public function getMontoPagadoTotalAttribute()
+    {
+        // Sumar solo los montos de registros de pago con estado "Aprobado"
+        return $this->tramitePagoRegistros()
+            ->whereHas('estadoPago', function($query) {
+                $query->where('nombre', 'LIKE', '%Aprobado%');
+            })
+            ->sum('monto');
+    }
 }

@@ -206,11 +206,11 @@ class TramiteController extends Controller
             'numero_operacion' => $request->numero_operacion,
             'monto' => $request->monto,
             'fecha_pago' => now(),
-            'comprobante_path' => $path, // Guarda la ruta completa: comprobantes/2026/06/nombre.pdf
+            'comprobante_path' => $path,
             'observaciones' => $request->observaciones,
         ]);
 
-        // Registrar el cambio de estado
+        // Registrar el cambio de estado (Pendiente de revisión, NO suma al monto pagado)
         $estadoPagoEnRevision = Estadopago::where('nombre', 'LIKE', '%Revisión%')->first();
         if (!$estadoPagoEnRevision) {
             $estadoPagoEnRevision = Estadopago::where('nombre', 'LIKE', '%Pendiente%')->first();
@@ -226,7 +226,7 @@ class TramiteController extends Controller
             'user_id' => auth()->id(),
         ]);
 
-        $tramite->increment('monto_pagado', $request->monto);
+        // NO actualizar monto_pagado aquí, solo cuando el admin apruebe
 
         return redirect()->route('mis-tramites.show', $id)
             ->with('success', 'Comprobante subido correctamente. Será revisado por el administrador.');

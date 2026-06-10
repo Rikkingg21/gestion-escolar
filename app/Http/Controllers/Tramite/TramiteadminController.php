@@ -27,47 +27,58 @@ class TramiteadminController extends Controller
     }
     public function index(Request $request)
     {
-        // Estadísticas
+        // Estadísticas de TRÁMITES - obtener el último estado
+        $ultimosEstados = Tramiteregistro::select('tramite_id', 'estado_tramite_id')
+            ->whereIn('id', function($query) {
+                $query->selectRaw('MAX(id)')
+                    ->from('m_tramite_registros')
+                    ->groupBy('tramite_id');
+            })->get();
+
         $totalTramites = Tramite::count();
-        $totalPendientes = Tramite::whereHas('tramiteRegistros', function($q) {
-            $q->whereHas('estadoTramite', function($qr) {
-                $qr->where('nombre', 'LIKE', '%Pendiente%');
-            });
-        })->count();
+        $totalPendientes = 0;
+        $totalEnProceso = 0;
+        $totalCompletados = 0;
 
-        $totalEnProceso = Tramite::whereHas('tramiteRegistros', function($q) {
-            $q->whereHas('estadoTramite', function($qr) {
-                $qr->where('nombre', 'LIKE', '%Proceso%');
-            });
-        })->count();
+        foreach ($ultimosEstados as $ultimoEstado) {
+            $estado = Estadotramite::find($ultimoEstado->estado_tramite_id);
+            $nombre = strtolower($estado->nombre ?? '');
 
-        $totalCompletados = Tramite::whereHas('tramiteRegistros', function($q) {
-            $q->whereHas('estadoTramite', function($qr) {
-                $qr->where('nombre', 'LIKE', '%Completado%')
-                   ->orWhere('nombre', 'LIKE', '%Finalizado%')
-                   ->orWhere('nombre', 'LIKE', '%Resuelto%');
-            });
-        })->count();
+            if (str_contains($nombre, 'pendiente')) {
+                $totalPendientes++;
+            } elseif (str_contains($nombre, 'proceso') || str_contains($nombre, 'atender')) {
+                $totalEnProceso++;
+            } elseif (str_contains($nombre, 'completado') || str_contains($nombre, 'finalizado') || str_contains($nombre, 'resuelto')) {
+                $totalCompletados++;
+            }
+        }
 
-        $totalPagosPendientes = Tramite::whereHas('tramitePagoRegistros', function($q) {
-            $q->whereHas('estadoPago', function($qr) {
-                $qr->where('nombre', 'LIKE', '%Pendiente%');
-            });
-        })->count();
+        // Estadísticas de PAGOS - obtener el último estado de pago
+        $ultimosPagos = Tramitepagoregistro::select('tramite_id', 'estado_pago_id')
+            ->whereIn('id', function($query) {
+                $query->selectRaw('MAX(id)')
+                    ->from('m_tramite_pago_registros')
+                    ->groupBy('tramite_id');
+            })->get();
 
-        $totalPagosAprobados = Tramite::whereHas('tramitePagoRegistros', function($q) {
-            $q->whereHas('estadoPago', function($qr) {
-                $qr->where('nombre', 'LIKE', '%Aprobado%');
-            });
-        })->count();
+        $totalPagosPendientes = 0;
+        $totalPagosAprobados = 0;
+        $totalPagosRechazados = 0;
 
-        $totalPagosRechazados = Tramite::whereHas('tramitePagoRegistros', function($q) {
-            $q->whereHas('estadoPago', function($qr) {
-                $qr->where('nombre', 'LIKE', '%Rechazado%');
-            });
-        })->count();
+        foreach ($ultimosPagos as $ultimoPago) {
+            $estado = Estadopago::find($ultimoPago->estado_pago_id);
+            $nombre = strtolower($estado->nombre ?? '');
 
-        // Obtener trámites con filtros
+            if (str_contains($nombre, 'pendiente') || str_contains($nombre, 'revisión')) {
+                $totalPagosPendientes++;
+            } elseif (str_contains($nombre, 'aprobado')) {
+                $totalPagosAprobados++;
+            } elseif (str_contains($nombre, 'rechazado')) {
+                $totalPagosRechazados++;
+            }
+        }
+
+        // Obtener trámites con filtros para la tabla
         $query = Tramite::with([
             'user',
             'tipoTramite',
@@ -80,40 +91,115 @@ class TramiteadminController extends Controller
             }
         ]);
 
-        // Filtros
-        if ($request->filled('estado_tramite')) {
-            $query->whereHas('tramiteRegistros', function($q) use ($request) {
-                $q->where('estado_tramite_id', $request->estado_tramite);
-            });
-        }
-
-        if ($request->filled('estado_pago')) {
-            $query->whereHas('tramitePagoRegistros', function($q) use ($request) {
-                $q->where('estado_pago_id', $request->estado_pago);
-            });
-        }
-
-        if ($request->filled('tipo_tramite')) {
-            $query->where('tipo_tramite_id', $request->tipo_tramite);
-        }
-
+        // Filtro por búsqueda
         if ($request->filled('buscar')) {
             $buscar = $request->buscar;
             $query->where(function($q) use ($buscar) {
                 $q->where('codigo_tramite', 'LIKE', "%{$buscar}%")
-                  ->orWhereHas('user', function($qr) use ($buscar) {
-                      $qr->where('dni', 'LIKE', "%{$buscar}%")
-                         ->orWhere('nombre', 'LIKE', "%{$buscar}%")
-                         ->orWhere('apellido_paterno', 'LIKE', "%{$buscar}%");
-                  })
-                  ->orWhereHas('estudiante.user', function($qr) use ($buscar) {
-                      $qr->where('dni', 'LIKE', "%{$buscar}%")
-                         ->orWhere('nombre', 'LIKE', "%{$buscar}%");
-                  });
+                    ->orWhereHas('user', function($qr) use ($buscar) {
+                        $qr->where('dni', 'LIKE', "%{$buscar}%")
+                            ->orWhere('nombre', 'LIKE', "%{$buscar}%")
+                            ->orWhere('apellido_paterno', 'LIKE', "%{$buscar}%")
+                            ->orWhere('apellido_materno', 'LIKE', "%{$buscar}%");
+                    })
+                    ->orWhereHas('estudiante.user', function($qr) use ($buscar) {
+                        $qr->where('dni', 'LIKE', "%{$buscar}%")
+                            ->orWhere('nombre', 'LIKE', "%{$buscar}%")
+                            ->orWhere('apellido_paterno', 'LIKE', "%{$buscar}%")
+                            ->orWhere('apellido_materno', 'LIKE', "%{$buscar}%");
+                    });
             });
         }
 
-        $tramites = $query->orderBy('created_at', 'desc')->paginate(15);
+        // Filtro por tipo de trámite
+        if ($request->filled('tipo_tramite')) {
+            $query->where('tipo_tramite_id', $request->tipo_tramite);
+        }
+
+        // Filtro por estado de trámite
+        if ($request->filled('estado_tramite')) {
+            $query->whereHas('tramiteRegistros', function($q) use ($request) {
+                $q->where('estado_tramite_id', $request->estado_tramite)
+                    ->whereIn('id', function($sub) {
+                        $sub->selectRaw('MAX(id)')
+                            ->from('m_tramite_registros')
+                            ->groupBy('tramite_id');
+                    });
+            });
+        }
+
+        // Filtro por estado de pago
+        if ($request->filled('estado_pago')) {
+            $query->whereHas('tramitePagoRegistros', function($q) use ($request) {
+                $q->where('estado_pago_id', $request->estado_pago)
+                    ->whereIn('id', function($sub) {
+                        $sub->selectRaw('MAX(id)')
+                            ->from('m_tramite_pago_registros')
+                            ->groupBy('tramite_id');
+                    });
+            });
+        }
+
+        // Filtros por año y mes
+        if ($request->filled('anio')) {
+            $anio = $request->anio;
+            if ($request->fecha_tipo == 'resolucion') {
+                $query->whereYear('fecha_resolucion', $anio);
+            } else {
+                $query->whereYear('fecha_solicitud', $anio);
+            }
+        }
+
+        if ($request->filled('mes')) {
+            $mes = $request->mes;
+            if ($request->fecha_tipo == 'resolucion') {
+                $query->whereMonth('fecha_resolucion', $mes);
+            } else {
+                $query->whereMonth('fecha_solicitud', $mes);
+            }
+        }
+
+        // Filtros por rango de fechas
+        if ($request->filled('fecha_desde')) {
+            $fechaDesde = $request->fecha_desde;
+            if ($request->fecha_tipo == 'resolucion') {
+                $query->whereDate('fecha_resolucion', '>=', $fechaDesde);
+            } else {
+                $query->whereDate('fecha_solicitud', '>=', $fechaDesde);
+            }
+        }
+
+        if ($request->filled('fecha_hasta')) {
+            $fechaHasta = $request->fecha_hasta;
+            if ($request->fecha_tipo == 'resolucion') {
+                $query->whereDate('fecha_resolucion', '<=', $fechaHasta);
+            } else {
+                $query->whereDate('fecha_solicitud', '<=', $fechaHasta);
+            }
+        }
+
+        // Obtener años disponibles para filtros (basados en fecha_solicitud)
+        $aniosDisponibles = Tramite::selectRaw('YEAR(fecha_solicitud) as anio')
+            ->whereNotNull('fecha_solicitud')
+            ->distinct()
+            ->orderBy('anio', 'desc')
+            ->pluck('anio')
+            ->toArray();
+
+        // También obtener años de fecha_resolucion (para completar)
+        $aniosResolucion = Tramite::selectRaw('YEAR(fecha_resolucion) as anio')
+            ->whereNotNull('fecha_resolucion')
+            ->distinct()
+            ->orderBy('anio', 'desc')
+            ->pluck('anio')
+            ->toArray();
+
+        // Combinar y obtener años únicos
+        $aniosDisponibles = array_unique(array_merge($aniosDisponibles, $aniosResolucion));
+        sort($aniosDisponibles); // Ordenar ascendente
+
+        // Obtener todos los trámites (sin paginación para DataTables)
+        $tramites = $query->orderBy('created_at', 'desc')->get();
 
         // Datos para los selects de filtros
         $tiposTramite = Tramitetipo::where('estado', '1')->get();
@@ -131,10 +217,10 @@ class TramiteadminController extends Controller
             'totalCompletados',
             'totalPagosPendientes',
             'totalPagosAprobados',
-            'totalPagosRechazados'
+            'totalPagosRechazados',
+            'aniosDisponibles'
         ));
     }
-
     public function show($id)
     {
         $tramite = Tramite::with([
@@ -192,8 +278,44 @@ class TramiteadminController extends Controller
 
         $tramite = Tramite::findOrFail($id);
 
+        // Validar si el trámite requiere pago
+        if (!$tramite->tipoTramite->requiere_pago) {
+            return redirect()->back()->with('error', 'Este trámite no requiere gestión de pagos.');
+        }
+
         // Obtener el último registro de pago
         $ultimoRegistroPago = $tramite->tramitePagoRegistros()->latest('fecha_registro')->first();
+
+        $estadoPago = Estadopago::find($request->estado_pago_id);
+
+        // Si el nuevo estado es APROBADO y el estado actual NO era aprobado, sumar el monto
+        if (strtolower($estadoPago->nombre) == 'aprobado') {
+            // Verificar si el estado actual no era aprobado para no duplicar
+            $estadoActual = $ultimoRegistroPago?->estadoPago;
+            if (!$estadoActual || strtolower($estadoActual->nombre) != 'aprobado') {
+                $montoAAprobar = $ultimoRegistroPago?->monto ?? 0;
+
+                // En lugar de incrementar, recalcular desde cero
+                $totalAprobado = $tramite->tramitePagoRegistros()
+                    ->whereHas('estadoPago', function($q) {
+                        $q->where('nombre', 'LIKE', '%Aprobado%');
+                    })
+                    ->sum('monto');
+
+                // Sumar el nuevo monto aprobado
+                $tramite->update(['monto_pagado' => $totalAprobado + $montoAAprobar]);
+            }
+        }
+
+        // Si el nuevo estado es RECHAZADO o PENDIENTE, recalcular todo
+        if (strtolower($estadoPago->nombre) != 'aprobado') {
+            $totalAprobado = $tramite->tramitePagoRegistros()
+                ->whereHas('estadoPago', function($q) {
+                    $q->where('nombre', 'LIKE', '%Aprobado%');
+                })
+                ->sum('monto');
+            $tramite->update(['monto_pagado' => $totalAprobado]);
+        }
 
         // Crear registro de cambio de estado de pago
         Tramitepagoregistro::create([
@@ -205,13 +327,6 @@ class TramiteadminController extends Controller
             'observacion' => $request->observacion ?: 'Cambio de estado de pago realizado por administrador',
             'user_id' => auth()->id(),
         ]);
-
-        // Si el pago es aprobado, actualizar monto pagado en el trámite
-        $estadoPago = Estadopago::find($request->estado_pago_id);
-        if (strtolower($estadoPago->nombre) == 'aprobado') {
-            $montoAAprobar = $ultimoRegistroPago?->monto ?? 0;
-            $tramite->increment('monto_pagado', $montoAAprobar);
-        }
 
         return redirect()->back()->with('success', 'Estado del pago actualizado correctamente.');
     }
