@@ -2,22 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Periodo;
 use App\Models\Matricula;
+use App\Models\Periodo;
+use Illuminate\Http\Request;
 
 class PeriodoController extends Controller
 {
-    //moduleID 18 = Periodo
+    // moduleID 18 = Periodo
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('18')) {
+            if (! auth()->user()->canAccessModule('18')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
+
     public function index()
     {
         $periodosActivos = Periodo::where('estado', '1')
@@ -58,9 +60,10 @@ class PeriodoController extends Controller
     public function edit($id)
     {
         $periodo = Periodo::find($id);
-        if (!$periodo) {
+        if (! $periodo) {
             return redirect()->route('periodo.index')->with('error', 'Periodo no encontrado.');
         }
+
         return view('periodo.edit', compact('periodo'));
     }
 
@@ -87,7 +90,7 @@ class PeriodoController extends Controller
     public function destroy($id)
     {
         $periodo = Periodo::find($id);
-        if (!$periodo) {
+        if (! $periodo) {
             return redirect()->route('periodo.index')->with('error', 'Periodo no encontrado.');
         }
 
@@ -97,15 +100,17 @@ class PeriodoController extends Controller
         }
 
         $periodo->delete();
+
         return redirect()->route('periodo.index')->with('success', 'Periodo eliminado con éxito.');
     }
 
     public function show($id)
     {
         $periodo = Periodo::with('matriculas.estudiante')->find($id);
-        if (!$periodo) {
+        if (! $periodo) {
             return response()->json(['message' => 'Periodo not found'], 404);
         }
+
         return response()->json($periodo);
     }
 

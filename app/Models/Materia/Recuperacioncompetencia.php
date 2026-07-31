@@ -2,18 +2,20 @@
 
 namespace App\Models\Materia;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Models\Materia;
-use App\Models\Materia\Materiacompetencia;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Recuperacioncompetencia extends Model
 {
     use HasFactory;
     use SoftDeletes;
+
     protected $table = 'estudiante_recuperacion_competencias';
+
     protected $primaryKey = 'id';
+
     public $timestamps = true;
 
     protected $fillable = [
@@ -22,27 +24,32 @@ class Recuperacioncompetencia extends Model
         'materia_id',
         'periodo_id',
         'docente_id',
-        'nivel_logro_inicial',  //ENUM 'C'
-        'nivel_logro_final',    //ENUM 'C','B','A','AD'
-        'estado',             //ENUM '0' es editable, '1' es no editable
-        //'modalidad',
+        'nivel_logro_inicial',  // ENUM 'C'
+        'nivel_logro_final',    // ENUM 'C','B','A','AD'
+        'estado',             // ENUM '0' es editable, '1' es no editable
+        // 'modalidad',
     ];
+
     public function estudiante()
     {
         return $this->belongsTo(\App\Models\Estudiante::class, 'estudiante_id');
     }
+
     public function materiaCompetencia()
     {
         return $this->belongsTo(Materiacompetencia::class, 'materia_competencia_id');
     }
+
     public function materia()
     {
         return $this->belongsTo(Materia::class, 'materia_id');
     }
+
     public function periodo()
     {
         return $this->belongsTo(\App\Models\Periodo::class, 'periodo_id');
     }
+
     public function docente()
     {
         return $this->belongsTo(\App\Models\Docente::class, 'docente_id');

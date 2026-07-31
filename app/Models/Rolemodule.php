@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Rolemodule extends Model
@@ -12,7 +12,9 @@ class Rolemodule extends Model
     use SoftDeletes;
 
     protected $table = 'role_modules';
+
     public $timestamps = true;
+
     protected $primaryKey = 'id';
 
     protected $fillable = [

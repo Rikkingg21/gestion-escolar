@@ -2,99 +2,102 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Periodo;
-use App\Models\Matricula;
-use App\Models\Grado;
 use App\Models\Estudiante;
+use App\Models\Grado;
+use App\Models\Matricula;
+use App\Models\Periodo;
+use Illuminate\Http\Request;
 
 class MatriculaController extends Controller
 {
-    //moduleID 17 = Matricula
+    // moduleID 17 = Matricula
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('17')) {
+            if (! auth()->user()->canAccessModule('17')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
-public function index($nombre)
-{
-    // Buscar el período por nombre
-    $periodo = Periodo::where('nombre', $nombre)->first();
 
-    if (!$periodo) {
-        // Intentar obtener el período del año actual
-        $anioActual = date('Y');
-        $periodoActual = Periodo::where('anio', $anioActual)
-            ->where('estado', '1')
-            ->first();
+    public function index($nombre)
+    {
+        // Buscar el período por nombre
+        $periodo = Periodo::where('nombre', $nombre)->first();
 
-        if ($periodoActual) {
-            return redirect()->route('matricula.index', ['nombre' => $periodoActual->nombre])
-                ->with('info', 'Período "' . $nombre . '" no encontrado. Mostrando el período del año actual.');
+        if (! $periodo) {
+            // Intentar obtener el período del año actual
+            $anioActual = date('Y');
+            $periodoActual = Periodo::where('anio', $anioActual)
+                ->where('estado', '1')
+                ->first();
+
+            if ($periodoActual) {
+                return redirect()->route('matricula.index', ['nombre' => $periodoActual->nombre])
+                    ->with('info', 'Período "'.$nombre.'" no encontrado. Mostrando el período del año actual.');
+            }
+
+            // Si no hay período del año actual, obtener el último período con estado '1'
+            $ultimoPeriodoActivo = Periodo::where('estado', '1')
+                ->orderBy('anio', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($ultimoPeriodoActivo) {
+                return redirect()->route('matricula.index', ['nombre' => $ultimoPeriodoActivo->nombre])
+                    ->with('info', 'Período "'.$nombre.'" no encontrado. Mostrando el último período activo disponible.');
+            }
+
+            // Si no hay períodos activos, obtener cualquier período
+            $cualquierPeriodo = Periodo::orderBy('anio', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($cualquierPeriodo) {
+                return redirect()->route('matricula.index', ['nombre' => $cualquierPeriodo->nombre])
+                    ->with('info', 'Período "'.$nombre.'" no encontrado. Mostrando el último período disponible.');
+            }
+
+            // Si no hay períodos, mostrar error
+            return redirect()->back()->with('error', 'No hay períodos disponibles');
         }
 
-        // Si no hay período del año actual, obtener el último período con estado '1'
-        $ultimoPeriodoActivo = Periodo::where('estado', '1')
-            ->orderBy('anio', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->first();
+        // Resto de tu código existente...
+        $gradosConMatriculas = Grado::whereHas('matriculas', function ($query) use ($periodo) {
+            $query->where('periodo_id', $periodo->id);
+        })
+            ->withCount(['matriculas' => function ($query) use ($periodo) {
+                $query->where('periodo_id', $periodo->id);
+            }])
+            ->orderBy('nivel')
+            ->orderBy('grado')
+            ->orderBy('seccion')
+            ->get();
 
-        if ($ultimoPeriodoActivo) {
-            return redirect()->route('matricula.index', ['nombre' => $ultimoPeriodoActivo->nombre])
-                ->with('info', 'Período "' . $nombre . '" no encontrado. Mostrando el último período activo disponible.');
-        }
+        $gradosSinMatriculas = Grado::where('estado', '1')
+            ->whereDoesntHave('matriculas', function ($query) use ($periodo) {
+                $query->where('periodo_id', $periodo->id);
+            })
+            ->orderBy('nivel')
+            ->orderBy('grado')
+            ->orderBy('seccion')
+            ->get();
 
-        // Si no hay períodos activos, obtener cualquier período
-        $cualquierPeriodo = Periodo::orderBy('anio', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->first();
+        $hayMatriculas = $gradosConMatriculas->count() > 0;
+        $nombresPeriodos = Periodo::pluck('nombre', 'id');
 
-        if ($cualquierPeriodo) {
-            return redirect()->route('matricula.index', ['nombre' => $cualquierPeriodo->nombre])
-                ->with('info', 'Período "' . $nombre . '" no encontrado. Mostrando el último período disponible.');
-        }
-
-        // Si no hay períodos, mostrar error
-        return redirect()->back()->with('error', 'No hay períodos disponibles');
+        return view('matricula.index', compact(
+            'periodo',
+            'gradosConMatriculas',
+            'gradosSinMatriculas',
+            'nombresPeriodos',
+            'nombre',
+            'hayMatriculas'
+        ));
     }
 
-    // Resto de tu código existente...
-    $gradosConMatriculas = Grado::whereHas('matriculas', function($query) use ($periodo) {
-            $query->where('periodo_id', $periodo->id);
-        })
-        ->withCount(['matriculas' => function($query) use ($periodo) {
-            $query->where('periodo_id', $periodo->id);
-        }])
-        ->orderBy('nivel')
-        ->orderBy('grado')
-        ->orderBy('seccion')
-        ->get();
-
-    $gradosSinMatriculas = Grado::where('estado', '1')
-        ->whereDoesntHave('matriculas', function($query) use ($periodo) {
-            $query->where('periodo_id', $periodo->id);
-        })
-        ->orderBy('nivel')
-        ->orderBy('grado')
-        ->orderBy('seccion')
-        ->get();
-
-    $hayMatriculas = $gradosConMatriculas->count() > 0;
-    $nombresPeriodos = Periodo::pluck('nombre', 'id');
-
-    return view('matricula.index', compact(
-        'periodo',
-        'gradosConMatriculas',
-        'gradosSinMatriculas',
-        'nombresPeriodos',
-        'nombre',
-        'hayMatriculas'
-    ));
-}
     public function store(Request $request)
     {
         $request->validate([
@@ -121,9 +124,10 @@ public function index($nombre)
 
         return redirect()->route('matricula.grado', [
             'nombre' => $periodo->nombre,
-            'grado_id' => $grado->id
+            'grado_id' => $grado->id,
         ])->with('success', 'Estudiante matriculado exitosamente.');
     }
+
     // En MatriculaController.php
     public function matricularMasivamente(Request $request)
     {
@@ -147,7 +151,7 @@ public function index($nombre)
                 ->where('grado_id', $request->grado_id)
                 ->exists();
 
-            if (!$existe) {
+            if (! $existe) {
                 // Crear matrícula
                 $matricula = Matricula::create([
                     'estudiante_id' => $estudiante_id,
@@ -163,21 +167,22 @@ public function index($nombre)
         }
 
         // Preparar mensaje de respuesta
-        $mensaje = "Matrícula masiva completada. ";
-        $mensaje .= count($estudiantesMatriculados) . " estudiante(s) matriculado(s) exitosamente. ";
+        $mensaje = 'Matrícula masiva completada. ';
+        $mensaje .= count($estudiantesMatriculados).' estudiante(s) matriculado(s) exitosamente. ';
 
         if (count($estudiantesNoMatriculados) > 0) {
-            $mensaje .= count($estudiantesNoMatriculados) . " estudiante(s) ya estaban matriculado(s).";
+            $mensaje .= count($estudiantesNoMatriculados).' estudiante(s) ya estaban matriculado(s).';
         }
 
         return back()->with('success', $mensaje);
     }
+
     public function grado($nombre, $grado_id)
     {
         // Obtener el período por nombre
         $periodo = Periodo::where('nombre', $nombre)->first();
 
-        if (!$periodo) {
+        if (! $periodo) {
             return redirect()->route('matricula.index')->with('error', 'Período no encontrado');
         }
 
@@ -208,6 +213,7 @@ public function index($nombre)
             'estudiantesNoMatriculados'
         ));
     }
+
     public function cambiarEstado(Request $request, $id)
     {
         $request->validate([

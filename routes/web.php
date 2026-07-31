@@ -1,57 +1,33 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\SessionSelectionController;
-
-use App\Http\Controllers\Rol\DashboardController;
-
-use App\Http\Controllers\ModuleController;
-use App\Http\Controllers\RoleController;
-
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\AdminController;
-use App\Http\Controllers\ColegioController;
-use App\Http\Controllers\DocenteController;
-use App\Http\Controllers\AuxiliarController;
-use App\Http\Controllers\EstudianteController;
 use App\Http\Controllers\ApoderadoController;
-
-use App\Http\Controllers\PeriodoController;
-use App\Http\Controllers\PeriodobimestreController;
-use App\Http\Controllers\MatriculaController;
-
-use App\Http\Controllers\Maya\MayaController;
-use App\Http\Controllers\Maya\BimestreController;
-use App\Http\Controllers\Maya\UnidadController;
-use App\Http\Controllers\Maya\SemanaController;
-use App\Http\Controllers\Maya\ClaseController;
-use App\Http\Controllers\Maya\TemaController;
-use App\Http\Controllers\Maya\CriterioController;
-
-use App\Http\Controllers\NotaController;
-use App\Http\Controllers\ConductaController;
-use App\Http\Controllers\LibretaController;
-
+use App\Http\Controllers\AsistenciabloqueoController;
 use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\AsistenciahistorialController;
-use App\Http\Controllers\AsistenciabloqueoController;
-
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\ColegioController;
+use App\Http\Controllers\ConductaController;
 use App\Http\Controllers\GradoController;
-use App\Http\Controllers\MateriaController;
+use App\Http\Controllers\LibretaController;
 use App\Http\Controllers\Materia\MateriaCompetenciaController;
 use App\Http\Controllers\Materia\MateriaCriterioController;
-
-use App\Http\Controllers\Tramite\TramiteController;
-use App\Http\Controllers\Tramite\TramiteadminController;
+use App\Http\Controllers\MateriaController;
+use App\Http\Controllers\MatriculaController;
+use App\Http\Controllers\Maya\MayaController;
 use App\Http\Controllers\Metodopago\TipopagoController;
-
+use App\Http\Controllers\ModuleController;
+use App\Http\Controllers\NotaController;
+use App\Http\Controllers\PeriodobimestreController;
+use App\Http\Controllers\PeriodoController;
 use App\Http\Controllers\ReporteController;
-
-
-use App\Models\Apoderado;
-use App\Models\Estudiante;
+use App\Http\Controllers\Rol\DashboardController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SessionSelectionController;
+use App\Http\Controllers\Tramite\TramiteadminController;
+use App\Http\Controllers\Tramite\TramiteController;
+use App\Http\Controllers\UserController;
 use App\Models\Materia\Materiacompetencia;
+use Illuminate\Support\Facades\Route;
 
 // Rutas públicas
 Route::redirect('/', '/login');
@@ -110,7 +86,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/periodo/{nombre_periodo}/bimestres/{id}', [PeriodobimestreController::class, 'update'])->name('periodobimestre.update');
     Route::delete('/periodo/{nombre_periodo}/bimestres/{id}', [PeriodobimestreController::class, 'destroy'])->name('periodobimestre.destroy');
 
-    Route::get('/matricula', function() {
+    Route::get('/matricula', function () {
         return redirect()->route('matricula.index', ['nombre' => 'anioActual']);
     });
     Route::get('/matricula/{nombre}', [MatriculaController::class, 'index'])->name('matricula.index');
@@ -146,12 +122,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/user/{user}/edit', [UserController::class, 'edit'])->name('user.edit');
     Route::put('/user/{user}', [UserController::class, 'update'])->name('user.update');
 
-    //ruta de usuarios mediante ajax
+    // ruta de usuarios mediante ajax
     Route::get('/usuarios/activos', [UserController::class, 'ajaxUserActivo'])->name('usuarios.activos');
     Route::get('/usuarios/lectores', [UserController::class, 'ajaxUserLector'])->name('usuarios.lectores');
     Route::get('/usuarios/inactivos', [UserController::class, 'ajaxUserInactivo'])->name('usuarios.inactivos');
-    //Route::delete('/usuarios/{user}', [UserController::class, 'destroy'])->name('usuarios.destroy');
-
     Route::delete('/users/{user}/remove-relacion-no-protegidos/', [UserController::class, 'removeRelacionRolNoProtegidos'])->name('users.remove-role');
 
     Route::get('/apoderados/search', [ApoderadoController::class, 'search'])->name('apoderados.search');
@@ -206,8 +180,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/materia-criterio/{materiacriterio}/edit', [MateriaCriterioController::class, 'edit'])->name('materiacriterio.edit');
     Route::put('/materia-criterio/{materiacriterio}', [MateriaCriterioController::class, 'update'])->name('materiacriterio.update');
     Route::delete('/materia-criterio/{id}', [MateriaCriterioController::class, 'destroy'])->name('materiacriterio.destroy');
-    Route::get('/materiacriterio/bimestres/{periodo_id}', [MateriacriterioController::class, 'getBimestres'])->name('materiacriterio.bimestres');
-    Route::get('/api/competencias-por-materia/{materiaId}', function($materiaId) {
+    Route::get('/materiacriterio/bimestres/{periodo_id}', [MateriaCriterioController::class, 'getBimestres'])->name('materiacriterio.bimestres');
+    Route::get('/api/competencias-por-materia/{materiaId}', function ($materiaId) {
         $competencias = Materiacompetencia::where('materia_id', $materiaId)
             ->where('estado', '1')
             ->orderBy('nombre')
@@ -239,10 +213,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/reporte/{reporte}', [ReporteController::class, 'update'])->name('reporte.update');
     Route::delete('/reporte/{id}', [ReporteController::class, 'destroy'])->name('reporte.destroy');
 
-    //Route::get('/libreta/{anio}/{bimestre}', [LibretaController::class, 'index'])->name('libreta.index');
-    //Route::get('/libreta/{anio}/{sigla?}', [LibretaController::class, 'index'])->name('libreta.index');
     Route::get('/libreta', [LibretaController::class, 'index'])->name('libreta.index');
-    //Route::post('/libreta/{anio}/{bimestre}/pdf', [LibretaController::class, 'pdf'])->name('libreta.pdf');
     Route::post('/libreta/pdf', [LibretaController::class, 'pdf'])->name('libreta.pdf');
 
     Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asistencia.index');
@@ -255,13 +226,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/asistencia/marcar-resto-puntualidad', [AsistenciaController::class, 'marcarRestoDeEstudiantesConPuntualidad'])->name('asistencia.marcar-resto-puntualidad');
     Route::post('/asistencia/marcar-resto-tardanza', [AsistenciaController::class, 'marcarRestoDeEstudiantesConTardanza'])->name('asistencia.marcar-resto-tardanza');
 
-
     Route::get('/asistencia/{grado_grado_seccion}/{grado_nivel}/{date}', [AsistenciaController::class, 'showDate'])
         ->name('asistencia.grado')
         ->where([
             'grado_grado_seccion' => '[0-9]+[a-zA-Z]+', // Números y letras para grado y sección (ej: 1a, 2b)
             'grado_nivel' => '[a-zA-Z]+', // Solo letras para el nivel
-            'date' => '\d{2}-\d{2}-\d{4}' // Formato dd-mm-yyyy
+            'date' => '\d{2}-\d{2}-\d{4}', // Formato dd-mm-yyyy
         ]);
     Route::post('marcar-individual/{estudiante}', [AsistenciaController::class, 'marcarIndividual'])->name('asistencia.marcar-individual');
     Route::post('asistencia/{grado}/{fecha}/guardar', [AsistenciaController::class, 'guardarMultiple'])->name('asistencia.guardar-multiple');

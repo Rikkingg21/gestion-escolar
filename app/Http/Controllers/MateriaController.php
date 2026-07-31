@@ -4,20 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\Materia;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class MateriaController extends Controller
 {
-    //moduleID 11 = materias
+    // moduleID 11 = materias
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('11')) {
+            if (! auth()->user()->canAccessModule('11')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
+
     public function index()
     {
         $materiasActivas = Materia::where('estado', 1)
@@ -27,6 +28,7 @@ class MateriaController extends Controller
         $materiasInactivas = Materia::where('estado', 0)
             ->orderBy('nombre')
             ->paginate(5, ['*'], 'inactivos');
+
         return view('materia.index', compact('materiasActivas', 'materiasInactivas'));
     }
 
@@ -54,14 +56,15 @@ class MateriaController extends Controller
     public function edit($id)
     {
         $materia = Materia::findOrFail($id);
+
         return view('materia.edit', compact('materia'));
     }
 
     public function update(Request $request, Materia $materia)
     {
         $request->validate([
-        'nombre' => 'required|string|max:255',
-        'estado' => 'required|in:1,0',
+            'nombre' => 'required|string|max:255',
+            'estado' => 'required|in:1,0',
         ]);
 
         $data = $request->all();
@@ -72,7 +75,6 @@ class MateriaController extends Controller
         return redirect()->route('materia.index')->with('success', 'Materia actualizada exitosamente.');
     }
 
-
     public function destroy($id)
     {
         $materia = Materia::findOrFail($id);
@@ -80,6 +82,7 @@ class MateriaController extends Controller
             return redirect()->route('materia.index')->with('error', 'No se puede eliminar la materia porque está activo.');
         }
         $materia->delete();
+
         return redirect()->route('materia.index')->with('success', 'Materia eliminada    correctamente.');
     }
 }

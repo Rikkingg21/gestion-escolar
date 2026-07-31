@@ -2,9 +2,6 @@
 
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
-use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Foundation\Configuration\Routing;
-
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -24,9 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            //'check.selected.role' => \App\Http\Middleware\CheckSelectedRole::class,
-            //'role' => \App\Http\Middleware\CheckRole::class,
-            //'check.subsession' => App\Http\Middleware\CheckSubSessionAccess::class,
+            //
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

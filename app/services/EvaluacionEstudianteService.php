@@ -19,7 +19,7 @@ class EvaluacionEstudianteService extends BaseNotasService
      */
     public function competenciaRequiereRecuperacion(bool $estaAprobada, ?float $notaRecuperacion, bool $tieneRegistroRecuperacion): bool
     {
-        return !$estaAprobada && $notaRecuperacion === null && !$tieneRegistroRecuperacion;
+        return ! $estaAprobada && $notaRecuperacion === null && ! $tieneRegistroRecuperacion;
     }
 
     /**
@@ -52,8 +52,13 @@ class EvaluacionEstudianteService extends BaseNotasService
             }
         }
 
-        if ($totalCompetencias === 0) return 'sin_evaluacion';
-        if ($totalRequierenRecuperacion === 0) return 'aprobado';
+        if ($totalCompetencias === 0) {
+            return 'sin_evaluacion';
+        }
+        if ($totalRequierenRecuperacion === 0) {
+            return 'aprobado';
+        }
+
         return 'recuperacion';
     }
 
@@ -82,8 +87,8 @@ class EvaluacionEstudianteService extends BaseNotasService
             $resultados[] = array_merge($competencia, [
                 'esta_aprobada' => $estaAprobada,
                 'tiene_recuperacion' => $tieneNotaRecuperacion,
-                'tiene_registro_recuperacion' => $tieneRegistro && !$tieneNotaRecuperacion,
-                'requiere_recuperacion' => $requiereRecuperacion
+                'tiene_registro_recuperacion' => $tieneRegistro && ! $tieneNotaRecuperacion,
+                'requiere_recuperacion' => $requiereRecuperacion,
             ]);
         }
 
@@ -139,7 +144,7 @@ class EvaluacionEstudianteService extends BaseNotasService
                 'competencias_desaprobadas_count' => $competenciasDesaprobadas,
                 'competencias_requieren_recuperacion_count' => $competenciasRequierenRecuperacion,
                 'competencias_pendientes_calificar_count' => $competenciasPendientesCalificar,
-                'estado' => $materiaAprobada ? 'aprobado' : 'desaprobado'
+                'estado' => $materiaAprobada ? 'aprobado' : 'desaprobado',
             ]);
         }
 

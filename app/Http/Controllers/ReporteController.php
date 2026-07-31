@@ -2,28 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Reporte\Reporte;
-use App\Models\Reporte\Estadoreporte;
-use App\Models\Maya\Cursogradosecnivanio;
-use App\Models\User;
 use App\Models\Apoderado;
 use App\Models\Materia;
-
+use App\Models\Maya\Cursogradosecnivanio;
+use App\Models\Reporte\Estadoreporte;
+use App\Models\Reporte\Reporte;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ReporteController extends Controller
 {
-    //moduleID 8 = Roles
+    // moduleID 8 = Roles
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('8')) {
+            if (! auth()->user()->canAccessModule('8')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
+
     public function index()
     {
         $user = auth()->user();
@@ -52,6 +52,7 @@ class ReporteController extends Controller
 
         return view('reporte.index', compact('reportes'));
     }
+
     public function show($id)
     {
         $reporte = Reporte::with(['creador', 'destinatario.apoderado', 'materia', 'estadoreporte'])
@@ -60,7 +61,7 @@ class ReporteController extends Controller
         $user = auth()->user();
 
         // Verificar permisos
-        if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente') && !$user->hasRole('auxiliar') && !$user->hasRole('apoderado')) {
+        if (! $user->hasRole('admin') && ! $user->hasRole('director') && ! $user->hasRole('docente') && ! $user->hasRole('auxiliar') && ! $user->hasRole('apoderado')) {
             abort(403, 'Acceso no autorizado.');
         }
 
@@ -84,10 +85,10 @@ class ReporteController extends Controller
 
         // Solo permitir acceso a ciertos roles
         if (
-            !$user->hasRole('admin') &&
-            !$user->hasRole('director') &&
-            !$user->hasRole('docente') &&
-            !$user->hasRole('auxiliar')
+            ! $user->hasRole('admin') &&
+            ! $user->hasRole('director') &&
+            ! $user->hasRole('docente') &&
+            ! $user->hasRole('auxiliar')
         ) {
             abort(403, 'No tienes permiso para crear reportes.');
         }
@@ -106,10 +107,10 @@ class ReporteController extends Controller
 
         // Obtener grados con estado 1 (activos)
         $grados = \App\Models\Grado::where('estado', 1)
-        ->orderBy('nivel')
-        ->orderBy('grado')
-        ->orderBy('seccion')
-        ->get();
+            ->orderBy('nivel')
+            ->orderBy('grado')
+            ->orderBy('seccion')
+            ->get();
 
         $estudiantes = \App\Models\Estudiante::with('user', 'apoderado.user')->get();
         $apoderados = Apoderado::with('user')->get();
@@ -138,8 +139,10 @@ class ReporteController extends Controller
             'reporte_id' => $reporte->id,
             'estado' => 1, // Creado
         ]);
+
         return redirect()->route('reporte.index')->with('success', 'Reporte creado correctamente.');
     }
+
     public function update(Request $request, $id)
     {
         $reporte = Reporte::with('estadoreporte')->findOrFail($id);
@@ -153,7 +156,7 @@ class ReporteController extends Controller
             $user->id == $reporte->destinatario_id
         );
 
-        if (!$puedeActualizar) {
+        if (! $puedeActualizar) {
             abort(403, 'No tienes permiso para actualizar este reporte.');
         }
 
@@ -165,20 +168,24 @@ class ReporteController extends Controller
             if (($reporte->estadoreporte->estado ?? 1) == 1 && $nuevoEstado == 2) {
                 $reporte->estadoreporte->estado = 2;
                 $reporte->estadoreporte->save();
+
                 return redirect()->route('reporte.show', $reporte->id)->with('success', 'Reporte enviado.');
             }
         }
 
         if ($user->id == $reporte->destinatario_id) {
             // El destinatario puede confirmar recepción (de 1, 2 o 3 a 4)
-            if (in_array($reporte->estadoreporte->estado ?? 1, [1,2,3]) && $nuevoEstado == 4) {
+            if (in_array($reporte->estadoreporte->estado ?? 1, [1, 2, 3]) && $nuevoEstado == 4) {
                 $reporte->estadoreporte->estado = 4;
                 $reporte->estadoreporte->save();
+
                 return redirect()->route('reporte.show', $reporte->id)->with('success', 'Recepción confirmada.');
             }
         }
+
         return redirect()->route('reporte.show', $reporte->id)->with('error', 'No se pudo actualizar el estado.');
     }
+
     public function destroy($id)
     {
         $reporte = Reporte::findOrFail($id);
@@ -186,8 +193,8 @@ class ReporteController extends Controller
 
         // Solo admin, director o creador pueden eliminar
         if (
-            !$user->hasRole('admin') &&
-            !$user->hasRole('director') &&
+            ! $user->hasRole('admin') &&
+            ! $user->hasRole('director') &&
             $user->id != $reporte->creador_id
         ) {
             abort(403, 'No tienes permiso para eliminar este reporte.');

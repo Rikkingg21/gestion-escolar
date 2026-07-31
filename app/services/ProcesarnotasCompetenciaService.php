@@ -9,9 +9,9 @@ class ProcesarnotasCompetenciaService extends BaseNotasService
         $grupos = [];
 
         foreach ($criterios as $criterio) {
-            $key = $criterio['estudiante_id'] . '_' . $criterio['materia_competencia_id'];
+            $key = $criterio['estudiante_id'].'_'.$criterio['materia_competencia_id'];
 
-            if (!isset($grupos[$key])) {
+            if (! isset($grupos[$key])) {
                 $grupos[$key] = [
                     'estudiante_id' => $criterio['estudiante_id'],
                     'materia_competencia_id' => $criterio['materia_competencia_id'],
@@ -22,7 +22,7 @@ class ProcesarnotasCompetenciaService extends BaseNotasService
                     'tiene_recuperacion' => false,
                     'tiene_registro_recuperacion' => false,
                     'recuperacion_estado' => null,
-                    'recuperacion_id' => null  // Asegurar que existe
+                    'recuperacion_id' => null,  // Asegurar que existe
                 ];
             }
 
@@ -78,7 +78,7 @@ class ProcesarnotasCompetenciaService extends BaseNotasService
                 'tiene_recuperacion' => $grupo['tiene_recuperacion'],
                 'tiene_registro_recuperacion' => $grupo['tiene_registro_recuperacion'],
                 'recuperacion_estado' => $grupo['recuperacion_estado'],
-                'recuperacion_id' => $grupo['recuperacion_id']  // Asegurar que se incluye
+                'recuperacion_id' => $grupo['recuperacion_id'],  // Asegurar que se incluye
             ];
         }
 

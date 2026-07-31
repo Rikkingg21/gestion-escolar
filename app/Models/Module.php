@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Module extends Model
@@ -12,7 +12,9 @@ class Module extends Model
     use SoftDeletes;
 
     protected $table = 'modules';
+
     public $timestamps = true;
+
     protected $primaryKey = 'id';
 
     protected $fillable = [
@@ -26,8 +28,8 @@ class Module extends Model
     public function roles()
     {
         return $this->belongsToMany(Role::class, 'role_modules')
-                    ->withPivot('estado')
-                    ->withTimestamps();
+            ->withPivot('estado')
+            ->withTimestamps();
     }
 
     // Relación con excepciones

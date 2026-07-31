@@ -2,53 +2,53 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Nota;
-use App\Models\Maya\Bimestre;
-use App\Models\Maya\Cursogradosecnivanio;
 use App\Models\Asistencia\Asistencia;
-use App\Models\Grado;
+use App\Models\Asistencia\Tipoasistencia;
+use App\Models\Colegio;
+use App\Models\Conducta;
+use App\Models\Conductaperiodobimestrenota;
 use App\Models\Estudiante;
-use App\Models\Materia\Recuperacioncompetencia;
 use App\Models\Materia\Materiacompetencia;
 use App\Models\Materia\Materiacriterio;
-use App\Models\Conductaperiodobimestrenota;
-use App\Models\Periodobimestre;
-use App\Models\Conducta;
-use App\Models\Colegio;
-use App\Models\Asistencia\Tipoasistencia;
-use App\Models\Periodo;
+use App\Models\Materia\Recuperacioncompetencia;
 use App\Models\Matricula;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Barryvdh\DomPDF\Facade\Pdf;
-
+use App\Models\Maya\Cursogradosecnivanio;
+use App\Models\Nota;
+use App\Models\Periodo;
+use App\Models\Periodobimestre;
 use App\Services\EvaluacionEstudianteService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
 
 class LibretaController extends Controller
 {
     protected $evaluacionService;
 
-    //moduleID 15 = Libreta
+    // moduleID 15 = Libreta
     public function __construct(EvaluacionEstudianteService $evaluacionService)
     {
         $this->evaluacionService = $evaluacionService;
 
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('15')) {
+            if (! auth()->user()->canAccessModule('15')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
+
     public function index(Request $request)
     {
         $estudiante = $this->getEstudiante();
-        if (!$estudiante) abort(404, 'Estudiante no encontrado.');
+        if (! $estudiante) {
+            abort(404, 'Estudiante no encontrado.');
+        }
 
         $periodos = $this->getPeriodosEstudiante($estudiante);
-        if ($periodos->isEmpty()) abort(404, 'No se encontraron periodos para este estudiante.');
+        if ($periodos->isEmpty()) {
+            abort(404, 'No se encontraron periodos para este estudiante.');
+        }
 
         // Obtener periodo_id del request, si no existe usar el primero
         $periodoId = $request->input('periodo_id');
@@ -61,7 +61,7 @@ class LibretaController extends Controller
                 $matriculaCheck = Matricula::where('estudiante_id', $estudiante->id)
                     ->where('periodo_id', $periodoActual->id)
                     ->exists();
-                if (!$matriculaCheck) {
+                if (! $matriculaCheck) {
                     $periodoActual = null;
                 }
             }
@@ -79,19 +79,20 @@ class LibretaController extends Controller
         }
 
         // Si no se encontró período válido, usar el primero de la lista
-        if (!$periodoActual) {
+        if (! $periodoActual) {
             $primerPeriodo = $periodos->first();
+
             return redirect()->route('libreta.index', [
                 'periodo_id' => $primerPeriodo['id'],
-                'bimestre' => $request->input('bimestre', 'anual')
+                'bimestre' => $request->input('bimestre', 'anual'),
             ]);
         }
 
         $matriculaActual = $this->getMatriculaActual($estudiante, $periodoActual);
-        if (!$matriculaActual) {
+        if (! $matriculaActual) {
             return redirect()->route('libreta.index', [
                 'periodo_id' => $periodos->first()['id'],
-                'bimestre' => $request->input('bimestre', 'anual')
+                'bimestre' => $request->input('bimestre', 'anual'),
             ]);
         }
 
@@ -130,7 +131,7 @@ class LibretaController extends Controller
         $datosVista['competencias_transversales_agrupadas'] = $competenciasTransversalesAgrupadas;
         $datosVista['asistencias'] = $asistencias;
         $datosVista['titulo_periodo'] = $esAnual ? 'EVALUACIÓN ANUAL' : strtoupper($sigla);
-        $datosVista['titulo_conducta'] = $esAnual ? 'PROMEDIO ANUAL' : "CALIFICACIÓN " . strtoupper($sigla);
+        $datosVista['titulo_conducta'] = $esAnual ? 'PROMEDIO ANUAL' : 'CALIFICACIÓN '.strtoupper($sigla);
         $datosVista['datos_estudiante'] = $this->getDatosEstudiante($estudiante, $matriculaActual, $colegio);
         $datosVista['promedio_general_bimestre'] = $this->calcularPromedioGeneralBimestre($materiasConRowspan);
         $datosVista['sin_criterios'] = $this->calcularSinCriterios($materiasConRowspan);
@@ -139,11 +140,16 @@ class LibretaController extends Controller
 
         return view('libreta.index', $datosVista);
     }
+
     private function convertirACualitativo($nota)
     {
-        if ($nota === null) return '--';
+        if ($nota === null) {
+            return '--';
+        }
+
         return $this->evaluacionService->convertirNotaAEnum($nota);
     }
+
     private function calcularSinCriterios($materias)
     {
         $totalCriterios = 0;
@@ -152,30 +158,38 @@ class LibretaController extends Controller
                 $totalCriterios += count($competencia['criterios']);
             }
         }
+
         return $totalCriterios == 0;
     }
+
     private function redondearNota($nota)
     {
-        if ($nota === null) return null;
+        if ($nota === null) {
+            return null;
+        }
+
         return ($nota - floor($nota) >= 0.5) ? ceil($nota) : floor($nota);
     }
+
     private function getEstudiante()
     {
         return Estudiante::with(['user'])
             ->where('user_id', auth()->user()->id)
             ->first();
     }
+
     private function getPeriodosEstudiante($estudiante)
     {
-        return Periodo::whereIn('id', function($query) use ($estudiante) {
-                $query->select('periodo_id')
-                    ->from('matriculas')
-                    ->where('estudiante_id', $estudiante->id);
-            })
+        return Periodo::whereIn('id', function ($query) use ($estudiante) {
+            $query->select('periodo_id')
+                ->from('matriculas')
+                ->where('estudiante_id', $estudiante->id);
+        })
             ->orderBy('anio', 'desc')
             ->get()
-            ->map(fn($periodo) => $periodo->only(['id', 'anio', 'nombre', 'estado', 'descripcion']));
+            ->map(fn ($periodo) => $periodo->only(['id', 'anio', 'nombre', 'estado', 'descripcion']));
     }
+
     private function getMatriculaActual($estudiante, $periodoActual)
     {
         return Matricula::with(['grado', 'periodo'])
@@ -183,16 +197,17 @@ class LibretaController extends Controller
             ->where('periodo_id', $periodoActual->id)
             ->first();
     }
+
     private function getBimestresDisponibles($periodoActual)
     {
         $bimestres = Periodobimestre::where('periodo_id', $periodoActual->id)
             ->where('tipo_bimestre', 'A')
             ->orderBy('bimestre')
             ->get()
-            ->map(fn($bimestre) => [
+            ->map(fn ($bimestre) => [
                 'sigla' => $bimestre->sigla,
                 'bimestre' => $bimestre->bimestre,
-                'nombre' => $bimestre->sigla . ' - Bimestre ' . $bimestre->bimestre,
+                'nombre' => $bimestre->sigla.' - Bimestre '.$bimestre->bimestre,
                 'fecha_inicio' => $bimestre->fecha_inicio,
                 'fecha_fin' => $bimestre->fecha_fin,
             ]);
@@ -204,14 +219,17 @@ class LibretaController extends Controller
                 'nombre' => 'Promedio Anual',
                 'fecha_inicio' => null,
                 'fecha_fin' => null,
-            ]
+            ],
         ])->concat($bimestres);
     }
+
     private function validarSigla($sigla, $bimestres)
     {
         $siglasValidas = $bimestres->pluck('sigla')->toArray();
+
         return ($sigla && in_array($sigla, $siglasValidas)) ? $sigla : 'anual';
     }
+
     private function prepararDatosVista($params)
     {
         $bimestreSeleccionado = $params['bimestres']->firstWhere('sigla', $params['sigla']);
@@ -229,6 +247,7 @@ class LibretaController extends Controller
             'sigla_param' => $params['sigla'],
         ];
     }
+
     private function getNotasMaterias($estudianteId, $periodoActual, $sigla)
     {
         $query = Nota::with(['criterio.materiaCompetencia', 'criterio.materia'])
@@ -251,9 +270,10 @@ class LibretaController extends Controller
 
         return $query->get();
     }
+
     private function agruparNotasPorMateria($notas, $esAnual = false, $gradoId = null, $periodoActual = null, $siglaParam = 'anual')
     {
-        if (!$periodoActual) {
+        if (! $periodoActual) {
             return [];
         }
 
@@ -266,7 +286,7 @@ class LibretaController extends Controller
                 ->first();
         }
 
-        if (!$gradoId) {
+        if (! $gradoId) {
             return [];
         }
 
@@ -289,7 +309,7 @@ class LibretaController extends Controller
 
             $competencias = Materiacompetencia::where('materia_id', $materiaId)->get();
 
-            if (!isset($materias[$materiaId])) {
+            if (! isset($materias[$materiaId])) {
                 $materias[$materiaId] = [
                     'id' => $materiaId,
                     'nombre' => $materiaNombre,
@@ -306,18 +326,18 @@ class LibretaController extends Controller
                 $criteriosQuery = Materiacriterio::where('materia_competencia_id', $competencia->id)
                     ->where('grado_id', $gradoId);
 
-                if (!$esAnual && $periodoBimestreSeleccionado) {
+                if (! $esAnual && $periodoBimestreSeleccionado) {
                     $criteriosQuery->where('periodo_bimestre_id', $periodoBimestreSeleccionado->id);
                 }
 
                 $criterios = $criteriosQuery->get();
 
-                if (!isset($materias[$materiaId][$targetArray][$competencia->id])) {
+                if (! isset($materias[$materiaId][$targetArray][$competencia->id])) {
                     $materias[$materiaId][$targetArray][$competencia->id] = [
                         'id' => $competencia->id,
                         'nombre' => $competenciaNombre,
                         'criterios' => [],
-                        'es_transversal' => $esTransversal
+                        'es_transversal' => $esTransversal,
                     ];
 
                     foreach ($criterios as $criterio) {
@@ -340,7 +360,7 @@ class LibretaController extends Controller
                             'tiene_nota' => false,
                             'periodo_bimestre_id' => $criterio->periodo_bimestre_id,
                             'sigla_bimestre' => $siglaBimestre,
-                            'bimestre_num' => $bimestreNum
+                            'bimestre_num' => $bimestreNum,
                         ];
                     }
                 }
@@ -352,14 +372,16 @@ class LibretaController extends Controller
         foreach ($notas as $nota) {
             $criterio = $nota->criterio;
             if ($criterio) {
-                $key = $criterio->materia_id . '|' . $criterio->materia_competencia_id . '|' . $criterio->id;
+                $key = $criterio->materia_id.'|'.$criterio->materia_competencia_id.'|'.$criterio->id;
                 $notasMap[$key] = $nota;
             }
         }
 
         foreach ($notas as $nota) {
             $criterio = $nota->criterio;
-            if (!$criterio) continue;
+            if (! $criterio) {
+                continue;
+            }
 
             $materiaId = $criterio->materia_id;
             $competenciaId = $criterio->materia_competencia_id;
@@ -397,6 +419,7 @@ class LibretaController extends Controller
 
         return array_values($materias);
     }
+
     private function calcularPromedios($materias, $esAnual = false)
     {
         foreach ($materias as &$materia) {
@@ -418,7 +441,7 @@ class LibretaController extends Controller
                     $competencia['promedio_cualitativo'] = $this->convertirACualitativo($competencia['promedio']);
                 } else {
                     $notasValidas = array_filter(array_column($competencia['criterios'], 'nota'));
-                    $competencia['promedio'] = !empty($notasValidas) ? round(array_sum($notasValidas) / count($notasValidas), 1) : null;
+                    $competencia['promedio'] = ! empty($notasValidas) ? round(array_sum($notasValidas) / count($notasValidas), 1) : null;
                     $competencia['promedio_cualitativo'] = $this->convertirACualitativo($competencia['promedio']);
                 }
 
@@ -447,6 +470,7 @@ class LibretaController extends Controller
 
         return $materias;
     }
+
     private function calcularRowspanMaterias($materias)
     {
         foreach ($materias as &$materia) {
@@ -459,6 +483,7 @@ class LibretaController extends Controller
 
         return $materias;
     }
+
     private function getDatosEstudiante($estudiante, $matricula, $colegio)
     {
         $nombreCompleto = trim(sprintf(
@@ -472,12 +497,13 @@ class LibretaController extends Controller
             'UGEL' => $colegio->ugel ?? 'Tacna',
             'II.EE' => $colegio->nombre ?? 'NO REGISTRADO',
             'NIVEL' => $matricula->grado->nivel ?? 'No disponible',
-            'GRADO' => ($matricula->grado->grado ?? 'No disponible') . '°',
-            'SECCIÓN' => '"' . ($matricula->grado->seccion ?? 'No disponible') . '"',
+            'GRADO' => ($matricula->grado->grado ?? 'No disponible').'°',
+            'SECCIÓN' => '"'.($matricula->grado->seccion ?? 'No disponible').'"',
             'ESTUDIANTE' => $nombreCompleto,
             'DNI' => $estudiante->user->dni ?? 'No disponible',
         ];
     }
+
     private function calcularPromedioGeneralBimestre($materias)
     {
         $suma = 0;
@@ -492,6 +518,7 @@ class LibretaController extends Controller
 
         return $total > 0 ? round($suma / $total, 1) : 0;
     }
+
     // Métodos de conducta (mantener los originales sin cambios)
     private function obtenerTodasLasConductas($estudianteId, $periodoActual, $sigla, $gradoId)
     {
@@ -509,7 +536,7 @@ class LibretaController extends Controller
             ? $bimestres->firstWhere('sigla', $sigla)
             : null;
 
-        $conductasQuery = Conducta::whereHas('periodosBimestres', function($query) use ($periodoActual, $periodoBimestreSeleccionado, $sigla) {
+        $conductasQuery = Conducta::whereHas('periodosBimestres', function ($query) use ($periodoActual, $periodoBimestreSeleccionado, $sigla) {
             $query->where('periodo_id', $periodoActual->id)
                 ->whereNull('conducta_periodo_bimestres.deleted_at');
 
@@ -525,17 +552,17 @@ class LibretaController extends Controller
         }
 
         $query = Conductaperiodobimestrenota::with([
-                'conductaPeriodoBimestre' => function($query) {
-                    $query->whereNull('deleted_at');
-                },
-                'conductaPeriodoBimestre.conducta',
-                'periodoBimestre',
-                'curso_grado_sec_niv_anio.materia'
-            ])
+            'conductaPeriodoBimestre' => function ($query) {
+                $query->whereNull('deleted_at');
+            },
+            'conductaPeriodoBimestre.conducta',
+            'periodoBimestre',
+            'curso_grado_sec_niv_anio.materia',
+        ])
             ->where('estudiante_id', $estudianteId)
             ->where('periodo_id', $periodoActual->id)
             ->where('publico', '!=', '0')
-            ->whereHas('conductaPeriodoBimestre', function($query) {
+            ->whereHas('conductaPeriodoBimestre', function ($query) {
                 $query->whereNull('deleted_at');
             });
 
@@ -551,7 +578,7 @@ class LibretaController extends Controller
 
         $notasMap = [];
         foreach ($notasExistentes as $nota) {
-            if (!$nota->conductaPeriodoBimestre || $nota->conductaPeriodoBimestre->trashed()) {
+            if (! $nota->conductaPeriodoBimestre || $nota->conductaPeriodoBimestre->trashed()) {
                 continue;
             }
 
@@ -571,6 +598,7 @@ class LibretaController extends Controller
 
         return $this->procesarConductasBimestral($todasLasConductasDB, $cursos, $periodoBimestreSeleccionado, $notasMap);
     }
+
     private function formatoConductasSinNotas($conductas, $cursos)
     {
         $resultado = [];
@@ -581,17 +609,19 @@ class LibretaController extends Controller
                 'nota_original' => '-',
                 'estado' => "0/{$cursos->count()} materias - Sin notas registradas",
                 'tiene_tooltip' => true,
-                'es_guion' => true
+                'es_guion' => true,
             ];
         }
+
         return $resultado;
     }
+
     private function procesarConductasAnual($conductas, $cursos, $bimestres, $notasMap)
     {
         $totalBimestres = $bimestres->count();
-        $hayNotas = !empty($notasMap);
+        $hayNotas = ! empty($notasMap);
 
-        if (!$hayNotas) {
+        if (! $hayNotas) {
             return $this->formatoConductasAnualSinNotas($conductas, $totalBimestres);
         }
 
@@ -606,7 +636,7 @@ class LibretaController extends Controller
                 $notasEncontradas = 0;
 
                 foreach ($cursos as $curso) {
-                    $key = $conducta->id . '|' . $curso->id . '|' . $bimestre->id;
+                    $key = $conducta->id.'|'.$curso->id.'|'.$bimestre->id;
 
                     if (isset($notasMap[$key])) {
                         $notasBimestre[] = $notasMap[$key];
@@ -637,18 +667,18 @@ class LibretaController extends Controller
                     'nota_original' => $this->redondearNota($promedioAnual),
                     'estado' => $estadoMensaje,
                     'tiene_tooltip' => $tieneTooltip,
-                    'es_guion' => false
+                    'es_guion' => false,
                 ];
             } else {
                 foreach ($promediosPorBimestre as $bimestreNum => $promedio) {
                     $bimestreSigla = $this->getSiglaByBimestre($bimestreNum);
                     $resultado[] = [
-                        'nombre' => $conducta->nombre . ' (' . $bimestreSigla . ')',
+                        'nombre' => $conducta->nombre.' ('.$bimestreSigla.')',
                         'nota' => $this->redondearNota($promedio),
                         'nota_original' => $this->redondearNota($promedio),
                         'estado' => $estadoMensaje,
                         'tiene_tooltip' => $tieneTooltip,
-                        'es_guion' => false
+                        'es_guion' => false,
                     ];
                 }
             }
@@ -656,6 +686,7 @@ class LibretaController extends Controller
 
         return $resultado;
     }
+
     private function formatoConductasAnualSinNotas($conductas, $totalBimestres)
     {
         $resultado = [];
@@ -666,11 +697,13 @@ class LibretaController extends Controller
                 'nota_original' => '-',
                 'estado' => "0/{$totalBimestres} Bimestres - Sin notas registradas",
                 'tiene_tooltip' => true,
-                'es_guion' => true
+                'es_guion' => true,
             ];
         }
+
         return $resultado;
     }
+
     private function procesarConductasBimestral($conductas, $cursos, $periodoBimestre, $notasMap)
     {
         $bimestreId = $periodoBimestre ? $periodoBimestre->id : null;
@@ -683,7 +716,7 @@ class LibretaController extends Controller
         foreach ($cursos as $curso) {
             $conductasCompletas = 0;
             foreach ($conductas as $conducta) {
-                $key = $conducta->id . '|' . $curso->id . '|' . $bimestreId;
+                $key = $conducta->id.'|'.$curso->id.'|'.$bimestreId;
                 if (isset($notasMap[$key])) {
                     $conductasCompletas++;
                 }
@@ -704,7 +737,7 @@ class LibretaController extends Controller
         foreach ($conductas as $conducta) {
             $notasConducta = [];
             foreach ($cursos as $curso) {
-                $key = $conducta->id . '|' . $curso->id . '|' . $bimestreId;
+                $key = $conducta->id.'|'.$curso->id.'|'.$bimestreId;
                 $notasConducta[] = isset($notasMap[$key]) ? $notasMap[$key] : 1;
             }
 
@@ -715,12 +748,13 @@ class LibretaController extends Controller
                 'nota_original' => $this->redondearNota($promedio),
                 'estado' => $estadoGeneral,
                 'tiene_tooltip' => true,
-                'es_guion' => false
+                'es_guion' => false,
             ];
         }
 
         return $resultado;
     }
+
     private function generarEstadoMensaje($bimestresCompletos, $bimestresIncompletos, $totalBimestres)
     {
         if (count($bimestresCompletos) == $totalBimestres) {
@@ -731,21 +765,24 @@ class LibretaController extends Controller
             $bimestresConNotas = array_merge($bimestresCompletos, $bimestresIncompletos);
             sort($bimestresConNotas);
             $siglas = ['I', 'II', 'III', 'IV'];
-            $bimestresTexto = implode(', ', array_map(function($b) use ($siglas) {
-                return $siglas[$b-1] . ' Bim';
+            $bimestresTexto = implode(', ', array_map(function ($b) use ($siglas) {
+                return $siglas[$b - 1].' Bim';
             }, $bimestresConNotas));
 
-            return count($bimestresCompletos) . "/{$totalBimestres} Bim - {$bimestresTexto}" .
-                   (count($bimestresIncompletos) > 0 ? " con notas faltantes" : "");
+            return count($bimestresCompletos)."/{$totalBimestres} Bim - {$bimestresTexto}".
+                   (count($bimestresIncompletos) > 0 ? ' con notas faltantes' : '');
         }
 
         return "0/{$totalBimestres} Bimestres - Sin notas registradas";
     }
+
     private function getSiglaByBimestre($bimestreNum)
     {
         $siglas = ['I', 'II', 'III', 'IV'];
+
         return $siglas[$bimestreNum - 1] ?? '';
     }
+
     private function enriquecerConductas($conductas)
     {
         if (empty($conductas)) {
@@ -757,7 +794,7 @@ class LibretaController extends Controller
             $esBaja = false;
 
             if ($notaRaw !== '-') {
-                $notaNumerica = is_numeric($notaRaw) ? (float)$notaRaw : (float)$notaRaw;
+                $notaNumerica = is_numeric($notaRaw) ? (float) $notaRaw : (float) $notaRaw;
                 if ($notaNumerica <= 2 || $notaRaw === 'C' || $notaRaw === 'B') {
                     $esBaja = true;
                 }
@@ -769,6 +806,7 @@ class LibretaController extends Controller
 
         return $conductas;
     }
+
     private function agruparCompetenciasTransversales($materias, $esAnual = false)
     {
         $criteriosMap = [];
@@ -782,13 +820,13 @@ class LibretaController extends Controller
                     $bimestreNum = $criterio['bimestre_num'] ?? null;
                     $materiaNombre = $materia['nombre'];
 
-                    if (!isset($criteriosMap[$criterioNombre])) {
+                    if (! isset($criteriosMap[$criterioNombre])) {
                         $criteriosMap[$criterioNombre] = [
                             'nombre' => $criterioNombre,
                             'sumaNotas' => 0,
                             'totalNotas' => 0,
                             'totalMaterias' => 0,
-                            'detalle' => []
+                            'detalle' => [],
                         ];
                     }
 
@@ -803,7 +841,7 @@ class LibretaController extends Controller
                         'materia' => $materiaNombre,
                         'nota' => $nota,
                         'sigla_bimestre' => $siglaBimestre,
-                        'bimestre_num' => $bimestreNum
+                        'bimestre_num' => $bimestreNum,
                     ];
                 }
             }
@@ -830,12 +868,13 @@ class LibretaController extends Controller
                 'total_materias' => $totalMaterias,
                 'materias_calificadas' => $materiasCalificadas,
                 'faltantes' => $faltantes,
-                'detalle' => $criterio['detalle']
+                'detalle' => $criterio['detalle'],
             ];
         }
 
         return $resultado;
     }
+
     private function obtenerAsistencias($estudianteId, $periodoActual, $sigla, $gradoId)
     {
         $bimestres = Periodobimestre::where('periodo_id', $periodoActual->id)
@@ -868,13 +907,14 @@ class LibretaController extends Controller
                 $resultado[] = [
                     'tipo' => $tipo->nombre,
                     'color' => $tipo->color_hex,
-                    'total' => $count
+                    'total' => $count,
                 ];
             }
         }
 
         return $resultado;
     }
+
     public function pdf(Request $request)
     {
         $periodoId = $request->input('periodo_id');
@@ -882,13 +922,17 @@ class LibretaController extends Controller
 
         // Obtener los mismos datos que en index()
         $estudiante = $this->getEstudiante();
-        if (!$estudiante) abort(404, 'Estudiante no encontrado.');
+        if (! $estudiante) {
+            abort(404, 'Estudiante no encontrado.');
+        }
 
         $periodos = $this->getPeriodosEstudiante($estudiante);
-        if ($periodos->isEmpty()) abort(404, 'No se encontraron periodos para este estudiante.');
+        if ($periodos->isEmpty()) {
+            abort(404, 'No se encontraron periodos para este estudiante.');
+        }
 
         $periodoActual = Periodo::find($periodoId);
-        if (!$periodoActual) {
+        if (! $periodoActual) {
             $periodoActual = $periodos->first();
             $periodoActual = Periodo::find($periodoActual['id']);
         }
@@ -905,7 +949,7 @@ class LibretaController extends Controller
         }
 
         $matriculaActual = $this->getMatriculaActual($estudiante, $periodoActual);
-        if (!$matriculaActual) {
+        if (! $matriculaActual) {
             return redirect()->back()->with('error', 'No se encontró matrícula para este período.');
         }
 
@@ -917,17 +961,17 @@ class LibretaController extends Controller
         // Procesar el logo para el PDF
         $logoBase64 = null;
         if ($colegio->logo_path) {
-            $logoFullPath = public_path('storage/' . $colegio->logo_path);
+            $logoFullPath = public_path('storage/'.$colegio->logo_path);
             if (file_exists($logoFullPath)) {
-                $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoFullPath));
+                $logoBase64 = 'data:image/png;base64,'.base64_encode(file_get_contents($logoFullPath));
             }
         }
 
         // Si no hay logo o no existe, usar un logo por defecto
-        if (!$logoBase64) {
+        if (! $logoBase64) {
             $defaultLogoPath = public_path('storage/logo/logo-actual.png');
             if (file_exists($defaultLogoPath)) {
-                $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($defaultLogoPath));
+                $logoBase64 = 'data:image/png;base64,'.base64_encode(file_get_contents($defaultLogoPath));
             }
         }
 
@@ -954,7 +998,7 @@ class LibretaController extends Controller
             'colegio' => $colegio,
             'logo_base64' => $logoBase64,  // <- PASAR EL LOGO EN BASE64
             'titulo_periodo' => $esAnual ? 'EVALUACIÓN ANUAL' : strtoupper($sigla),
-            'titulo_conducta' => $esAnual ? 'PROMEDIO ANUAL' : "CALIFICACIÓN " . strtoupper($sigla),
+            'titulo_conducta' => $esAnual ? 'PROMEDIO ANUAL' : 'CALIFICACIÓN '.strtoupper($sigla),
             'datos_estudiante' => $this->getDatosEstudiante($estudiante, $matriculaActual, $colegio),
             'materias' => $materiasConRowspan,
             'todas_las_conductas' => $conductasEnriquecidas,
@@ -986,4 +1030,3 @@ class LibretaController extends Controller
         return $pdf->download($nombreArchivo);
     }
 }
-

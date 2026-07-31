@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-            // Crear roles iniciales
+        // Crear roles iniciales
         $roles = ['admin', 'director', 'docente', 'auxiliar', 'apoderado', 'estudiante'];
 
         foreach ($roles as $role) {
@@ -30,7 +30,7 @@ return new class extends Migration
             if ($roleId) {
                 DB::table('user_roles')->insert([
                     'user_id' => $user->id,
-                    'role_id' => $roleId
+                    'role_id' => $roleId,
                 ]);
             }
         }

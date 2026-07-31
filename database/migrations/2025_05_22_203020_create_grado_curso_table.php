@@ -17,6 +17,7 @@ return new class extends Migration
             $table->primary(['grado_id', 'curso_id']);
         });
     }
+
     public function down(): void
     {
         Schema::dropIfExists('grado_curso');

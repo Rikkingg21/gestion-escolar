@@ -3,18 +3,19 @@
 namespace App\Policies;
 
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class UserPolicy
 {
     use HandlesAuthorization;
+
     /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user): bool
     {
         $currentRole = session('current_role');
+
         return in_array($currentRole, ['admin', 'director']);
     }
 
@@ -32,8 +33,10 @@ class UserPolicy
     public function create(User $user)
     {
         $currentRole = session('current_role');
+
         return in_array($currentRole, ['admin', 'director']);
     }
+
     /**
      * Determine whether the user can update the model.
      */
@@ -41,10 +44,13 @@ class UserPolicy
     {
         $currentRole = session('current_role');
 
-        if ($currentRole === 'admin') return true;
-        if ($currentRole === 'director') {
-            return !$userToUpdate->roles->contains('nombre', 'admin');
+        if ($currentRole === 'admin') {
+            return true;
         }
+        if ($currentRole === 'director') {
+            return ! $userToUpdate->roles->contains('nombre', 'admin');
+        }
+
         return false;
     }
 

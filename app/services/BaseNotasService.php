@@ -6,7 +6,9 @@ abstract class BaseNotasService
 {
     // Umbrales de notas - Constantes compartidas
     const NOTA_AD = 3.5;
+
     const NOTA_A = 2.5;
+
     const NOTA_B = 1.5;
 
     /**
@@ -14,9 +16,16 @@ abstract class BaseNotasService
      */
     protected function convertirACualitativo(float $nota): string
     {
-        if ($nota >= self::NOTA_AD) return 'AD';
-        if ($nota >= self::NOTA_A) return 'A';
-        if ($nota >= self::NOTA_B) return 'B';
+        if ($nota >= self::NOTA_AD) {
+            return 'AD';
+        }
+        if ($nota >= self::NOTA_A) {
+            return 'A';
+        }
+        if ($nota >= self::NOTA_B) {
+            return 'B';
+        }
+
         return 'C';
     }
 
@@ -25,7 +34,9 @@ abstract class BaseNotasService
      */
     public function convertirEnumANota(?string $enum): ?float
     {
-        if ($enum === null) return null;
+        if ($enum === null) {
+            return null;
+        }
 
         return match ($enum) {
             'AD' => 4,
@@ -41,9 +52,16 @@ abstract class BaseNotasService
      */
     public function convertirNotaAEnum(float $nota): string
     {
-        if ($nota >= self::NOTA_AD) return 'AD';
-        if ($nota >= self::NOTA_A) return 'A';
-        if ($nota >= self::NOTA_B) return 'B';
+        if ($nota >= self::NOTA_AD) {
+            return 'AD';
+        }
+        if ($nota >= self::NOTA_A) {
+            return 'A';
+        }
+        if ($nota >= self::NOTA_B) {
+            return 'B';
+        }
+
         return 'C';
     }
 
@@ -65,6 +83,7 @@ abstract class BaseNotasService
         }
 
         $suma = array_sum($notas);
+
         return $this->redondearPromedio($suma / count($notas));
     }
 

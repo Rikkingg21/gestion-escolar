@@ -2,21 +2,24 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Role extends Model
 {
     use HasFactory, SoftDeletes;
+
     protected $table = 'roles';
+
     public $timestamps = true;
+
     protected $primaryKey = 'id';
 
     protected $fillable = [
         'nombre',
         'descripcion',
-        'estado'
+        'estado',
     ];
 
     public function users()
@@ -27,8 +30,8 @@ class Role extends Model
     public function modules()
     {
         return $this->belongsToMany(Module::class, 'role_modules')
-                    ->withPivot('estado')
-                    ->withTimestamps();
+            ->withPivot('estado')
+            ->withTimestamps();
     }
 
     // Relación con excepciones
@@ -36,20 +39,20 @@ class Role extends Model
     {
         return $this->hasMany(Rolemoduleexception::class, 'role_id');
     }
-        /*
+    /*
     public function getColorAttribute()
     {
-        $colors = [
-            'admin' => 'danger',
-            'director' => 'warning',
-            'coordinador' => 'dark',
-            'docente' => 'success',
-            'auxiliar' => 'info',
-            'estudiante' => 'primary',
-            'apoderado' => 'secondary'
-        ];
+    $colors = [
+        'admin' => 'danger',
+        'director' => 'warning',
+        'coordinador' => 'dark',
+        'docente' => 'success',
+        'auxiliar' => 'info',
+        'estudiante' => 'primary',
+        'apoderado' => 'secondary'
+    ];
 
-        return $colors[$this->nombre] ?? 'light';
+    return $colors[$this->nombre] ?? 'light';
     }
     */
 }

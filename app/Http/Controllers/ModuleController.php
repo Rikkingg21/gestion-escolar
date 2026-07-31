@@ -2,39 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
-use App\Models\Role;
-use Illuminate\Support\Facades\DB;
-use App\Models\Estudiante;
-use App\Models\Apoderado;
-use App\Models\Docente;
-use App\Models\Auxiliar;
-use App\Models\Director;
-use App\Models\Grado;
-use App\Models\Materia;
 use App\Models\Module;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-
+use Illuminate\Http\Request;
 
 class ModuleController extends Controller
 {
-    //moduleID 1 = Modulos
+    // moduleID 1 = Modulos
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('1')) {
+            if (! auth()->user()->canAccessModule('1')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
-
 
     public function index()
     {
@@ -55,13 +38,13 @@ class ModuleController extends Controller
             'nombre' => 'required|string|max:100|unique:modules,nombre',
             'icono' => 'required|string|max:50',
             'ruta_base' => 'required|string|max:100',
-            'estado' => 'required|in:1,0'
+            'estado' => 'required|in:1,0',
         ], [
             'nombre.required' => 'El nombre del módulo es obligatorio',
             'nombre.unique' => 'Ya existe un módulo con este nombre',
             'icono.required' => 'El icono es obligatorio',
             'ruta_base.required' => 'La ruta base es obligatoria',
-            'estado.required' => 'El estado es obligatorio'
+            'estado.required' => 'El estado es obligatorio',
         ]);
 
         try {
@@ -69,7 +52,7 @@ class ModuleController extends Controller
                 'nombre' => $request->nombre,
                 'icono' => $request->icono,
                 'ruta_base' => $request->ruta_base,
-                'estado' => $request->estado
+                'estado' => $request->estado,
             ]);
 
             return redirect()->route('module.index')
@@ -77,30 +60,33 @@ class ModuleController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al crear el módulo: ' . $e->getMessage())
+                ->with('error', 'Error al crear el módulo: '.$e->getMessage())
                 ->withInput();
         }
     }
+
     public function edit($id)
     {
         $module = Module::findOrFail($id);
+
         return view('module.edit', compact('module'));
     }
+
     public function update(Request $request, $id)
     {
         $module = Module::findOrFail($id);
 
         $request->validate([
-            'nombre' => 'required|string|max:100|unique:modules,nombre,' . $id,
+            'nombre' => 'required|string|max:100|unique:modules,nombre,'.$id,
             'icono' => 'required|string|max:50',
             'ruta_base' => 'required|string|max:100',
-            'estado' => 'required|in:1,0'
+            'estado' => 'required|in:1,0',
         ], [
             'nombre.required' => 'El nombre del módulo es obligatorio',
             'nombre.unique' => 'Ya existe un módulo con este nombre',
             'icono.required' => 'El icono es obligatorio',
             'ruta_base.required' => 'La ruta base es obligatoria',
-            'estado.required' => 'El estado es obligatorio'
+            'estado.required' => 'El estado es obligatorio',
         ]);
 
         try {
@@ -108,7 +94,7 @@ class ModuleController extends Controller
                 'nombre' => $request->nombre,
                 'icono' => $request->icono,
                 'ruta_base' => $request->ruta_base,
-                'estado' => $request->estado
+                'estado' => $request->estado,
             ]);
 
             return redirect()->route('module.index')
@@ -116,10 +102,11 @@ class ModuleController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al actualizar el módulo: ' . $e->getMessage())
+                ->with('error', 'Error al actualizar el módulo: '.$e->getMessage())
                 ->withInput();
         }
     }
+
     public function destroy($id)
     {
         $module = Module::findOrFail($id);
@@ -137,7 +124,7 @@ class ModuleController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al eliminar el módulo: ' . $e->getMessage());
+                ->with('error', 'Error al eliminar el módulo: '.$e->getMessage());
         }
     }
 }

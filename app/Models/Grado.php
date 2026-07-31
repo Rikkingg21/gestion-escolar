@@ -2,10 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Asistencia\Asistencia;
-use App\Models\Asistencia\Asistencia as AsistenciaAsistencia;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Grado extends Model
@@ -14,8 +13,11 @@ class Grado extends Model
     use SoftDeletes;
 
     protected $table = 'grados';
+
     protected $primaryKey = 'id';
+
     public $timestamps = true;
+
     protected $fillable = [
         'grado',
         'seccion',
@@ -39,20 +41,24 @@ class Grado extends Model
     {
         return $this->hasMany(Asistencia::class, 'grado_id');
     }
+
     public function estudiante()
     {
         return $this->hasMany(Estudiante::class)->where('estado', 1);
     }
+
     public function matriculas()
     {
         return $this->hasMany(Matricula::class, 'grado_id');
     }
+
     public function cursosMalla()
     {
         return $this->hasMany(\App\Models\Maya\Cursogradosecnivanio::class, 'grado_id');
     }
+
     public function getGradoSeccionAttribute()
     {
-        return $this->grado . $this->seccion;
+        return $this->grado.$this->seccion;
     }
 }

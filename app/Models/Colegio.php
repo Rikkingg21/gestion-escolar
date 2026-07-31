@@ -3,11 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
 
 class Colegio extends Model
 {
     protected $table = 'colegio_config';
+
     protected $primaryKey = 'id';
 
     protected $fillable = [
@@ -17,7 +17,7 @@ class Colegio extends Model
         'email',
         'ruc',
         'director_actual',
-        'logo_path'
+        'logo_path',
     ];
 
     // Obtener la instancia única del colegio (singleton)
@@ -37,5 +37,4 @@ class Colegio extends Model
     {
         return $this->logo_path ? asset($this->logo_path) : asset('storage/logo/logo-actual.png');
     }
-
 }

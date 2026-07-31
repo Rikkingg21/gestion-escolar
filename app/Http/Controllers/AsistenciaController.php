@@ -1,36 +1,30 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Asistencia\Asistencia;
-use App\Models\Nota;
-use App\Models\Maya\Bimestre;
-use App\Models\Maya\Cursogradosecnivanio;
-use App\Models\User;
+use App\Models\Asistencia\Tipoasistencia;
 use App\Models\Estudiante;
-use App\Models\Materia;
-use App\Models\Docente;
-use App\Models\Materia\Materiacompetencia;
-use App\Models\Materia\Materiacriterio;
+use App\Models\Grado;
+use App\Models\Matricula;
+use App\Models\Maya\Bimestre;
 use App\Models\Periodo;
 use App\Models\Periodobimestre;
-use App\Models\Matricula;
 use Carbon\Carbon;
-use App\Models\Asistencia\Tipoasistencia;
-use App\Models\Grado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 
 class AsistenciaController extends Controller
 {
-    //moduleID 14 = Asistencia
+    // moduleID 14 = Asistencia
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('14')) {
+            if (! auth()->user()->canAccessModule('14')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
@@ -42,7 +36,7 @@ class AsistenciaController extends Controller
         $periodobimestre_id = $request->get('periodobimestre_id');
 
         // Compatibilidad con versión anterior (filtro por año)
-        if ($request->has('year') && !$periodo_id) {
+        if ($request->has('year') && ! $periodo_id) {
             $currentYear = $request->get('year');
             $periodoActual = Periodo::where('anio', $currentYear)->where('estado', '1')->first();
             if ($periodoActual) {
@@ -65,7 +59,7 @@ class AsistenciaController extends Controller
                 ->where('fecha_fin', '>=', $fechaSeleccionada)
                 ->first();
 
-            if (!$periodoActual) {
+            if (! $periodoActual) {
                 $periodoActual = Periodo::where('estado', '1')
                     ->orderBy('anio', 'desc')
                     ->first();
@@ -98,7 +92,7 @@ class AsistenciaController extends Controller
 
         // Obtener grados con conteos de asistencias
         $grados = Grado::withCount([
-            'asistencias as total_asistencias' => function($query) use ($periodoActual, $bimestreActual) {
+            'asistencias as total_asistencias' => function ($query) use ($periodoActual, $bimestreActual) {
                 if ($periodoActual) {
                     $query->where('periodo_id', $periodoActual->id);
                 }
@@ -106,7 +100,7 @@ class AsistenciaController extends Controller
                     $query->where('periodobimestre_id', $bimestreActual->id);
                 }
             },
-            'asistencias as asistencias_hoy' => function($query) use ($periodoActual, $bimestreActual, $fechaSeleccionada) {
+            'asistencias as asistencias_hoy' => function ($query) use ($periodoActual, $bimestreActual, $fechaSeleccionada) {
                 if ($periodoActual) {
                     $query->where('periodo_id', $periodoActual->id);
                 }
@@ -115,17 +109,17 @@ class AsistenciaController extends Controller
                 }
                 $query->whereDate('fecha', $fechaSeleccionada);
             },
-            'matriculas as estudiantes_matriculados' => function($query) use ($periodoActual) {
+            'matriculas as estudiantes_matriculados' => function ($query) use ($periodoActual) {
                 if ($periodoActual) {
                     $query->where('periodo_id', $periodoActual->id)
                         ->where('estado', '1');
                 }
-            }
+            },
         ])
-        ->orderBy('nivel')
-        ->orderBy('grado')
-        ->orderBy('seccion')
-        ->get();
+            ->orderBy('nivel')
+            ->orderBy('grado')
+            ->orderBy('seccion')
+            ->get();
 
         // Verificar registros bloqueados por grado
         foreach ($grados as $grado) {
@@ -152,6 +146,7 @@ class AsistenciaController extends Controller
             'availableYears'
         ));
     }
+
     // Método para obtener bimestres por periodo (AJAX)
     public function getBimestresByPeriodo($periodo_id)
     {
@@ -161,9 +156,10 @@ class AsistenciaController extends Controller
 
         return response()->json([
             'success' => true,
-            'bimestres' => $bimestres
+            'bimestres' => $bimestres,
         ]);
     }
+
     // Método para obtener información de fecha y bimestre (AJAX)
     public function obtenerInfoFecha(Request $request)
     {
@@ -176,32 +172,36 @@ class AsistenciaController extends Controller
             'fecha_valida' => false,
             'periodobimestre' => null,
             'periodo' => null,
-            'message' => ''
+            'message' => '',
         ];
 
         $periodo = Periodo::find($periodo_id);
-        if (!$periodo) {
+        if (! $periodo) {
             $response['success'] = false;
             $response['message'] = 'Período no válido';
+
             return response()->json($response);
         }
 
         if ($fecha < $periodo->fecha_inicio || $fecha > $periodo->fecha_fin) {
             $response['success'] = false;
             $response['message'] = "La fecha debe estar dentro del período {$periodo->nombre}";
+
             return response()->json($response);
         }
 
         $periodobimestre = Periodobimestre::find($periodobimestre_id);
-        if (!$periodobimestre) {
+        if (! $periodobimestre) {
             $response['success'] = false;
             $response['message'] = 'Bimestre no válido';
+
             return response()->json($response);
         }
 
         if ($fecha < $periodobimestre->fecha_inicio || $fecha > $periodobimestre->fecha_fin) {
             $response['success'] = false;
             $response['message'] = "La fecha debe estar dentro del bimestre {$periodobimestre->bimestre}";
+
             return response()->json($response);
         }
 
@@ -218,6 +218,7 @@ class AsistenciaController extends Controller
 
         return response()->json($response);
     }
+
     public function obtenerBimestreYEstadoPorFecha(Request $request)
     {
         try {
@@ -227,10 +228,10 @@ class AsistenciaController extends Controller
                 ->where('fecha_fin', '>=', $fecha)
                 ->first();
 
-            if (!$periodobimestre) {
+            if (! $periodobimestre) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No hay bimestre activo para esta fecha'
+                    'message' => 'No hay bimestre activo para esta fecha',
                 ]);
             }
 
@@ -242,7 +243,7 @@ class AsistenciaController extends Controller
                 ->where('estado', '0')
                 ->exists();
 
-            $totalEstudiantesActivos = Estudiante::whereHas('matriculas', function($query) use ($periodo) {
+            $totalEstudiantesActivos = Estudiante::whereHas('matriculas', function ($query) use ($periodo) {
                 $query->where('periodo_id', $periodo->id)
                     ->where('estado', '1');
             })->count();
@@ -263,7 +264,7 @@ class AsistenciaController extends Controller
                 'todos_tienen_asistencia' => $todosTienenAsistencia,
                 'total_estudiantes' => $totalEstudiantesActivos,
                 'total_asistencias' => $totalAsistenciasFecha,
-                'message' => 'Bimestre encontrado'
+                'message' => 'Bimestre encontrado',
             ];
 
             if ($existeRegistroPendiente) {
@@ -276,8 +277,8 @@ class AsistenciaController extends Controller
                 $respuesta['message'] = "Existen {$totalPendientes} registro(s) pendiente(s) para esta fecha";
             }
 
-            if ($todosTienenAsistencia && !$existeRegistroPendiente) {
-                $respuesta['message'] = "Todos los estudiantes ya tienen asistencia registrada para esta fecha";
+            if ($todosTienenAsistencia && ! $existeRegistroPendiente) {
+                $respuesta['message'] = 'Todos los estudiantes ya tienen asistencia registrada para esta fecha';
             }
 
             return response()->json($respuesta);
@@ -285,17 +286,18 @@ class AsistenciaController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ], 400);
         }
     }
+
     public function marcarRestoDeEstudiantesConPuntualidad(Request $request)
     {
         try {
             $request->validate([
                 'grado_id' => 'required|exists:grados,id',
                 'fecha' => 'required|date',
-                'periodobimestre_id' => 'required|exists:periodo_bimestres,id'
+                'periodobimestre_id' => 'required|exists:periodo_bimestres,id',
             ]);
 
             $fechaCarbon = Carbon::parse($request->fecha)->startOfDay();
@@ -308,7 +310,7 @@ class AsistenciaController extends Controller
             if ($fechaCarbon < $periodobimestre->fecha_inicio || $fechaCarbon > $periodobimestre->fecha_fin) {
                 return response()->json([
                     'success' => false,
-                    'message' => "La fecha debe estar dentro del bimestre {$periodobimestre->bimestre}"
+                    'message' => "La fecha debe estar dentro del bimestre {$periodobimestre->bimestre}",
                 ], 400);
             }
 
@@ -321,7 +323,7 @@ class AsistenciaController extends Controller
             if ($tieneBloqueo) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se puede realizar porque existen registros confirmados'
+                    'message' => 'No se puede realizar porque existen registros confirmados',
                 ], 403);
             }
 
@@ -340,15 +342,16 @@ class AsistenciaController extends Controller
                     ->pluck('estudiante_id')
                     ->toArray();
 
-                $estudiantesSinAsistencia = $estudiantes->filter(function($estudiante) use ($estudiantesConAsistencia) {
-                    return !in_array($estudiante->id, $estudiantesConAsistencia);
+                $estudiantesSinAsistencia = $estudiantes->filter(function ($estudiante) use ($estudiantesConAsistencia) {
+                    return ! in_array($estudiante->id, $estudiantesConAsistencia);
                 });
 
                 if ($estudiantesSinAsistencia->isEmpty()) {
                     DB::rollBack();
+
                     return response()->json([
                         'success' => false,
-                        'message' => 'Todos los estudiantes ya tienen asistencia registrada'
+                        'message' => 'Todos los estudiantes ya tienen asistencia registrada',
                     ], 400);
                 }
 
@@ -356,7 +359,7 @@ class AsistenciaController extends Controller
                     ->orWhere('nombre', 'like', '%presente%')
                     ->first();
 
-                if (!$tipoPuntual) {
+                if (! $tipoPuntual) {
                     $tipoPuntual = Tipoasistencia::first();
                 }
 
@@ -372,7 +375,7 @@ class AsistenciaController extends Controller
                         'hora' => now()->format('H:i'),
                         'registrador_id' => $userId,
                         'descripcion' => 'Marcado masivo - resto de estudiantes',
-                        'estado' => '0'
+                        'estado' => '0',
                     ]);
                     $contador++;
                 }
@@ -383,31 +386,33 @@ class AsistenciaController extends Controller
                     'success' => true,
                     'message' => "Se marcaron {$contador} estudiantes como puntuales",
                     'contador' => $contador,
-                    'total_sin_asistencia' => $estudiantesSinAsistencia->count()
+                    'total_sin_asistencia' => $estudiantesSinAsistencia->count(),
                 ]);
 
             } catch (\Exception $e) {
                 DB::rollBack();
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error al procesar: ' . $e->getMessage()
+                    'message' => 'Error al procesar: '.$e->getMessage(),
                 ], 500);
             }
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ], 400);
         }
     }
+
     public function marcarRestoDeEstudiantesConTardanza(Request $request)
     {
         try {
             $request->validate([
                 'grado_id' => 'required|exists:grados,id',
                 'fecha' => 'required|date',
-                'periodobimestre_id' => 'required|exists:periodo_bimestres,id'
+                'periodobimestre_id' => 'required|exists:periodo_bimestres,id',
             ]);
 
             $fechaCarbon = Carbon::parse($request->fecha)->startOfDay();
@@ -420,7 +425,7 @@ class AsistenciaController extends Controller
             if ($fechaCarbon < $periodobimestre->fecha_inicio || $fechaCarbon > $periodobimestre->fecha_fin) {
                 return response()->json([
                     'success' => false,
-                    'message' => "La fecha debe estar dentro del bimestre {$periodobimestre->bimestre}"
+                    'message' => "La fecha debe estar dentro del bimestre {$periodobimestre->bimestre}",
                 ], 400);
             }
 
@@ -433,7 +438,7 @@ class AsistenciaController extends Controller
             if ($tieneBloqueo) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se puede realizar porque existen registros confirmados'
+                    'message' => 'No se puede realizar porque existen registros confirmados',
                 ], 403);
             }
 
@@ -452,15 +457,16 @@ class AsistenciaController extends Controller
                     ->pluck('estudiante_id')
                     ->toArray();
 
-                $estudiantesSinAsistencia = $estudiantes->filter(function($estudiante) use ($estudiantesConAsistencia) {
-                    return !in_array($estudiante->id, $estudiantesConAsistencia);
+                $estudiantesSinAsistencia = $estudiantes->filter(function ($estudiante) use ($estudiantesConAsistencia) {
+                    return ! in_array($estudiante->id, $estudiantesConAsistencia);
                 });
 
                 if ($estudiantesSinAsistencia->isEmpty()) {
                     DB::rollBack();
+
                     return response()->json([
                         'success' => false,
-                        'message' => 'Todos los estudiantes ya tienen asistencia registrada'
+                        'message' => 'Todos los estudiantes ya tienen asistencia registrada',
                     ], 400);
                 }
 
@@ -468,10 +474,10 @@ class AsistenciaController extends Controller
                     ->orWhere('nombre', 'like', '%tarde%')
                     ->first();
 
-                if (!$tipoTardanza) {
+                if (! $tipoTardanza) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'No se encontró tipo de asistencia para tardanza'
+                        'message' => 'No se encontró tipo de asistencia para tardanza',
                     ], 400);
                 }
 
@@ -487,7 +493,7 @@ class AsistenciaController extends Controller
                         'hora' => now()->format('H:i'),
                         'registrador_id' => $userId,
                         'descripcion' => 'Marcado masivo - resto con tardanza',
-                        'estado' => '0'
+                        'estado' => '0',
                     ]);
                     $contador++;
                 }
@@ -498,30 +504,32 @@ class AsistenciaController extends Controller
                     'success' => true,
                     'message' => "Se marcaron {$contador} estudiantes con tardanza",
                     'contador' => $contador,
-                    'total_sin_asistencia' => $estudiantesSinAsistencia->count()
+                    'total_sin_asistencia' => $estudiantesSinAsistencia->count(),
                 ]);
 
             } catch (\Exception $e) {
                 DB::rollBack();
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error: ' . $e->getMessage()
+                    'message' => 'Error: '.$e->getMessage(),
                 ], 500);
             }
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ], 400);
         }
     }
+
     public function marcarTodosPuntualidad(Request $request)
     {
         try {
             $request->validate([
                 'fecha' => 'required|date',
-                'periodobimestre_id' => 'required|exists:periodo_bimestres,id'
+                'periodobimestre_id' => 'required|exists:periodo_bimestres,id',
             ]);
 
             $fechaCarbon = Carbon::parse($request->fecha)->startOfDay();
@@ -532,7 +540,7 @@ class AsistenciaController extends Controller
             if ($fechaCarbon < $periodobimestre->fecha_inicio || $fechaCarbon > $periodobimestre->fecha_fin) {
                 return response()->json([
                     'success' => false,
-                    'message' => "La fecha debe estar dentro del bimestre {$periodobimestre->bimestre}"
+                    'message' => "La fecha debe estar dentro del bimestre {$periodobimestre->bimestre}",
                 ], 400);
             }
 
@@ -544,7 +552,7 @@ class AsistenciaController extends Controller
             if ($registrosBloqueados) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se puede marcar porque existen registros confirmados'
+                    'message' => 'No se puede marcar porque existen registros confirmados',
                 ], 403);
             }
 
@@ -559,7 +567,7 @@ class AsistenciaController extends Controller
                     ->orWhere('nombre', 'like', '%presente%')
                     ->first();
 
-                if (!$tipoPuntual) {
+                if (! $tipoPuntual) {
                     $tipoPuntual = Tipoasistencia::first();
                 }
 
@@ -580,7 +588,9 @@ class AsistenciaController extends Controller
                             ->where('estado', '1');
                     })->get();
 
-                    if ($estudiantes->isEmpty()) continue;
+                    if ($estudiantes->isEmpty()) {
+                        continue;
+                    }
 
                     $estudiantesConAsistencia = Asistencia::where('periodo_id', $periodo->id)
                         ->where('periodobimestre_id', $periodobimestre->id)
@@ -589,8 +599,8 @@ class AsistenciaController extends Controller
                         ->pluck('estudiante_id')
                         ->toArray();
 
-                    $estudiantesSinAsistencia = $estudiantes->filter(function($estudiante) use ($estudiantesConAsistencia) {
-                        return !in_array($estudiante->id, $estudiantesConAsistencia);
+                    $estudiantesSinAsistencia = $estudiantes->filter(function ($estudiante) use ($estudiantesConAsistencia) {
+                        return ! in_array($estudiante->id, $estudiantesConAsistencia);
                     });
 
                     $contadorGrado = 0;
@@ -605,7 +615,7 @@ class AsistenciaController extends Controller
                             'hora' => now()->format('H:i'),
                             'registrador_id' => $userId,
                             'descripcion' => 'Marcado masivo global - puntual',
-                            'estado' => '0'
+                            'estado' => '0',
                         ]);
                         $contadorGrado++;
                     }
@@ -622,30 +632,32 @@ class AsistenciaController extends Controller
                     'success' => true,
                     'message' => "Se marcaron {$totalProcesados} estudiantes en {$totalGradosProcesados} grados",
                     'total_afectados' => $totalProcesados,
-                    'total_grados_procesados' => $totalGradosProcesados
+                    'total_grados_procesados' => $totalGradosProcesados,
                 ]);
 
             } catch (\Exception $e) {
                 DB::rollBack();
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error: ' . $e->getMessage()
+                    'message' => 'Error: '.$e->getMessage(),
                 ], 500);
             }
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ], 400);
         }
     }
+
     public function marcarTodosTardanza(Request $request)
     {
         try {
             $request->validate([
                 'fecha' => 'required|date',
-                'periodobimestre_id' => 'required|exists:periodo_bimestres,id'
+                'periodobimestre_id' => 'required|exists:periodo_bimestres,id',
             ]);
 
             $fechaCarbon = Carbon::parse($request->fecha)->startOfDay();
@@ -656,7 +668,7 @@ class AsistenciaController extends Controller
             if ($fechaCarbon < $periodobimestre->fecha_inicio || $fechaCarbon > $periodobimestre->fecha_fin) {
                 return response()->json([
                     'success' => false,
-                    'message' => "La fecha debe estar dentro del bimestre {$periodobimestre->bimestre}"
+                    'message' => "La fecha debe estar dentro del bimestre {$periodobimestre->bimestre}",
                 ], 400);
             }
 
@@ -668,7 +680,7 @@ class AsistenciaController extends Controller
             if ($registrosBloqueados) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se puede marcar porque existen registros confirmados'
+                    'message' => 'No se puede marcar porque existen registros confirmados',
                 ], 403);
             }
 
@@ -683,10 +695,10 @@ class AsistenciaController extends Controller
                     ->orWhere('nombre', 'like', '%tarde%')
                     ->first();
 
-                if (!$tipoTardanza) {
+                if (! $tipoTardanza) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'No se encontró tipo de asistencia para tardanza'
+                        'message' => 'No se encontró tipo de asistencia para tardanza',
                     ], 400);
                 }
 
@@ -697,7 +709,9 @@ class AsistenciaController extends Controller
                             ->where('estado', '1');
                     })->get();
 
-                    if ($estudiantes->isEmpty()) continue;
+                    if ($estudiantes->isEmpty()) {
+                        continue;
+                    }
 
                     $estudiantesConAsistencia = Asistencia::where('periodo_id', $periodo->id)
                         ->where('periodobimestre_id', $periodobimestre->id)
@@ -706,8 +720,8 @@ class AsistenciaController extends Controller
                         ->pluck('estudiante_id')
                         ->toArray();
 
-                    $estudiantesSinAsistencia = $estudiantes->filter(function($estudiante) use ($estudiantesConAsistencia) {
-                        return !in_array($estudiante->id, $estudiantesConAsistencia);
+                    $estudiantesSinAsistencia = $estudiantes->filter(function ($estudiante) use ($estudiantesConAsistencia) {
+                        return ! in_array($estudiante->id, $estudiantesConAsistencia);
                     });
 
                     $contadorGrado = 0;
@@ -722,7 +736,7 @@ class AsistenciaController extends Controller
                             'hora' => now()->format('H:i'),
                             'registrador_id' => $userId,
                             'descripcion' => 'Marcado masivo tardanza',
-                            'estado' => '0'
+                            'estado' => '0',
                         ]);
                         $contadorGrado++;
                     }
@@ -739,24 +753,26 @@ class AsistenciaController extends Controller
                     'success' => true,
                     'message' => "Se marcaron {$totalProcesados} estudiantes con tardanza en {$totalGradosProcesados} grados",
                     'total_afectados' => $totalProcesados,
-                    'total_grados_procesados' => $totalGradosProcesados
+                    'total_grados_procesados' => $totalGradosProcesados,
                 ]);
 
             } catch (\Exception $e) {
                 DB::rollBack();
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error: ' . $e->getMessage()
+                    'message' => 'Error: '.$e->getMessage(),
                 ], 500);
             }
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: '.$e->getMessage(),
             ], 400);
         }
     }
+
     public function verificarBloqueoFecha(Request $request)
     {
         $fecha = $request->get('fecha');
@@ -771,7 +787,7 @@ class AsistenciaController extends Controller
 
         return response()->json([
             'success' => true,
-            'mes_bloqueado' => $mesBloqueado
+            'mes_bloqueado' => $mesBloqueado,
         ]);
     }
 
@@ -785,7 +801,7 @@ class AsistenciaController extends Controller
             abort(400, 'Formato de fecha inválido. Use dd-mm-yyyy');
         }
 
-        if (!preg_match('/^(\d+)([a-zA-Z]+)$/', $grado_grado_seccion, $matches)) {
+        if (! preg_match('/^(\d+)([a-zA-Z]+)$/', $grado_grado_seccion, $matches)) {
             abort(400, 'Formato de grado/sección inválido. Ejemplo: 1a, 2b');
         }
 
@@ -801,7 +817,7 @@ class AsistenciaController extends Controller
             ->where('estado', '1')
             ->first();
 
-        if (!$periodoFecha) {
+        if (! $periodoFecha) {
             abort(400, "No hay un período activo configurado para el año {$anioFecha}");
         }
 
@@ -839,28 +855,29 @@ class AsistenciaController extends Controller
                 if ($bimestreActual) {
                     $query->where('periodobimestre_id', $bimestreActual->id);
                 }
-            }
+            },
         ])
-        ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
-            $query->where('grado_id', $grado->id)
-                ->where('periodo_id', $periodoFecha->id)
-                ->where('estado', '1');
-        })
-        ->get()
-        ->sortBy(function ($estudiante) {
-            return optional($estudiante->user)->apellido_paterno .
-                optional($estudiante->user)->apellido_materno .
-                optional($estudiante->user)->nombre;
-        });
+            ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
+                $query->where('grado_id', $grado->id)
+                    ->where('periodo_id', $periodoFecha->id)
+                    ->where('estado', '1');
+            })
+            ->get()
+            ->sortBy(function ($estudiante) {
+                return optional($estudiante->user)->apellido_paterno.
+                    optional($estudiante->user)->apellido_materno.
+                    optional($estudiante->user)->nombre;
+            });
 
         // Procesar estudiantes para la vista
         $estudiantesProcesados = $estudiantesMatriculadosActivos->map(function ($estudiante) {
             $asistencia = $estudiante->asistencias->first();
+
             return [
                 'id' => $estudiante->id,
                 'nombre_completo' => trim(
-                    ($estudiante->user->apellido_paterno ?? '') . ' ' .
-                    ($estudiante->user->apellido_materno ?? '') . ', ' .
+                    ($estudiante->user->apellido_paterno ?? '').' '.
+                    ($estudiante->user->apellido_materno ?? '').', '.
                     ($estudiante->user->nombre ?? '')
                 ),
                 'tipo_asistencia_id' => $asistencia ? $asistencia->tipo_asistencia_id : null,
@@ -881,27 +898,28 @@ class AsistenciaController extends Controller
                 if ($bimestreActual) {
                     $query->where('periodobimestre_id', $bimestreActual->id);
                 }
-            }
+            },
         ])
-        ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
-            $query->where('grado_id', $grado->id)
-                ->where('periodo_id', $periodoFecha->id)
-                ->where('estado', '0');
-        })
-        ->get()
-        ->sortBy(function ($estudiante) {
-            return optional($estudiante->user)->apellido_paterno .
-                optional($estudiante->user)->apellido_materno .
-                optional($estudiante->user)->nombre;
-        });
+            ->whereHas('matriculas', function ($query) use ($grado, $periodoFecha) {
+                $query->where('grado_id', $grado->id)
+                    ->where('periodo_id', $periodoFecha->id)
+                    ->where('estado', '0');
+            })
+            ->get()
+            ->sortBy(function ($estudiante) {
+                return optional($estudiante->user)->apellido_paterno.
+                    optional($estudiante->user)->apellido_materno.
+                    optional($estudiante->user)->nombre;
+            });
 
         $estudiantesRetiradosProcesados = $estudiantesMatriculadosRetirados->map(function ($estudiante) {
             $asistencia = $estudiante->asistencias->first();
+
             return [
                 'id' => $estudiante->id,
                 'nombre_completo' => trim(
-                    ($estudiante->user->apellido_paterno ?? '') . ' ' .
-                    ($estudiante->user->apellido_materno ?? '') . ', ' .
+                    ($estudiante->user->apellido_paterno ?? '').' '.
+                    ($estudiante->user->apellido_materno ?? '').', '.
                     ($estudiante->user->nombre ?? '')
                 ),
                 'tipo_asistencia_id' => $asistencia ? $asistencia->tipo_asistencia_id : null,
@@ -920,13 +938,13 @@ class AsistenciaController extends Controller
                 'id' => $tipo->id,
                 'nombre' => $tipo->nombre,
                 'color_hex' => $tipo->color_hex ?? '#6B7280',
-                'cantidad' => $estudiantesProcesados->filter(function($estudiante) use ($tipo) {
+                'cantidad' => $estudiantesProcesados->filter(function ($estudiante) use ($tipo) {
                     return $estudiante['tipo_asistencia_id'] == $tipo->id;
-                })->count()
+                })->count(),
             ];
         }
 
-        $totalRegistrados = $estudiantesProcesados->filter(function($estudiante) {
+        $totalRegistrados = $estudiantesProcesados->filter(function ($estudiante) {
             return $estudiante['tipo_asistencia_id'] !== null;
         })->count();
 
@@ -946,7 +964,7 @@ class AsistenciaController extends Controller
             ->where('periodo_id', $periodoFecha->id)
             ->exists();
 
-        if ($existenRegistros && !$bimestreActual) {
+        if ($existenRegistros && ! $bimestreActual) {
             $primerRegistro = Asistencia::where('grado_id', $grado->id)
                 ->whereDate('fecha', $fechaFormateada)
                 ->where('periodo_id', $periodoFecha->id)
@@ -972,7 +990,7 @@ class AsistenciaController extends Controller
 
         return view('asistencia.grado', [
             'grado' => $grado,
-            'grado_nombre' => $grado->grado . '° ' . $grado->seccion,
+            'grado_nombre' => $grado->grado.'° '.$grado->seccion,
             'grado_nivel' => $grado->nivel,
             'estudiantesActivos' => $estudiantesProcesados,
             'estudiantesRetirados' => $estudiantesRetiradosProcesados,
@@ -994,25 +1012,26 @@ class AsistenciaController extends Controller
             'porcentajeRegistrados' => $porcentajeRegistrados,
         ]);
     }
+
     public function marcarIndividual(Request $request, Estudiante $estudiante)
     {
         $request->validate([
-            'tipo_asistencia_id'   => 'required|exists:tipo_asistencias,id',
-            'fecha'                => 'required|date_format:d-m-Y',
-            'hora'                 => 'nullable|date_format:H:i',
-            'grado_id'             => 'required|exists:grados,id',
-            'periodo_id'           => 'required|exists:periodos,id',
-            'periodobimestre_id'   => 'required|exists:periodo_bimestres,id',
+            'tipo_asistencia_id' => 'required|exists:tipo_asistencias,id',
+            'fecha' => 'required|date_format:d-m-Y',
+            'hora' => 'nullable|date_format:H:i',
+            'grado_id' => 'required|exists:grados,id',
+            'periodo_id' => 'required|exists:periodos,id',
+            'periodobimestre_id' => 'required|exists:periodo_bimestres,id',
         ]);
 
         $fecha = Carbon::createFromFormat('d-m-Y', $request->fecha)->startOfDay();
-        $hora  = $request->hora ?? now()->format('H:i');
+        $hora = $request->hora ?? now()->format('H:i');
 
         $periodo = Periodo::find($request->periodo_id);
-        if (!$periodo) {
+        if (! $periodo) {
             return response()->json([
                 'success' => false,
-                'message' => 'El período especificado no existe.'
+                'message' => 'El período especificado no existe.',
             ], 422);
         }
 
@@ -1022,26 +1041,26 @@ class AsistenciaController extends Controller
             ->where('periodo_id', $request->periodo_id)
             ->first();
 
-        if (!$matricula) {
+        if (! $matricula) {
             return response()->json([
                 'success' => false,
-                'message' => 'El estudiante no está matriculado en este grado para el período seleccionado.'
+                'message' => 'El estudiante no está matriculado en este grado para el período seleccionado.',
             ], 422);
         }
 
         if ($matricula->estado == '0') {
             return response()->json([
                 'success' => false,
-                'message' => 'El estudiante está retirado en este período. No se puede registrar asistencia.'
+                'message' => 'El estudiante está retirado en este período. No se puede registrar asistencia.',
             ], 422);
         }
 
         // Buscar si ya existe registro
         $asistencia = Asistencia::where([
             'estudiante_id' => $estudiante->id,
-            'grado_id'      => $request->grado_id,
-            'periodo_id'    => $request->periodo_id,
-            'fecha'         => $fecha,
+            'grado_id' => $request->grado_id,
+            'periodo_id' => $request->periodo_id,
+            'fecha' => $fecha,
         ])->first();
 
         $descripcion = 'Registro Manual';
@@ -1050,31 +1069,31 @@ class AsistenciaController extends Controller
         if ($asistencia) {
             $descripcionActual = $asistencia->descripcion;
             if (strpos($descripcionActual, 'Registro Manual') === false) {
-                $descripcionFinal = $descripcionActual ? $descripcionActual . ' | ' . $descripcion : $descripcion;
+                $descripcionFinal = $descripcionActual ? $descripcionActual.' | '.$descripcion : $descripcion;
             } else {
                 $descripcionFinal = $descripcionActual;
             }
 
             $asistencia->update([
-                'tipo_asistencia_id'   => $request->tipo_asistencia_id,
-                'hora'                 => $hora,
-                'periodobimestre_id'   => $request->periodobimestre_id,
-                'registrador_id'       => Auth::id(),
-                'descripcion'          => $descripcionFinal,
-                'estado'               => $estadoAsistencia,
+                'tipo_asistencia_id' => $request->tipo_asistencia_id,
+                'hora' => $hora,
+                'periodobimestre_id' => $request->periodobimestre_id,
+                'registrador_id' => Auth::id(),
+                'descripcion' => $descripcionFinal,
+                'estado' => $estadoAsistencia,
             ]);
         } else {
             $asistencia = Asistencia::create([
-                'estudiante_id'        => $estudiante->id,
-                'grado_id'             => $request->grado_id,
-                'periodo_id'           => $request->periodo_id,
-                'periodobimestre_id'   => $request->periodobimestre_id,
-                'tipo_asistencia_id'   => $request->tipo_asistencia_id,
-                'fecha'                => $fecha,
-                'hora'                 => $hora,
-                'registrador_id'       => Auth::id(),
-                'descripcion'          => $descripcion,
-                'estado'               => $estadoAsistencia,
+                'estudiante_id' => $estudiante->id,
+                'grado_id' => $request->grado_id,
+                'periodo_id' => $request->periodo_id,
+                'periodobimestre_id' => $request->periodobimestre_id,
+                'tipo_asistencia_id' => $request->tipo_asistencia_id,
+                'fecha' => $fecha,
+                'hora' => $hora,
+                'registrador_id' => Auth::id(),
+                'descripcion' => $descripcion,
+                'estado' => $estadoAsistencia,
             ]);
         }
 
@@ -1085,46 +1104,47 @@ class AsistenciaController extends Controller
             'message' => 'Asistencia registrada correctamente',
             'asistencia' => [
                 'tipo_asistencia_id' => $asistencia->tipo_asistencia_id,
-                'nombre_tipo'        => $asistencia->tipoasistencia->nombre ?? '—',
-                'color'              => $asistencia->tipoasistencia->color ?? '#6B7280',
-                'hora'               => substr($asistencia->hora, 0, 5),
-                'periodo_id'         => $asistencia->periodo_id,
-                'periodo_nombre'     => $asistencia->periodo->nombre ?? '—',
+                'nombre_tipo' => $asistencia->tipoasistencia->nombre ?? '—',
+                'color' => $asistencia->tipoasistencia->color ?? '#6B7280',
+                'hora' => substr($asistencia->hora, 0, 5),
+                'periodo_id' => $asistencia->periodo_id,
+                'periodo_nombre' => $asistencia->periodo->nombre ?? '—',
                 'periodobimestre_id' => $asistencia->periodobimestre_id,
                 'periodobimestre_nombre' => $asistencia->periodobimestre->bimestre ?? '—',
-                'descripcion'        => $asistencia->descripcion,
-                'estado'             => $asistencia->estado == '0' ? 'Registro Manual' : 'Registrado',
-                'estado_codigo'      => $asistencia->estado,
-            ]
+                'descripcion' => $asistencia->descripcion,
+                'estado' => $asistencia->estado == '0' ? 'Registro Manual' : 'Registrado',
+                'estado_codigo' => $asistencia->estado,
+            ],
         ]);
     }
+
     public function guardarMultiple(Request $request, Grado $grado, string $fecha)
     {
         $request->validate([
-            'periodobimestre_id'        => 'required|exists:periodo_bimestres,id',
-            'periodo_id'                => 'required|exists:periodos,id',
-            'asistencias'               => 'required|array',
-            'asistencias.*'             => 'nullable|exists:tipo_asistencias,id',
-            'horas'                     => 'required|array',
-            'horas.*'                   => 'nullable|date_format:H:i',
+            'periodobimestre_id' => 'required|exists:periodo_bimestres,id',
+            'periodo_id' => 'required|exists:periodos,id',
+            'asistencias' => 'required|array',
+            'asistencias.*' => 'nullable|exists:tipo_asistencias,id',
+            'horas' => 'required|array',
+            'horas.*' => 'nullable|date_format:H:i',
         ]);
 
         $fechaCarbon = Carbon::parse($fecha)->startOfDay();
         $periodobimestreId = $request->periodobimestre_id;
-        $periodoId         = $request->periodo_id;
-        $userId            = Auth::id();
+        $periodoId = $request->periodo_id;
+        $userId = Auth::id();
 
         $periodo = Periodo::find($periodoId);
-        if (!$periodo) {
+        if (! $periodo) {
             return back()->with('error', 'El período especificado no existe.');
         }
 
-        $procesadas    = 0;
-        $creadas       = 0;
-        $actualizadas  = 0;
-        $omitidas      = 0;
+        $procesadas = 0;
+        $creadas = 0;
+        $actualizadas = 0;
+        $omitidas = 0;
         $noMatriculados = 0;
-        $retirados     = 0;
+        $retirados = 0;
 
         DB::beginTransaction();
 
@@ -1133,9 +1153,9 @@ class AsistenciaController extends Controller
                 if (empty($tipoAsistenciaId)) {
                     $asistenciaExistente = Asistencia::where([
                         'estudiante_id' => $estudianteId,
-                        'grado_id'      => $grado->id,
-                        'periodo_id'    => $periodoId,
-                        'fecha'         => $fechaCarbon,
+                        'grado_id' => $grado->id,
+                        'periodo_id' => $periodoId,
+                        'fecha' => $fechaCarbon,
                     ])->first();
 
                     if ($asistenciaExistente) {
@@ -1143,6 +1163,7 @@ class AsistenciaController extends Controller
                         $actualizadas++;
                     }
                     $omitidas++;
+
                     continue;
                 }
 
@@ -1153,29 +1174,31 @@ class AsistenciaController extends Controller
                     ->where('periodo_id', $periodoId)
                     ->first();
 
-                if (!$matricula) {
+                if (! $matricula) {
                     $noMatriculados++;
+
                     continue;
                 }
 
                 if ($matricula->estado == '0') {
                     $retirados++;
+
                     continue;
                 }
 
                 $asistencia = Asistencia::updateOrCreate(
                     [
                         'estudiante_id' => $estudianteId,
-                        'grado_id'      => $grado->id,
-                        'periodo_id'    => $periodoId,
-                        'fecha'         => $fechaCarbon,
+                        'grado_id' => $grado->id,
+                        'periodo_id' => $periodoId,
+                        'fecha' => $fechaCarbon,
                     ],
                     [
-                        'tipo_asistencia_id'   => $tipoAsistenciaId,
-                        'hora'                 => $hora,
-                        'periodobimestre_id'   => $periodobimestreId,
-                        'registrador_id'       => $userId,
-                        'estado'               => '0',
+                        'tipo_asistencia_id' => $tipoAsistenciaId,
+                        'hora' => $hora,
+                        'periodobimestre_id' => $periodobimestreId,
+                        'registrador_id' => $userId,
+                        'estado' => '0',
                     ]
                 );
 
@@ -1195,24 +1218,31 @@ class AsistenciaController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Error al guardar las asistencias: ' . $e->getMessage());
+
+            return back()->with('error', 'Error al guardar las asistencias: '.$e->getMessage());
         }
 
         $mensaje = "Procesadas $procesadas asistencias: $creadas nuevas, $actualizadas actualizadas.";
 
-        if ($omitidas > 0) $mensaje .= " $omitidas omitidas.";
-        if ($noMatriculados > 0) $mensaje .= " $noMatriculados no matriculados.";
-        if ($retirados > 0) $mensaje .= " $retirados retirados.";
+        if ($omitidas > 0) {
+            $mensaje .= " $omitidas omitidas.";
+        }
+        if ($noMatriculados > 0) {
+            $mensaje .= " $noMatriculados no matriculados.";
+        }
+        if ($retirados > 0) {
+            $mensaje .= " $retirados retirados.";
+        }
 
         $fechaDMY = $fechaCarbon->format('d-m-Y');
-        $gradoSeccion = $grado->grado . $grado->seccion;
+        $gradoSeccion = $grado->grado.$grado->seccion;
         $nivel = strtolower($grado->nivel);
 
         // URL LIMPIA - SIN PARÁMETROS
         return redirect()->route('asistencia.grado', [
             'grado_grado_seccion' => $gradoSeccion,
-            'grado_nivel'         => $nivel,
-            'date'                => $fechaDMY,
+            'grado_nivel' => $nivel,
+            'date' => $fechaDMY,
         ])->with('success', $mensaje);
     }
 
@@ -1228,7 +1258,7 @@ class AsistenciaController extends Controller
             $resumen .= "$creados nuevos registros creados. ";
         }
         if ($actualizados == 0 && $creados == 0) {
-            $resumen = "No se realizaron cambios en los registros.";
+            $resumen = 'No se realizaron cambios en los registros.';
         }
 
         $detalles = [];
@@ -1250,7 +1280,7 @@ class AsistenciaController extends Controller
 
         return [
             'resumen' => $resumen,
-            'detalles' => $detalles
+            'detalles' => $detalles,
         ];
     }
     /*
@@ -1296,7 +1326,6 @@ class AsistenciaController extends Controller
         }
     }*/
 
-
     public function reporteAsistencia(Request $request)
     {
         // Obtener períodos activos para el filtro
@@ -1326,7 +1355,7 @@ class AsistenciaController extends Controller
                 'grado_id' => 'required|exists:grados,id',
                 'periodo_id' => 'required|exists:periodos,id',
                 'fecha_inicio' => 'required|date',
-                'fecha_fin' => 'required|date|after_or_equal:fecha_inicio'
+                'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
             ]);
 
             $query = Asistencia::with(['estudiante.user', 'grado', 'tipoasistencia', 'periodobimestre', 'periodo'])
@@ -1351,8 +1380,8 @@ class AsistenciaController extends Controller
             }
 
             $asistencias = $query->orderBy('fecha', 'desc')
-                                ->orderBy('estudiante_id')
-                                ->get();
+                ->orderBy('estudiante_id')
+                ->get();
 
             // Calcular estadísticas
             $estadisticas = [];
@@ -1363,7 +1392,7 @@ class AsistenciaController extends Controller
                     $porTipoAsistencia[$tipo->id] = [
                         'nombre' => $tipo->nombre,
                         'color_hex' => $tipo->color_hex ?? '#6B7280',
-                        'count' => $asistencias->where('tipo_asistencia_id', $tipo->id)->count()
+                        'count' => $asistencias->where('tipo_asistencia_id', $tipo->id)->count(),
                     ];
                 }
 
@@ -1374,7 +1403,7 @@ class AsistenciaController extends Controller
                         'nombre' => $bimestre->bimestre,
                         'fecha_inicio' => $bimestre->fecha_inicio,
                         'fecha_fin' => $bimestre->fecha_fin,
-                        'count' => $asistencias->where('periodobimestre_id', $bimestre->id)->count()
+                        'count' => $asistencias->where('periodobimestre_id', $bimestre->id)->count(),
                     ];
                 }
 
@@ -1404,14 +1433,15 @@ class AsistenciaController extends Controller
             'tiposAsistencia' => $tiposAsistencia,
             'bimestres' => $bimestres,
             'asistencias' => collect(),
-            'estadisticas' => null
+            'estadisticas' => null,
         ]);
     }
+
     public function estudiantesPorGrado(Request $request)
     {
         $request->validate([
             'grado_id' => 'required|exists:grados,id',
-            'periodo_id' => 'required|exists:periodos,id'
+            'periodo_id' => 'required|exists:periodos,id',
         ]);
 
         $gradoId = $request->get('grado_id');
@@ -1422,17 +1452,18 @@ class AsistenciaController extends Controller
             ->where('estado', '1')
             ->with(['estudiante.user'])
             ->get()
-            ->map(function($matricula) {
+            ->map(function ($matricula) {
                 $estudiante = $matricula->estudiante;
-                if (!$estudiante || !$estudiante->user) {
+                if (! $estudiante || ! $estudiante->user) {
                     return null;
                 }
-                $apellidos = trim($estudiante->user->apellido_paterno . ' ' . $estudiante->user->apellido_materno);
+                $apellidos = trim($estudiante->user->apellido_paterno.' '.$estudiante->user->apellido_materno);
                 $nombres = $estudiante->user->nombre;
+
                 return [
                     'id' => $estudiante->id,
-                    'nombres_completos' => $apellidos . ', ' . $nombres,
-                    'matricula_estado' => $matricula->estado
+                    'nombres_completos' => $apellidos.', '.$nombres,
+                    'matricula_estado' => $matricula->estado,
                 ];
             })
             ->filter()

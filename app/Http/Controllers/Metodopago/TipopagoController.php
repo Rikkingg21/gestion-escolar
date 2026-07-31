@@ -9,16 +9,18 @@ use Illuminate\Support\Facades\Validator;
 
 class TipopagoController extends Controller
 {
-    //moduleID 20 = Tipos de Pago
+    // moduleID 20 = Tipos de Pago
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('20')) {
+            if (! auth()->user()->canAccessModule('20')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
+
     public function index(Request $request)
     {
         $search = $request->get('search');
@@ -29,10 +31,10 @@ class TipopagoController extends Controller
 
         // Filtros
         if ($search) {
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('nombre', 'LIKE', "%{$search}%")
-                  ->orWhere('entidad_financiera', 'LIKE', "%{$search}%")
-                  ->orWhere('titular_cuenta', 'LIKE', "%{$search}%");
+                    ->orWhere('entidad_financiera', 'LIKE', "%{$search}%")
+                    ->orWhere('titular_cuenta', 'LIKE', "%{$search}%");
             });
         }
 
@@ -96,12 +98,14 @@ class TipopagoController extends Controller
     public function show(string $id)
     {
         $tipopago = Tipopago::findOrFail($id);
+
         return view('metodopago.show', compact('tipopago'));
     }
 
     public function edit(string $id)
     {
         $tipopago = Tipopago::findOrFail($id);
+
         return view('metodopago.edit', compact('tipopago'));
     }
 
@@ -110,11 +114,11 @@ class TipopagoController extends Controller
         $tipopago = Tipopago::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'nombre' => 'required|string|max:50|unique:m_tipo_pagos,nombre,' . $id,
+            'nombre' => 'required|string|max:50|unique:m_tipo_pagos,nombre,'.$id,
             'categoria' => 'required|string|max:30',
             'entidad_financiera' => 'nullable|string|max:50',
             'numero_cuenta' => 'nullable|string|max:30',
-            'cci' => 'nullable|string|max:20|unique:m_tipo_pagos,cci,' . $id,
+            'cci' => 'nullable|string|max:20|unique:m_tipo_pagos,cci,'.$id,
             'titular_cuenta' => 'nullable|string|max:100',
             'numero_celular' => 'nullable|string|max:15',
             'requiere_verificacion' => 'nullable|boolean',

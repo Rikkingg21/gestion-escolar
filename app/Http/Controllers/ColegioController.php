@@ -5,20 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Colegio;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\File;
-
 
 class ColegioController extends Controller
 {
-    //moduleID 6 = colegio
+    // moduleID 6 = colegio
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('6')) {
+            if (! auth()->user()->canAccessModule('6')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
@@ -26,6 +23,7 @@ class ColegioController extends Controller
     public function edit(Colegio $colegio)
     {
         $colegio = Colegio::configuracion();
+
         return view('rol.admin.colegioconfig.edit', compact('colegio'));
     }
 
@@ -38,7 +36,7 @@ class ColegioController extends Controller
             'email' => 'nullable|email|max:100',
             'ruc' => 'nullable|string|size:11',
             'director_actual' => 'nullable|string|max:255',
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg|max:5000'
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg|max:5000',
         ]);
 
         $colegio = Colegio::configuracion();
@@ -47,18 +45,18 @@ class ColegioController extends Controller
         if ($request->hasFile('logo')) {
             $file = $request->file('logo');
             $extension = $file->getClientOriginalExtension();
-            $nombreArchivo = 'logo-actual.' . $extension;
+            $nombreArchivo = 'logo-actual.'.$extension;
 
             // Ruta destino: public/storage/logo/
             $directorio = public_path('storage/logo');
 
             // Crear directorio si no existe
-            if (!is_dir($directorio)) {
+            if (! is_dir($directorio)) {
                 mkdir($directorio, 0755, true);
             }
 
             // Eliminar logo anterior si existe
-            $archivos = glob($directorio . '/logo-actual.*');
+            $archivos = glob($directorio.'/logo-actual.*');
             foreach ($archivos as $archivo) {
                 if (is_file($archivo)) {
                     unlink($archivo);
@@ -69,7 +67,7 @@ class ColegioController extends Controller
             $file->move($directorio, $nombreArchivo);
 
             // Guardar ruta en BD
-            $colegio->logo_path = 'logo/' . $nombreArchivo;
+            $colegio->logo_path = 'logo/'.$nombreArchivo;
         }
 
         // Eliminar logo si se marca la casilla

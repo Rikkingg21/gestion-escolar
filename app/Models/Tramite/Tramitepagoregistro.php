@@ -13,7 +13,9 @@ class Tramitepagoregistro extends Model
     use SoftDeletes;
 
     protected $table = 'm_tramite_pago_registros';
+
     protected $primaryKey = 'id';
+
     public $timestamps = true;
 
     protected $fillable = [
@@ -55,7 +57,7 @@ class Tramitepagoregistro extends Model
     // Accessor para monto formateado
     public function getMontoFormateadoAttribute()
     {
-        return 'S/ ' . number_format($this->monto, 2);
+        return 'S/ '.number_format($this->monto, 2);
     }
 
     // Accessor para fecha formateada

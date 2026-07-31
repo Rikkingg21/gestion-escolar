@@ -3,8 +3,8 @@
 namespace App\Models\Tramite;
 
 use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tramiteregistro extends Model
@@ -13,7 +13,9 @@ class Tramiteregistro extends Model
     use SoftDeletes;
 
     protected $table = 'm_tramite_registros';
+
     protected $primaryKey = 'id';
+
     public $timestamps = true;
 
     protected $fillable = [

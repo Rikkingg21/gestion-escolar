@@ -3,11 +3,9 @@
 namespace App\Models;
 
 use App\Models\Maya\Cursogradosecnivanio;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-
 
 class Periodo extends Model
 {
@@ -15,7 +13,9 @@ class Periodo extends Model
     use SoftDeletes;
 
     protected $table = 'periodos';
+
     public $timestamps = true;
+
     protected $primaryKey = 'id';
 
     protected $fillable = [
@@ -27,14 +27,17 @@ class Periodo extends Model
         'tipo_periodo',
         'descripcion',
     ];
+
     public function matriculas()
     {
         return $this->hasMany(Matricula::class, 'periodo_id');
     }
+
     public function periodobimestres()
     {
         return $this->hasMany(Periodobimestre::class, 'periodo_id');
     }
+
     public function cursosGradoSecNivAnio()
     {
         return $this->hasMany(Cursogradosecnivanio::class, 'periodo_id');

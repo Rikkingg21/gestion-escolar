@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Grado;
-use App\Models\Nota;
-use App\Models\Matricula;
-use App\Models\Materia\Materiacriterio;
-use App\Models\Materia\Materiacompetencia;
-use App\Models\Maya\Cursogradosecnivanio;
-use App\Models\Materia\Recuperacioncompetencia;
-use App\Models\Periodo;
 use App\Models\Estudiante;
-use App\Services\ProcesarnotasCriterioService;
-use App\Services\ProcesarnotasCompetenciaService;
-use App\Services\ProcesarnotasMateriaService;
+use App\Models\Grado;
+use App\Models\Materia\Materiacompetencia;
+use App\Models\Materia\Materiacriterio;
+use App\Models\Materia\Recuperacioncompetencia;
+use App\Models\Matricula;
+use App\Models\Maya\Cursogradosecnivanio;
+use App\Models\Nota;
+use App\Models\Periodo;
 use App\Services\EvaluacionEstudianteService;
+use App\Services\ProcesarnotasCompetenciaService;
+use App\Services\ProcesarnotasCriterioService;
+use App\Services\ProcesarnotasMateriaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,21 +22,25 @@ use Illuminate\Support\Facades\Log;
 class GradoController extends Controller
 {
     protected $criterioService;
+
     protected $competenciaService;
+
     protected $materiaService;
+
     protected $evaluacionService;
-    //moduleID 10 = Grados
+
+    // moduleID 10 = Grados
     public function __construct(
         ProcesarnotasCriterioService $criterioService,
         ProcesarnotasCompetenciaService $competenciaService,
         ProcesarnotasMateriaService $materiaService,
         EvaluacionEstudianteService $evaluacionService,
-    )
-    {
+    ) {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('10')) {
+            if (! auth()->user()->canAccessModule('10')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
         $this->criterioService = $criterioService;
@@ -44,6 +48,7 @@ class GradoController extends Controller
         $this->materiaService = $materiaService;
         $this->evaluacionService = $evaluacionService;
     }
+
     public function index()
     {
         $gradosActivos = Grado::where('estado', '1')
@@ -64,9 +69,9 @@ class GradoController extends Controller
     public function create()
     {
         $grados = Grado::orderBy('nivel')
-        ->orderBy('grado')
-        ->orderBy('seccion')
-        ->get();
+            ->orderBy('grado')
+            ->orderBy('seccion')
+            ->get();
 
         return view('grado.create', compact('grados'));
     }
@@ -142,7 +147,7 @@ class GradoController extends Controller
         $periodoAcademico = Periodo::where('anio', $anioSeleccionado)
             ->where('tipo_periodo', 'año escolar')->where('estado', '1')->first();
 
-        if (!$periodoAcademico) {
+        if (! $periodoAcademico) {
             return redirect()->back()->with('error', "No hay período académico para el año $anioSeleccionado");
         }
 
@@ -151,6 +156,7 @@ class GradoController extends Controller
 
         return compact('grado', 'aniosDisponibles', 'anioSeleccionado', 'periodoAcademico', 'periodoRecuperacion');
     }
+
     public function getDatosEstudiante($estudianteId, Request $request)
     {
         try {
@@ -178,12 +184,12 @@ class GradoController extends Controller
                 'total_competencias' => $estudiante->total_competencias,
                 'competencias_pendientes' => $estudiante->competencias_pendientes,
                 'competencias_pendientes_calificar' => $estudiante->competencias_pendientes_calificar,
-                'competencias' => $this->getCompetenciasDetalle($estudiante, $periodoAcademico, $periodoRecuperacion)
+                'competencias' => $this->getCompetenciasDetalle($estudiante, $periodoAcademico, $periodoRecuperacion),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -207,9 +213,9 @@ class GradoController extends Controller
     {
         $competenciasQuery = Materiacompetencia::whereIn('materia_id', $materiaIds)
             ->whereRaw('LOWER(nombre) NOT LIKE ?', ['%transversal%'])
-            ->whereHas('materiaCriterio', function($query) use ($gradoId, $periodoAcademico) {
+            ->whereHas('materiaCriterio', function ($query) use ($gradoId, $periodoAcademico) {
                 $query->where('grado_id', $gradoId)
-                    ->whereHas('periodoBimestre', function($q) use ($periodoAcademico) {
+                    ->whereHas('periodoBimestre', function ($q) use ($periodoAcademico) {
                         $q->where('periodo_id', $periodoAcademico->id);
                     });
             })->get();
@@ -240,7 +246,7 @@ class GradoController extends Controller
                     'nota' => $rec->nivel_logro_final ? $this->competenciaService->convertirEnumANota($rec->nivel_logro_final) : null,
                     'tiene_registro' => true,
                     'recuperacion_id' => $rec->id,
-                    'estado' => $rec->estado ?? '0'
+                    'estado' => $rec->estado ?? '0',
                 ];
             }
         }
@@ -268,9 +274,15 @@ class GradoController extends Controller
 
             foreach ($materia['competencias'] as $competencia) {
                 $totalComp++;
-                if ($competencia['esta_aprobada'] ?? false) $compAprobadas++;
-                if (($competencia['requiere_recuperacion'] ?? false)) $compPendientes++;
-                if (($competencia['tiene_registro_recuperacion'] ?? false)) $compPendientesCalificar++;
+                if ($competencia['esta_aprobada'] ?? false) {
+                    $compAprobadas++;
+                }
+                if (($competencia['requiere_recuperacion'] ?? false)) {
+                    $compPendientes++;
+                }
+                if (($competencia['tiene_registro_recuperacion'] ?? false)) {
+                    $compPendientesCalificar++;
+                }
             }
         }
 
@@ -297,7 +309,7 @@ class GradoController extends Controller
                 $tieneNotaRecuperacion = ($competencia['nota_recuperacion'] ?? null) !== null;
                 $tieneRegistro = $competencia['tiene_registro_recuperacion'] ?? false;
 
-                if ($notaOriginal < 1.5 && !$tieneNotaRecuperacion && !$tieneRegistro) {
+                if ($notaOriginal < 1.5 && ! $tieneNotaRecuperacion && ! $tieneRegistro) {
                     $totalCompReqEstudiante++;
                 }
             }
@@ -330,7 +342,9 @@ class GradoController extends Controller
     public function estudiantes($id)
     {
         $datos = $this->getDatosBase($id);
-        if ($datos instanceof \Illuminate\Http\RedirectResponse) return $datos;
+        if ($datos instanceof \Illuminate\Http\RedirectResponse) {
+            return $datos;
+        }
 
         extract($datos);
 
@@ -362,7 +376,7 @@ class GradoController extends Controller
         // Criterios
         $criterios = Materiacriterio::whereIn('materia_competencia_id', array_keys($competenciasArray))
             ->where('grado_id', $grado->id)
-            ->whereHas('periodoBimestre', function($q) use ($periodoAcademico) {
+            ->whereHas('periodoBimestre', function ($q) use ($periodoAcademico) {
                 $q->where('periodo_id', $periodoAcademico->id);
             })->get();
 
@@ -370,7 +384,7 @@ class GradoController extends Controller
         foreach ($criterios as $criterio) {
             $criteriosArray[$criterio->id] = [
                 'competencia_id' => $criterio->materia_competencia_id,
-                'materia_id' => $competenciasArray[$criterio->materia_competencia_id] ?? null
+                'materia_id' => $competenciasArray[$criterio->materia_competencia_id] ?? null,
             ];
         }
 
@@ -390,7 +404,7 @@ class GradoController extends Controller
                     'materia_criterio_id' => $nota->materia_criterio_id,
                     'materia_competencia_id' => $criterioInfo['competencia_id'],
                     'materia_id' => $criterioInfo['materia_id'],
-                    'nota' => $nota->nota
+                    'nota' => $nota->nota,
                 ];
             }
         }
@@ -406,7 +420,7 @@ class GradoController extends Controller
         $resultadosPorEstudiante = [];
         foreach ($materiasProcesadas as $materia) {
             $estId = $materia['estudiante_id'];
-            if (!isset($resultadosPorEstudiante[$estId])) {
+            if (! isset($resultadosPorEstudiante[$estId])) {
                 $resultadosPorEstudiante[$estId] = [];
             }
             $recuperacionesInfoEstudiante = $recuperacionesPorEstudiante[$estId] ?? [];
@@ -424,11 +438,11 @@ class GradoController extends Controller
             }
         }
 
-        $estudiantesNoMatriculados = $estudiantesRegistrados->filter(function($e) use ($estudiantesMatriculadosIds) {
-            return !in_array($e->id, $estudiantesMatriculadosIds);
+        $estudiantesNoMatriculados = $estudiantesRegistrados->filter(function ($e) use ($estudiantesMatriculadosIds) {
+            return ! in_array($e->id, $estudiantesMatriculadosIds);
         });
 
-        $estudiantesParaRecuperacion = $estudiantesMatriculados->filter(function($e) {
+        $estudiantesParaRecuperacion = $estudiantesMatriculados->filter(function ($e) {
             return $e->estado_final === 'recuperacion';
         })->count();
 
@@ -447,21 +461,21 @@ class GradoController extends Controller
 
         try {
             $estudiante = Estudiante::find($estudianteId);
-            if (!$estudiante) {
+            if (! $estudiante) {
                 return ['success' => false, 'message' => 'Estudiante no encontrado'];
             }
 
             $matriculaAcademica = Matricula::where('estudiante_id', $estudianteId)
                 ->where('periodo_id', $periodoAcademicoId)->where('estado', '1')->first();
 
-            if (!$matriculaAcademica) {
+            if (! $matriculaAcademica) {
                 return ['success' => false, 'message' => 'El estudiante no tiene matrícula en el período académico'];
             }
 
             // Crear matrícula en recuperación si no existe
             Matricula::firstOrCreate([
                 'estudiante_id' => $estudianteId,
-                'periodo_id' => $periodoRecuperacionId
+                'periodo_id' => $periodoRecuperacionId,
             ], [
                 'grado_id' => $matriculaAcademica->grado_id,
                 'estado' => '1',
@@ -476,7 +490,7 @@ class GradoController extends Controller
                     ->where('periodo_id', $periodoRecuperacionId)
                     ->exists();
 
-                if (!$existe) {
+                if (! $existe) {
                     $notaOriginal = floatval($competencia['nota_original']);
                     $valorEnum = $this->competenciaService->convertirNotaAEnum($notaOriginal);
 
@@ -487,7 +501,7 @@ class GradoController extends Controller
                         'periodo_id' => $periodoRecuperacionId,
                         'nivel_logro_inicial' => $valorEnum,
                         'nivel_logro_final' => null,
-                        'estado' => '0'
+                        'estado' => '0',
                     ]);
                     $registradas++;
                 } else {
@@ -500,12 +514,14 @@ class GradoController extends Controller
             if ($registradas > 0) {
                 return ['success' => true, 'message' => "Registradas: $registradas, duplicadas: $duplicadas"];
             }
+
             return ['success' => false, 'message' => "No se registraron nuevas competencias. $duplicadas ya existían"];
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error en matrícula recuperación: ' . $e->getMessage());
-            return ['success' => false, 'message' => 'Error interno: ' . $e->getMessage()];
+            Log::error('Error en matrícula recuperación: '.$e->getMessage());
+
+            return ['success' => false, 'message' => 'Error interno: '.$e->getMessage()];
         }
     }
 
@@ -531,17 +547,18 @@ class GradoController extends Controller
                 );
             }
 
-            $successCount = count(array_filter($resultados, fn($r) => $r['success']));
+            $successCount = count(array_filter($resultados, fn ($r) => $r['success']));
 
             return response()->json([
                 'success' => $successCount > 0,
                 'message' => "Procesados: $successCount estudiante(s) correctamente",
-                'detalles' => $resultados
+                'detalles' => $resultados,
             ], $successCount > 0 ? 200 : 400);
 
         } catch (\Exception $e) {
-            Log::error('Error en matricularRecuperacion: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+            Log::error('Error en matricularRecuperacion: '.$e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Error: '.$e->getMessage()], 500);
         }
     }
 
@@ -566,8 +583,9 @@ class GradoController extends Controller
             return response()->json($resultado, $resultado['success'] ? 200 : 400);
 
         } catch (\Exception $e) {
-            Log::error('Error en matricularRecuperacionIndividual: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+            Log::error('Error en matricularRecuperacionIndividual: '.$e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Error: '.$e->getMessage()], 500);
         }
     }
 
@@ -605,13 +623,14 @@ class GradoController extends Controller
                 'message' => 'Nota actualizada correctamente',
                 'data' => [
                     'nivel_logro_final' => $request->nivel_logro_final,
-                    'nota_numerica' => $this->competenciaService->convertirEnumANota($request->nivel_logro_final)
-                ]
+                    'nota_numerica' => $this->competenciaService->convertirEnumANota($request->nivel_logro_final),
+                ],
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error actualizando nota: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+            Log::error('Error actualizando nota: '.$e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Error: '.$e->getMessage()], 500);
         }
     }
 
@@ -623,11 +642,11 @@ class GradoController extends Controller
                 'periodo_recuperacion_id' => 'required|exists:periodos,id',
                 'grado_id' => 'required|exists:grados,id',
                 'nuevo_estado' => 'required|in:0,1',
-                'estudiante_id' => 'nullable|exists:estudiantes,id'
+                'estudiante_id' => 'nullable|exists:estudiantes,id',
             ]);
 
             $query = Recuperacioncompetencia::where('periodo_id', $request->periodo_recuperacion_id)
-                ->whereHas('estudiante', function($q) use ($request) {
+                ->whereHas('estudiante', function ($q) use ($request) {
                     $q->where('grado_id', $request->grado_id);
                     if ($request->filled('estudiante_id')) {
                         $q->where('id', $request->estudiante_id);
@@ -644,16 +663,17 @@ class GradoController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $mensaje,
-                'nuevo_estado' => $request->nuevo_estado
+                'nuevo_estado' => $request->nuevo_estado,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error cambiando estado: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+            Log::error('Error cambiando estado: '.$e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Error: '.$e->getMessage()], 500);
         }
     }
 
-    //Ascender estudiantes de grado
+    // Ascender estudiantes de grado
     public function estudiantesUpdateGrado(Request $request, $gradoId)
     {
         try {
@@ -662,14 +682,14 @@ class GradoController extends Controller
                 'nueva_seccion' => 'required|string|max:1',
                 'nuevo_nivel' => 'required|string',
                 'estudiantes' => 'required|array',
-                'estudiantes.*' => 'exists:estudiantes,id'
+                'estudiantes.*' => 'exists:estudiantes,id',
             ]);
 
             $nuevoGrado = Grado::firstOrCreate(
                 [
                     'grado' => $request->nuevo_grado,
                     'seccion' => $request->nueva_seccion,
-                    'nivel' => $request->nuevo_nivel
+                    'nivel' => $request->nuevo_nivel,
                 ],
                 ['estado' => '1']
             );
@@ -686,8 +706,8 @@ class GradoController extends Controller
                         'id' => $nuevoGrado->id,
                         'grado' => $nuevoGrado->grado,
                         'seccion' => $nuevoGrado->seccion,
-                        'nivel' => $nuevoGrado->nivel
-                    ]
+                        'nivel' => $nuevoGrado->nivel,
+                    ],
                 ]);
             }
 
@@ -700,16 +720,15 @@ class GradoController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Error de validación',
-                    'errors' => $e->errors()
+                    'errors' => $e->errors(),
                 ], 422);
             }
             throw $e;
-
         } catch (\Exception $e) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error al ascender estudiantes: ' . $e->getMessage()
+                    'message' => 'Error al ascender estudiantes: '.$e->getMessage(),
                 ], 500);
             }
             throw $e;

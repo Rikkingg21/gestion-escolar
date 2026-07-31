@@ -3,22 +3,22 @@
 namespace App\Http\Controllers\Materia;
 
 use App\Http\Controllers\Controller;
-//use App\Models\Materia\Materia;
+// use App\Models\Materia\Materia;
+use App\Models\Materia;
 use App\Models\Materia\Materiacompetencia;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use Illuminate\Support\Facades\DB;
-use App\Models\Materia;
 
 class MateriaCompetenciaController extends Controller
 {
-    //moduleID 11 = Materias
+    // moduleID 11 = Materias
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('11')) {
+            if (! auth()->user()->canAccessModule('11')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
@@ -52,8 +52,10 @@ class MateriaCompetenciaController extends Controller
     public function create()
     {
         $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
+
         return view('materia.materiacompetencia.create', compact('materias'));
     }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -73,7 +75,7 @@ class MateriaCompetenciaController extends Controller
                     ->where('nombre', $competenciaData['nombre'])
                     ->exists();
 
-                if (!$existe) {
+                if (! $existe) {
                     Materiacompetencia::create([
                         'materia_id' => $request->materia_id,
                         'nombre' => $competenciaData['nombre'],
@@ -95,13 +97,15 @@ class MateriaCompetenciaController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al crear las competencias: ' . $e->getMessage())
+                ->with('error', 'Error al crear las competencias: '.$e->getMessage())
                 ->withInput();
         }
     }
+
     public function edit($id)
     {
         $competencia = Materiacompetencia::with('materia')->findOrFail($id);
+
         return view('materia.materiacompetencia.edit', compact('competencia'));
     }
 
@@ -122,7 +126,7 @@ class MateriaCompetenciaController extends Controller
                 ->with('success', 'Competencia actualizada exitosamente.');
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al actualizar la competencia: ' . $e->getMessage())
+                ->with('error', 'Error al actualizar la competencia: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -138,14 +142,17 @@ class MateriaCompetenciaController extends Controller
                 ->with('success', 'Competencia eliminada exitosamente.');
         } catch (\Exception $e) {
             return redirect()->route('materiacompetencia.index', $materiaId ?? 0)
-                ->with('error', 'Error al eliminar la competencia: ' . $e->getMessage());
+                ->with('error', 'Error al eliminar la competencia: '.$e->getMessage());
         }
     }
+
     public function importar()
     {
         $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
+
         return view('materia.materiacompetencia.importar', compact('materias'));
     }
+
     public function importarCompetencia(Request $request)
     {
         // Paso 1: Validar si es solo validación o procesamiento final
@@ -191,8 +198,9 @@ class MateriaCompetenciaController extends Controller
                     if (empty($row[0]) || empty($row[1])) {
                         $errores[] = [
                             'fila' => $numeroFila,
-                            'error' => "Faltan campos obligatorios (Materia y Nombre de competencia son requeridos)"
+                            'error' => 'Faltan campos obligatorios (Materia y Nombre de competencia son requeridos)',
                         ];
+
                         continue;
                     }
 
@@ -205,11 +213,12 @@ class MateriaCompetenciaController extends Controller
                         ->where('estado', '1')
                         ->first();
 
-                    if (!$materia) {
+                    if (! $materia) {
                         $errores[] = [
                             'fila' => $numeroFila,
-                            'error' => "La materia '$materiaNombre' no existe o no está activa"
+                            'error' => "La materia '$materiaNombre' no existe o no está activa",
                         ];
+
                         continue;
                     }
 
@@ -221,18 +230,20 @@ class MateriaCompetenciaController extends Controller
                     if ($competenciaExistente) {
                         $duplicados[] = [
                             'fila' => $numeroFila,
-                            'error' => "La competencia '$competenciaNombre' ya existe en la materia '$materiaNombre'"
+                            'error' => "La competencia '$competenciaNombre' ya existe en la materia '$materiaNombre'",
                         ];
+
                         continue;
                     }
 
                     // Verificar duplicados dentro del mismo archivo
-                    $claveCompetencia = $materia->id . '-' . $competenciaNombre;
+                    $claveCompetencia = $materia->id.'-'.$competenciaNombre;
                     if (in_array($claveCompetencia, $competenciasProcesadas)) {
                         $duplicados[] = [
                             'fila' => $numeroFila,
-                            'error' => "Competencia duplicada en el archivo - '$competenciaNombre' en '$materiaNombre'"
+                            'error' => "Competencia duplicada en el archivo - '$competenciaNombre' en '$materiaNombre'",
                         ];
+
                         continue;
                     }
 
@@ -243,8 +254,8 @@ class MateriaCompetenciaController extends Controller
                             'materia' => $materiaNombre,
                             'competencia' => $competenciaNombre,
                             'descripcion' => $competenciaDescripcion,
-                            'materia_id' => $materia->id
-                        ]
+                            'materia_id' => $materia->id,
+                        ],
                     ];
 
                     $competenciasProcesadas[] = $claveCompetencia;
@@ -252,7 +263,7 @@ class MateriaCompetenciaController extends Controller
                 } catch (\Exception $e) {
                     $errores[] = [
                         'fila' => $numeroFila,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -263,7 +274,7 @@ class MateriaCompetenciaController extends Controller
                 'total_registros' => $totalRegistros,
                 'errores' => $errores,
                 'duplicados' => $duplicados,
-                'archivo_temp' => $request->file('archivo_excel')->getRealPath()
+                'archivo_temp' => $request->file('archivo_excel')->getRealPath(),
             ]);
 
             // Devolver a la vista con datos de validación
@@ -277,7 +288,7 @@ class MateriaCompetenciaController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al procesar el archivo: ' . $e->getMessage())
+                ->with('error', 'Error al procesar el archivo: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -288,7 +299,7 @@ class MateriaCompetenciaController extends Controller
         try {
             $importData = session()->get('import_competencia_data');
 
-            if (!$importData) {
+            if (! $importData) {
                 return redirect()->route('materiacompetencia.importar')
                     ->with('error', 'No hay datos de importación para procesar. Por favor, valide el archivo nuevamente.');
             }
@@ -312,7 +323,7 @@ class MateriaCompetenciaController extends Controller
                 } catch (\Exception $e) {
                     $erroresProceso[] = [
                         'fila' => $registro['fila'],
-                        'error' => 'Error al crear competencia: ' . $e->getMessage()
+                        'error' => 'Error al crear competencia: '.$e->getMessage(),
                     ];
                 }
             }
@@ -325,7 +336,7 @@ class MateriaCompetenciaController extends Controller
             $tipoMensaje = 'success';
 
             if (count($erroresProceso) > 0) {
-                $mensaje .= " Se produjeron " . count($erroresProceso) . " errores durante el procesamiento.";
+                $mensaje .= ' Se produjeron '.count($erroresProceso).' errores durante el procesamiento.';
                 $tipoMensaje = 'warning';
 
                 // Guardar errores de proceso en sesión
@@ -338,7 +349,7 @@ class MateriaCompetenciaController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->route('materiacompetencia.importar')
-                ->with('error', 'Error durante el procesamiento: ' . $e->getMessage());
+                ->with('error', 'Error durante el procesamiento: '.$e->getMessage());
         }
     }
 }

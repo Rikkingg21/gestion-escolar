@@ -4,37 +4,38 @@ namespace App\Http\Controllers\Rol;
 
 use App\Http\Controllers\Controller;
 use App\Models\Apoderado;
+use App\Models\Asistencia\Asistencia;
+use App\Models\Asistencia\Tipoasistencia;
+use App\Models\Auxiliar;
+use App\Models\Conducta;
+use App\Models\Conductaperiodobimestrenota;
 use App\Models\Docente;
 use App\Models\Estudiante;
 use App\Models\Grado;
-use App\Models\Matricula;
-use App\Models\Materia\Materiacriterio;
 use App\Models\Materia\Materiacompetencia;
+use App\Models\Materia\Materiacriterio;
+use App\Models\Materia\Recuperacioncompetencia;
+use App\Models\Matricula;
 use App\Models\Maya\Cursogradosecnivanio;
+use App\Models\Nota;
 use App\Models\Periodo;
 use App\Models\Periodobimestre;
-use App\Models\Conducta;
-use App\Models\Conductaperiodobimestrenota;
-use App\Models\Materia\Recuperacioncompetencia;
-use App\Models\Auxiliar;
-use App\Models\Nota;
-use App\Models\Asistencia\Tipoasistencia;
-use App\Models\Asistencia\Asistencia;
+use App\Models\User;
+use App\Services\EvaluacionEstudianteService;
+use App\Services\ProcesarnotasCompetenciaService;
+use App\Services\ProcesarnotasCriterioService;
+use App\Services\ProcesarnotasMateriaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
-use App\Models\User;
-
-use App\Services\ProcesarnotasCriterioService;
-use App\Services\ProcesarnotasCompetenciaService;
-use App\Services\ProcesarnotasMateriaService;
-use App\Services\EvaluacionEstudianteService;
 
 class DashboardController extends Controller
 {
     protected $criterioService;
+
     protected $competenciaService;
+
     protected $materiaService;
+
     protected $evaluacionService;
 
     public function __construct(
@@ -48,6 +49,7 @@ class DashboardController extends Controller
         $this->materiaService = $materiaService;
         $this->evaluacionService = $evaluacionService;
     }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -65,12 +67,13 @@ class DashboardController extends Controller
         } elseif ($user->hasRole('estudiante')) {
             return $this->estudiante($request);
         } else {
-             return $this->NuevoRol();
+            return $this->NuevoRol();
         }
     }
+
     protected function admin()
     {
-        if (!Auth::user()->hasRole('admin')) {
+        if (! Auth::user()->hasRole('admin')) {
             abort(403, 'Acceso denegado');
         }
 
@@ -91,9 +94,10 @@ class DashboardController extends Controller
 
         return view('rol.admin.dashboard', compact('usuarios', 'rolesCount', 'docentesCount', 'estudiantesCount', 'apoderadosCount', 'auxiliaresCount'));
     }
+
     protected function director(Request $request)
     {
-        if (!Auth::user()->hasRole('director')) {
+        if (! Auth::user()->hasRole('director')) {
             abort(403, 'Acceso denegado');
         }
         $user = Auth::user();
@@ -106,7 +110,7 @@ class DashboardController extends Controller
             $periodoSeleccionado = Periodo::find($request->periodo_id);
         }
 
-        if (!$periodoSeleccionado) {
+        if (! $periodoSeleccionado) {
             $periodoSeleccionado = Periodo::where('estado', '1')->first();
         }
 
@@ -129,7 +133,7 @@ class DashboardController extends Controller
                 ->get();
         }
 
-        if (!$periodoSeleccionado && $periodos->isNotEmpty()) {
+        if (! $periodoSeleccionado && $periodos->isNotEmpty()) {
             $periodoSeleccionado = $periodos->first();
         }
 
@@ -156,11 +160,11 @@ class DashboardController extends Controller
         if ($periodoSeleccionado) {
             // Obtener SOLO los grados que tienen estudiantes matriculados en el periodo
             $grados = Grado::where('estado', '1')
-                ->whereHas('matriculas', function($query) use ($periodoSeleccionado) {
+                ->whereHas('matriculas', function ($query) use ($periodoSeleccionado) {
                     $query->where('periodo_id', $periodoSeleccionado->id)
                         ->where('estado', '1');
                 })
-                ->with(['matriculas' => function($query) use ($periodoSeleccionado) {
+                ->with(['matriculas' => function ($query) use ($periodoSeleccionado) {
                     $query->where('periodo_id', $periodoSeleccionado->id)
                         ->where('estado', '1')
                         ->with(['estudiante.user']);
@@ -186,7 +190,7 @@ class DashboardController extends Controller
             $promediosConducta = [];
             $promediosAsistencia = [];
 
-            if (!empty($todosEstudianteIds)) {
+            if (! empty($todosEstudianteIds)) {
                 // Obtener IDs de competencias transversales para excluir
                 $competenciasTransversalesIds = Materiacompetencia::where('nombre', 'LIKE', '%TRANSVERSAL%')
                     ->pluck('id')
@@ -218,13 +222,13 @@ class DashboardController extends Controller
                     ->toArray();
 
                 // Obtener promedios de notas de conducta usando Conductaperiodobimestrenota
-                if (!empty($cursosIds)) {
+                if (! empty($cursosIds)) {
                     $conductaQuery = Conductaperiodobimestrenota::selectRaw('estudiante_id, AVG(nota) as promedio')
                         ->whereIn('estudiante_id', $todosEstudianteIds)
                         ->where('periodo_id', $periodoSeleccionado->id)
                         ->whereIn('curso_grado_sec_niv_anio_id', $cursosIds)
                         ->where('publico', '!=', '0')
-                        ->whereHas('conductaPeriodoBimestre', function($q) {
+                        ->whereHas('conductaPeriodoBimestre', function ($q) {
                             $q->whereNull('deleted_at');
                         });
 
@@ -316,7 +320,7 @@ class DashboardController extends Controller
                 $grado->materias_lista = $materiasGrado->pluck('materia.nombre')->unique()->values();
                 $grado->docentes_lista = $materiasGrado->pluck('docente.user.nombre_completo')->filter()->unique()->values();
 
-                if (!empty($estudianteIds)) {
+                if (! empty($estudianteIds)) {
                     $sumaNotas = 0;
                     $sumaConducta = 0;
                     $contador = 0;
@@ -403,21 +407,21 @@ class DashboardController extends Controller
                 'promedio_asistencia' => $totalRegistrosGlobal > 0 ? round(($totalPuntualidadGlobal / $totalRegistrosGlobal) * 100, 2) : 0,
             ];
 
-            $estadisticas['excelentes'] = $grados->filter(fn($g) => $g->promedio_general >= 3.5)->count();
-            $estadisticas['buenos'] = $grados->filter(fn($g) => $g->promedio_general >= 2.5 && $g->promedio_general < 3.5)->count();
-            $estadisticas['regulares'] = $grados->filter(fn($g) => $g->promedio_general >= 2.0 && $g->promedio_general < 2.5)->count();
-            $estadisticas['bajos'] = $grados->filter(fn($g) => $g->promedio_general < 2.0)->count();
+            $estadisticas['excelentes'] = $grados->filter(fn ($g) => $g->promedio_general >= 3.5)->count();
+            $estadisticas['buenos'] = $grados->filter(fn ($g) => $g->promedio_general >= 2.5 && $g->promedio_general < 3.5)->count();
+            $estadisticas['regulares'] = $grados->filter(fn ($g) => $g->promedio_general >= 2.0 && $g->promedio_general < 2.5)->count();
+            $estadisticas['bajos'] = $grados->filter(fn ($g) => $g->promedio_general < 2.0)->count();
 
-            $estadisticas['por_nivel'] = $grados->groupBy('nivel')->map(function($gradosNivel) {
+            $estadisticas['por_nivel'] = $grados->groupBy('nivel')->map(function ($gradosNivel) {
                 return [
                     'total' => $gradosNivel->count(),
                     'estudiantes' => $gradosNivel->sum('estudiantes_matriculados'),
                     'materias' => $gradosNivel->sum('total_materias'),
                     'promedio' => round($gradosNivel->avg('promedio_general'), 2),
-                    'excelentes' => $gradosNivel->filter(fn($g) => $g->promedio_general >= 3.5)->count(),
-                    'buenos' => $gradosNivel->filter(fn($g) => $g->promedio_general >= 2.5 && $g->promedio_general < 3.5)->count(),
-                    'regulares' => $gradosNivel->filter(fn($g) => $g->promedio_general >= 2.0 && $g->promedio_general < 2.5)->count(),
-                    'bajos' => $gradosNivel->filter(fn($g) => $g->promedio_general < 2.0)->count(),
+                    'excelentes' => $gradosNivel->filter(fn ($g) => $g->promedio_general >= 3.5)->count(),
+                    'buenos' => $gradosNivel->filter(fn ($g) => $g->promedio_general >= 2.5 && $g->promedio_general < 3.5)->count(),
+                    'regulares' => $gradosNivel->filter(fn ($g) => $g->promedio_general >= 2.0 && $g->promedio_general < 2.5)->count(),
+                    'bajos' => $gradosNivel->filter(fn ($g) => $g->promedio_general < 2.0)->count(),
                 ];
             });
 
@@ -431,25 +435,26 @@ class DashboardController extends Controller
             'bimestreSeleccionado' => $bimestreSeleccionado,
             'grados' => $grados,
             'estadisticas' => $estadisticas,
-            'user' => $user
+            'user' => $user,
         ]);
     }
+
     protected function docente(Request $request)
     {
-        if (!Auth::user()->hasRole('docente')) {
+        if (! Auth::user()->hasRole('docente')) {
             abort(403, 'Acceso denegado');
         }
 
         $docente = Auth::user()->docente;
 
-        if (!$docente) {
+        if (! $docente) {
             abort(404, 'Perfil de docente no encontrado');
         }
 
         // Obtener solo los periodos donde el docente tiene asignaciones
-        $periodos = Periodo::whereHas('cursosGradoSecNivAnio', function($query) use ($docente) {
-                $query->where('docente_designado_id', $docente->id);
-            })
+        $periodos = Periodo::whereHas('cursosGradoSecNivAnio', function ($query) use ($docente) {
+            $query->where('docente_designado_id', $docente->id);
+        })
             ->where('estado', 1)
             ->orderBy('anio', 'desc')
             ->get();
@@ -487,13 +492,14 @@ class DashboardController extends Controller
             'asignacionesData'
         ));
     }
+
     private function procesarAsignacionDocente($asignacion, $periodo)
     {
         $grado = $asignacion->grado;
         $materia = $asignacion->materia;
 
         // Obtener estudiantes matriculados
-        $estudiantes = Estudiante::whereHas('matriculas', function($query) use ($grado, $periodo) {
+        $estudiantes = Estudiante::whereHas('matriculas', function ($query) use ($grado, $periodo) {
             $query->where('grado_id', $grado->id)
                 ->where('periodo_id', $periodo->id)
                 ->where('estado', 1);
@@ -513,16 +519,16 @@ class DashboardController extends Controller
         // Obtener criterios por bimestre
         $criteriosPorBimestre = [];
         foreach ($bimestres as $bim) {
-            $criteriosPorBimestre[$bim->sigla] = Materiacriterio::whereHas('materiaCompetencia', function($q) use ($materia) {
+            $criteriosPorBimestre[$bim->sigla] = Materiacriterio::whereHas('materiaCompetencia', function ($q) use ($materia) {
                 $q->where('materia_id', $materia->id)
                     ->whereNot('nombre', 'LIKE', '%TRANSVERSAL%');
             })->where('grado_id', $grado->id)
-            ->where('periodo_bimestre_id', $bim->id)
-            ->count();
+                ->where('periodo_bimestre_id', $bim->id)
+                ->count();
         }
 
         // Obtener conductas activas
-        $conductas = Conducta::whereHas('periodosBimestres', function($q) use ($periodo) {
+        $conductas = Conducta::whereHas('periodosBimestres', function ($q) use ($periodo) {
             $q->where('periodo_id', $periodo->id)
                 ->whereNull('conducta_periodo_bimestres.deleted_at');
         })->distinct()->get();
@@ -574,13 +580,13 @@ class DashboardController extends Controller
             $totalCriteriosPosibles = 0;
 
             foreach ($bimestres as $bim) {
-                $criteriosIds = Materiacriterio::whereHas('materiaCompetencia', function($q) use ($materia) {
+                $criteriosIds = Materiacriterio::whereHas('materiaCompetencia', function ($q) use ($materia) {
                     $q->where('materia_id', $materia->id)
                         ->whereNot('nombre', 'LIKE', '%TRANSVERSAL%');
                 })->where('grado_id', $grado->id)
-                ->where('periodo_bimestre_id', $bim->id)
-                ->pluck('id')
-                ->toArray();
+                    ->where('periodo_bimestre_id', $bim->id)
+                    ->pluck('id')
+                    ->toArray();
 
                 $totalPosibles = count($criteriosIds);
                 $criteriosPosibles[$bim->sigla] = $totalPosibles;
@@ -641,7 +647,7 @@ class DashboardController extends Controller
                     ->where('periodo_id', $periodo->id)
                     ->where('periodo_bimestre_id', $periodoBimestre->id)
                     ->where('publico', '!=', '0')
-                    ->whereHas('curso_grado_sec_niv_anio', function($q) use ($asignacion) {
+                    ->whereHas('curso_grado_sec_niv_anio', function ($q) use ($asignacion) {
                         $q->where('id', $asignacion->id);
                     })
                     ->get();
@@ -699,7 +705,7 @@ class DashboardController extends Controller
                     $estadoTexto = 'Desaprobado';
                     $estadoClase = 'danger';
                 }
-            } else if ($promedioNotas !== null || $promedioConducta !== null) {
+            } elseif ($promedioNotas !== null || $promedioConducta !== null) {
                 $estadoTexto = 'S/N';
                 $estadoClase = 'warning';
             }
@@ -798,7 +804,7 @@ class DashboardController extends Controller
         return [
             'asignacion_id' => $asignacion->id,
             'materia_nombre' => $materia->nombre,
-            'grado_nombre' => $grado->grado . '° ' . $grado->seccion,
+            'grado_nombre' => $grado->grado.'° '.$grado->seccion,
             'periodo_anio' => $periodo->anio,
             'total_estudiantes' => $estudiantes->count(),
             'estudiantes' => $estudiantesData,
@@ -820,17 +826,18 @@ class DashboardController extends Controller
                 'datasets' => $datosGraficoConducta,
             ],
             'resumen_notas' => [
-                'con_datos' => count(array_filter($estadisticasNotas, fn($s) => ($s['total_estudiantes_con_notas'] ?? 0) > 0)),
+                'con_datos' => count(array_filter($estadisticasNotas, fn ($s) => ($s['total_estudiantes_con_notas'] ?? 0) > 0)),
             ],
             'resumen_conducta' => [
-                'con_datos' => count(array_filter($estadisticasConducta, fn($s) => ($s['total_estudiantes_con_conducta'] ?? 0) > 0)),
+                'con_datos' => count(array_filter($estadisticasConducta, fn ($s) => ($s['total_estudiantes_con_conducta'] ?? 0) > 0)),
             ],
             'total_criterios' => array_sum($criteriosPorBimestre),
         ];
     }
+
     protected function auxiliar(Request $request)
     {
-        if (!Auth::user()->hasRole('auxiliar')) {
+        if (! Auth::user()->hasRole('auxiliar')) {
             abort(403, 'Acceso denegado');
         }
 
@@ -841,7 +848,7 @@ class DashboardController extends Controller
             ? Periodo::find($periodoId)
             : $periodos->first();
 
-        if (!$periodoSeleccionado) {
+        if (! $periodoSeleccionado) {
             return back()->with('error', 'No hay períodos activos disponibles.');
         }
 
@@ -851,12 +858,12 @@ class DashboardController extends Controller
         $grados = Grado::whereHas('matriculas', function ($query) use ($periodoSeleccionado) {
             $query->where('periodo_id', $periodoSeleccionado->id);
         })
-        ->withCount(['matriculas' => function ($query) use ($periodoSeleccionado) {
-            $query->where('periodo_id', $periodoSeleccionado->id);
-        }])
-        ->orderBy('grado')
-        ->orderBy('seccion')
-        ->get();
+            ->withCount(['matriculas' => function ($query) use ($periodoSeleccionado) {
+                $query->where('periodo_id', $periodoSeleccionado->id);
+            }])
+            ->orderBy('grado')
+            ->orderBy('seccion')
+            ->get();
 
         $tiposAsistencia = Tipoasistencia::all();
 
@@ -879,7 +886,7 @@ class DashboardController extends Controller
 
             $estudiantes = Estudiante::with([
                 'user',
-                'asistencias' => function($query) use ($periodoSeleccionado, $periodobimestreId, $mesFiltro) {
+                'asistencias' => function ($query) use ($periodoSeleccionado, $periodobimestreId, $mesFiltro) {
                     $query->where('periodo_id', $periodoSeleccionado->id)
                         ->with('tipoasistencia');
 
@@ -890,14 +897,14 @@ class DashboardController extends Controller
                     if ($mesFiltro && is_numeric($mesFiltro)) {
                         $query->whereMonth('fecha', $mesFiltro);
                     }
-                }
+                },
             ])
-            ->whereIn('id', $estudianteIds)
-            ->where('estado', 1)
-            ->get()
-            ->sortBy(function($estudiante) {
-                return $estudiante->user->apellido_paterno . ' ' . $estudiante->user->apellido_materno;
-            });
+                ->whereIn('id', $estudianteIds)
+                ->where('estado', 1)
+                ->get()
+                ->sortBy(function ($estudiante) {
+                    return $estudiante->user->apellido_paterno.' '.$estudiante->user->apellido_materno;
+                });
 
             if ($estudiantes->isEmpty()) {
                 continue;
@@ -940,7 +947,7 @@ class DashboardController extends Controller
                     'total_asistencias' => $totalAsistencias,
                     'porcentajes_tipo' => $porcentajesPorTipo,
                     'conteo_tipos' => $conteoTipos,
-                    'estudiante_id' => $estudiante->id
+                    'estudiante_id' => $estudiante->id,
                 ];
             }
 
@@ -955,11 +962,11 @@ class DashboardController extends Controller
             }
 
             $datosAsistencias[] = [
-                'grado' => $grado->grado . '° ' . $grado->seccion,
+                'grado' => $grado->grado.'° '.$grado->seccion,
                 'estudiantes' => $datosEstudiantes,
                 'estadisticas' => $estadisticasGrado,
                 'tipos_asistencia' => $tiposAsistencia->pluck('nombre')->toArray(),
-                'grado_id' => $grado->id
+                'grado_id' => $grado->id,
             ];
 
             $estadisticasGenerales['totalEstudiantes'] += $estadisticasGrado['totalEstudiantes'];
@@ -974,15 +981,16 @@ class DashboardController extends Controller
             'estadisticasGenerales'
         ));
     }
+
     protected function apoderado(Request $request)
     {
-        if (!Auth::user()->hasRole('apoderado')) {
+        if (! Auth::user()->hasRole('apoderado')) {
             abort(403, 'Acceso denegado');
         }
 
         $apoderado = Apoderado::where('user_id', Auth::id())->first();
 
-        if (!$apoderado) {
+        if (! $apoderado) {
             abort(403, 'No se encontró el perfil de apoderado');
         }
 
@@ -1006,21 +1014,21 @@ class DashboardController extends Controller
                         $apoderado->user->nombre ?? ''
                     )),
                     'parentesco' => $apoderado->parentesco,
-                    'total_estudiantes' => 0
+                    'total_estudiantes' => 0,
                 ],
                 'bimestreFiltro' => 'anual',
                 'esPeriodoRecuperacion' => false,
                 'mensajeRecuperacion' => null,
-                'info' => 'No tiene estudiantes asignados.'
+                'info' => 'No tiene estudiantes asignados.',
             ]);
         }
 
         $estudianteIds = $estudiantes->pluck('id')->toArray();
 
-        $periodos = Periodo::whereHas('matriculas', function($query) use ($estudianteIds) {
-                $query->whereIn('estudiante_id', $estudianteIds)
-                    ->where('estado', 1);
-            })
+        $periodos = Periodo::whereHas('matriculas', function ($query) use ($estudianteIds) {
+            $query->whereIn('estudiante_id', $estudianteIds)
+                ->where('estado', 1);
+        })
             ->where('estado', 1)
             ->orderBy('anio', 'desc')
             ->get();
@@ -1040,12 +1048,12 @@ class DashboardController extends Controller
                         $apoderado->user->nombre ?? ''
                     )),
                     'parentesco' => $apoderado->parentesco,
-                    'total_estudiantes' => $estudiantes->count()
+                    'total_estudiantes' => $estudiantes->count(),
                 ],
                 'bimestreFiltro' => 'anual',
                 'esPeriodoRecuperacion' => false,
                 'mensajeRecuperacion' => null,
-                'error' => 'No hay períodos con matrículas para sus estudiantes.'
+                'error' => 'No hay períodos con matrículas para sus estudiantes.',
             ]);
         }
 
@@ -1054,7 +1062,7 @@ class DashboardController extends Controller
             ? Periodo::find($periodoId)
             : $periodos->first();
 
-        if (!$periodoSeleccionado) {
+        if (! $periodoSeleccionado) {
             return back()->with('error', 'No hay períodos activos disponibles.');
         }
 
@@ -1069,14 +1077,14 @@ class DashboardController extends Controller
         $esPeriodoRecuperacion = in_array($periodoSeleccionado->tipo_periodo, ['recuperacion', 'recuperación']);
 
         // Obtener bimestres regulares (tipo A) para los filtros
-        $bimestresRegulares = $bimestresDisponibles->filter(function($bim) {
+        $bimestresRegulares = $bimestresDisponibles->filter(function ($bim) {
             return $bim->tipo_bimestre === 'A';
         })->values();
 
         // Mensaje contextual para recuperación
         $mensajeRecuperacion = null;
         if ($esPeriodoRecuperacion) {
-            $mensajeRecuperacion = "📌 Estás visualizando el período de RECUPERACIÓN. Las notas mostradas son las notas finales después de la recuperación.";
+            $mensajeRecuperacion = '📌 Estás visualizando el período de RECUPERACIÓN. Las notas mostradas son las notas finales después de la recuperación.';
         }
 
         $datosEstudiantes = [];
@@ -1087,7 +1095,7 @@ class DashboardController extends Controller
                 ->where('estado', 1)
                 ->first();
 
-            if (!$matricula) {
+            if (! $matricula) {
                 $datosEstudiantes[] = [
                     'estudiante_id' => $estudiante->id,
                     'nombre_completo' => trim(sprintf(
@@ -1105,13 +1113,14 @@ class DashboardController extends Controller
                     'cursos_aprobados' => 0,
                     'cursos_desaprobados' => 0,
                     'chartData' => [],
-                    'mensaje' => 'El estudiante no está matriculado en el período seleccionado.'
+                    'mensaje' => 'El estudiante no está matriculado en el período seleccionado.',
                 ];
+
                 continue;
             }
 
             $gradoMatricula = $matricula->grado;
-            $gradoNombre = $gradoMatricula ? $gradoMatricula->grado . '° ' . $gradoMatricula->seccion . ' - ' . $gradoMatricula->nivel : 'Sin grado';
+            $gradoNombre = $gradoMatricula ? $gradoMatricula->grado.'° '.$gradoMatricula->seccion.' - '.$gradoMatricula->nivel : 'Sin grado';
 
             // Obtener materias del grado
             $materiasAsignadas = Cursogradosecnivanio::where('grado_id', $matricula->grado_id)
@@ -1137,8 +1146,9 @@ class DashboardController extends Controller
                     'cursos_aprobados' => 0,
                     'cursos_desaprobados' => 0,
                     'chartData' => [],
-                    'mensaje' => 'No hay materias asignadas para este grado.'
+                    'mensaje' => 'No hay materias asignadas para este grado.',
                 ];
+
                 continue;
             }
 
@@ -1176,8 +1186,9 @@ class DashboardController extends Controller
                         'cursos_aprobados' => 0,
                         'cursos_desaprobados' => 0,
                         'chartData' => [],
-                        'mensaje' => 'No hay registros de recuperación para este período.'
+                        'mensaje' => 'No hay registros de recuperación para este período.',
                     ];
+
                     continue;
                 }
 
@@ -1185,10 +1196,10 @@ class DashboardController extends Controller
                 $materiasRecuperacion = [];
                 foreach ($recuperaciones as $rec) {
                     $materiaId = $rec->materia_id;
-                    if (!isset($materiasRecuperacion[$materiaId])) {
+                    if (! isset($materiasRecuperacion[$materiaId])) {
                         $materiasRecuperacion[$materiaId] = [
                             'materia_nombre' => $materiasArray[$materiaId] ?? $rec->materia->nombre ?? 'Materia',
-                            'competencias' => []
+                            'competencias' => [],
                         ];
                     }
 
@@ -1207,7 +1218,7 @@ class DashboardController extends Controller
                         'esta_aprobada' => ($notaFinal ?? $notaInicial) >= 1.5,
                         'requiere_recuperacion' => false,
                         'tiene_registro_recuperacion' => false,
-                        'promedios_bimestres' => []
+                        'promedios_bimestres' => [],
                     ];
                 }
 
@@ -1240,11 +1251,11 @@ class DashboardController extends Controller
                         'total_competencias' => count($materia['competencias']),
                         'competencias_aprobadas' => collect($materia['competencias'])->where('esta_aprobada', true)->count(),
                         'competencias_desaprobadas' => collect($materia['competencias'])->where('esta_aprobada', false)->count(),
-                        'competencias_recuperacion' => 0
+                        'competencias_recuperacion' => 0,
                     ];
                 }
 
-                $promedioGeneralTodosCursos = !empty($todasNotas) ? round(array_sum($todasNotas) / count($todasNotas), 2) : null;
+                $promedioGeneralTodosCursos = ! empty($todasNotas) ? round(array_sum($todasNotas) / count($todasNotas), 2) : null;
 
                 $datosEstudiantes[] = [
                     'estudiante_id' => $estudiante->id,
@@ -1263,8 +1274,9 @@ class DashboardController extends Controller
                     'cursos_aprobados' => $cursosAprobados,
                     'cursos_desaprobados' => count($progresoCursos) - $cursosAprobados,
                     'chartData' => [],
-                    'mensaje' => null
+                    'mensaje' => null,
                 ];
+
                 continue;
             }
 
@@ -1276,7 +1288,7 @@ class DashboardController extends Controller
             // Obtener competencias (excluyendo transversales)
             $competenciasQuery = Materiacompetencia::whereIn('materia_id', $materiaIds)
                 ->whereRaw('LOWER(nombre) NOT LIKE ?', ['%transversal%'])
-                ->whereHas('materiaCriterio', function($query) use ($matricula, $periodoBimestreSeleccionado, $bimestreFiltro) {
+                ->whereHas('materiaCriterio', function ($query) use ($matricula, $periodoBimestreSeleccionado, $bimestreFiltro) {
                     $query->where('grado_id', $matricula->grado_id);
                     if ($bimestreFiltro !== 'anual' && $periodoBimestreSeleccionado) {
                         $query->where('periodo_bimestre_id', $periodoBimestreSeleccionado->id);
@@ -1311,15 +1323,16 @@ class DashboardController extends Controller
                     'cursos_aprobados' => 0,
                     'cursos_desaprobados' => 0,
                     'chartData' => [],
-                    'mensaje' => 'No hay competencias registradas para este período.'
+                    'mensaje' => 'No hay competencias registradas para este período.',
                 ];
+
                 continue;
             }
 
             // Obtener criterios
             $criterios = Materiacriterio::whereIn('materia_competencia_id', $competenciaIds)
                 ->where('grado_id', $matricula->grado_id)
-                ->when($bimestreFiltro !== 'anual' && $periodoBimestreSeleccionado, function($q) use ($periodoBimestreSeleccionado) {
+                ->when($bimestreFiltro !== 'anual' && $periodoBimestreSeleccionado, function ($q) use ($periodoBimestreSeleccionado) {
                     $q->where('periodo_bimestre_id', $periodoBimestreSeleccionado->id);
                 })
                 ->get();
@@ -1328,7 +1341,7 @@ class DashboardController extends Controller
             foreach ($criterios as $criterio) {
                 $criteriosArray[$criterio->id] = [
                     'competencia_id' => $criterio->materia_competencia_id,
-                    'materia_id' => $competenciasMateria[$criterio->materia_competencia_id] ?? null
+                    'materia_id' => $competenciasMateria[$criterio->materia_competencia_id] ?? null,
                 ];
             }
 
@@ -1352,7 +1365,7 @@ class DashboardController extends Controller
                         'materia_criterio_id' => $nota->materia_criterio_id,
                         'materia_competencia_id' => $criterioInfo['competencia_id'],
                         'materia_id' => $criterioInfo['materia_id'],
-                        'nota' => $nota->nota
+                        'nota' => $nota->nota,
                     ];
                 }
             }
@@ -1379,7 +1392,7 @@ class DashboardController extends Controller
                             'nota' => $notaRecuperacion,
                             'tiene_registro' => true,
                             'recuperacion_id' => $rec->id,
-                            'estado' => $rec->estado
+                            'estado' => $rec->estado,
                         ];
                     }
                 }
@@ -1403,11 +1416,12 @@ class DashboardController extends Controller
                             ->get();
                         $promediosPorBimestre = [];
                         foreach ($bimestres as $bim) {
-                            $criteriosBimestre = $criteriosCompetencia->filter(function($criterio) use ($bim) {
+                            $criteriosBimestre = $criteriosCompetencia->filter(function ($criterio) use ($bim) {
                                 return $criterio->periodo_bimestre_id == $bim->id;
                             });
                             if ($criteriosBimestre->isEmpty()) {
                                 $promediosPorBimestre[$bim->bimestre] = null;
+
                                 continue;
                             }
                             $criterioIdsBimestre = $criteriosBimestre->pluck('id')->toArray();
@@ -1443,7 +1457,7 @@ class DashboardController extends Controller
                             $chartData[] = [
                                 'nombre' => $competencia['nombre'],
                                 'materia' => $materiaNombre,
-                                'promedios' => $competencia['promedios_bimestres']
+                                'promedios' => $competencia['promedios_bimestres'],
                             ];
                         }
                     }
@@ -1467,27 +1481,27 @@ class DashboardController extends Controller
                     'total_competencias' => $materia['total_competencias'],
                     'competencias_aprobadas' => $materia['competencias_aprobadas_count'],
                     'competencias_desaprobadas' => $materia['competencias_desaprobadas_count'],
-                    'competencias_recuperacion' => $materia['competencias_requieren_recuperacion_count']
+                    'competencias_recuperacion' => $materia['competencias_requieren_recuperacion_count'],
                 ];
             }
 
             $progresoConducta = [];
 
-            $conductasDB = Conducta::whereHas('periodosBimestres', function($query) use ($periodoSeleccionado) {
+            $conductasDB = Conducta::whereHas('periodosBimestres', function ($query) use ($periodoSeleccionado) {
                 $query->where('periodo_id', $periodoSeleccionado->id)
                     ->whereNull('conducta_periodo_bimestres.deleted_at');
             })->distinct()->get();
 
             if ($conductasDB->isNotEmpty()) {
                 $queryConducta = Conductaperiodobimestrenota::with([
-                        'conductaPeriodoBimestre.conducta',
-                        'periodoBimestre',
-                        'curso_grado_sec_niv_anio.materia'
-                    ])
+                    'conductaPeriodoBimestre.conducta',
+                    'periodoBimestre',
+                    'curso_grado_sec_niv_anio.materia',
+                ])
                     ->where('estudiante_id', $estudiante->id)
                     ->where('periodo_id', $periodoSeleccionado->id)
                     ->where('publico', '!=', '0')
-                    ->whereHas('conductaPeriodoBimestre', function($q) {
+                    ->whereHas('conductaPeriodoBimestre', function ($q) {
                         $q->whereNull('deleted_at');
                     });
 
@@ -1500,10 +1514,10 @@ class DashboardController extends Controller
                 if ($notasConducta->isNotEmpty()) {
                     $notasMap = [];
                     foreach ($notasConducta as $nota) {
-                        if (!$nota->conductaPeriodoBimestre || $nota->conductaPeriodoBimestre->trashed()) {
+                        if (! $nota->conductaPeriodoBimestre || $nota->conductaPeriodoBimestre->trashed()) {
                             continue;
                         }
-                        $key = $nota->conductaPeriodoBimestre->conducta_id . '|' . $nota->curso_grado_sec_niv_anio_id;
+                        $key = $nota->conductaPeriodoBimestre->conducta_id.'|'.$nota->curso_grado_sec_niv_anio_id;
                         $notasMap[$key] = $nota->nota;
                     }
 
@@ -1513,11 +1527,11 @@ class DashboardController extends Controller
                         $totalNotas = 0;
 
                         foreach ($materiasAsignadas as $curso) {
-                            $key = $conducta->id . '|' . $curso->id;
+                            $key = $conducta->id.'|'.$curso->id;
                             $notaValor = $notasMap[$key] ?? null;
                             $notasConductaCurso[] = [
                                 'curso' => $curso->materia->nombre ?? 'Sin nombre',
-                                'nota' => $notaValor
+                                'nota' => $notaValor,
                             ];
                             if ($notaValor !== null) {
                                 $sumaNotas += $notaValor;
@@ -1534,7 +1548,7 @@ class DashboardController extends Controller
                             'nombre' => $conducta->nombre,
                             'cursos' => $notasConductaCurso,
                             'promedio_general' => $promedioGeneral,
-                            'estado' => $estado
+                            'estado' => $estado,
                         ];
                     }
                 }
@@ -1580,7 +1594,7 @@ class DashboardController extends Controller
                 'chartData' => $chartData,
                 'mensaje' => count($progresoCursos) == 0 && count($progresoConducta) == 0
                     ? 'No hay notas registradas para este período'
-                    : null
+                    : null,
             ];
         }
 
@@ -1592,7 +1606,7 @@ class DashboardController extends Controller
                 $apoderado->user->nombre ?? ''
             )),
             'parentesco' => $apoderado->parentesco,
-            'total_estudiantes' => count($estudiantes)
+            'total_estudiantes' => count($estudiantes),
         ];
 
         return view('rol.apoderado.dashboard', compact(
@@ -1607,15 +1621,16 @@ class DashboardController extends Controller
             'mensajeRecuperacion'
         ));
     }
+
     protected function estudiante(Request $request)
     {
-        if (!Auth::user()->hasRole('estudiante')) {
+        if (! Auth::user()->hasRole('estudiante')) {
             abort(403, 'Acceso denegado');
         }
 
         $estudiante = Estudiante::where('user_id', Auth::id())->first();
 
-        if (!$estudiante) {
+        if (! $estudiante) {
             abort(403, 'No se encontró el perfil de estudiante');
         }
 
@@ -1623,10 +1638,10 @@ class DashboardController extends Controller
         $usuarios = User::with('roles')->get();
 
         // Obtener periodos disponibles (incluyendo recuperación)
-        $periodos = Periodo::whereHas('matriculas', function($query) use ($estudianteId) {
-                $query->where('estudiante_id', $estudianteId)
-                    ->where('estado', 1);
-            })
+        $periodos = Periodo::whereHas('matriculas', function ($query) use ($estudianteId) {
+            $query->where('estudiante_id', $estudianteId)
+                ->where('estado', 1);
+        })
             ->where('estado', 1)
             ->orderBy('anio', 'desc')
             ->get();
@@ -1642,7 +1657,7 @@ class DashboardController extends Controller
                 'chartData' => [],
                 'mensajeRecuperacion' => null,
                 'esPeriodoRecuperacion' => false,
-                'error' => 'No hay períodos con matrículas.'
+                'error' => 'No hay períodos con matrículas.',
             ]);
         }
 
@@ -1651,7 +1666,7 @@ class DashboardController extends Controller
             ? Periodo::find($periodoId)
             : $periodos->first();
 
-        if (!$periodoSeleccionado) {
+        if (! $periodoSeleccionado) {
             return back()->with('error', 'No hay períodos disponibles.');
         }
 
@@ -1668,7 +1683,7 @@ class DashboardController extends Controller
         // Mensaje contextual
         $mensajeRecuperacion = null;
         if ($esPeriodoRecuperacion) {
-            $mensajeRecuperacion = "📌 Estás visualizando el período de RECUPERACIÓN. Las notas mostradas son las notas finales después de la recuperación.";
+            $mensajeRecuperacion = '📌 Estás visualizando el período de RECUPERACIÓN. Las notas mostradas son las notas finales después de la recuperación.';
         }
 
         $matricula = Matricula::where('estudiante_id', $estudiante->id)
@@ -1676,7 +1691,7 @@ class DashboardController extends Controller
             ->where('estado', 1)
             ->first();
 
-        if (!$matricula) {
+        if (! $matricula) {
             $infoEstudiante = [
                 'estudiante_id' => $estudiante->id,
                 'nombre_completo' => trim(sprintf(
@@ -1695,7 +1710,7 @@ class DashboardController extends Controller
                 'cursos_desaprobados' => 0,
                 'cursos_sin_datos' => 0,
                 'promedio_general' => null,
-                'mensaje' => 'No estás matriculado en el período seleccionado.'
+                'mensaje' => 'No estás matriculado en el período seleccionado.',
             ];
 
             return view('rol.estudiante.dashboard', [
@@ -1707,7 +1722,7 @@ class DashboardController extends Controller
                 'bimestresDisponibles' => $bimestresDisponibles,
                 'chartData' => [],
                 'mensajeRecuperacion' => $mensajeRecuperacion,
-                'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+                'esPeriodoRecuperacion' => $esPeriodoRecuperacion,
             ]);
         }
 
@@ -1726,7 +1741,7 @@ class DashboardController extends Controller
                     $estudiante->user->apellido_materno ?? '',
                     $estudiante->user->nombre ?? ''
                 )),
-                'grado' => $matricula->grado ? $matricula->grado->grado . '° ' . $matricula->grado->seccion . ' - ' . $matricula->grado->nivel : 'Sin grado',
+                'grado' => $matricula->grado ? $matricula->grado->grado.'° '.$matricula->grado->seccion.' - '.$matricula->grado->nivel : 'Sin grado',
                 'grado_id' => $matricula->grado_id,
                 'progreso_cursos' => [],
                 'progreso_conducta' => [],
@@ -1736,7 +1751,7 @@ class DashboardController extends Controller
                 'cursos_desaprobados' => 0,
                 'cursos_sin_datos' => 0,
                 'promedio_general' => null,
-                'mensaje' => 'No hay materias asignadas para este grado.'
+                'mensaje' => 'No hay materias asignadas para este grado.',
             ];
 
             return view('rol.estudiante.dashboard', [
@@ -1748,7 +1763,7 @@ class DashboardController extends Controller
                 'bimestresDisponibles' => $bimestresDisponibles,
                 'chartData' => [],
                 'mensajeRecuperacion' => $mensajeRecuperacion,
-                'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+                'esPeriodoRecuperacion' => $esPeriodoRecuperacion,
             ]);
         }
 
@@ -1779,7 +1794,7 @@ class DashboardController extends Controller
                         $estudiante->user->apellido_materno ?? '',
                         $estudiante->user->nombre ?? ''
                     )),
-                    'grado' => $matricula->grado ? $matricula->grado->grado . '° ' . $matricula->grado->seccion . ' - ' . $matricula->grado->nivel : 'Sin grado',
+                    'grado' => $matricula->grado ? $matricula->grado->grado.'° '.$matricula->grado->seccion.' - '.$matricula->grado->nivel : 'Sin grado',
                     'grado_id' => $matricula->grado_id,
                     'progreso_cursos' => [],
                     'progreso_conducta' => [],
@@ -1789,7 +1804,7 @@ class DashboardController extends Controller
                     'cursos_desaprobados' => 0,
                     'cursos_sin_datos' => 0,
                     'promedio_general' => null,
-                    'mensaje' => 'No hay registros de recuperación para este período.'
+                    'mensaje' => 'No hay registros de recuperación para este período.',
                 ];
 
                 return view('rol.estudiante.dashboard', [
@@ -1801,7 +1816,7 @@ class DashboardController extends Controller
                     'bimestresDisponibles' => $bimestresDisponibles,
                     'chartData' => $chartData,
                     'mensajeRecuperacion' => $mensajeRecuperacion,
-                    'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+                    'esPeriodoRecuperacion' => $esPeriodoRecuperacion,
                 ]);
             }
 
@@ -1809,10 +1824,10 @@ class DashboardController extends Controller
             $materiasRecuperacion = [];
             foreach ($recuperaciones as $rec) {
                 $materiaId = $rec->materia_id;
-                if (!isset($materiasRecuperacion[$materiaId])) {
+                if (! isset($materiasRecuperacion[$materiaId])) {
                     $materiasRecuperacion[$materiaId] = [
                         'materia_nombre' => $materiasArray[$materiaId] ?? $rec->materia->nombre ?? 'Materia',
-                        'competencias' => []
+                        'competencias' => [],
                     ];
                 }
 
@@ -1831,7 +1846,7 @@ class DashboardController extends Controller
                     'esta_aprobada' => ($notaFinal ?? $notaInicial) >= 1.5,
                     'requiere_recuperacion' => false,
                     'tiene_registro_recuperacion' => false,
-                    'promedios_bimestres' => []
+                    'promedios_bimestres' => [],
                 ];
             }
 
@@ -1864,11 +1879,11 @@ class DashboardController extends Controller
                     'total_competencias' => count($materia['competencias']),
                     'competencias_aprobadas' => collect($materia['competencias'])->where('esta_aprobada', true)->count(),
                     'competencias_desaprobadas' => collect($materia['competencias'])->where('esta_aprobada', false)->count(),
-                    'competencias_recuperacion' => 0
+                    'competencias_recuperacion' => 0,
                 ];
             }
 
-            $promedioGeneralTodosCursos = !empty($todasNotas) ? round(array_sum($todasNotas) / count($todasNotas), 2) : null;
+            $promedioGeneralTodosCursos = ! empty($todasNotas) ? round(array_sum($todasNotas) / count($todasNotas), 2) : null;
 
             $infoEstudiante = [
                 'estudiante_id' => $estudiante->id,
@@ -1878,7 +1893,7 @@ class DashboardController extends Controller
                     $estudiante->user->apellido_materno ?? '',
                     $estudiante->user->nombre ?? ''
                 )),
-                'grado' => $matricula->grado ? $matricula->grado->grado . '° ' . $matricula->grado->seccion . ' - ' . $matricula->grado->nivel : 'Sin grado',
+                'grado' => $matricula->grado ? $matricula->grado->grado.'° '.$matricula->grado->seccion.' - '.$matricula->grado->nivel : 'Sin grado',
                 'grado_id' => $matricula->grado_id,
                 'progreso_cursos' => $progresoCursos,
                 'progreso_conducta' => [],
@@ -1888,7 +1903,7 @@ class DashboardController extends Controller
                 'cursos_desaprobados' => $cursosDesaprobados,
                 'cursos_sin_datos' => 0,
                 'promedio_general' => $promedioGeneralTodosCursos,
-                'mensaje' => null
+                'mensaje' => null,
             ];
 
             return view('rol.estudiante.dashboard', [
@@ -1900,7 +1915,7 @@ class DashboardController extends Controller
                 'bimestresDisponibles' => $bimestresDisponibles,
                 'chartData' => $chartData,
                 'mensajeRecuperacion' => $mensajeRecuperacion,
-                'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+                'esPeriodoRecuperacion' => $esPeriodoRecuperacion,
             ]);
         }
 
@@ -1913,7 +1928,7 @@ class DashboardController extends Controller
         // Obtener competencias (excluyendo transversales)
         $competenciasQuery = Materiacompetencia::whereIn('materia_id', $materiaIds)
             ->whereRaw('LOWER(nombre) NOT LIKE ?', ['%transversal%'])
-            ->whereHas('materiaCriterio', function($query) use ($matricula, $periodoBimestreSeleccionado, $bimestreFiltro) {
+            ->whereHas('materiaCriterio', function ($query) use ($matricula, $periodoBimestreSeleccionado, $bimestreFiltro) {
                 $query->where('grado_id', $matricula->grado_id);
 
                 if ($bimestreFiltro !== 'anual' && $periodoBimestreSeleccionado) {
@@ -1940,7 +1955,7 @@ class DashboardController extends Controller
                     $estudiante->user->apellido_materno ?? '',
                     $estudiante->user->nombre ?? ''
                 )),
-                'grado' => $matricula->grado ? $matricula->grado->grado . '° ' . $matricula->grado->seccion . ' - ' . $matricula->grado->nivel : 'Sin grado',
+                'grado' => $matricula->grado ? $matricula->grado->grado.'° '.$matricula->grado->seccion.' - '.$matricula->grado->nivel : 'Sin grado',
                 'grado_id' => $matricula->grado_id,
                 'progreso_cursos' => [],
                 'progreso_conducta' => [],
@@ -1950,7 +1965,7 @@ class DashboardController extends Controller
                 'cursos_desaprobados' => 0,
                 'cursos_sin_datos' => 0,
                 'promedio_general' => null,
-                'mensaje' => 'No hay competencias registradas para este período.'
+                'mensaje' => 'No hay competencias registradas para este período.',
             ];
 
             return view('rol.estudiante.dashboard', [
@@ -1962,14 +1977,14 @@ class DashboardController extends Controller
                 'bimestresDisponibles' => $bimestresDisponibles,
                 'chartData' => $chartData,
                 'mensajeRecuperacion' => $mensajeRecuperacion,
-                'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+                'esPeriodoRecuperacion' => $esPeriodoRecuperacion,
             ]);
         }
 
         // Obtener criterios
         $criterios = Materiacriterio::whereIn('materia_competencia_id', $competenciaIds)
             ->where('grado_id', $matricula->grado_id)
-            ->when($bimestreFiltro !== 'anual' && $periodoBimestreSeleccionado, function($q) use ($periodoBimestreSeleccionado) {
+            ->when($bimestreFiltro !== 'anual' && $periodoBimestreSeleccionado, function ($q) use ($periodoBimestreSeleccionado) {
                 $q->where('periodo_bimestre_id', $periodoBimestreSeleccionado->id);
             })
             ->get();
@@ -1978,7 +1993,7 @@ class DashboardController extends Controller
         foreach ($criterios as $criterio) {
             $criteriosArray[$criterio->id] = [
                 'competencia_id' => $criterio->materia_competencia_id,
-                'materia_id' => $competenciasMateria[$criterio->materia_competencia_id] ?? null
+                'materia_id' => $competenciasMateria[$criterio->materia_competencia_id] ?? null,
             ];
         }
 
@@ -2002,7 +2017,7 @@ class DashboardController extends Controller
                     'materia_criterio_id' => $nota->materia_criterio_id,
                     'materia_competencia_id' => $criterioInfo['competencia_id'],
                     'materia_id' => $criterioInfo['materia_id'],
-                    'nota' => $nota->nota
+                    'nota' => $nota->nota,
                 ];
             }
         }
@@ -2030,7 +2045,7 @@ class DashboardController extends Controller
                         'nota' => $notaRecuperacion,
                         'tiene_registro' => true,
                         'recuperacion_id' => $rec->id,
-                        'estado' => $rec->estado
+                        'estado' => $rec->estado,
                     ];
                 }
             }
@@ -2046,7 +2061,7 @@ class DashboardController extends Controller
 
         // Obtener promedios por bimestre para cada competencia (solo en modo anual)
         if ($bimestreFiltro === 'anual') {
-            $bimestres = $bimestresDisponibles->filter(function($bim) {
+            $bimestres = $bimestresDisponibles->filter(function ($bim) {
                 return $bim->tipo_bimestre === 'A';
             });
 
@@ -2061,12 +2076,13 @@ class DashboardController extends Controller
                     $promediosPorBimestre = [];
 
                     foreach ($bimestres as $bim) {
-                        $criteriosBimestre = $criteriosCompetencia->filter(function($criterio) use ($bim) {
+                        $criteriosBimestre = $criteriosCompetencia->filter(function ($criterio) use ($bim) {
                             return $criterio->periodo_bimestre_id == $bim->id;
                         });
 
                         if ($criteriosBimestre->isEmpty()) {
                             $promediosPorBimestre[$bim->bimestre] = null;
+
                             continue;
                         }
 
@@ -2105,7 +2121,7 @@ class DashboardController extends Controller
                         $chartData[] = [
                             'nombre' => $competencia['nombre'],
                             'materia' => $materiaNombre,
-                            'promedios' => $competencia['promedios_bimestres']
+                            'promedios' => $competencia['promedios_bimestres'],
                         ];
                     }
                 }
@@ -2129,13 +2145,13 @@ class DashboardController extends Controller
                 'total_competencias' => $materia['total_competencias'],
                 'competencias_aprobadas' => $materia['competencias_aprobadas_count'],
                 'competencias_desaprobadas' => $materia['competencias_desaprobadas_count'],
-                'competencias_recuperacion' => $materia['competencias_requieren_recuperacion_count']
+                'competencias_recuperacion' => $materia['competencias_requieren_recuperacion_count'],
             ];
         }
 
         $progresoConducta = [];
 
-        $conductasDB = Conducta::whereHas('periodosBimestres', function($query) use ($periodoSeleccionado) {
+        $conductasDB = Conducta::whereHas('periodosBimestres', function ($query) use ($periodoSeleccionado) {
             $query->where('periodo_id', $periodoSeleccionado->id)
                 ->whereNull('conducta_periodo_bimestres.deleted_at');
         })->distinct()->get();
@@ -2151,14 +2167,14 @@ class DashboardController extends Controller
                 : null;
 
             $queryConducta = Conductaperiodobimestrenota::with([
-                    'conductaPeriodoBimestre.conducta',
-                    'periodoBimestre',
-                    'curso_grado_sec_niv_anio.materia'
-                ])
+                'conductaPeriodoBimestre.conducta',
+                'periodoBimestre',
+                'curso_grado_sec_niv_anio.materia',
+            ])
                 ->where('estudiante_id', $estudiante->id)
                 ->where('periodo_id', $periodoSeleccionado->id)
                 ->where('publico', '!=', '0')
-                ->whereHas('conductaPeriodoBimestre', function($q) {
+                ->whereHas('conductaPeriodoBimestre', function ($q) {
                     $q->whereNull('deleted_at');
                 });
 
@@ -2171,10 +2187,10 @@ class DashboardController extends Controller
             if ($notasConducta->isNotEmpty()) {
                 $notasMap = [];
                 foreach ($notasConducta as $nota) {
-                    if (!$nota->conductaPeriodoBimestre || $nota->conductaPeriodoBimestre->trashed()) {
+                    if (! $nota->conductaPeriodoBimestre || $nota->conductaPeriodoBimestre->trashed()) {
                         continue;
                     }
-                    $key = $nota->conductaPeriodoBimestre->conducta_id . '|' . $nota->curso_grado_sec_niv_anio_id;
+                    $key = $nota->conductaPeriodoBimestre->conducta_id.'|'.$nota->curso_grado_sec_niv_anio_id;
                     $notasMap[$key] = $nota->nota;
                 }
 
@@ -2184,11 +2200,11 @@ class DashboardController extends Controller
                     $totalNotas = 0;
 
                     foreach ($materiasAsignadas as $curso) {
-                        $key = $conducta->id . '|' . $curso->id;
+                        $key = $conducta->id.'|'.$curso->id;
                         $notaValor = $notasMap[$key] ?? null;
                         $notasConductaCurso[] = [
                             'curso' => $curso->materia->nombre ?? 'Sin nombre',
-                            'nota' => $notaValor
+                            'nota' => $notaValor,
                         ];
                         if ($notaValor !== null) {
                             $sumaNotas += $notaValor;
@@ -2205,7 +2221,7 @@ class DashboardController extends Controller
                         'nombre' => $conducta->nombre,
                         'cursos' => $notasConductaCurso,
                         'promedio_general' => $promedioGeneral,
-                        'estado' => $estado
+                        'estado' => $estado,
                     ];
                 }
             }
@@ -2230,7 +2246,7 @@ class DashboardController extends Controller
             }
         }
 
-        $promedioGeneralTodosCursos = !empty($todasNotas) ? round(array_sum($todasNotas) / count($todasNotas), 2) : null;
+        $promedioGeneralTodosCursos = ! empty($todasNotas) ? round(array_sum($todasNotas) / count($todasNotas), 2) : null;
 
         $infoEstudiante = [
             'estudiante_id' => $estudiante->id,
@@ -2240,7 +2256,7 @@ class DashboardController extends Controller
                 $estudiante->user->apellido_materno ?? '',
                 $estudiante->user->nombre ?? ''
             )),
-            'grado' => $matricula->grado ? $matricula->grado->grado . '° ' . $matricula->grado->seccion . ' - ' . $matricula->grado->nivel : 'Sin grado',
+            'grado' => $matricula->grado ? $matricula->grado->grado.'° '.$matricula->grado->seccion.' - '.$matricula->grado->nivel : 'Sin grado',
             'grado_id' => $matricula->grado_id,
             'progreso_cursos' => $progresoCursos,
             'progreso_conducta' => $progresoConducta,
@@ -2250,7 +2266,7 @@ class DashboardController extends Controller
             'cursos_desaprobados' => $cursosDesaprobados,
             'cursos_sin_datos' => $cursosSinDatos,
             'promedio_general' => $promedioGeneralTodosCursos,
-            'mensaje' => count($progresoCursos) == 0 ? 'No hay notas registradas para este período' : null
+            'mensaje' => count($progresoCursos) == 0 ? 'No hay notas registradas para este período' : null,
         ];
 
         return view('rol.estudiante.dashboard', [
@@ -2262,9 +2278,10 @@ class DashboardController extends Controller
             'bimestresDisponibles' => $bimestresDisponibles,
             'chartData' => $chartData,
             'mensajeRecuperacion' => $mensajeRecuperacion,
-            'esPeriodoRecuperacion' => $esPeriodoRecuperacion
+            'esPeriodoRecuperacion' => $esPeriodoRecuperacion,
         ]);
     }
+
     protected function NuevoRol()
     {
         $usuarios = User::with('roles')->get();

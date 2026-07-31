@@ -2,12 +2,11 @@
 
 namespace App\Models\Tramite;
 
-use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
 use App\Models\Metodopago\Tipopago;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
 
 class Pagocomprobante extends Model
 {
@@ -15,7 +14,9 @@ class Pagocomprobante extends Model
     use SoftDeletes;
 
     protected $table = 'm_tramite_pago_comprobantes';
+
     protected $primaryKey = 'id';
+
     public $timestamps = true;
 
     protected $fillable = [
@@ -44,20 +45,23 @@ class Pagocomprobante extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
     public function metodoPago()
     {
         return $this->belongsTo(Tipopago::class, 'metodo_pago_id');
     }
+
     // Accessor para monto formateado
     public function getMontoFormateadoAttribute()
     {
-        return 'S/ ' . number_format($this->monto, 2);
+        return 'S/ '.number_format($this->monto, 2);
     }
 
     // Accessor para saber si es imagen
     public function getEsImagenAttribute()
     {
         $extension = pathinfo($this->comprobante_path, PATHINFO_EXTENSION);
+
         return in_array(strtolower($extension), ['png', 'jpg', 'jpeg', 'gif', 'webp']);
     }
 
@@ -65,6 +69,7 @@ class Pagocomprobante extends Model
     public function getEsPdfAttribute()
     {
         $extension = pathinfo($this->comprobante_path, PATHINFO_EXTENSION);
+
         return strtolower($extension) === 'pdf';
     }
 }

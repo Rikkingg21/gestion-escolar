@@ -2,30 +2,34 @@
 
 namespace App\Models\Materia;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;
-
 use App\Models\Materia;
-use App\Models\Materia\Materiacriterio;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Materiacompetencia extends Model
 {
     use hasFactory;
     use SoftDeletes;
+
     protected $table = 'materia_competencias';
+
     protected $primaryKey = 'id';
+
     public $timestamps = true;
+
     protected $fillable = [
         'materia_id',
         'nombre',
         'descripcion',
-        'estado'
+        'estado',
     ];
+
     public function materia()
     {
         return $this->belongsTo(Materia::class, 'materia_id');
     }
+
     public function materiaCriterio()
     {
         return $this->hasMany(Materiacriterio::class, 'materia_competencia_id');

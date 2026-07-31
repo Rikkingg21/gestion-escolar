@@ -3,25 +3,26 @@
 namespace App\Http\Controllers\Materia;
 
 use App\Http\Controllers\Controller;
+use App\Models\Grado;
+use App\Models\Materia;
 use App\Models\Materia\Materiacompetencia;
 use App\Models\Materia\Materiacriterio;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use App\Models\Materia;
 use App\Models\Periodo;
 use App\Models\Periodobimestre;
-use App\Models\Grado;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class MateriaCriterioController extends Controller
 {
-    //moduleID 11 = Materias
+    // moduleID 11 = Materias
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('11')) {
+            if (! auth()->user()->canAccessModule('11')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
@@ -29,7 +30,7 @@ class MateriaCriterioController extends Controller
     public function index(Request $request)
     {
         // Validar que se haya seleccionado un período
-        if (!$request->has('periodo_id') || !$request->periodo_id) {
+        if (! $request->has('periodo_id') || ! $request->periodo_id) {
             // Si no hay período seleccionado, mostrar un mensaje y no cargar criterios
             $materias = Materia::where('estado', 1)->orderBy('nombre')->get();
             $grados = Grado::where('estado', 1)->orderBy('grado')->orderBy('seccion')->get();
@@ -68,7 +69,7 @@ class MateriaCriterioController extends Controller
             'grado',
             'materiaCompetencia',
             'periodoBimestre',
-            'periodoBimestre.periodo'
+            'periodoBimestre.periodo',
         ]);
 
         // Aplicar filtros obligatorios
@@ -76,7 +77,7 @@ class MateriaCriterioController extends Controller
             $criteriosQuery->where('periodo_bimestre_id', $request->periodo_bimestre_id);
         } else {
             // Si no hay bimestre específico, filtrar por todos los bimestres del período
-            $criteriosQuery->whereHas('periodoBimestre', function($query) use ($request) {
+            $criteriosQuery->whereHas('periodoBimestre', function ($query) use ($request) {
                 $query->where('periodo_id', $request->periodo_id);
             });
         }
@@ -95,7 +96,7 @@ class MateriaCriterioController extends Controller
             ->get();
 
         // Agrupar por competencia
-        $criteriosAgrupados = $criterios->groupBy(function($criterio) {
+        $criteriosAgrupados = $criterios->groupBy(function ($criterio) {
             return $criterio->materiaCompetencia->nombre ?? 'Sin Competencia';
         });
 
@@ -124,7 +125,7 @@ class MateriaCriterioController extends Controller
         $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
 
         $grados = Grado::where('estado', 1)
-                    ->orderByRaw("
+            ->orderByRaw("
                         CASE
                             WHEN nivel = 'Primaria' THEN 1
                             WHEN nivel = 'Secundaria' THEN 2
@@ -133,13 +134,13 @@ class MateriaCriterioController extends Controller
                         grado ASC,
                         seccion ASC
                     ")
-                    ->get();
+            ->get();
 
         // Obtener períodos activos de tipo 'año escolar'
         $periodos = Periodo::where('estado', 1)
-                    ->where('tipo_periodo', 'año escolar')
-                    ->orderBy('anio', 'desc')
-                    ->get();
+            ->where('tipo_periodo', 'año escolar')
+            ->orderBy('anio', 'desc')
+            ->get();
 
         return view('materia.materiacriterio.create', compact(
             'materias',
@@ -147,6 +148,7 @@ class MateriaCriterioController extends Controller
             'periodos'
         ));
     }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -176,7 +178,7 @@ class MateriaCriterioController extends Controller
                             ->where('nombre', $criterioData['nombre'])
                             ->exists();
 
-                        if (!$existe) {
+                        if (! $existe) {
                             Materiacriterio::create([
                                 'materia_competencia_id' => $request->materia_competencia_id,
                                 'materia_id' => $request->materia_id,
@@ -204,24 +206,27 @@ class MateriaCriterioController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
+
             return redirect()->back()
-                ->with('error', 'Error al crear los criterios: ' . $e->getMessage())
+                ->with('error', 'Error al crear los criterios: '.$e->getMessage())
                 ->withInput();
         }
     }
+
     public function getBimestres($periodo_id)
     {
         try {
             $bimestres = Periodobimestre::where('periodo_id', $periodo_id)
-                        ->with('periodo')
-                        ->orderBy('bimestre')
-                        ->get();
+                ->with('periodo')
+                ->orderBy('bimestre')
+                ->get();
 
             return response()->json($bimestres);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
     public function edit($id)
     {
         // Obtener el criterio específico
@@ -231,7 +236,7 @@ class MateriaCriterioController extends Controller
         $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
 
         $grados = Grado::where('estado', 1)
-                    ->orderByRaw("
+            ->orderByRaw("
                         CASE
                             WHEN nivel = 'Primaria' THEN 1
                             WHEN nivel = 'Secundaria' THEN 2
@@ -240,23 +245,23 @@ class MateriaCriterioController extends Controller
                         grado ASC,
                         seccion ASC
                     ")
-                    ->get();
+            ->get();
 
         $competencias = MateriaCompetencia::where('materia_id', $criterio->materia_id)
-                        ->where('estado', "1")
-                        ->orderBy('nombre')
-                        ->get();
+            ->where('estado', '1')
+            ->orderBy('nombre')
+            ->get();
 
         // Obtener períodos activos
         $periodos = Periodo::where('estado', 1)
-                    ->where('tipo_periodo', 'año escolar')
-                    ->orderBy('anio', 'desc')
-                    ->get();
+            ->where('tipo_periodo', 'año escolar')
+            ->orderBy('anio', 'desc')
+            ->get();
 
         // Obtener bimestres del período actual del criterio
         $bimestresDelPeriodo = Periodobimestre::where('periodo_id', $criterio->periodoBimestre->periodo_id)
-                                ->orderBy('bimestre')
-                                ->get();
+            ->orderBy('bimestre')
+            ->get();
 
         return view('materia.materiacriterio.edit', compact(
             'criterio',
@@ -267,6 +272,7 @@ class MateriaCriterioController extends Controller
             'bimestresDelPeriodo'
         ));
     }
+
     public function update(Request $request, $id)
     {
         $validated = $request->validate([
@@ -274,7 +280,7 @@ class MateriaCriterioController extends Controller
             'descripcion' => 'nullable|string',
             'grado_id' => 'required|exists:grados,id',
             'periodo_id' => 'required|exists:periodos,id',
-            'periodo_bimestre_id' => 'required|exists:periodo_bimestres,id'
+            'periodo_bimestre_id' => 'required|exists:periodo_bimestres,id',
         ]);
 
         try {
@@ -284,7 +290,7 @@ class MateriaCriterioController extends Controller
                 'nombre' => $request->nombre,
                 'descripcion' => $request->descripcion,
                 'grado_id' => $request->grado_id,
-                'periodo_bimestre_id' => $request->periodo_bimestre_id
+                'periodo_bimestre_id' => $request->periodo_bimestre_id,
                 // No actualizamos materia_id ni materia_competencia_id
             ]);
 
@@ -295,10 +301,11 @@ class MateriaCriterioController extends Controller
         } catch (\Exception $e) {
             return redirect()
                 ->back()
-                ->with('error', 'Error al actualizar el criterio: ' . $e->getMessage())
+                ->with('error', 'Error al actualizar el criterio: '.$e->getMessage())
                 ->withInput();
         }
     }
+
     public function destroy($id)
     {
         try {
@@ -320,20 +327,23 @@ class MateriaCriterioController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
+
             return redirect()->route('materiacriterio.index')
-                ->with('error', 'Error al eliminar el criterio: ' . $e->getMessage());
+                ->with('error', 'Error al eliminar el criterio: '.$e->getMessage());
         }
     }
+
     public function importar()
     {
         $materias = Materia::where('estado', '1')->orderBy('nombre')->get();
         $periodos = Periodo::where('estado', '1')
-                    ->where('tipo_periodo', 'año escolar')
-                    ->orderBy('anio', 'desc')
-                    ->get();
+            ->where('tipo_periodo', 'año escolar')
+            ->orderBy('anio', 'desc')
+            ->get();
 
         return view('materia.materiacriterio.importar', compact('materias', 'periodos'));
     }
+
     public function importarCriterio(Request $request)
     {
         // Paso 1: Validar si es solo validación o procesamiento final
@@ -342,6 +352,7 @@ class MateriaCriterioController extends Controller
 
             if ($accion === 'cancelar') {
                 session()->forget('import_data');
+
                 return redirect()->route('materiacriterio.importar')
                     ->with('info', 'Importación cancelada.');
             }
@@ -354,7 +365,7 @@ class MateriaCriterioController extends Controller
         // Validación inicial del archivo y período
         $request->validate([
             'archivo_excel' => 'required|file|mimes:xlsx,xls|max:2048',
-            'periodo_id' => 'required|exists:periodos,id'
+            'periodo_id' => 'required|exists:periodos,id',
         ]);
 
         try {
@@ -386,8 +397,9 @@ class MateriaCriterioController extends Controller
                         empty($row[5]) || empty($row[6]) || empty($row[7])) {
                         $errores[] = [
                             'fila' => $numeroFila,
-                            'error' => "Faltan campos obligatorios (Materia, Competencia, Nombre, Grado, Sección, Nivel y Sigla son requeridos)"
+                            'error' => 'Faltan campos obligatorios (Materia, Competencia, Nombre, Grado, Sección, Nivel y Sigla son requeridos)',
                         ];
+
                         continue;
                     }
 
@@ -401,20 +413,22 @@ class MateriaCriterioController extends Controller
                     $siglaPeriodoBimestre = trim($row[7]);
 
                     // Validar formato del grado
-                    if (!is_numeric($gradoNumero)) {
+                    if (! is_numeric($gradoNumero)) {
                         $errores[] = [
                             'fila' => $numeroFila,
-                            'error' => "El grado '$gradoNumero' debe ser un número"
+                            'error' => "El grado '$gradoNumero' debe ser un número",
                         ];
+
                         continue;
                     }
 
                     // Buscar el periodo_bimestre por sigla
-                    if (!isset($bimestresDisponibles[$siglaPeriodoBimestre])) {
+                    if (! isset($bimestresDisponibles[$siglaPeriodoBimestre])) {
                         $errores[] = [
                             'fila' => $numeroFila,
-                            'error' => "La sigla '$siglaPeriodoBimestre' no existe en el período seleccionado"
+                            'error' => "La sigla '$siglaPeriodoBimestre' no existe en el período seleccionado",
                         ];
+
                         continue;
                     }
 
@@ -426,11 +440,12 @@ class MateriaCriterioController extends Controller
                         ->where('estado', '1')
                         ->first();
 
-                    if (!$materia) {
+                    if (! $materia) {
                         $errores[] = [
                             'fila' => $numeroFila,
-                            'error' => "La materia '$materiaNombre' no existe o no está activa"
+                            'error' => "La materia '$materiaNombre' no existe o no está activa",
                         ];
+
                         continue;
                     }
 
@@ -440,11 +455,12 @@ class MateriaCriterioController extends Controller
                         ->where('estado', '1')
                         ->first();
 
-                    if (!$competencia) {
+                    if (! $competencia) {
                         $errores[] = [
                             'fila' => $numeroFila,
-                            'error' => "La competencia '$competenciaNombre' no existe en la materia '$materiaNombre' o no está activa"
+                            'error' => "La competencia '$competenciaNombre' no existe en la materia '$materiaNombre' o no está activa",
                         ];
+
                         continue;
                     }
 
@@ -455,11 +471,12 @@ class MateriaCriterioController extends Controller
                         ->where('estado', '1')
                         ->first();
 
-                    if (!$grado) {
+                    if (! $grado) {
                         $errores[] = [
                             'fila' => $numeroFila,
-                            'error' => "El grado " . $gradoNumero . "° '" . $seccion . "' - " . $nivel . " no existe o no está activo"
+                            'error' => 'El grado '.$gradoNumero."° '".$seccion."' - ".$nivel.' no existe o no está activo',
                         ];
+
                         continue;
                     }
 
@@ -473,18 +490,20 @@ class MateriaCriterioController extends Controller
                     if ($criterioExistente) {
                         $duplicados[] = [
                             'fila' => $numeroFila,
-                            'error' => "El criterio '$criterioNombre' ya existe para la competencia '$competenciaNombre', grado " . $grado->nombreCompleto . " y bimestre '$siglaPeriodoBimestre'"
+                            'error' => "El criterio '$criterioNombre' ya existe para la competencia '$competenciaNombre', grado ".$grado->nombreCompleto." y bimestre '$siglaPeriodoBimestre'",
                         ];
+
                         continue;
                     }
 
                     // Verificar duplicados dentro del archivo
-                    $claveCriterio = $competencia->id . '-' . $grado->id . '-' . $bimestreId . '-' . $criterioNombre;
+                    $claveCriterio = $competencia->id.'-'.$grado->id.'-'.$bimestreId.'-'.$criterioNombre;
                     if (in_array($claveCriterio, $criteriosProcesados)) {
                         $duplicados[] = [
                             'fila' => $numeroFila,
-                            'error' => "Criterio duplicado en el archivo - '$criterioNombre' para competencia '$competenciaNombre', grado " . $grado->nombreCompleto . " y bimestre '$siglaPeriodoBimestre'"
+                            'error' => "Criterio duplicado en el archivo - '$criterioNombre' para competencia '$competenciaNombre', grado ".$grado->nombreCompleto." y bimestre '$siglaPeriodoBimestre'",
                         ];
+
                         continue;
                     }
 
@@ -496,14 +515,14 @@ class MateriaCriterioController extends Controller
                             'competencia' => $competenciaNombre,
                             'criterio' => $criterioNombre,
                             'descripcion' => $criterioDescripcion,
-                            'grado' => $grado->nombreCompleto ?? ($gradoNumero . '° ' . $seccion . ' - ' . $nivel),
+                            'grado' => $grado->nombreCompleto ?? ($gradoNumero.'° '.$seccion.' - '.$nivel),
                             'sigla' => $siglaPeriodoBimestre,
                             'bimestre_info' => $periodoBimestre->bimestre,
                             'materia_id' => $materia->id,
                             'competencia_id' => $competencia->id,
                             'grado_id' => $grado->id,
-                            'periodo_bimestre_id' => $bimestreId
-                        ]
+                            'periodo_bimestre_id' => $bimestreId,
+                        ],
                     ];
 
                     $criteriosProcesados[] = $claveCriterio;
@@ -511,7 +530,7 @@ class MateriaCriterioController extends Controller
                 } catch (\Exception $e) {
                     $errores[] = [
                         'fila' => $numeroFila,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -522,7 +541,7 @@ class MateriaCriterioController extends Controller
                 'total_registros' => $totalRegistros,
                 'errores' => $errores,
                 'duplicados' => $duplicados,
-                'periodo_id' => $periodoId
+                'periodo_id' => $periodoId,
             ]);
 
             // Devolver a la vista con datos de validación
@@ -536,16 +555,17 @@ class MateriaCriterioController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al procesar el archivo: ' . $e->getMessage())
+                ->with('error', 'Error al procesar el archivo: '.$e->getMessage())
                 ->withInput();
         }
     }
+
     private function procesarImportacion(Request $request)
     {
         try {
             $importData = session()->get('import_data');
 
-            if (!$importData) {
+            if (! $importData) {
                 return redirect()->route('materiacriterio.importar')
                     ->with('error', 'No hay datos de importación para procesar. Por favor, valide el archivo nuevamente.');
             }
@@ -571,7 +591,7 @@ class MateriaCriterioController extends Controller
                 } catch (\Exception $e) {
                     $erroresProceso[] = [
                         'fila' => $registro['fila'],
-                        'error' => 'Error al crear criterio: ' . $e->getMessage()
+                        'error' => 'Error al crear criterio: '.$e->getMessage(),
                     ];
                 }
             }
@@ -584,7 +604,7 @@ class MateriaCriterioController extends Controller
             $tipoMensaje = 'success';
 
             if (count($erroresProceso) > 0) {
-                $mensaje .= " Se produjeron " . count($erroresProceso) . " errores durante el procesamiento.";
+                $mensaje .= ' Se produjeron '.count($erroresProceso).' errores durante el procesamiento.';
                 $tipoMensaje = 'warning';
 
                 // Guardar errores de proceso en sesión
@@ -597,7 +617,7 @@ class MateriaCriterioController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->route('materiacriterio.importar')
-                ->with('error', 'Error durante el procesamiento: ' . $e->getMessage());
+                ->with('error', 'Error durante el procesamiento: '.$e->getMessage());
         }
     }
 }

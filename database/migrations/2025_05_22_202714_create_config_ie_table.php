@@ -2,12 +2,12 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-     public function up()
+    public function up()
     {
         Schema::create('config_ie', function (Blueprint $table) {
             $table->id();
@@ -26,9 +26,10 @@ return new class extends Migration
             'ruc' => '12345678901',
             'direccion' => 'Av. Ejemplo 123 - Lima',
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
     }
+
     public function down(): void
     {
         Schema::dropIfExists('config_ie');

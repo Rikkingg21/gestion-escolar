@@ -1,27 +1,26 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Asistencia\Asistencia;
-use App\Models\User;
-use Carbon\Carbon;
 use App\Models\Asistencia\Tipoasistencia;
-use App\Models\Grado;
+use App\Models\Matricula;
 use App\Models\Periodo;
 use App\Models\Periodobimestre;
-use App\Models\Matricula;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class AsistenciahistorialController extends Controller
 {
-    //moduleID 16 = Mis Asistencias
+    // moduleID 16 = Mis Asistencias
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('16')) {
+            if (! auth()->user()->canAccessModule('16')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
@@ -46,7 +45,7 @@ class AsistenciahistorialController extends Controller
             ->values();
 
         // Si no se proporciona período, usar el período más reciente con asistencias o null
-        if (!$periodo_id && $periodosConAsistencias->isNotEmpty()) {
+        if (! $periodo_id && $periodosConAsistencias->isNotEmpty()) {
             $periodo_id = $periodosConAsistencias->first()->id;
         }
 
@@ -108,7 +107,7 @@ class AsistenciahistorialController extends Controller
             $estadisticas[$tipo->id] = [
                 'nombre' => $tipo->nombre,
                 'color' => $tipo->color_hex ?? '#6c757d',
-                'count' => 0
+                'count' => 0,
             ];
         }
         $estadisticas['total'] = 0;
@@ -127,11 +126,11 @@ class AsistenciahistorialController extends Controller
                 'extendedProps' => [
                     'tipo' => $asistencia->tipoasistencia->nombre ?? '',
                     'hora' => $asistencia->hora ? date('h:i A', strtotime($asistencia->hora)) : '',
-                    'grado' => $asistencia->grado ? $asistencia->grado->grado . '° ' . $asistencia->grado->seccion : 'N/A',
+                    'grado' => $asistencia->grado ? $asistencia->grado->grado.'° '.$asistencia->grado->seccion : 'N/A',
                     'bimestre' => $bimestreNombre,
                     'descripcion' => $asistencia->descripcion ?? 'Sin descripción',
                     'periodo' => $asistencia->periodo ? $asistencia->periodo->nombre : 'N/A',
-                ]
+                ],
             ];
 
             // Actualizar estadísticas

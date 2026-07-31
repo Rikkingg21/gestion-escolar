@@ -15,16 +15,16 @@ class ProcesarnotasCriterioService extends BaseNotasService
         $grupos = [];
 
         foreach ($notas as $nota) {
-            $key = $nota['estudiante_id'] . '_' . $nota['materia_criterio_id'];
+            $key = $nota['estudiante_id'].'_'.$nota['materia_criterio_id'];
 
-            if (!isset($grupos[$key])) {
+            if (! isset($grupos[$key])) {
                 $grupos[$key] = [
                     'estudiante_id' => $nota['estudiante_id'],
                     'materia_criterio_id' => $nota['materia_criterio_id'],
                     'materia_competencia_id' => $nota['materia_competencia_id'],
                     'materia_id' => $nota['materia_id'],
                     'suma_notas' => 0,
-                    'total_notas' => 0
+                    'total_notas' => 0,
                 ];
             }
 
@@ -43,7 +43,7 @@ class ProcesarnotasCriterioService extends BaseNotasService
                 'materia_competencia_id' => $grupo['materia_competencia_id'],
                 'materia_id' => $grupo['materia_id'],
                 'promedio' => $promedio,
-                'promedio_cualitativo' => $this->convertirACualitativo($promedio)
+                'promedio_cualitativo' => $this->convertirACualitativo($promedio),
             ];
         }
 

@@ -3,34 +3,34 @@
 namespace App\Http\Controllers\Tramite;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
-use App\Models\User;
 use App\Models\Apoderado;
 use App\Models\Estudiante;
-use App\Models\Tramite\Tramite;
-use App\Models\Tramite\Tramitetipo;
-use App\Models\Tramite\Tramitepagoregistro;
-use App\Models\Tramite\Tramiteregistro;
+use App\Models\Metodopago\Tipopago;
 use App\Models\Tramite\Estadopago;
 use App\Models\Tramite\Estadotramite;
 use App\Models\Tramite\Pagocomprobante;
-use App\Models\Metodopago\Tipopago;
-
-use Illuminate\Support\Facades\Storage;
+use App\Models\Tramite\Tramite;
+use App\Models\Tramite\Tramitepagoregistro;
+use App\Models\Tramite\Tramiteregistro;
+use App\Models\Tramite\Tramitetipo;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class TramiteController extends Controller
 {
-    //moduleID 21 = Mis Tramites
+    // moduleID 21 = Mis Tramites
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('21')) {
+            if (! auth()->user()->canAccessModule('21')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
+
     public function index(Request $request)
     {
         $tipoTramitesActivos = Tramitetipo::where('estado', '1')->get();
@@ -85,6 +85,7 @@ class TramiteController extends Controller
 
         return view('tramite.mis-tramites.index', compact('tipoTramitesActivos', 'tramites', 'estudiantes', 'parentesco'));
     }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -113,7 +114,7 @@ class TramiteController extends Controller
         // Generar código único
         $ultimoTramite = Tramite::withTrashed()->orderBy('id', 'desc')->first();
         $numero = $ultimoTramite ? intval(substr($ultimoTramite->codigo_tramite, -4)) + 1 : 1;
-        $codigoTramite = 'TRM-' . date('Ymd') . '-' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+        $codigoTramite = 'TRM-'.date('Ymd').'-'.str_pad($numero, 4, '0', STR_PAD_LEFT);
 
         // Crear el trámite
         $tramite = Tramite::create([
@@ -145,7 +146,7 @@ class TramiteController extends Controller
             // Si no requiere pago, estado "No requiere pago" (ID 4)
             $estadoPago = Estadopago::find(4); // ID 4 = No requiere pago
             // Si no existe el estado con ID 4, buscarlo por nombre
-            if (!$estadoPago) {
+            if (! $estadoPago) {
                 $estadoPago = Estadopago::where('nombre', 'LIKE', '%No requiere pago%')->first();
             }
             $observacionPago = 'Este trámite no requiere pago';
@@ -164,8 +165,9 @@ class TramiteController extends Controller
         }
 
         return redirect()->route('mis-tramites.index')
-            ->with('success', 'Trámite creado exitosamente. Código: ' . $codigoTramite);
+            ->with('success', 'Trámite creado exitosamente. Código: '.$codigoTramite);
     }
+
     public function show($id)
     {
         $tramite = Tramite::with([
@@ -173,16 +175,16 @@ class TramiteController extends Controller
             'user',
             'estudiante.user',
             'estudiante.grado',
-            'tramiteRegistros' => function($query) {
+            'tramiteRegistros' => function ($query) {
                 $query->with('estadoTramite', 'user')->orderBy('created_at', 'desc');
             },
-            'tramitePagoRegistros' => function($query) {
+            'tramitePagoRegistros' => function ($query) {
                 $query->with(['estadoPago', 'user', 'pagoComprobante'])->orderBy('fecha_registro', 'desc');
-            }
+            },
         ])->findOrFail($id);
 
         // Verificar que el usuario sea el dueño del trámite o tenga permisos de admin
-        if ($tramite->user_id != auth()->id() && !auth()->user()->hasRole('admin')) {
+        if ($tramite->user_id != auth()->id() && ! auth()->user()->hasRole('admin')) {
             abort(403, 'No tienes permiso para ver este trámite.');
         }
 
@@ -209,7 +211,7 @@ class TramiteController extends Controller
         $mostrarBotonSubirComprobante = $requierePago && $saldoPendiente > 0;
 
         // Preparar datos de pagos enriquecidos para la vista
-        $pagosEnriquecidos = $tramite->tramitePagoRegistros->map(function($registroPago) {
+        $pagosEnriquecidos = $tramite->tramitePagoRegistros->map(function ($registroPago) {
             $metodoPago = null;
             $esEfectivo = false;
 
@@ -222,7 +224,7 @@ class TramiteController extends Controller
                 'registro' => $registroPago,
                 'metodo_pago' => $metodoPago,
                 'es_efectivo' => $esEfectivo,
-                'monto_formateado' => 'S/ ' . number_format($registroPago->monto, 2),
+                'monto_formateado' => 'S/ '.number_format($registroPago->monto, 2),
                 'fecha_formateada' => $registroPago->fecha_registro
                     ? \Carbon\Carbon::parse($registroPago->fecha_registro)->format('d/m/Y H:i:s')
                     : $registroPago->created_at->format('d/m/Y H:i:s'),
@@ -231,7 +233,7 @@ class TramiteController extends Controller
 
         // Preparar datos del solicitante para la vista
         $solicitante = [
-            'nombre_completo' => ($tramite->user->nombre ?? 'N/A') . ' ' . ($tramite->user->apellido_paterno ?? ''),
+            'nombre_completo' => ($tramite->user->nombre ?? 'N/A').' '.($tramite->user->apellido_paterno ?? ''),
             'dni' => $tramite->user->dni ?? 'N/A',
             'email' => $tramite->user->email ?? 'N/A',
             'telefono' => $tramite->user->telefono ?? 'N/A',
@@ -239,7 +241,7 @@ class TramiteController extends Controller
 
         // Preparar datos del estudiante para la vista
         $estudianteData = [
-            'nombre_completo' => ($tramite->estudiante->user->nombre ?? 'N/A') . ' ' . ($tramite->estudiante->user->apellido_paterno ?? ''),
+            'nombre_completo' => ($tramite->estudiante->user->nombre ?? 'N/A').' '.($tramite->estudiante->user->apellido_paterno ?? ''),
             'dni' => $tramite->estudiante->user->dni ?? 'N/A',
         ];
 
@@ -259,7 +261,7 @@ class TramiteController extends Controller
         $observacionGeneral = $tramite->observaciones ?? 'Sin observaciones registradas';
 
         // Preparar datos para el historial de trámites enriquecidos
-        $historialTramitesEnriquecidos = $tramite->tramiteRegistros->map(function($registro) {
+        $historialTramitesEnriquecidos = $tramite->tramiteRegistros->map(function ($registro) {
             return [
                 'registro' => $registro,
                 'fecha_formateada' => $registro->created_at->format('d/m/Y H:i'),
@@ -296,6 +298,7 @@ class TramiteController extends Controller
             'totalRegistrosPago'
         ));
     }
+
     public function subirComprobante(Request $request, $id)
     {
         $tramite = Tramite::findOrFail($id);
@@ -304,7 +307,7 @@ class TramiteController extends Controller
             abort(403);
         }
 
-        if (!$tramite->tipoTramite->requiere_pago) {
+        if (! $tramite->tipoTramite->requiere_pago) {
             return redirect()->back()->with('error', 'Este trámite no requiere pago.');
         }
 
@@ -319,7 +322,7 @@ class TramiteController extends Controller
                 'observaciones' => 'nullable|string',
             ]);
 
-            $numeroOperacion = 'EFECTIVO_' . date('YmdHis');
+            $numeroOperacion = 'EFECTIVO_'.date('YmdHis');
             $comprobantePath = null;
 
         } else {
@@ -332,7 +335,7 @@ class TramiteController extends Controller
             ]);
 
             $numeroOperacion = $request->numero_operacion;
-            $comprobantePath = $request->file('comprobante')->store('comprobantes/' . date('Y/m'), 'private');
+            $comprobantePath = $request->file('comprobante')->store('comprobantes/'.date('Y/m'), 'private');
         }
 
         // Crear el comprobante (para efectivo se guarda sin archivo)
@@ -349,7 +352,7 @@ class TramiteController extends Controller
 
         // Registrar el cambio de estado
         $estadoPagoEnRevision = Estadopago::where('nombre', 'LIKE', '%Revisión%')->first();
-        if (!$estadoPagoEnRevision) {
+        if (! $estadoPagoEnRevision) {
             $estadoPagoEnRevision = Estadopago::where('nombre', 'LIKE', '%Pendiente%')->first();
         }
 
@@ -372,6 +375,7 @@ class TramiteController extends Controller
                 ? 'Pago en efectivo registrado. Será verificado por el administrador.'
                 : 'Comprobante subido correctamente. Será revisado por el administrador.');
     }
+
     public function verComprobante($id)
     {
         $comprobante = Pagocomprobante::with('user', 'tramite')->findOrFail($id);
@@ -381,12 +385,12 @@ class TramiteController extends Controller
         $esAdmin = $user->hasRole('admin');
         $esPropietario = $comprobante->tramite->user_id == $user->id;
 
-        if (!$esAdmin && !$esPropietario) {
+        if (! $esAdmin && ! $esPropietario) {
             abort(403, 'No tienes permiso para ver este comprobante.');
         }
 
         // Verificar si el archivo existe
-        if (!Storage::disk('private')->exists($comprobante->comprobante_path)) {
+        if (! Storage::disk('private')->exists($comprobante->comprobante_path)) {
             abort(404, 'El archivo no existe.');
         }
 

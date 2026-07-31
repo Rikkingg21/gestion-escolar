@@ -2,8 +2,8 @@
 
 namespace App\Models\Metodopago;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tipopago extends Model
@@ -12,7 +12,9 @@ class Tipopago extends Model
     use SoftDeletes;
 
     protected $table = 'm_tipo_pagos';
+
     protected $primaryKey = 'id';
+
     public $timestamps = true;
 
     protected $fillable = [
@@ -25,8 +27,8 @@ class Tipopago extends Model
         'numero_celular',
         'requiere_verificacion',
         'color_hex',
-        'estado',       //'1' o '0'
-        'es_efectivo',  //'1' o '0'
+        'estado',       // '1' o '0'
+        'es_efectivo',  // '1' o '0'
     ];
 
     protected $casts = [

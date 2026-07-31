@@ -2,14 +2,14 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Blade;
 use App\Models\Colegio;
-use Illuminate\Support\Facades\View;
 use App\Models\User;
 use App\Policies\UserPolicy;
-use Illuminate\Support\Facades\Gate;
 use App\Services\ModuleService;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -20,7 +20,9 @@ class AppServiceProvider extends ServiceProvider
         // Directiva Blade para verificar acceso a módulos
         Blade::if('canAccessModule', function ($moduleName) {
             $user = auth()->user();
-            if (!$user) return false;
+            if (! $user) {
+                return false;
+            }
 
             return Gate::allows('access-module', $moduleName);
         });
@@ -28,9 +30,12 @@ class AppServiceProvider extends ServiceProvider
         // Directiva Blade para roles (dinámica desde DB)
         Blade::if('hasrole', function ($roles) {
             $currentRole = session('current_role');
-            if (!$currentRole) return false;
+            if (! $currentRole) {
+                return false;
+            }
 
             $rolesArray = is_array($roles) ? $roles : explode(',', $roles);
+
             return in_array($currentRole, $rolesArray);
         });
 

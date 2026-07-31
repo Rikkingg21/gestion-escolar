@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use App\Models\Apoderado;
 use App\Models\Estudiante;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class SessionSelectionController extends Controller
 {
@@ -16,7 +16,7 @@ class SessionSelectionController extends Controller
         $user = session('sessionmain');
 
         // Si no hay usuario principal, redirige al login
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login')->withErrors('Sesión principal no encontrada.');
         }
 
@@ -29,8 +29,8 @@ class SessionSelectionController extends Controller
         } elseif ($user->hasRole('director')) {
             // Un director ve todos los usuarios excepto administradores, independientemente de su estado
             $usuarios = User::whereDoesntHave('roles', function ($q) {
-                    $q->where('nombre', 'admin');
-                })
+                $q->where('nombre', 'admin');
+            })
                 ->with('roles')->get();
         } elseif ($user->hasRole('apoderado')) {
             // Apoderado: obtener todos los estudiantes asociados a este apoderado
@@ -68,7 +68,7 @@ class SessionSelectionController extends Controller
     {
         $request->validate([
             'user_id' => 'required|exists:users,id',
-            'role' => 'required|string'
+            'role' => 'required|string',
         ]);
 
         $user = User::findOrFail($request->user_id);

@@ -2,10 +2,10 @@
 
 namespace App\Models\Tramite;
 
-use App\Models\User;
 use App\Models\Estudiante;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tramite extends Model
@@ -14,7 +14,9 @@ class Tramite extends Model
     use SoftDeletes;
 
     protected $table = 'm_tramite_tramites';
+
     protected $primaryKey = 'id';
+
     public $timestamps = true;
 
     protected $fillable = [
@@ -22,9 +24,9 @@ class Tramite extends Model
         'user_id',
         'tipo_tramite_id',
         'estudiante_id',
-        //'relacion',
-        //'estado_tramite_id',
-        //'estado_pago_id',
+        // 'relacion',
+        // 'estado_tramite_id',
+        // 'estado_pago_id',
         'monto_pagado',
         'fecha_solicitud',
         'fecha_resolucion',
@@ -52,6 +54,7 @@ class Tramite extends Model
     {
         return $this->belongsTo(Estudiante::class, 'estudiante_id');
     }
+
     /*
     public function estadoTramite()
     {
@@ -87,11 +90,12 @@ class Tramite extends Model
     {
         return $this->hasOne(Tramitepagoregistro::class, 'tramite_id')->latest('fecha_registro');
     }
+
     public function getMontoPagadoTotalAttribute()
     {
         // Sumar solo los montos de registros de pago con estado "Aprobado"
         return $this->tramitePagoRegistros()
-            ->whereHas('estadoPago', function($query) {
+            ->whereHas('estadoPago', function ($query) {
                 $query->where('nombre', 'LIKE', '%Aprobado%');
             })
             ->sum('monto');

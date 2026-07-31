@@ -2,37 +2,30 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Nota;
-use App\Models\Maya\Bimestre;
-use App\Models\Maya\Cursogradosecnivanio;
-use App\Models\Estudiante;
 use App\Models\Conducta;
-use App\Models\Conductanota;
-use App\Models\Periodo;
-use App\Models\Periodobimestre;
 use App\Models\Conductaperiodobimestre;
 use App\Models\Conductaperiodobimestrenota;
-use App\Models\Materia;
 use App\Models\Docente;
-use App\Models\Materia\Materiacompetencia;
-use App\Models\Materia\Materiacriterio;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\NotasExport;
+use App\Models\Estudiante;
+use App\Models\Materia;
+use App\Models\Maya\Bimestre;
+use App\Models\Maya\Cursogradosecnivanio;
+use App\Models\Nota;
+use App\Models\Periodo;
+use App\Models\Periodobimestre;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
 
 class NotaController extends Controller
 {
-        //moduleID 13 = Mayas
+    // moduleID 13 = Mayas
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
             // Verificar acceso al módulo 13
-            if (!auth()->user()->canAccessModule('13')) {
+            if (! auth()->user()->canAccessModule('13')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
 
@@ -47,12 +40,12 @@ class NotaController extends Controller
                 if ($cursoId) {
                     $curso = Cursogradosecnivanio::with('docente.user')->find($cursoId);
 
-                    if (!$curso) {
+                    if (! $curso) {
                         abort(404, 'Curso no encontrado.');
                     }
 
                     // Verificar si el docente está asignado al curso
-                    if (!$curso->docente || !$curso->docente->user ||
+                    if (! $curso->docente || ! $curso->docente->user ||
                         auth()->id() !== $curso->docente->user->id) {
                         abort(403, 'No está asignado como docente de este curso.');
                     }
@@ -60,6 +53,7 @@ class NotaController extends Controller
                     abort(400, 'ID de curso no proporcionado.');
                 }
             }
+
             return $next($request);
         });
     }
@@ -68,7 +62,7 @@ class NotaController extends Controller
     {
         // 1. Validar parámetros
         $periodoBimestre = Periodobimestre::find($periodo_bimestre_id);
-        if (!$periodoBimestre) {
+        if (! $periodoBimestre) {
             abort(404, 'Bimestre no encontrado.');
         }
 
@@ -76,7 +70,7 @@ class NotaController extends Controller
 
         // Cargar el curso primero
         $curso = $this->cargarCurso($curso_grado_sec_niv_anio_id);
-        if (!$curso) {
+        if (! $curso) {
             abort(404, 'Curso no encontrado.');
         }
 
@@ -91,7 +85,7 @@ class NotaController extends Controller
             '0' => ['Privado', 'secondary'],
             '1' => ['Publicado', 'info'],
             '2' => ['Oficial', 'success'],
-            '3' => ['Extra Oficial', 'warning']
+            '3' => ['Extra Oficial', 'warning'],
         ];
 
         // Lógica: ¿Puede guardar las notas?
@@ -107,46 +101,46 @@ class NotaController extends Controller
         if ($user->hasRole('admin') && in_array($estadoActual, ['0', '1', '2'])) {
             $puedePublicar = true;
             $textoBotonPublicar = match ($estadoActual) {
-                '0' => "Publicar Notas",
-                '1' => "Marcar como Oficial",
-                '2' => "Marcar como Extra Oficial",
+                '0' => 'Publicar Notas',
+                '1' => 'Marcar como Oficial',
+                '2' => 'Marcar como Extra Oficial',
             };
         } elseif ($user->hasRole('director') && in_array($estadoActual, ['0', '1'])) {
             $puedePublicar = true;
             $textoBotonPublicar = match ($estadoActual) {
-                '0' => "Publicar Notas",
-                '1' => "Marcar como Oficial",
+                '0' => 'Publicar Notas',
+                '1' => 'Marcar como Oficial',
             };
         } elseif ($user->hasRole('docente') && in_array($estadoActual, ['0'])) {
             $puedePublicar = true;
-            $textoBotonPublicar = "Publicar Notas";
+            $textoBotonPublicar = 'Publicar Notas';
         }
 
         // logica para revertir la publicación
         $puedeRevertir = false;
-        if (($user->hasRole('admin')) && in_array($estadoActual, ['1','2','3'])) {
+        if (($user->hasRole('admin')) && in_array($estadoActual, ['1', '2', '3'])) {
             $puedeRevertir = true;
-        }elseif ($user->hasRole('director') && in_array($estadoActual, ['1','2'])) {
+        } elseif ($user->hasRole('director') && in_array($estadoActual, ['1', '2'])) {
             $puedeRevertir = true;
-        }elseif ($user->hasRole('docente') && in_array($estadoActual, ['1'])) {
+        } elseif ($user->hasRole('docente') && in_array($estadoActual, ['1'])) {
             $puedeRevertir = true;
         }
 
-        //Columnas principales - Cargar estudiantes
+        // Columnas principales - Cargar estudiantes
         $estudiantes = $this->cargarEstudiantes($curso, $periodo_bimestre_id);
 
-        //Columnas principales - Cargar competencias con estado '1' (Activas) de la materia
+        // Columnas principales - Cargar competencias con estado '1' (Activas) de la materia
         $competencias = $this->cargarCompetencias($curso, $periodo_bimestre_id);
 
         // 5. Columnas principales - Cargar SIAGIE
         // Filtrar competencias NO transversales para SIAGIE
-        $competenciasNoTransversales = $competencias->filter(function($competencia) {
+        $competenciasNoTransversales = $competencias->filter(function ($competencia) {
             return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') === false;
         });
 
-        //Sub columnas de SIAGIE
+        // Sub columnas de SIAGIE
         // Encontrar la competencia TRANSVERSALES y dividir en sus criterios
-        $competenciaTransversal = $competencias->first(function($competencia) {
+        $competenciaTransversal = $competencias->first(function ($competencia) {
             return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') !== false;
         });
 
@@ -156,14 +150,14 @@ class NotaController extends Controller
         $notasTransversales = [];
 
         // Inicializar arrays para cada competencia
-        foreach($competencias as $competencia) {
+        foreach ($competencias as $competencia) {
             $sumasPorCompetencia[$competencia->id] = 0;
             $contadoresPorCompetencia[$competencia->id] = 0;
         }
 
         // Inicializar array para notas de cada criterio transversal
-        if($competenciaTransversal) {
-            foreach($competenciaTransversal->criterios as $criterio) {
+        if ($competenciaTransversal) {
+            foreach ($competenciaTransversal->criterios as $criterio) {
                 $notasTransversales[$criterio->id] = null;
             }
         }
@@ -176,7 +170,7 @@ class NotaController extends Controller
         // Columnas principales - Cargar conductas activas
         $conductas = $this->cargarConductas($periodo_bimestre_id);
 
-        //Datos de subcolumnas - Cargar estado de notas (tanto para criterios y conducta)
+        // Datos de subcolumnas - Cargar estado de notas (tanto para criterios y conducta)
         $notasExistentes = $this->cargarNotasExistentes($curso_grado_sec_niv_anio_id, $periodo_bimestre_id, $competencias, $estudiantes);
         $conductaNotas = $this->cargarConductaNotas($curso_grado_sec_niv_anio_id, $periodo_bimestre_id, $estudiantes);
 
@@ -207,80 +201,88 @@ class NotaController extends Controller
             'estadoActual' => $estadoActual,
             'conductas' => $conductas,
             'conductaNotas' => $conductaNotas,
-            'periodo' => $periodo
+            'periodo' => $periodo,
         ]);
     }
-    //Cargar el curso con sus relaciones
+
+    // Cargar el curso con sus relaciones
     private function cargarCurso($id)
     {
-        return CursoGradoSecNivAnio::with(['materia', 'grado', 'docente.user', 'periodo'])
+        return Cursogradosecnivanio::with(['materia', 'grado', 'docente.user', 'periodo'])
             ->find($id);
     }
-    //Cargar estudiantes activos e inactivos
+
+    // Cargar estudiantes activos e inactivos
     private function cargarEstudiantes($curso, $periodo_bimestre_id)
     {
         return [
             'activos' => $this->cargarEstudiantesMatriculadosActivos($curso),
-            'retirados' => $this->cargarEstudiantesMatriculadosRetirados($curso, $periodo_bimestre_id)
+            'retirados' => $this->cargarEstudiantesMatriculadosRetirados($curso, $periodo_bimestre_id),
         ];
     }
-    //Cargar estudiantes activos
+
+    // Cargar estudiantes activos
     private function cargarEstudiantesMatriculadosActivos($curso)
     {
         return Estudiante::with(['user'])
             ->where('estado', '1') // Estado activo del estudiante
-            ->whereHas('matriculas', function($query) use ($curso) {
+            ->whereHas('matriculas', function ($query) use ($curso) {
                 $query->where('estado', '1') // Matrícula activa
                     ->where('grado_id', $curso->grado_id)
                     ->where('periodo_id', $curso->periodo_id);
             })
-            ->orderByRaw("
+            ->orderByRaw('
                 (SELECT apellido_paterno FROM users WHERE users.id = estudiantes.user_id),
                 (SELECT apellido_materno FROM users WHERE users.id = estudiantes.user_id),
                 (SELECT nombre FROM users WHERE users.id = estudiantes.user_id)
-            ")
+            ')
             ->get();
     }
+
     private function cargarEstudiantesMatriculadosRetirados($curso, $periodo_bimestre_id)
     {
         return Estudiante::with(['user'])
-            ->whereHas('matriculas', function($query) use ($curso) {
+            ->whereHas('matriculas', function ($query) use ($curso) {
                 $query->where('estado', '0')
                     ->where('grado_id', $curso->grado_id)
                     ->where('periodo_id', $curso->periodo_id);
             })
-            ->where(function($query) use ($curso, $periodo_bimestre_id) {
+            ->where(function ($query) use ($curso, $periodo_bimestre_id) {
                 // Estudiantes que tienen notas en este bimestre y materia
-                $query->whereHas('notas', function($q) use ($curso, $periodo_bimestre_id) {
+                $query->whereHas('notas', function ($q) use ($curso, $periodo_bimestre_id) {
                     $q->where('periodo_bimestre_id', $periodo_bimestre_id)
-                        ->whereHas('criterio', function($criteriaQuery) use ($curso) {
+                        ->whereHas('criterio', function ($criteriaQuery) use ($curso) {
                             $criteriaQuery->where('materia_id', $curso->materia_id);
                         });
                 })
                 // O estudiantes que están inactivos (estado 0)
-                ->orWhere('estado', '0');
+                    ->orWhere('estado', '0');
             })
-            ->orderByRaw("
+            ->orderByRaw('
                 (SELECT apellido_paterno FROM users WHERE users.id = estudiantes.user_id),
                 (SELECT apellido_materno FROM users WHERE users.id = estudiantes.user_id),
                 (SELECT nombre FROM users WHERE users.id = estudiantes.user_id)
-            ")
+            ')
             ->get()
             ->unique('id');
     }
-    //Cargar competencias y criterios para el bimestre específico
+
+    // Cargar competencias y criterios para el bimestre específico
     private function cargarCompetencias($curso, $periodo_bimestre_id)
     {
-        $competencias = $curso->materia->materiaCompetencia->map(function($competencia) use ($curso, $periodo_bimestre_id) {
+        $competencias = $curso->materia->materiaCompetencia->map(function ($competencia) use ($curso, $periodo_bimestre_id) {
             $competencia->criterios = $competencia->materiaCriterio
                 ->where('grado_id', $curso->grado_id)
                 ->where('periodo_bimestre_id', $periodo_bimestre_id)
                 ->values();
+
             return $competencia;
         });
-        return $competencias->filter(fn($c) => $c->criterios->isNotEmpty());
+
+        return $competencias->filter(fn ($c) => $c->criterios->isNotEmpty());
     }
-    //Cargar notas existentes
+
+    // Cargar notas existentes
     private function cargarNotasExistentes($curso_id, $periodo_bimestre_id, $competencias, $estudiantes)
     {
         $criteriosIds = $competencias->flatMap->criterios->pluck('id');
@@ -300,28 +302,32 @@ class NotaController extends Controller
             return [
                 $item['estudiante_id'].'-'.$item['materia_criterio_id'] => [
                     'nota' => $item['nota'],
-                    'publico' => $item['publico']
-                ]
+                    'publico' => $item['publico'],
+                ],
             ];
         });
     }
-    //Cargar conductas activas
+
+    // Cargar conductas activas
     private function cargarConductas($periodo_bimestre_id)
     {
         return Conductaperiodobimestre::where('periodo_bimestre_id', $periodo_bimestre_id)
             ->with('conducta')
             ->get()
-            ->map(function($relacion) {
+            ->map(function ($relacion) {
                 $conducta = $relacion->conducta;
                 if ($conducta) {
                     $conducta->conducta_periodo_bimestre_id = $relacion->id;
+
                     return $conducta;
                 }
+
                 return null;
             })
             ->filter();
     }
-    //Cargar notas de conducta existentes
+
+    // Cargar notas de conducta existentes
     private function cargarConductaNotas($curso_grado_sec_niv_anio_id, $periodo_bimestre_id, $estudiantes)
     {
         $estudianteIds = $estudiantes['activos']->pluck('id')
@@ -355,20 +361,22 @@ class NotaController extends Controller
             $relacion = $relacionesMap->get($item->conducta_periodo_bimestre_id);
             if ($relacion && $relacion->conducta) {
                 return [
-                    $item->estudiante_id . '-' . $relacion->conducta_id => [
+                    $item->estudiante_id.'-'.$relacion->conducta_id => [
                         'nota' => $item->nota ?? 0,
-                        'publico' => $item->publico ?? '0'
-                    ]
+                        'publico' => $item->publico ?? '0',
+                    ],
                 ];
             }
+
             return [];
         });
     }
-    //Obtener estado actual de las notas
+
+    // Obtener estado actual de las notas
     private function obtenerEstadoActual($curso_id, $periodo_bimestre_id)
     {
-        $curso = CursoGradoSecNivAnio::find($curso_id);
-        if (!$curso) {
+        $curso = Cursogradosecnivanio::find($curso_id);
+        if (! $curso) {
             return '0';
         }
 
@@ -408,7 +416,7 @@ class NotaController extends Controller
         }
 
         // Si no hay notas de ningún tipo, retornar '0'
-        if (!$existenNotasMateria && !$existenNotasConducta) {
+        if (! $existenNotasMateria && ! $existenNotasConducta) {
             return '0';
         }
 
@@ -432,10 +440,11 @@ class NotaController extends Controller
         }
 
         // Tomar el estado más alto entre materia y conducta
-        $estadoFinal = max((int)$estadoMateria, (int)$estadoConducta);
+        $estadoFinal = max((int) $estadoMateria, (int) $estadoConducta);
 
-        return (string)$estadoFinal;
+        return (string) $estadoFinal;
     }
+
     public function publicar(Request $request, $curso_grado_sec_niv_anio_id, $periodo_bimestre_id)
     {
         try {
@@ -444,14 +453,14 @@ class NotaController extends Controller
             $user = auth()->user();
 
             // OBTENER EL CURSO
-            $curso = CursoGradoSecNivAnio::find($curso_grado_sec_niv_anio_id);
-            if (!$curso) {
+            $curso = Cursogradosecnivanio::find($curso_grado_sec_niv_anio_id);
+            if (! $curso) {
                 throw new \Exception('Curso no encontrado.');
             }
 
             // OBTENER EL PERIODO BIMESTRE
             $periodoBimestre = Periodobimestre::find($periodo_bimestre_id);
-            if (!$periodoBimestre) {
+            if (! $periodoBimestre) {
                 throw new \Exception('Bimestre no encontrado.');
             }
 
@@ -520,7 +529,7 @@ class NotaController extends Controller
             return redirect()
                 ->route('nota.index', [
                     'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
-                    'periodo_bimestre_id' => $periodo_bimestre_id
+                    'periodo_bimestre_id' => $periodo_bimestre_id,
                 ])
                 ->with('success', "Notas cambiadas a estado: {$estados[$nuevoEstado]}");
 
@@ -530,42 +539,43 @@ class NotaController extends Controller
             return redirect()
                 ->route('nota.index', [
                     'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
-                    'periodo_bimestre_id' => $periodo_bimestre_id
+                    'periodo_bimestre_id' => $periodo_bimestre_id,
                 ])
-                ->with('error', 'Error al publicar notas: ' . $e->getMessage());
+                ->with('error', 'Error al publicar notas: '.$e->getMessage());
         }
     }
+
     public function revertir(Request $request, $curso_grado_sec_niv_anio_id, $periodo_bimestre_id)
     {
         try {
             $user = auth()->user();
 
             // Solo admin/director/docente puede revertir
-            if (!$user->hasRole('admin') && !$user->hasRole('director') && !$user->hasRole('docente')) {
+            if (! $user->hasRole('admin') && ! $user->hasRole('director') && ! $user->hasRole('docente')) {
                 throw new \Exception('No tiene permisos para revertir la publicación.');
             }
 
             $sessionMain = session('sessionmain');
-            if (!$sessionMain) {
+            if (! $sessionMain) {
                 return redirect()
                     ->route('nota.index', [
                         'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
-                        'periodo_bimestre_id' => $periodo_bimestre_id
+                        'periodo_bimestre_id' => $periodo_bimestre_id,
                     ])
                     ->with('error', 'No hay sesión principal activa. Inicie sesión principal para realizar esta acción.');
             }
 
             // Validar la contraseña
             $request->validate([
-                'password' => 'required|string'
+                'password' => 'required|string',
             ]);
 
             // Verificar la contraseña de la sesión principal
-            if (!Hash::check($request->password, $sessionMain->password)) {
+            if (! Hash::check($request->password, $sessionMain->password)) {
                 return redirect()
                     ->route('nota.index', [
                         'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
-                        'periodo_bimestre_id' => $periodo_bimestre_id
+                        'periodo_bimestre_id' => $periodo_bimestre_id,
                     ])
                     ->withErrors(['password' => 'Contraseña incorrecta'])
                     ->withInput();
@@ -574,14 +584,14 @@ class NotaController extends Controller
             DB::beginTransaction();
 
             // OBTENER EL CURSO
-            $curso = CursoGradoSecNivAnio::find($curso_grado_sec_niv_anio_id);
-            if (!$curso) {
+            $curso = Cursogradosecnivanio::find($curso_grado_sec_niv_anio_id);
+            if (! $curso) {
                 throw new \Exception('Curso no encontrado.');
             }
 
             // OBTENER EL PERIODO BIMESTRE
             $periodoBimestre = Periodobimestre::find($periodo_bimestre_id);
-            if (!$periodoBimestre) {
+            if (! $periodoBimestre) {
                 throw new \Exception('Bimestre no encontrado.');
             }
 
@@ -595,7 +605,7 @@ class NotaController extends Controller
             } elseif ($estadoActual == '1') {
                 $nuevoEstado = '0';
             } else {
-                throw new \Exception('No se puede revertir desde el estado actual: ' . $estadoActual);
+                throw new \Exception('No se puede revertir desde el estado actual: '.$estadoActual);
             }
 
             // Cargar estudiantes (activos y retirados)
@@ -633,7 +643,7 @@ class NotaController extends Controller
             return redirect()
                 ->route('nota.index', [
                     'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
-                    'periodo_bimestre_id' => $periodo_bimestre_id
+                    'periodo_bimestre_id' => $periodo_bimestre_id,
                 ])
                 ->with('success', "Notas revertidas a estado: {$estados[$nuevoEstado]}");
 
@@ -643,11 +653,12 @@ class NotaController extends Controller
             return redirect()
                 ->route('nota.index', [
                     'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
-                    'periodo_bimestre_id' => $periodo_bimestre_id
+                    'periodo_bimestre_id' => $periodo_bimestre_id,
                 ])
-                ->with('error', 'Error al revertir publicación: ' . $e->getMessage());
+                ->with('error', 'Error al revertir publicación: '.$e->getMessage());
         }
     }
+
     public function guardarNotas(Request $request)
     {
         try {
@@ -661,13 +672,13 @@ class NotaController extends Controller
 
             // Obtener el curso para extraer periodo_id y asegurar que existe
             $curso = Cursogradosecnivanio::find($curso_id);
-            if (!$curso) {
+            if (! $curso) {
                 throw new \Exception('Curso no encontrado');
             }
 
             // Obtener el periodo_bimestre
             $periodoBimestre = Periodobimestre::find($periodo_bimestre_id);
-            if (!$periodoBimestre) {
+            if (! $periodoBimestre) {
                 throw new \Exception('Período bimestre no encontrado');
             }
 
@@ -699,7 +710,7 @@ class NotaController extends Controller
                                     'periodo_id' => $periodo_id,
                                     'periodo_bimestre_id' => $periodo_bimestre_id,
                                     'nota' => $nota,
-                                    'publico' => $estadoActual
+                                    'publico' => $estadoActual,
                                 ]);
                             }
                         }
@@ -729,7 +740,7 @@ class NotaController extends Controller
                         // Buscar o crear la relación conducta_periodo_bimestre
                         $relacion = Conductaperiodobimestre::firstOrCreate([
                             'periodo_bimestre_id' => $periodo_bimestre_id,
-                            'conducta_id' => $conducta_id
+                            'conducta_id' => $conducta_id,
                         ]);
 
                         // Buscar nota existente con el nuevo modelo incluyendo curso_id
@@ -744,7 +755,7 @@ class NotaController extends Controller
                                 $notaConductaExistente->update([
                                     'nota' => $nota,
                                     'periodo_id' => $periodo_id,
-                                    'publico' => $estadoActual
+                                    'publico' => $estadoActual,
                                 ]);
                             }
                         } else {
@@ -756,7 +767,7 @@ class NotaController extends Controller
                                     'periodo_bimestre_id' => $periodo_bimestre_id,
                                     'curso_grado_sec_niv_anio_id' => $curso_id,
                                     'nota' => $nota,
-                                    'publico' => $estadoActual
+                                    'publico' => $estadoActual,
                                 ]);
                             }
                         }
@@ -789,7 +800,7 @@ class NotaController extends Controller
             return redirect()
                 ->route('nota.index', [
                     'curso_grado_sec_niv_anio_id' => $curso_id,
-                    'periodo_bimestre_id' => $periodo_bimestre_id
+                    'periodo_bimestre_id' => $periodo_bimestre_id,
                 ])
                 ->with('success', 'Notas guardadas exitosamente.');
 
@@ -799,11 +810,12 @@ class NotaController extends Controller
             return redirect()
                 ->route('nota.index', [
                     'curso_grado_sec_niv_anio_id' => $curso_id ?? 0,
-                    'periodo_bimestre_id' => $periodo_bimestre_id ?? 0
+                    'periodo_bimestre_id' => $periodo_bimestre_id ?? 0,
                 ])
-                ->with('error', 'Error al guardar las notas: ' . $e->getMessage());
+                ->with('error', 'Error al guardar las notas: '.$e->getMessage());
         }
     }
+
     private function puedeEditarNota($estadoActual)
     {
         $user = auth()->user();
@@ -821,18 +833,42 @@ class NotaController extends Controller
 
         return false;
     }
+
+    public function showRevertirForm($curso_grado_sec_niv_anio_id, $periodo_bimestre_id)
+    {
+        $periodoBimestre = Periodobimestre::find($periodo_bimestre_id);
+        if (! $periodoBimestre) {
+            abort(404, 'Bimestre no encontrado.');
+        }
+
+        $curso = $this->cargarCurso($curso_grado_sec_niv_anio_id);
+        if (! $curso) {
+            abort(404, 'Curso no encontrado.');
+        }
+
+        $estadoActual = $this->obtenerEstadoActual($curso_grado_sec_niv_anio_id, $periodo_bimestre_id);
+
+        return view('nota.revertir-form', [
+            'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
+            'periodo_bimestre_id' => $periodo_bimestre_id,
+            'bimestre' => $periodo_bimestre_id,
+            'estadoActual' => $estadoActual,
+            'curso' => $curso,
+        ]);
+    }
+
     public function exportarExcel($curso_grado_sec_niv_anio_id, $periodo_bimestre_id)
     {
         try {
             // 1. Validar parámetros
             $periodoBimestre = Periodobimestre::find($periodo_bimestre_id);
-            if (!$periodoBimestre) {
+            if (! $periodoBimestre) {
                 abort(404, 'Bimestre no encontrado.');
             }
 
             // 2. Cargar el curso
             $curso = $this->cargarCurso($curso_grado_sec_niv_anio_id);
-            if (!$curso) {
+            if (! $curso) {
                 abort(404, 'Curso no encontrado.');
             }
 
@@ -840,11 +876,11 @@ class NotaController extends Controller
             $estudiantes = $this->cargarEstudiantes($curso, $periodo_bimestre_id);
             $competencias = $this->cargarCompetencias($curso, $periodo_bimestre_id);
 
-            $competenciasNoTransversales = $competencias->filter(function($competencia) {
+            $competenciasNoTransversales = $competencias->filter(function ($competencia) {
                 return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') === false;
             });
 
-            $competenciaTransversal = $competencias->first(function($competencia) {
+            $competenciaTransversal = $competencias->first(function ($competencia) {
                 return strpos(strtoupper($competencia->nombre), 'TRANSVERSAL') !== false;
             });
 
@@ -857,10 +893,10 @@ class NotaController extends Controller
 
             // 5. Generar nombre del archivo
             $nombreArchivo = 'Registro_Notas_'
-                . str_replace(' ', '_', $curso->materia->nombre) . '_'
-                . $curso->grado->nombreCompleto . '_'
-                . $periodoBimestre->sigla . '_'
-                . date('Ymd_His') . '.xls';
+                .str_replace(' ', '_', $curso->materia->nombre).'_'
+                .$curso->grado->nombreCompleto.'_'
+                .$periodoBimestre->sigla.'_'
+                .date('Ymd_His').'.xls';
 
             // 6. Generar contenido Excel
             $excelContent = $this->generarContenidoExcel([
@@ -887,20 +923,22 @@ class NotaController extends Controller
                 echo $excelContent;
             }, $nombreArchivo, [
                 'Content-Type' => 'application/vnd.ms-excel',
-                'Content-Disposition' => 'attachment; filename="' . $nombreArchivo . '"',
+                'Content-Disposition' => 'attachment; filename="'.$nombreArchivo.'"',
                 'Cache-Control' => 'max-age=0',
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Error exportar Excel: ' . $e->getMessage());
+            \Log::error('Error exportar Excel: '.$e->getMessage());
+
             return redirect()
                 ->route('nota.index', [
                     'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,
-                    'periodo_bimestre_id' => $periodo_bimestre_id
+                    'periodo_bimestre_id' => $periodo_bimestre_id,
                 ])
-                ->with('error', 'Error al exportar Excel: ' . $e->getMessage());
+                ->with('error', 'Error al exportar Excel: '.$e->getMessage());
         }
     }
+
     private function generarContenidoExcel($datos)
     {
         ob_start();
@@ -910,23 +948,23 @@ class NotaController extends Controller
 
         // Sumar columnas de criterios
         foreach ($datos['competencias'] as $competencia) {
-            if (!empty($competencia->criterios)) {
+            if (! empty($competencia->criterios)) {
                 $totalColumnas += count($competencia->criterios);
             }
         }
 
         // Sumar columnas SIAGIE
-        if (!empty($datos['competenciasNoTransversales'])) {
+        if (! empty($datos['competenciasNoTransversales'])) {
             $totalColumnas += count($datos['competenciasNoTransversales']);
         }
 
         // Sumar columnas transversales
-        if (!empty($datos['competenciaTransversal']) && !empty($datos['competenciaTransversal']->criterios)) {
+        if (! empty($datos['competenciaTransversal']) && ! empty($datos['competenciaTransversal']->criterios)) {
             $totalColumnas += count($datos['competenciaTransversal']->criterios);
         }
 
         // Sumar columnas conductas
-        if (!empty($datos['conductas'])) {
+        if (! empty($datos['conductas'])) {
             $totalColumnas += count($datos['conductas']);
         }
 
@@ -1024,19 +1062,19 @@ class NotaController extends Controller
 
         // ========== FILA 1: TÍTULO PRINCIPAL ==========
         echo '<tr>';
-        echo '<th colspan="' . $totalColumnas . '" class="titulo" style="font-family: Arial, sans-serif; font-size: 14px;">REGISTRO DE NOTAS - SISTEMA DE GESTIÓN ACADÉMICA</th>';
+        echo '<th colspan="'.$totalColumnas.'" class="titulo" style="font-family: Arial, sans-serif; font-size: 14px;">REGISTRO DE NOTAS - SISTEMA DE GESTIÓN ACADÉMICA</th>';
         echo '</tr>';
 
         // ========== FILA 2: INFORMACIÓN DEL CURSO ==========
         echo '<tr>';
-        echo '<td colspan="' . $totalColumnas . '" class="subtitulo" style="font-family: Arial, sans-serif; font-size: 10px;">';
-        echo '<strong>Materia:</strong> ' . htmlspecialchars($datos['materia']->nombre ?? 'N/A') . ' | ';
-        echo '<strong>Grado:</strong> ' . htmlspecialchars($datos['grado']->nombreCompleto ?? 'N/A') . ' | ';
-        echo '<strong>Docente:</strong> ' . htmlspecialchars($datos['docente']->user->full_name ?? ($datos['docente']->user->apellido_paterno ?? '') . ' ' . ($datos['docente']->user->apellido_materno ?? '') . ', ' . ($datos['docente']->user->nombre ?? 'No asignado')) . ' | ';
-        echo '<strong>Período:</strong> ' . htmlspecialchars($datos['periodo']->nombre ?? 'N/A') . ' (' . ($datos['periodo']->anio ?? 'N/A') . ') | ';
-        echo '<strong>Bimestre:</strong> ' . htmlspecialchars($datos['periodoBimestre']->sigla ?? 'N/A') . ' | ';
-        echo '<strong>Formato:</strong> ' . ($datos['formato'] == 'cuantitativo' ? 'Cuantitativo (1-4)' : 'Cualitativo (AD, A, B, C)') . ' | ';
-        echo '<strong>Generado:</strong> ' . $datos['fecha_generacion']->format('d/m/Y H:i:s');
+        echo '<td colspan="'.$totalColumnas.'" class="subtitulo" style="font-family: Arial, sans-serif; font-size: 10px;">';
+        echo '<strong>Materia:</strong> '.htmlspecialchars($datos['materia']->nombre ?? 'N/A').' | ';
+        echo '<strong>Grado:</strong> '.htmlspecialchars($datos['grado']->nombreCompleto ?? 'N/A').' | ';
+        echo '<strong>Docente:</strong> '.htmlspecialchars($datos['docente']->user->full_name ?? ($datos['docente']->user->apellido_paterno ?? '').' '.($datos['docente']->user->apellido_materno ?? '').', '.($datos['docente']->user->nombre ?? 'No asignado')).' | ';
+        echo '<strong>Período:</strong> '.htmlspecialchars($datos['periodo']->nombre ?? 'N/A').' ('.($datos['periodo']->anio ?? 'N/A').') | ';
+        echo '<strong>Bimestre:</strong> '.htmlspecialchars($datos['periodoBimestre']->sigla ?? 'N/A').' | ';
+        echo '<strong>Formato:</strong> '.($datos['formato'] == 'cuantitativo' ? 'Cuantitativo (1-4)' : 'Cualitativo (AD, A, B, C)').' | ';
+        echo '<strong>Generado:</strong> '.$datos['fecha_generacion']->format('d/m/Y H:i:s');
         echo '</td>';
         echo '</tr>';
 
@@ -1047,30 +1085,30 @@ class NotaController extends Controller
 
         // Encabezados de competencias (colspan pero sin ancho fijo - se ajusta al contenido de los hijos)
         foreach ($datos['competencias'] as $competencia) {
-            if (!empty($competencia->criterios)) {
+            if (! empty($competencia->criterios)) {
                 $colspan = count($competencia->criterios);
                 $nombreCompetencia = htmlspecialchars($competencia->nombre);
-                echo '<th colspan="' . $colspan . '" class="bg-primary-light" style="word-wrap: break-word; white-space: normal; font-family: Arial, sans-serif; font-size: 11px;">' .
-                    $nombreCompetencia . '<br><span class="small" style="font-family: Arial, sans-serif;">Competencia</span></th>';
+                echo '<th colspan="'.$colspan.'" class="bg-primary-light" style="word-wrap: break-word; white-space: normal; font-family: Arial, sans-serif; font-size: 11px;">'.
+                    $nombreCompetencia.'<br><span class="small" style="font-family: Arial, sans-serif;">Competencia</span></th>';
             }
         }
 
         // Encabezados SIAGIE
-        if (!empty($datos['competenciasNoTransversales'])) {
+        if (! empty($datos['competenciasNoTransversales'])) {
             $siagieCols = count($datos['competenciasNoTransversales']);
-            echo '<th colspan="' . $siagieCols . '" class="bg-siagie" style="word-wrap: break-word; white-space: normal; font-family: Arial, sans-serif; font-size: 11px;">SIAGIE<br><span class="small" style="font-family: Arial, sans-serif;">Competencias</span></th>';
+            echo '<th colspan="'.$siagieCols.'" class="bg-siagie" style="word-wrap: break-word; white-space: normal; font-family: Arial, sans-serif; font-size: 11px;">SIAGIE<br><span class="small" style="font-family: Arial, sans-serif;">Competencias</span></th>';
         }
 
         // Encabezados Transversales
-        if (!empty($datos['competenciaTransversal']) && !empty($datos['competenciaTransversal']->criterios)) {
+        if (! empty($datos['competenciaTransversal']) && ! empty($datos['competenciaTransversal']->criterios)) {
             $transversalesCols = count($datos['competenciaTransversal']->criterios);
-            echo '<th colspan="' . $transversalesCols . '" class="bg-siagie" style="word-wrap: break-word; white-space: normal; font-family: Arial, sans-serif; font-size: 11px;">SIAGIE<br><span class="small" style="font-family: Arial, sans-serif;">Transversales</span></th>';
+            echo '<th colspan="'.$transversalesCols.'" class="bg-siagie" style="word-wrap: break-word; white-space: normal; font-family: Arial, sans-serif; font-size: 11px;">SIAGIE<br><span class="small" style="font-family: Arial, sans-serif;">Transversales</span></th>';
         }
 
         // Encabezados Conductas
-        if (!empty($datos['conductas'])) {
+        if (! empty($datos['conductas'])) {
             $conductasCols = count($datos['conductas']);
-            echo '<th colspan="' . $conductasCols . '" class="bg-conducta" style="word-wrap: break-word; white-space: normal; font-family: Arial, sans-serif; font-size: 11px;">CONDUCTAS</th>';
+            echo '<th colspan="'.$conductasCols.'" class="bg-conducta" style="word-wrap: break-word; white-space: normal; font-family: Arial, sans-serif; font-size: 11px;">CONDUCTAS</th>';
         }
 
         echo '</tr>';
@@ -1080,54 +1118,63 @@ class NotaController extends Controller
 
         // Nombres de criterios - cada uno con ancho fijo de 70px
         foreach ($datos['competencias'] as $competencia) {
-            if (!empty($competencia->criterios)) {
+            if (! empty($competencia->criterios)) {
                 foreach ($competencia->criterios as $criterio) {
                     $nombreCriterio = htmlspecialchars($criterio->nombre);
-                    echo '<th class="small col-criterio" style="width: 70px; word-wrap: break-word; white-space: normal; line-height: 1.3; font-family: Arial, sans-serif; font-size: 11px;">' . $nombreCriterio . '</th>';
+                    echo '<th class="small col-criterio" style="width: 70px; word-wrap: break-word; white-space: normal; line-height: 1.3; font-family: Arial, sans-serif; font-size: 11px;">'.$nombreCriterio.'</th>';
                 }
             }
         }
 
         // Nombres SIAGIE (promedios) - cada uno con ancho fijo de 70px
-        if (!empty($datos['competenciasNoTransversales'])) {
+        if (! empty($datos['competenciasNoTransversales'])) {
             foreach ($datos['competenciasNoTransversales'] as $competenciaNT) {
                 $nombreCompetencia = htmlspecialchars($competenciaNT->nombre);
-                echo '<th class="small bg-siagie col-promedio" style="width: 70px; word-wrap: break-word; white-space: normal; line-height: 1.3; font-family: Arial, sans-serif; font-size: 11px;">' .
-                    $nombreCompetencia . '<br><span class="small" style="font-family: Arial, sans-serif;">Promedio</span></th>';
+                echo '<th class="small bg-siagie col-promedio" style="width: 70px; word-wrap: break-word; white-space: normal; line-height: 1.3; font-family: Arial, sans-serif; font-size: 11px;">'.
+                    $nombreCompetencia.'<br><span class="small" style="font-family: Arial, sans-serif;">Promedio</span></th>';
             }
         }
 
         // Nombres transversales - cada uno con ancho fijo de 70px
-        if (!empty($datos['competenciaTransversal']) && !empty($datos['competenciaTransversal']->criterios)) {
+        if (! empty($datos['competenciaTransversal']) && ! empty($datos['competenciaTransversal']->criterios)) {
             foreach ($datos['competenciaTransversal']->criterios as $criterioTrans) {
                 $nombreCriterio = htmlspecialchars($criterioTrans->nombre);
-                echo '<th class="small bg-siagie col-promedio" style="width: 70px; word-wrap: break-word; white-space: normal; line-height: 1.3; font-family: Arial, sans-serif; font-size: 11px;">' .
-                    $nombreCriterio . '<br><span class="small" style="font-family: Arial, sans-serif;">Transversal</span></th>';
+                echo '<th class="small bg-siagie col-promedio" style="width: 70px; word-wrap: break-word; white-space: normal; line-height: 1.3; font-family: Arial, sans-serif; font-size: 11px;">'.
+                    $nombreCriterio.'<br><span class="small" style="font-family: Arial, sans-serif;">Transversal</span></th>';
             }
         }
 
         // Nombres conductas - cada uno con ancho fijo de 70px
-        if (!empty($datos['conductas'])) {
+        if (! empty($datos['conductas'])) {
             foreach ($datos['conductas'] as $conducta) {
                 $nombreConducta = htmlspecialchars($conducta->nombre);
-                echo '<th class="small bg-conducta col-conducta" style="width: 70px; word-wrap: break-word; white-space: normal; line-height: 1.3; font-family: Arial, sans-serif; font-size: 11px;">' . $nombreConducta . '</th>';
+                echo '<th class="small bg-conducta col-conducta" style="width: 70px; word-wrap: break-word; white-space: normal; line-height: 1.3; font-family: Arial, sans-serif; font-size: 11px;">'.$nombreConducta.'</th>';
             }
         }
 
         echo '</tr>';
 
         // Función para formatear nota
-        $formatearNota = function($nota) use ($datos) {
+        $formatearNota = function ($nota) use ($datos) {
             if ($nota === null || $nota === '') {
                 return '-';
             }
 
             if ($datos['formato'] === 'cualitativo') {
                 $notaNum = floatval($nota);
-                if ($notaNum >= 3.5) return 'AD';
-                if ($notaNum >= 2.5) return 'A';
-                if ($notaNum >= 1.5) return 'B';
-                if ($notaNum >= 1) return 'C';
+                if ($notaNum >= 3.5) {
+                    return 'AD';
+                }
+                if ($notaNum >= 2.5) {
+                    return 'A';
+                }
+                if ($notaNum >= 1.5) {
+                    return 'B';
+                }
+                if ($notaNum >= 1) {
+                    return 'C';
+                }
+
                 return '-';
             }
 
@@ -1135,20 +1182,32 @@ class NotaController extends Controller
         };
 
         // Función para obtener clase CSS
-        $obtenerClaseNota = function($nota, $formato) {
+        $obtenerClaseNota = function ($nota, $formato) {
             if ($nota === null || $nota === '' || $nota === '-') {
                 return '';
             }
 
             if ($formato === 'cuantitativo') {
                 $notaNum = floatval($nota);
-                if ($notaNum >= 3) return 'text-success';
-                if ($notaNum == 2) return 'text-warning';
-                if ($notaNum == 1) return 'text-danger';
+                if ($notaNum >= 3) {
+                    return 'text-success';
+                }
+                if ($notaNum == 2) {
+                    return 'text-warning';
+                }
+                if ($notaNum == 1) {
+                    return 'text-danger';
+                }
             } else {
-                if ($nota === 'AD' || $nota === 'A') return 'text-success';
-                if ($nota === 'B') return 'text-warning';
-                if ($nota === 'C') return 'text-danger';
+                if ($nota === 'AD' || $nota === 'A') {
+                    return 'text-success';
+                }
+                if ($nota === 'B') {
+                    return 'text-warning';
+                }
+                if ($nota === 'C') {
+                    return 'text-danger';
+                }
             }
 
             return '';
@@ -1160,25 +1219,25 @@ class NotaController extends Controller
             echo '<tr>';
 
             // Número
-            echo '<td class="text-center col-numero" style="font-family: Arial, sans-serif; font-size: 11px;">' . $numero++ . '</td>';
+            echo '<td class="text-center col-numero" style="font-family: Arial, sans-serif; font-size: 11px;">'.$numero++.'</td>';
 
             // Nombre completo - ancho automático, sin salto de línea, sin scroll
-            $nombreCompleto = ($estudiante->user->apellido_paterno ?? '') . ' ' .
-                            ($estudiante->user->apellido_materno ?? '') . ', ' .
+            $nombreCompleto = ($estudiante->user->apellido_paterno ?? '').' '.
+                            ($estudiante->user->apellido_materno ?? '').', '.
                             ($estudiante->user->nombre ?? '');
             echo '<td class="col-estudiante" style="text-align: left; padding: 6px 4px; white-space: nowrap; font-family: Arial, sans-serif; font-size: 11px;">';
-            echo '<strong>' . htmlspecialchars($nombreCompleto) . '</strong>';
+            echo '<strong>'.htmlspecialchars($nombreCompleto).'</strong>';
             echo '</td>';
 
             // Notas por criterio - ancho fijo 70px
             foreach ($datos['competencias'] as $competencia) {
-                if (!empty($competencia->criterios)) {
+                if (! empty($competencia->criterios)) {
                     foreach ($competencia->criterios as $criterio) {
-                        $key = $estudiante->id . '-' . $criterio->id;
+                        $key = $estudiante->id.'-'.$criterio->id;
                         $nota = $datos['notasExistentes'][$key]['nota'] ?? null;
                         $notaFormateada = $formatearNota($nota);
                         $clase = $obtenerClaseNota($notaFormateada, $datos['formato']);
-                        echo '<td class="text-center col-criterio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>' . $notaFormateada . '</strong></td>';
+                        echo '<td class="text-center col-criterio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>'.$notaFormateada.'</strong></td>';
                     }
                 }
             }
@@ -1187,9 +1246,9 @@ class NotaController extends Controller
             foreach ($datos['competenciasNoTransversales'] as $competenciaNT) {
                 $suma = 0;
                 $count = 0;
-                if (!empty($competenciaNT->criterios)) {
+                if (! empty($competenciaNT->criterios)) {
                     foreach ($competenciaNT->criterios as $criterio) {
-                        $key = $estudiante->id . '-' . $criterio->id;
+                        $key = $estudiante->id.'-'.$criterio->id;
                         if (isset($datos['notasExistentes'][$key]['nota'])) {
                             $suma += $datos['notasExistentes'][$key]['nota'];
                             $count++;
@@ -1199,28 +1258,28 @@ class NotaController extends Controller
                 $promedio = $count > 0 ? round($suma / $count, 1) : null;
                 $promedioFormateado = $formatearNota($promedio);
                 $clase = $obtenerClaseNota($promedioFormateado, $datos['formato']);
-                echo '<td class="text-center bg-light col-promedio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>' . $promedioFormateado . '</strong></td>';
+                echo '<td class="text-center bg-light col-promedio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>'.$promedioFormateado.'</strong></td>';
             }
 
             // Transversales - ancho fijo 70px
-            if (!empty($datos['competenciaTransversal']) && !empty($datos['competenciaTransversal']->criterios)) {
+            if (! empty($datos['competenciaTransversal']) && ! empty($datos['competenciaTransversal']->criterios)) {
                 foreach ($datos['competenciaTransversal']->criterios as $criterioTrans) {
-                    $keyTrans = $estudiante->id . '-' . $criterioTrans->id;
+                    $keyTrans = $estudiante->id.'-'.$criterioTrans->id;
                     $notaTrans = $datos['notasExistentes'][$keyTrans]['nota'] ?? null;
                     $notaTransFormateada = $formatearNota($notaTrans);
                     $clase = $obtenerClaseNota($notaTransFormateada, $datos['formato']);
-                    echo '<td class="text-center bg-light col-promedio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>' . $notaTransFormateada . '</strong></td>';
+                    echo '<td class="text-center bg-light col-promedio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>'.$notaTransFormateada.'</strong></td>';
                 }
             }
 
             // Conductas - ancho fijo 70px
-            if (!empty($datos['conductas'])) {
+            if (! empty($datos['conductas'])) {
                 foreach ($datos['conductas'] as $conducta) {
-                    $keyCond = $estudiante->id . '-' . $conducta->id;
+                    $keyCond = $estudiante->id.'-'.$conducta->id;
                     $notaCond = $datos['conductaNotas'][$keyCond]['nota'] ?? null;
                     $notaCondFormateada = $formatearNota($notaCond);
                     $clase = $obtenerClaseNota($notaCondFormateada, $datos['formato']);
-                    echo '<td class="text-center col-conducta" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>' . $notaCondFormateada . '</strong></td>';
+                    echo '<td class="text-center col-conducta" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>'.$notaCondFormateada.'</strong></td>';
                 }
             }
 
@@ -1228,9 +1287,9 @@ class NotaController extends Controller
         }
 
         // ========== ESTUDIANTES INACTIVOS ==========
-        if (!empty($datos['estudiantesInactivos']) && $datos['estudiantesInactivos']->count() > 0) {
+        if (! empty($datos['estudiantesInactivos']) && $datos['estudiantesInactivos']->count() > 0) {
             echo '<tr>';
-            echo '<td colspan="' . $totalColumnas . '" class="bg-gray text-center" style="font-family: Arial, sans-serif; font-size: 11px;"><strong><i>ESTUDIANTES INACTIVOS CON NOTAS REGISTRADAS</i></strong></td>';
+            echo '<td colspan="'.$totalColumnas.'" class="bg-gray text-center" style="font-family: Arial, sans-serif; font-size: 11px;"><strong><i>ESTUDIANTES INACTIVOS CON NOTAS REGISTRADAS</i></strong></td>';
             echo '</tr>';
 
             foreach ($datos['estudiantesInactivos'] as $estudiante) {
@@ -1240,8 +1299,8 @@ class NotaController extends Controller
                 echo '<td class="text-center col-numero" style="font-family: Arial, sans-serif; font-size: 11px;">●<\/td>';
 
                 // Nombre con indicador inactivo - ancho automático, sin salto de línea
-                $nombreCompleto = ($estudiante->user->apellido_paterno ?? '') . ' ' .
-                                ($estudiante->user->apellido_materno ?? '') . ', ' .
+                $nombreCompleto = ($estudiante->user->apellido_paterno ?? '').' '.
+                                ($estudiante->user->apellido_materno ?? '').', '.
                                 ($estudiante->user->nombre ?? '');
                 echo '<td class="col-estudiante" style="text-align: left; padding: 6px 4px; white-space: nowrap; font-family: Arial, sans-serif; font-size: 11px;">';
                 echo htmlspecialchars($nombreCompleto);
@@ -1250,13 +1309,13 @@ class NotaController extends Controller
 
                 // Notas por criterio - ancho fijo 70px
                 foreach ($datos['competencias'] as $competencia) {
-                    if (!empty($competencia->criterios)) {
+                    if (! empty($competencia->criterios)) {
                         foreach ($competencia->criterios as $criterio) {
-                            $key = $estudiante->id . '-' . $criterio->id;
+                            $key = $estudiante->id.'-'.$criterio->id;
                             $nota = $datos['notasExistentes'][$key]['nota'] ?? null;
                             $notaFormateada = $formatearNota($nota);
                             $clase = $obtenerClaseNota($notaFormateada, $datos['formato']);
-                            echo '<td class="text-center col-criterio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>' . $notaFormateada . '</strong><\/td>';
+                            echo '<td class="text-center col-criterio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>'.$notaFormateada.'</strong><\/td>';
                         }
                     }
                 }
@@ -1265,9 +1324,9 @@ class NotaController extends Controller
                 foreach ($datos['competenciasNoTransversales'] as $competenciaNT) {
                     $suma = 0;
                     $count = 0;
-                    if (!empty($competenciaNT->criterios)) {
+                    if (! empty($competenciaNT->criterios)) {
                         foreach ($competenciaNT->criterios as $criterio) {
-                            $key = $estudiante->id . '-' . $criterio->id;
+                            $key = $estudiante->id.'-'.$criterio->id;
                             if (isset($datos['notasExistentes'][$key]['nota'])) {
                                 $suma += $datos['notasExistentes'][$key]['nota'];
                                 $count++;
@@ -1277,28 +1336,28 @@ class NotaController extends Controller
                     $promedio = $count > 0 ? round($suma / $count, 1) : null;
                     $promedioFormateado = $formatearNota($promedio);
                     $clase = $obtenerClaseNota($promedioFormateado, $datos['formato']);
-                    echo '<td class="text-center bg-light col-promedio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>' . $promedioFormateado . '</strong><\/td>';
+                    echo '<td class="text-center bg-light col-promedio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>'.$promedioFormateado.'</strong><\/td>';
                 }
 
                 // Transversales - ancho fijo 70px
-                if (!empty($datos['competenciaTransversal']) && !empty($datos['competenciaTransversal']->criterios)) {
+                if (! empty($datos['competenciaTransversal']) && ! empty($datos['competenciaTransversal']->criterios)) {
                     foreach ($datos['competenciaTransversal']->criterios as $criterioTrans) {
-                        $keyTrans = $estudiante->id . '-' . $criterioTrans->id;
+                        $keyTrans = $estudiante->id.'-'.$criterioTrans->id;
                         $notaTrans = $datos['notasExistentes'][$keyTrans]['nota'] ?? null;
                         $notaTransFormateada = $formatearNota($notaTrans);
                         $clase = $obtenerClaseNota($notaTransFormateada, $datos['formato']);
-                        echo '<td class="text-center bg-light col-promedio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>' . $notaTransFormateada . '</strong><\/td>';
+                        echo '<td class="text-center bg-light col-promedio" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>'.$notaTransFormateada.'</strong><\/td>';
                     }
                 }
 
                 // Conductas - ancho fijo 70px
-                if (!empty($datos['conductas'])) {
+                if (! empty($datos['conductas'])) {
                     foreach ($datos['conductas'] as $conducta) {
-                        $keyCond = $estudiante->id . '-' . $conducta->id;
+                        $keyCond = $estudiante->id.'-'.$conducta->id;
                         $notaCond = $datos['conductaNotas'][$keyCond]['nota'] ?? null;
                         $notaCondFormateada = $formatearNota($notaCond);
                         $clase = $obtenerClaseNota($notaCondFormateada, $datos['formato']);
-                        echo '<td class="text-center col-conducta" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>' . $notaCondFormateada . '</strong><\/td>';
+                        echo '<td class="text-center col-conducta" style="width: 70px; font-family: Arial, sans-serif; font-size: 11px;"><strong>'.$notaCondFormateada.'</strong><\/td>';
                     }
                 }
 
@@ -1308,13 +1367,13 @@ class NotaController extends Controller
 
         // ========== LEYENDA ==========
         echo '<tr>';
-        echo '<td colspan="' . $totalColumnas . '" style="border: 1px solid #000000; padding: 8px; text-align: left; background-color: #f9f9f9; font-family: Arial, sans-serif; font-size: 11px;">';
+        echo '<td colspan="'.$totalColumnas.'" style="border: 1px solid #000000; padding: 8px; text-align: left; background-color: #f9f9f9; font-family: Arial, sans-serif; font-size: 11px;">';
         echo '<strong>Leyenda de Calificación:</strong><br>';
-        echo '<span class="text-success" style="font-family: Arial, sans-serif;">' . ($datos['formato'] == 'cuantitativo' ? '3-4 (Logro Destacado)' : 'AD - A (Logro Destacado - Logro Esperado)') . '</span> | ';
-        echo '<span class="text-warning" style="font-family: Arial, sans-serif;">' . ($datos['formato'] == 'cuantitativo' ? '2 (En Proceso)' : 'B (En Proceso)') . '</span> | ';
-        echo '<span class="text-danger" style="font-family: Arial, sans-serif;">' . ($datos['formato'] == 'cuantitativo' ? '1 (En Inicio)' : 'C (En Inicio)') . '</span><br>';
+        echo '<span class="text-success" style="font-family: Arial, sans-serif;">'.($datos['formato'] == 'cuantitativo' ? '3-4 (Logro Destacado)' : 'AD - A (Logro Destacado - Logro Esperado)').'</span> | ';
+        echo '<span class="text-warning" style="font-family: Arial, sans-serif;">'.($datos['formato'] == 'cuantitativo' ? '2 (En Proceso)' : 'B (En Proceso)').'</span> | ';
+        echo '<span class="text-danger" style="font-family: Arial, sans-serif;">'.($datos['formato'] == 'cuantitativo' ? '1 (En Inicio)' : 'C (En Inicio)').'</span><br>';
         echo '<span class="small text-muted" style="font-family: Arial, sans-serif;">Los estudiantes inactivos solo aparecen si tienen notas registradas en el sistema.</span><br>';
-        echo '<span class="small text-muted" style="font-family: Arial, sans-serif;">Documento generado automáticamente el ' . $datos['fecha_generacion']->format('d/m/Y H:i:s') . '</span>';
+        echo '<span class="small text-muted" style="font-family: Arial, sans-serif;">Documento generado automáticamente el '.$datos['fecha_generacion']->format('d/m/Y H:i:s').'</span>';
         echo '</td>';
         echo '</tr>';
 

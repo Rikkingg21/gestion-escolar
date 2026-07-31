@@ -2,40 +2,33 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Nota;
-use App\Models\Maya\Bimestre;
-use App\Models\Maya\Cursogradosecnivanio;
 use App\Models\Conducta;
-use App\Models\Periodo;
-use App\Models\Periodobimestre;
 use App\Models\Conductaperiodobimestre;
 use App\Models\Conductaperiodobimestrenota;
-use App\Models\Estudiante;
-use App\Models\Materia;
-use App\Models\Docente;
-use App\Models\Materia\Materiacompetencia;
-use App\Models\Materia\Materiacriterio;
+use App\Models\Periodo;
+use App\Models\Periodobimestre;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ConductaController extends Controller
 {
-    //moduleID 12 = Conducta
+    // moduleID 12 = Conducta
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('12')) {
+            if (! auth()->user()->canAccessModule('12')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
+
     public function index()
     {
         // Sección 1: Conductas
-        $conductasActivas = Conducta::where('estado', "1")->get();
-        $conductasInactivas = Conducta::where('estado', "0")->get();
+        $conductasActivas = Conducta::where('estado', '1')->get();
+        $conductasInactivas = Conducta::where('estado', '0')->get();
 
         // Periodos ACTIVOS (estado = 1) del año actual y anterior
         $anioActual = date('Y');
@@ -44,9 +37,9 @@ class ConductaController extends Controller
         $periodosActivos = Periodo::where('tipo_periodo', 'año escolar')
             ->where('estado', '1')
             ->whereIn('anio', [$anioActual, $anioAnterior])
-            ->with(['periodobimestres' => function($query) {
+            ->with(['periodobimestres' => function ($query) {
                 $query->where('tipo_bimestre', 'A')
-                      ->orderBy('bimestre', 'asc');
+                    ->orderBy('bimestre', 'asc');
             }, 'periodobimestres.conductas'])
             ->orderBy('anio', 'desc')
             ->get();
@@ -64,12 +57,13 @@ class ConductaController extends Controller
             'periodosInactivos'
         ));
     }
+
     public function asignarConductas(Request $request)
     {
         $request->validate([
             'periodo_bimestre_id' => 'required|exists:periodo_bimestres,id',
             'conducta_ids' => 'array',
-            'conducta_ids.*' => 'exists:conductas,id'
+            'conducta_ids.*' => 'exists:conductas,id',
         ]);
 
         $periodoBimestreId = $request->periodo_bimestre_id;
@@ -111,10 +105,10 @@ class ConductaController extends Controller
 
                 if ($existente && $existente->trashed()) {
                     $existente->restore();
-                } elseif (!$existente) {
+                } elseif (! $existente) {
                     Conductaperiodobimestre::create([
                         'periodo_bimestre_id' => $periodoBimestreId,
-                        'conducta_id' => $conductaId
+                        'conducta_id' => $conductaId,
                     ]);
                 }
             }
@@ -134,36 +128,38 @@ class ConductaController extends Controller
             DB::commit();
 
             $mensaje = 'Conductas asignadas correctamente.';
-            if (!empty($relacionesConNotas)) {
+            if (! empty($relacionesConNotas)) {
                 $mensaje .= ' Las conductas con notas registradas no se pueden desmarcar.';
             }
 
             return response()->json([
                 'success' => true,
-                'message' => $mensaje
+                'message' => $mensaje,
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al asignar: ' . $e->getMessage()
+                'message' => 'Error al asignar: '.$e->getMessage(),
             ], 500);
         }
     }
+
     // Método para migrar conductas usando siglas (B1, B2, B3, B4)
     public function migrarConductas(Request $request)
     {
         $request->validate([
             'periodo_origen_id' => 'required|exists:periodos,id',
-            'periodo_destino_id' => 'required|exists:periodos,id'
+            'periodo_destino_id' => 'required|exists:periodos,id',
         ]);
 
-        $periodoOrigen = Periodo::with(['periodobimestres' => function($query) {
+        $periodoOrigen = Periodo::with(['periodobimestres' => function ($query) {
             $query->where('tipo_bimestre', 'A')->with('conductas');
         }])->findOrFail($request->periodo_origen_id);
 
-        $periodoDestino = Periodo::with(['periodobimestres' => function($query) {
+        $periodoDestino = Periodo::with(['periodobimestres' => function ($query) {
             $query->where('tipo_bimestre', 'A');
         }])->findOrFail($request->periodo_destino_id);
 
@@ -204,11 +200,11 @@ class ConductaController extends Controller
                         if ($existente && $existente->trashed()) {
                             // Restaurar (esto actualizará updated_at automáticamente)
                             $existente->restore();
-                        } elseif (!$existente) {
+                        } elseif (! $existente) {
                             // Crear nuevo (created_at y updated_at se llenan automáticamente)
                             Conductaperiodobimestre::create([
                                 'periodo_bimestre_id' => $periodoBimestreId,
-                                'conducta_id' => $conductaId
+                                'conducta_id' => $conductaId,
                             ]);
                         }
                     }
@@ -228,18 +224,21 @@ class ConductaController extends Controller
             }
 
             DB::commit();
+
             return redirect()->route('conducta.index')->with('success', 'Conductas migradas correctamente usando siglas y Soft Delete');
 
         } catch (\Exception $e) {
             DB::rollback();
-            return redirect()->route('conducta.index')->with('error', 'Error al migrar: ' . $e->getMessage());
+
+            return redirect()->route('conducta.index')->with('error', 'Error al migrar: '.$e->getMessage());
         }
     }
+
     public function eliminarConductaBimestre(Request $request)
     {
         $request->validate([
             'periodo_bimestre_id' => 'required|exists:periodo_bimestres,id',
-            'conducta_id' => 'required|exists:conductas,id'
+            'conducta_id' => 'required|exists:conductas,id',
         ]);
 
         try {
@@ -248,10 +247,10 @@ class ConductaController extends Controller
                 ->where('conducta_id', $request->conducta_id)
                 ->first();
 
-            if (!$relacion) {
+            if (! $relacion) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'La relación no existe o ya fue eliminada'
+                    'message' => 'La relación no existe o ya fue eliminada',
                 ], 404);
             }
 
@@ -262,7 +261,7 @@ class ConductaController extends Controller
             if ($existenNotas) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se puede eliminar la conducta porque ya tiene notas registradas. Primero debe eliminar las notas asociadas.'
+                    'message' => 'No se puede eliminar la conducta porque ya tiene notas registradas. Primero debe eliminar las notas asociadas.',
                 ], 409); // 409 Conflict
             }
 
@@ -271,16 +270,17 @@ class ConductaController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Conducta desasignada del bimestre correctamente'
+                'message' => 'Conducta desasignada del bimestre correctamente',
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar: ' . $e->getMessage()
+                'message' => 'Error al eliminar: '.$e->getMessage(),
             ], 500);
         }
     }
+
     public function getConductasAsignadas($periodoBimestreId)
     {
         try {
@@ -314,16 +314,17 @@ class ConductaController extends Controller
                 'success' => true,
                 'conductas_asignadas' => $conductasAsignadas,
                 'conductas_con_notas' => $conductasConNotas,
-                'conductas_inactivas_asignadas' => $conductasInactivasAsignadas
+                'conductas_inactivas_asignadas' => $conductasInactivasAsignadas,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
+
     public function verificarNotasConducta($periodoBimestreId, $conductaId)
     {
         try {
@@ -332,10 +333,10 @@ class ConductaController extends Controller
                 ->where('conducta_id', $conductaId)
                 ->first();
 
-            if (!$relacion) {
+            if (! $relacion) {
                 return response()->json([
                     'tiene_notas' => false,
-                    'cantidad_notas' => 0
+                    'cantidad_notas' => 0,
                 ]);
             }
 
@@ -345,33 +346,36 @@ class ConductaController extends Controller
 
             return response()->json([
                 'tiene_notas' => $cantidadNotas > 0,
-                'cantidad_notas' => $cantidadNotas
+                'cantidad_notas' => $cantidadNotas,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'tiene_notas' => false,
                 'cantidad_notas' => 0,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
     public function showPeriodoInactivo($periodo_id)
     {
         $periodo = Periodo::where('tipo_periodo', 'año escolar')
             ->where('estado', '0')
-            ->with(['periodobimestres' => function($query) {
+            ->with(['periodobimestres' => function ($query) {
                 $query->where('tipo_bimestre', 'A')
-                      ->orderBy('bimestre', 'asc');
+                    ->orderBy('bimestre', 'asc');
             }, 'periodobimestres.conductas'])
             ->findOrFail($periodo_id);
 
         return view('conducta.periodo_inactivo', compact('periodo'));
     }
+
     public function create()
     {
         return view('conducta.create');
     }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -383,10 +387,12 @@ class ConductaController extends Controller
 
         return redirect()->route('conducta.index')->with('success', 'Conducta creada exitosamente.');
     }
+
     public function edit(Conducta $conducta)
     {
         return view('conducta.edit', compact('conducta'));
     }
+
     public function update(Request $request, Conducta $conducta)
     {
         $request->validate([
@@ -398,6 +404,7 @@ class ConductaController extends Controller
 
         return redirect()->route('conducta.index')->with('success', 'Conducta actualizada exitosamente.');
     }
+
     public function destroy(Conducta $conducta)
     {
         try {
@@ -420,7 +427,7 @@ class ConductaController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->route('conducta.index')
-                ->with('error', 'Error al eliminar la conducta: ' . $e->getMessage());
+                ->with('error', 'Error al eliminar la conducta: '.$e->getMessage());
         }
     }
 }

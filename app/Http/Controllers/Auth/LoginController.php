@@ -3,21 +3,19 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Colegio;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Colegio;
-use App\Models\User;
-
 
 class LoginController extends Controller
 {
     public function index()
     {
-        return view('auth.login',[
-            'colegio' => Colegio::configuracion()
+        return view('auth.login', [
+            'colegio' => Colegio::configuracion(),
         ]);
     }
-    //verificar si hay alguna sessión activa en el dispositivo, si hay que regrese al ultimo enlace que estaba
+    // verificar si hay alguna sessión activa en el dispositivo, si hay que regrese al ultimo enlace que estaba
 
     public function login(Request $request)
     {
@@ -44,8 +42,10 @@ class LoginController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
         return redirect('/login');
     }
+
     public function logout_sub(Request $request)
     {
         // Solo elimina la sesión secundaria

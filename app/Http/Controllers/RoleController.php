@@ -2,22 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Module;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
-use App\Models\Role;
-use App\Models\Module;
-
 
 class RoleController extends Controller
 {
-    //moduleID 3 = Roles
+    // moduleID 3 = Roles
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('3')) {
+            if (! auth()->user()->canAccessModule('3')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
@@ -40,18 +39,18 @@ class RoleController extends Controller
         $request->validate([
             'nombre' => 'required|string|max:100|unique:roles,nombre',
             'descripcion' => 'nullable|string|max:255',
-            'estado' => 'required|in:1,0'
+            'estado' => 'required|in:1,0',
         ], [
             'nombre.required' => 'El nombre del rol es obligatorio',
             'nombre.unique' => 'Ya existe un rol con este nombre',
-            'estado.required' => 'El estado es obligatorio'
+            'estado.required' => 'El estado es obligatorio',
         ]);
 
         try {
             Role::create([
                 'nombre' => $request->nombre,
                 'descripcion' => $request->descripcion,
-                'estado' => $request->estado
+                'estado' => $request->estado,
             ]);
 
             return redirect()->route('role.index')
@@ -59,13 +58,15 @@ class RoleController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al crear el rol: ' . $e->getMessage())
+                ->with('error', 'Error al crear el rol: '.$e->getMessage())
                 ->withInput();
         }
     }
+
     public function edit($id)
     {
         $role = Role::findOrFail($id);
+
         return view('role.edit', compact('role'));
     }
 
@@ -74,20 +75,20 @@ class RoleController extends Controller
         $role = Role::findOrFail($id);
 
         $request->validate([
-            'nombre' => 'required|string|max:100|unique:roles,nombre,' . $id,
+            'nombre' => 'required|string|max:100|unique:roles,nombre,'.$id,
             'descripcion' => 'nullable|string|max:255',
-            'estado' => 'required|in:1,0'
+            'estado' => 'required|in:1,0',
         ], [
             'nombre.required' => 'El nombre del rol es obligatorio',
             'nombre.unique' => 'Ya existe un rol con este nombre',
-            'estado.required' => 'El estado es obligatorio'
+            'estado.required' => 'El estado es obligatorio',
         ]);
 
         try {
             $role->update([
                 'nombre' => $request->nombre,
                 'descripcion' => $request->descripcion,
-                'estado' => $request->estado
+                'estado' => $request->estado,
             ]);
 
             return redirect()->route('role.index')
@@ -95,10 +96,11 @@ class RoleController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al actualizar el rol: ' . $e->getMessage())
+                ->with('error', 'Error al actualizar el rol: '.$e->getMessage())
                 ->withInput();
         }
     }
+
     public function destroy($id)
     {
         $role = Role::findOrFail($id);
@@ -122,7 +124,7 @@ class RoleController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al eliminar el rol: ' . $e->getMessage());
+                ->with('error', 'Error al eliminar el rol: '.$e->getMessage());
         }
     }
 
@@ -142,11 +144,12 @@ class RoleController extends Controller
 
         return view('role.module', compact('role', 'modulesAsignados', 'modulesDisponibles'));
     }
+
     public function assignModule(Request $request, $roleId)
     {
         $request->validate([
             'module_id' => 'required|exists:modules,id',
-            'estado' => 'required|in:1,0'
+            'estado' => 'required|in:1,0',
         ]);
 
         try {
@@ -158,12 +161,12 @@ class RoleController extends Controller
             if ($existing) {
                 // Actualizar estado si ya existe
                 $role->modules()->updateExistingPivot($request->module_id, [
-                    'estado' => $request->estado
+                    'estado' => $request->estado,
                 ]);
             } else {
                 // Crear nueva relación
                 $role->modules()->attach($request->module_id, [
-                    'estado' => $request->estado
+                    'estado' => $request->estado,
                 ]);
             }
 
@@ -172,7 +175,7 @@ class RoleController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al asignar módulo: ' . $e->getMessage());
+                ->with('error', 'Error al asignar módulo: '.$e->getMessage());
         }
     }
 
@@ -187,9 +190,10 @@ class RoleController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al remover módulo: ' . $e->getMessage());
+                ->with('error', 'Error al remover módulo: '.$e->getMessage());
         }
     }
+
     public function selectRole()
     {
         $user = Auth::user();

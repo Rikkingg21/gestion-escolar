@@ -2,48 +2,43 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
-use App\Models\Role;
-use Illuminate\Support\Facades\DB;
-use App\Models\Estudiante;
 use App\Models\Apoderado;
-use App\Models\Docente;
 use App\Models\Auxiliar;
 use App\Models\Director;
+use App\Models\Docente;
+use App\Models\Estudiante;
 use App\Models\Grado;
 use App\Models\Materia;
+use App\Models\Role;
+use App\Models\User;
 use App\Models\Userrole;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use Illuminate\Support\Facades\Validator;
-
-
 
 class UserController extends Controller
 {
-    //moduleID 7 = User
+    // moduleID 7 = User
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('7')) {
+            if (! auth()->user()->canAccessModule('7')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
+
     public function ajaxUserActivo(Request $request)
     {
         $query = User::activos()
             ->with([
                 'roles',
                 'estudiante.grado', // Solo estudiantes tienen grado
-                'docente' // Docentes sin relación con grado
+                'docente', // Docentes sin relación con grado
             ])
             ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado');
 
@@ -51,15 +46,15 @@ class UserController extends Controller
         $query = $this->aplicarFiltros($query, $request);
 
         $users = $query->get()
-            ->map(function($user) {
+            ->map(function ($user) {
                 return [
                     'dni' => $user->dni,
                     'nombre_usuario' => $user->nombre_usuario,
-                    'nombre_completo' => $user->nombre . ' ' . $user->apellido_paterno . ' ' . $user->apellido_materno,
+                    'nombre_completo' => $user->nombre.' '.$user->apellido_paterno.' '.$user->apellido_materno,
                     'roles' => $user->roles->pluck('nombre')->implode(', '),
                     'grado' => $this->getGradoUsuario($user),
                     'estado' => $this->getEstadoTexto($user->estado),
-                    'acciones' => $this->getActionButtons($user)
+                    'acciones' => $this->getActionButtons($user),
                 ];
             });
 
@@ -72,7 +67,7 @@ class UserController extends Controller
             ->with([
                 'roles',
                 'estudiante.grado',
-                'docente'
+                'docente',
             ])
             ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado');
 
@@ -80,15 +75,15 @@ class UserController extends Controller
         $query = $this->aplicarFiltros($query, $request);
 
         $users = $query->get()
-            ->map(function($user) {
+            ->map(function ($user) {
                 return [
                     'dni' => $user->dni,
                     'nombre_usuario' => $user->nombre_usuario,
-                    'nombre_completo' => $user->nombre . ' ' . $user->apellido_paterno . ' ' . $user->apellido_materno,
+                    'nombre_completo' => $user->nombre.' '.$user->apellido_paterno.' '.$user->apellido_materno,
                     'roles' => $user->roles->pluck('nombre')->implode(', '),
                     'grado' => $this->getGradoUsuario($user),
                     'estado' => $this->getEstadoTexto($user->estado),
-                    'acciones' => $this->getActionButtons($user)
+                    'acciones' => $this->getActionButtons($user),
                 ];
             });
 
@@ -101,7 +96,7 @@ class UserController extends Controller
             ->with([
                 'roles',
                 'estudiante.grado',
-                'docente'
+                'docente',
             ])
             ->select('id', 'dni', 'nombre_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'estado');
 
@@ -109,15 +104,15 @@ class UserController extends Controller
         $query = $this->aplicarFiltros($query, $request);
 
         $users = $query->get()
-            ->map(function($user) {
+            ->map(function ($user) {
                 return [
                     'dni' => $user->dni,
                     'nombre_usuario' => $user->nombre_usuario,
-                    'nombre_completo' => $user->nombre . ' ' . $user->apellido_paterno . ' ' . $user->apellido_materno,
+                    'nombre_completo' => $user->nombre.' '.$user->apellido_paterno.' '.$user->apellido_materno,
                     'roles' => $user->roles->pluck('nombre')->implode(', '),
                     'grado' => $this->getGradoUsuario($user),
                     'estado' => $this->getEstadoTexto($user->estado),
-                    'acciones' => $this->getActionButtons($user)
+                    'acciones' => $this->getActionButtons($user),
                 ];
             });
 
@@ -130,15 +125,15 @@ class UserController extends Controller
     private function aplicarFiltros($query, Request $request)
     {
         // Filtro por rol
-        if ($request->has('rol') && !empty($request->rol)) {
-            $query->whereHas('roles', function($q) use ($request) {
+        if ($request->has('rol') && ! empty($request->rol)) {
+            $query->whereHas('roles', function ($q) use ($request) {
                 $q->where('nombre', $request->rol);
             });
         }
 
         // Filtro por grado (SOLO para estudiantes)
-        if ($request->has('grado') && !empty($request->grado)) {
-            $query->whereHas('estudiante', function($q) use ($request) {
+        if ($request->has('grado') && ! empty($request->grado)) {
+            $query->whereHas('estudiante', function ($q) use ($request) {
                 $q->where('grado_id', $request->grado);
             });
         }
@@ -154,6 +149,7 @@ class UserController extends Controller
         // Verificar si es estudiante y tiene grado
         if ($user->estudiante && $user->estudiante->grado) {
             $grado = $user->estudiante->grado;
+
             return "{$grado->grado}° '{$grado->seccion}' - {$grado->nivel}";
         }
 
@@ -166,7 +162,7 @@ class UserController extends Controller
         }
 
         // Para otros roles
-        if (!empty($roles)) {
+        if (! empty($roles)) {
             return $roles;
         }
 
@@ -179,12 +175,13 @@ class UserController extends Controller
         if (auth()->user()->can('update', $user)) {
             $buttons .= '<a href="'.route('user.edit', $user->id).'" class="btn btn-sm btn-warning">Editar</a> ';
         }
+
         return $buttons;
     }
 
     private function getEstadoTexto($estado)
     {
-        switch ((int)$estado) {
+        switch ((int) $estado) {
             case 0: return 'Inactivo';
             case 1: return 'Activo';
             case 2: return 'Lector';
@@ -208,6 +205,7 @@ class UserController extends Controller
 
         return view('user.create', compact('roles', 'grados', 'materias'));
     }
+
     public function store(Request $request)
     {
         // Mensajes personalizados en español
@@ -289,7 +287,7 @@ class UserController extends Controller
             switch ($rolId) {
                 case 6: // Estudiante
                     // Verificar si ya existe un registro de estudiante
-                    if (!Estudiante::where('user_id', $user->id)->exists()) {
+                    if (! Estudiante::where('user_id', $user->id)->exists()) {
                         $request->validate([
                             'grado_id' => 'required|exists:grados,id',
                             'fecha_nacimiento' => 'nullable|date',
@@ -309,7 +307,7 @@ class UserController extends Controller
                     break;
 
                 case 3: // Docente
-                    if (!Docente::where('user_id', $user->id)->exists()) {
+                    if (! Docente::where('user_id', $user->id)->exists()) {
                         $request->validate([
                             'especialidad' => 'nullable|string|max:100',
                             'materia_id' => 'nullable|exists:materias,id',
@@ -325,7 +323,7 @@ class UserController extends Controller
                     break;
 
                 case 5: // Apoderado
-                    if (!Apoderado::where('user_id', $user->id)->exists()) {
+                    if (! Apoderado::where('user_id', $user->id)->exists()) {
                         $request->validate([
                             'parentesco' => 'required|in:padre,madre,tutor,otro',
                         ], $messages);
@@ -339,7 +337,7 @@ class UserController extends Controller
                     break;
 
                 case 4: // Auxiliar
-                    if (!Auxiliar::where('user_id', $user->id)->exists()) {
+                    if (! Auxiliar::where('user_id', $user->id)->exists()) {
                         $request->validate([
                             'turno' => 'nullable|in:mañana,tarde,completo',
                             'funciones' => 'nullable|string|max:50',
@@ -355,7 +353,7 @@ class UserController extends Controller
                     break;
 
                 case 2: // Director
-                    if (!Director::where('user_id', $user->id)->exists()) {
+                    if (! Director::where('user_id', $user->id)->exists()) {
                         Director::create([
                             'user_id' => $user->id,
                             'estado' => 1,
@@ -383,7 +381,7 @@ class UserController extends Controller
             'docente',
             'apoderado',
             'auxiliar',
-            'director'
+            'director',
         ]);
 
         // Obtener roles actuales para mostrar en el formulario
@@ -394,16 +392,17 @@ class UserController extends Controller
 
         return view('user.edit', compact('user', 'roles', 'grados', 'userRoles', 'rolesProtegidos'));
     }
+
     public function update(Request $request, User $user)
     {
         // Validar datos básicos del usuario
         $userData = $request->validate([
-            'dni' => 'required|string|max:8|unique:users,dni,' . $user->id,
-            'nombre_usuario' => 'required|string|max:50|unique:users,nombre_usuario,' . $user->id,
+            'dni' => 'required|string|max:8|unique:users,dni,'.$user->id,
+            'nombre_usuario' => 'required|string|max:50|unique:users,nombre_usuario,'.$user->id,
             'nombre' => 'required|string|max:50',
             'apellido_paterno' => 'required|string|max:50',
             'apellido_materno' => 'nullable|string|max:50',
-            'email' => 'required|email|unique:users,email,' . $user->id,
+            'email' => 'required|email|unique:users,email,'.$user->id,
             'telefono' => 'nullable|string|max:9',
             'estado' => 'required|in:0,1,2',
         ]);
@@ -434,13 +433,13 @@ class UserController extends Controller
         // Obtener nombres de todos los roles
         $todosLosRolesNombres = Role::whereIn('id', $todosLosRoles)
             ->pluck('nombre')
-            ->map(fn($name) => strtolower($name))
+            ->map(fn ($name) => strtolower($name))
             ->toArray();
 
         // Validar campos específicos para roles EXISTENTES
         $rolesExistentesNombres = Role::whereIn('id', $request->roles)
             ->pluck('nombre')
-            ->map(fn($name) => strtolower($name))
+            ->map(fn ($name) => strtolower($name))
             ->toArray();
 
         foreach ($rolesExistentesNombres as $rolNombre) {
@@ -483,40 +482,40 @@ class UserController extends Controller
         if ($request->has('nuevos_roles')) {
             $nuevosRolesNombres = Role::whereIn('id', $request->nuevos_roles)
                 ->pluck('nombre')
-                ->map(fn($name) => strtolower($name))
+                ->map(fn ($name) => strtolower($name))
                 ->toArray();
 
             foreach ($nuevosRolesNombres as $index => $rolNombre) {
                 switch ($rolNombre) {
                     case 'estudiante':
                         $request->validate([
-                            'nuevo_estudiante_grado.' . $index => 'required|exists:grados,id',
-                            'nuevo_estudiante_apoderado.' . $index => 'nullable|exists:apoderados,id',
-                            'nuevo_estudiante_fecha_nacimiento.' . $index => 'required|date',
-                            'nuevo_estudiante_estado.' . $index => 'required|in:0,1',
+                            'nuevo_estudiante_grado.'.$index => 'required|exists:grados,id',
+                            'nuevo_estudiante_apoderado.'.$index => 'nullable|exists:apoderados,id',
+                            'nuevo_estudiante_fecha_nacimiento.'.$index => 'required|date',
+                            'nuevo_estudiante_estado.'.$index => 'required|in:0,1',
                         ]);
                         break;
                     case 'docente':
                         $request->validate([
-                            'nuevo_docente_estado.' . $index => 'required|in:0,1',
+                            'nuevo_docente_estado.'.$index => 'required|in:0,1',
                         ]);
                         break;
                     case 'apoderado':
                         $request->validate([
-                            'nuevo_apoderado_parentesco.' . $index => 'required|string|max:50',
-                            'nuevo_apoderado_estado.' . $index => 'required|in:0,1',
+                            'nuevo_apoderado_parentesco.'.$index => 'required|string|max:50',
+                            'nuevo_apoderado_estado.'.$index => 'required|in:0,1',
                         ]);
                         break;
                     case 'auxiliar':
                         $request->validate([
-                            'nuevo_auxiliar_turno.' . $index => 'required|in:mañana,tarde,noche',
-                            'nuevo_auxiliar_estado.' . $index => 'required|in:0,1',
-                            'nuevo_auxiliar_funciones.' . $index => 'nullable|string',
+                            'nuevo_auxiliar_turno.'.$index => 'required|in:mañana,tarde,noche',
+                            'nuevo_auxiliar_estado.'.$index => 'required|in:0,1',
+                            'nuevo_auxiliar_funciones.'.$index => 'nullable|string',
                         ]);
                         break;
                     case 'director':
                         $request->validate([
-                            'nuevo_director_estado.' . $index => 'required|in:0,1',
+                            'nuevo_director_estado.'.$index => 'required|in:0,1',
                         ]);
                         break;
                 }
@@ -707,10 +706,12 @@ class UserController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return back()->with('error', 'Error al actualizar el usuario.')
-                        ->withInput();
+                ->withInput();
         }
     }
+
     public function removeRelacionRolNoProtegidos(Request $request, User $user)
     {
         $roleId = $request->role_id;
@@ -719,7 +720,7 @@ class UserController extends Controller
         if (in_array($roleId, $rolesProtegidos)) {
             return response()->json([
                 'success' => false,
-                'message' => 'No puedes eliminar un rol protegido.'
+                'message' => 'No puedes eliminar un rol protegido.',
             ], 403);
         }
 
@@ -731,13 +732,15 @@ class UserController extends Controller
             'success' => (bool) $deleted,
             'message' => $deleted
                 ? 'Rol desvinculado correctamente.'
-                : 'Relación no encontrada.'
+                : 'Relación no encontrada.',
         ], $deleted ? 200 : 404);
     }
+
     public function importar()
     {
         return view('user.importar');
     }
+
     public function importarApoderados(Request $request)
     {
         // Paso 1: Validar si es confirmación o cancelación
@@ -777,7 +780,7 @@ class UserController extends Controller
                 $numeroFila = $i + 1;
 
                 // Verificar si la fila está vacía
-                if (empty(array_filter($row, function($value) {
+                if (empty(array_filter($row, function ($value) {
                     return $value !== null && $value !== '';
                 }))) {
                     continue;
@@ -791,20 +794,22 @@ class UserController extends Controller
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni' => $row[0] ?? 'N/A',
-                            'error' => 'Faltan campos obligatorios'
+                            'error' => 'Faltan campos obligatorios',
                         ];
+
                         continue;
                     }
 
                     $dni = trim($row[0]);
 
                     // Validar formato de DNI
-                    if (!preg_match('/^[0-9]{8}$/', $dni)) {
+                    if (! preg_match('/^[0-9]{8}$/', $dni)) {
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni' => $dni,
-                            'error' => 'Formato de DNI inválido (debe tener 8 dígitos)'
+                            'error' => 'Formato de DNI inválido (debe tener 8 dígitos)',
                         ];
+
                         continue;
                     }
 
@@ -813,37 +818,40 @@ class UserController extends Controller
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni' => $dni,
-                            'error' => 'El DNI ya existe en el sistema'
+                            'error' => 'El DNI ya existe en el sistema',
                         ];
+
                         continue;
                     }
 
                     // Validar parentesco
                     $parentescosValidos = ['padre', 'madre', 'tutor'];
                     $parentesco = strtolower(trim($row[5]));
-                    if (!in_array($parentesco, $parentescosValidos)) {
+                    if (! in_array($parentesco, $parentescosValidos)) {
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni' => $dni,
-                            'error' => 'Parentesco inválido. Debe ser: ' . implode(', ', $parentescosValidos)
+                            'error' => 'Parentesco inválido. Debe ser: '.implode(', ', $parentescosValidos),
                         ];
+
                         continue;
                     }
 
                     // Validar teléfono si está presente
                     $telefono = isset($row[4]) ? trim($row[4]) : null;
-                    if ($telefono && !preg_match('/^[0-9]{7,15}$/', $telefono)) {
+                    if ($telefono && ! preg_match('/^[0-9]{7,15}$/', $telefono)) {
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni' => $dni,
-                            'error' => 'Formato de teléfono inválido'
+                            'error' => 'Formato de teléfono inválido',
                         ];
+
                         continue;
                     }
 
                     // Verificar duplicados dentro del archivo
                     $claveRegistro = $dni;
-                    $duplicadoEnArchivo = collect($registrosValidos)->contains(function($registro) use ($dni) {
+                    $duplicadoEnArchivo = collect($registrosValidos)->contains(function ($registro) use ($dni) {
                         return $registro['dni'] === $dni;
                     });
 
@@ -851,8 +859,9 @@ class UserController extends Controller
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni' => $dni,
-                            'error' => 'DNI duplicado en el archivo'
+                            'error' => 'DNI duplicado en el archivo',
                         ];
+
                         continue;
                     }
 
@@ -866,17 +875,17 @@ class UserController extends Controller
                             'nombre' => mb_strtoupper(trim($row[3]), 'UTF-8'),
                             'telefono' => $telefono,
                             'parentesco' => $parentesco,
-                            'email' => $dni . '@ietere.com',
+                            'email' => $dni.'@ietere.com',
                             'password' => $dni, // Se hasheará al crear
-                            'nombre_usuario' => $dni
-                        ]
+                            'nombre_usuario' => $dni,
+                        ],
                     ];
 
                 } catch (\Exception $e) {
                     $errores[] = [
                         'fila' => $numeroFila,
                         'dni' => $row[0] ?? 'N/A',
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -886,7 +895,7 @@ class UserController extends Controller
                 'registros_validos' => $registrosValidos,
                 'total_registros' => $totalRegistros,
                 'errores' => $errores,
-                'archivo_nombre' => $request->file('file')->getClientOriginalName()
+                'archivo_nombre' => $request->file('file')->getClientOriginalName(),
             ]);
 
             // Devolver a la vista con datos de validación
@@ -900,7 +909,7 @@ class UserController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al procesar el archivo: ' . $e->getMessage())
+                ->with('error', 'Error al procesar el archivo: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -914,7 +923,7 @@ class UserController extends Controller
         try {
             $importData = session()->get('import_apoderados_data');
 
-            if (!$importData) {
+            if (! $importData) {
                 return redirect()->route('user.importar')
                     ->with('error', 'No hay datos de importación para procesar. Por favor, valide el archivo nuevamente.');
             }
@@ -933,9 +942,10 @@ class UserController extends Controller
                         $erroresProceso[] = [
                             'fila' => $registro['fila'],
                             'dni' => $registro['datos']['dni'],
-                            'error' => 'El DNI ya existe en el sistema'
+                            'error' => 'El DNI ya existe en el sistema',
                         ];
                         DB::rollBack();
+
                         continue;
                     }
 
@@ -971,7 +981,7 @@ class UserController extends Controller
                     $erroresProceso[] = [
                         'fila' => $registro['fila'],
                         'dni' => $registro['datos']['dni'],
-                        'error' => 'Error al crear usuario: ' . $e->getMessage()
+                        'error' => 'Error al crear usuario: '.$e->getMessage(),
                     ];
                 }
             }
@@ -984,7 +994,7 @@ class UserController extends Controller
             $tipoMensaje = 'success';
 
             if (count($erroresProceso) > 0) {
-                $mensaje .= " Se produjeron " . count($erroresProceso) . " errores durante el procesamiento.";
+                $mensaje .= ' Se produjeron '.count($erroresProceso).' errores durante el procesamiento.';
                 $tipoMensaje = 'warning';
 
                 // Guardar errores de proceso en sesión
@@ -997,7 +1007,7 @@ class UserController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->route('user.importar')
-                ->with('error', 'Error durante el procesamiento: ' . $e->getMessage());
+                ->with('error', 'Error durante el procesamiento: '.$e->getMessage());
         }
     }
 
@@ -1040,7 +1050,7 @@ class UserController extends Controller
                 $numeroFila = $i + 1;
 
                 // Verificar si la fila está vacía
-                if (empty(array_filter($row, function($value) {
+                if (empty(array_filter($row, function ($value) {
                     return $value !== null && $value !== '';
                 }))) {
                     continue;
@@ -1054,8 +1064,9 @@ class UserController extends Controller
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni_estudiante' => $row[0] ?? 'N/A',
-                            'error' => 'Faltan campos obligatorios'
+                            'error' => 'Faltan campos obligatorios',
                         ];
+
                         continue;
                     }
 
@@ -1063,22 +1074,24 @@ class UserController extends Controller
                     $dniApoderado = trim($row[5]);
 
                     // Validar formato de DNI del estudiante
-                    if (!preg_match('/^[0-9]{8}$/', $dniEstudiante)) {
+                    if (! preg_match('/^[0-9]{8}$/', $dniEstudiante)) {
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni_estudiante' => $dniEstudiante,
-                            'error' => 'Formato de DNI del estudiante inválido (debe tener 8 dígitos)'
+                            'error' => 'Formato de DNI del estudiante inválido (debe tener 8 dígitos)',
                         ];
+
                         continue;
                     }
 
                     // Validar formato de DNI del apoderado
-                    if (!preg_match('/^[0-9]{8}$/', $dniApoderado)) {
+                    if (! preg_match('/^[0-9]{8}$/', $dniApoderado)) {
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni_estudiante' => $dniEstudiante,
-                            'error' => 'Formato de DNI del apoderado inválido (debe tener 8 dígitos)'
+                            'error' => 'Formato de DNI del apoderado inválido (debe tener 8 dígitos)',
                         ];
+
                         continue;
                     }
 
@@ -1087,30 +1100,33 @@ class UserController extends Controller
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni_estudiante' => $dniEstudiante,
-                            'error' => 'El DNI del estudiante ya existe en el sistema'
+                            'error' => 'El DNI del estudiante ya existe en el sistema',
                         ];
+
                         continue;
                     }
 
                     // Buscar al apoderado por DNI
                     $apoderadoUser = User::where('dni', $dniApoderado)->first();
-                    if (!$apoderadoUser) {
+                    if (! $apoderadoUser) {
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni_estudiante' => $dniEstudiante,
-                            'error' => 'No se encontró al apoderado con DNI: ' . $dniApoderado
+                            'error' => 'No se encontró al apoderado con DNI: '.$dniApoderado,
                         ];
+
                         continue;
                     }
 
                     // Verificar que el usuario sea apoderado
                     $apoderado = Apoderado::where('user_id', $apoderadoUser->id)->first();
-                    if (!$apoderado) {
+                    if (! $apoderado) {
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni_estudiante' => $dniEstudiante,
-                            'error' => 'El usuario con DNI ' . $dniApoderado . ' no es un apoderado'
+                            'error' => 'El usuario con DNI '.$dniApoderado.' no es un apoderado',
                         ];
+
                         continue;
                     }
 
@@ -1120,23 +1136,25 @@ class UserController extends Controller
                     $nivel = mb_strtoupper(trim($row[8]), 'UTF-8');
 
                     // Validar formato del grado
-                    if (!is_numeric($gradoNumero)) {
+                    if (! is_numeric($gradoNumero)) {
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni_estudiante' => $dniEstudiante,
-                            'error' => 'El grado debe ser un número'
+                            'error' => 'El grado debe ser un número',
                         ];
+
                         continue;
                     }
 
                     // Validar nivel
                     $nivelesValidos = ['PRIMARIA', 'SECUNDARIA'];
-                    if (!in_array($nivel, $nivelesValidos)) {
+                    if (! in_array($nivel, $nivelesValidos)) {
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni_estudiante' => $dniEstudiante,
-                            'error' => 'Nivel inválido. Debe ser: ' . implode(' o ', $nivelesValidos)
+                            'error' => 'Nivel inválido. Debe ser: '.implode(' o ', $nivelesValidos),
                         ];
+
                         continue;
                     }
 
@@ -1147,27 +1165,28 @@ class UserController extends Controller
                         ->where('estado', '1')
                         ->first();
 
-                    if (!$grado) {
+                    if (! $grado) {
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni_estudiante' => $dniEstudiante,
-                            'error' => 'No se encontró el grado: ' . $gradoNumero .
-                                    '° - sección: ' . $seccion .
-                                    ' - nivel: ' . $nivel . ' (o no está activo)'
+                            'error' => 'No se encontró el grado: '.$gradoNumero.
+                                    '° - sección: '.$seccion.
+                                    ' - nivel: '.$nivel.' (o no está activo)',
                         ];
+
                         continue;
                     }
 
                     // Validar fecha de nacimiento
                     $fechaNacimiento = null;
-                    if (!empty($row[4])) {
+                    if (! empty($row[4])) {
                         $fechaStr = trim($row[4]);
 
                         // Primero, verificar si es un valor numérico de Excel (serial date)
                         if (is_numeric($fechaStr)) {
                             try {
                                 // Convertir serial date de Excel a fecha PHP
-                                $excelDate = (int)$fechaStr;
+                                $excelDate = (int) $fechaStr;
                                 if ($excelDate > 60) {
                                     // Excel para Windows usa 1900 como base, pero tiene un error: cree que 1900 fue bisiesto
                                     $excelDate -= 1;
@@ -1177,8 +1196,9 @@ class UserController extends Controller
                                 $errores[] = [
                                     'fila' => $numeroFila,
                                     'dni_estudiante' => $dniEstudiante,
-                                    'error' => 'Fecha de nacimiento (serial Excel) inválida: ' . $fechaStr
+                                    'error' => 'Fecha de nacimiento (serial Excel) inválida: '.$fechaStr,
                                 ];
+
                                 continue;
                             }
                         } else {
@@ -1212,7 +1232,7 @@ class UserController extends Controller
                                 }
 
                                 // Si no se pudo parsear con formato específico, intentar con Carbon
-                                if (!$fechaParseada) {
+                                if (! $fechaParseada) {
                                     $fechaParseada = Carbon::parse($fechaStr);
                                 }
 
@@ -1235,8 +1255,9 @@ class UserController extends Controller
                                 $errores[] = [
                                     'fila' => $numeroFila,
                                     'dni_estudiante' => $dniEstudiante,
-                                    'error' => 'Fecha de nacimiento inválida: "' . $fechaStr . '" - ' . $e->getMessage()
+                                    'error' => 'Fecha de nacimiento inválida: "'.$fechaStr.'" - '.$e->getMessage(),
                                 ];
+
                                 continue;
                             }
                         }
@@ -1244,7 +1265,7 @@ class UserController extends Controller
 
                     // Verificar duplicados dentro del archivo
                     $claveRegistro = $dniEstudiante;
-                    $duplicadoEnArchivo = collect($registrosValidos)->contains(function($registro) use ($dniEstudiante) {
+                    $duplicadoEnArchivo = collect($registrosValidos)->contains(function ($registro) use ($dniEstudiante) {
                         return $registro['dni_estudiante'] === $dniEstudiante;
                     });
 
@@ -1252,8 +1273,9 @@ class UserController extends Controller
                         $errores[] = [
                             'fila' => $numeroFila,
                             'dni_estudiante' => $dniEstudiante,
-                            'error' => 'DNI de estudiante duplicado en el archivo'
+                            'error' => 'DNI de estudiante duplicado en el archivo',
                         ];
+
                         continue;
                     }
 
@@ -1263,7 +1285,7 @@ class UserController extends Controller
                         'datos' => [
                             'dni_estudiante' => $dniEstudiante,
                             'apellido_paterno' => mb_strtoupper(trim($row[1]), 'UTF-8'),
-                            'apellido_materno' => !empty($row[2]) ? mb_strtoupper(trim($row[2]), 'UTF-8') : null,
+                            'apellido_materno' => ! empty($row[2]) ? mb_strtoupper(trim($row[2]), 'UTF-8') : null,
                             'nombre' => mb_strtoupper(trim($row[3]), 'UTF-8'),
                             'fecha_nacimiento' => $fechaNacimiento,
                             'dni_apoderado' => $dniApoderado,
@@ -1271,20 +1293,20 @@ class UserController extends Controller
                             'seccion' => $seccion,
                             'nivel' => $nivel,
                             'grado_id' => $grado->id,
-                            'grado_nombre' => $grado->nombreCompleto ?? $gradoNumero . '° ' . $seccion . ' - ' . $nivel,
+                            'grado_nombre' => $grado->nombreCompleto ?? $gradoNumero.'° '.$seccion.' - '.$nivel,
                             'apoderado_id' => $apoderado->id,
-                            'apoderado_nombre' => $apoderadoUser->nombreCompleto ?? ($apoderadoUser->nombre . ' ' . $apoderadoUser->apellido_paterno),
-                            'email' => $dniEstudiante . '@ietere.com',
+                            'apoderado_nombre' => $apoderadoUser->nombreCompleto ?? ($apoderadoUser->nombre.' '.$apoderadoUser->apellido_paterno),
+                            'email' => $dniEstudiante.'@ietere.com',
                             'password' => $dniEstudiante, // Se hasheará al crear
-                            'nombre_usuario' => $dniEstudiante
-                        ]
+                            'nombre_usuario' => $dniEstudiante,
+                        ],
                     ];
 
                 } catch (\Exception $e) {
                     $errores[] = [
                         'fila' => $numeroFila,
                         'dni_estudiante' => $row[0] ?? 'N/A',
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -1294,7 +1316,7 @@ class UserController extends Controller
                 'registros_validos' => $registrosValidos,
                 'total_registros' => $totalRegistros,
                 'errores' => $errores,
-                'archivo_nombre' => $request->file('file')->getClientOriginalName()
+                'archivo_nombre' => $request->file('file')->getClientOriginalName(),
             ]);
 
             // Devolver a la vista con datos de validación
@@ -1308,7 +1330,7 @@ class UserController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Error al procesar el archivo: ' . $e->getMessage())
+                ->with('error', 'Error al procesar el archivo: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -1322,7 +1344,7 @@ class UserController extends Controller
         try {
             $importData = session()->get('import_estudiantes_data');
 
-            if (!$importData) {
+            if (! $importData) {
                 return redirect()->route('user.importar')
                     ->with('error', 'No hay datos de importación para procesar. Por favor, valide el archivo nuevamente.');
             }
@@ -1341,33 +1363,36 @@ class UserController extends Controller
                         $erroresProceso[] = [
                             'fila' => $registro['fila'],
                             'dni_estudiante' => $registro['datos']['dni_estudiante'],
-                            'error' => 'El DNI del estudiante ya existe en el sistema'
+                            'error' => 'El DNI del estudiante ya existe en el sistema',
                         ];
                         DB::rollBack();
+
                         continue;
                     }
 
                     // Verificar que el apoderado aún existe
                     $apoderado = Apoderado::find($registro['datos']['apoderado_id']);
-                    if (!$apoderado) {
+                    if (! $apoderado) {
                         $erroresProceso[] = [
                             'fila' => $registro['fila'],
                             'dni_estudiante' => $registro['datos']['dni_estudiante'],
-                            'error' => 'El apoderado ya no existe en el sistema'
+                            'error' => 'El apoderado ya no existe en el sistema',
                         ];
                         DB::rollBack();
+
                         continue;
                     }
 
                     // Verificar que el grado aún existe
                     $grado = Grado::find($registro['datos']['grado_id']);
-                    if (!$grado || $grado->estado !== '1') {
+                    if (! $grado || $grado->estado !== '1') {
                         $erroresProceso[] = [
                             'fila' => $registro['fila'],
                             'dni_estudiante' => $registro['datos']['dni_estudiante'],
-                            'error' => 'El grado ya no existe o no está activo'
+                            'error' => 'El grado ya no existe o no está activo',
                         ];
                         DB::rollBack();
+
                         continue;
                     }
 
@@ -1405,7 +1430,7 @@ class UserController extends Controller
                     $erroresProceso[] = [
                         'fila' => $registro['fila'],
                         'dni_estudiante' => $registro['datos']['dni_estudiante'],
-                        'error' => 'Error al crear estudiante: ' . $e->getMessage()
+                        'error' => 'Error al crear estudiante: '.$e->getMessage(),
                     ];
                 }
             }
@@ -1418,7 +1443,7 @@ class UserController extends Controller
             $tipoMensaje = 'success';
 
             if (count($erroresProceso) > 0) {
-                $mensaje .= " Se produjeron " . count($erroresProceso) . " errores durante el procesamiento.";
+                $mensaje .= ' Se produjeron '.count($erroresProceso).' errores durante el procesamiento.';
                 $tipoMensaje = 'warning';
 
                 // Guardar errores de proceso en sesión
@@ -1431,7 +1456,7 @@ class UserController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->route('user.importar')
-                ->with('error', 'Error durante el procesamiento: ' . $e->getMessage());
+                ->with('error', 'Error durante el procesamiento: '.$e->getMessage());
         }
     }
 }

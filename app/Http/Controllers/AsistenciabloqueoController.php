@@ -1,37 +1,26 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Asistencia\Asistencia;
-use App\Models\Nota;
-use App\Models\Maya\Bimestre;
-use App\Models\Maya\Cursogradosecnivanio;
-use App\Models\User;
-use App\Models\Estudiante;
-use App\Models\Materia;
-use App\Models\Docente;
-use App\Models\Materia\Materiacompetencia;
-use App\Models\Materia\Materiacriterio;
-use App\Models\Periodo;
-use App\Models\Periodobimestre;
-use App\Models\Matricula;
-use Carbon\Carbon;
-use App\Models\Asistencia\Tipoasistencia;
 use App\Models\Grado;
+use App\Models\Nota;
+use App\Models\Periodo;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
 class AsistenciabloqueoController extends Controller
 {
-    //moduleID 14 = Asistencia
+    // moduleID 14 = Asistencia
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (!auth()->user()->canAccessModule('14')) {
+            if (! auth()->user()->canAccessModule('14')) {
                 abort(403, 'No tienes permiso para acceder a este módulo.');
             }
+
             return $next($request);
         });
     }
@@ -45,11 +34,11 @@ class AsistenciabloqueoController extends Controller
         $meses = [
             '01' => 'Enero', '02' => 'Febrero', '03' => 'Marzo', '04' => 'Abril',
             '05' => 'Mayo', '06' => 'Junio', '07' => 'Julio', '08' => 'Agosto',
-            '09' => 'Septiembre', '10' => 'Octubre', '11' => 'Noviembre', '12' => 'Diciembre'
+            '09' => 'Septiembre', '10' => 'Octubre', '11' => 'Noviembre', '12' => 'Diciembre',
         ];
 
         // Obtener usuarios con rol admin o director
-        $usuariosAutorizados = User::whereHas('roles', function($query) {
+        $usuariosAutorizados = User::whereHas('roles', function ($query) {
             $query->whereIn('nombre', ['admin', 'director']);
         })->where('estado', '1')->with('roles')->get();
 
@@ -64,7 +53,7 @@ class AsistenciabloqueoController extends Controller
             'libres' => 0,
             'bloqueados' => 0,
             'bloqueados_def' => 0,
-            'total' => 0
+            'total' => 0,
         ];
 
         // Obtener grados para filtro adicional
@@ -81,11 +70,11 @@ class AsistenciabloqueoController extends Controller
 
             // Construir la consulta base
             $query = Asistencia::with([
-                    'estudiante.user',
-                    'grado',
-                    'tipoasistencia',
-                    'periodo'
-                ])
+                'estudiante.user',
+                'grado',
+                'tipoasistencia',
+                'periodo',
+            ])
                 ->where('periodo_id', $periodoSeleccionado);
 
             if ($periodoAnio) {
@@ -131,12 +120,13 @@ class AsistenciabloqueoController extends Controller
             'usuariosAutorizados'
         ));
     }
+
     public function bloquearMasivo(Request $request)
     {
         $request->validate([
             'periodo_id' => 'required|exists:periodos,id',
             'mes' => 'required|string|size:2',
-            'grado_id' => 'nullable|exists:grados,id'
+            'grado_id' => 'nullable|exists:grados,id',
         ]);
 
         try {
@@ -182,12 +172,12 @@ class AsistenciabloqueoController extends Controller
                         ->groupBy('estado')
                         ->get();
 
-                    $mensaje = "No hay asistencias libres (estado 0) para bloquear. ";
+                    $mensaje = 'No hay asistencias libres (estado 0) para bloquear. ';
                     if ($distribucion->isNotEmpty()) {
-                        $mensaje .= "Distribución actual: ";
+                        $mensaje .= 'Distribución actual: ';
                         foreach ($distribucion as $item) {
-                            $estado = is_string($item->estado) ? (int)$item->estado : $item->estado;
-                            $estadoTexto = match($estado) {
+                            $estado = is_string($item->estado) ? (int) $item->estado : $item->estado;
+                            $estadoTexto = match ($estado) {
                                 0 => 'Libres',
                                 1 => 'Bloqueadas temporales',
                                 2 => 'Bloqueadas definitivas',
@@ -209,11 +199,11 @@ class AsistenciabloqueoController extends Controller
             return redirect()->route('bloqueo.view', [
                 'periodo_id' => $request->periodo_id,
                 'mes' => $request->mes,
-                'grado_id' => $request->grado_id
+                'grado_id' => $request->grado_id,
             ])->with('success', "{$updated} asistencias bloqueadas correctamente");
 
         } catch (\Exception $e) {
-            return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Error: '.$e->getMessage());
         }
     }
 
@@ -223,7 +213,7 @@ class AsistenciabloqueoController extends Controller
         $request->validate([
             'periodo_id' => 'required|exists:periodos,id',
             'mes' => 'required|string|size:2',
-            'grado_id' => 'nullable|exists:grados,id'
+            'grado_id' => 'nullable|exists:grados,id',
         ]);
 
         try {
@@ -269,12 +259,12 @@ class AsistenciabloqueoController extends Controller
                         ->groupBy('estado')
                         ->get();
 
-                    $mensaje = "No hay asistencias bloqueadas temporalmente (estado 1) para bloquear definitivamente. ";
+                    $mensaje = 'No hay asistencias bloqueadas temporalmente (estado 1) para bloquear definitivamente. ';
                     if ($distribucion->isNotEmpty()) {
-                        $mensaje .= "Distribución actual: ";
+                        $mensaje .= 'Distribución actual: ';
                         foreach ($distribucion as $item) {
-                            $estado = is_string($item->estado) ? (int)$item->estado : $item->estado;
-                            $estadoTexto = match($estado) {
+                            $estado = is_string($item->estado) ? (int) $item->estado : $item->estado;
+                            $estadoTexto = match ($estado) {
                                 0 => 'Libres',
                                 1 => 'Bloqueadas temporales',
                                 2 => 'Bloqueadas definitivas',
@@ -296,20 +286,21 @@ class AsistenciabloqueoController extends Controller
             return redirect()->route('bloqueo.view', [
                 'periodo_id' => $request->periodo_id,
                 'mes' => $request->mes,
-                'grado_id' => $request->grado_id
+                'grado_id' => $request->grado_id,
             ])->with('success', "{$updated} asistencias bloqueadas definitivamente");
 
         } catch (\Exception $e) {
-            return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Error: '.$e->getMessage());
         }
     }
+
     // Liberar todas las asistencias bloqueadas temporalmente (estado 1 -> 0)
     public function liberarMasivo(Request $request)
     {
         $request->validate([
             'periodo_id' => 'required|exists:periodos,id',
             'mes' => 'required|string|size:2',
-            'grado_id' => 'nullable|exists:grados,id'
+            'grado_id' => 'nullable|exists:grados,id',
         ]);
 
         try {
@@ -355,12 +346,12 @@ class AsistenciabloqueoController extends Controller
                         ->groupBy('estado')
                         ->get();
 
-                    $mensaje = "No hay asistencias bloqueadas temporalmente (estado 1) para liberar. ";
+                    $mensaje = 'No hay asistencias bloqueadas temporalmente (estado 1) para liberar. ';
                     if ($distribucion->isNotEmpty()) {
-                        $mensaje .= "Distribución actual: ";
+                        $mensaje .= 'Distribución actual: ';
                         foreach ($distribucion as $item) {
-                            $estado = is_string($item->estado) ? (int)$item->estado : $item->estado;
-                            $estadoTexto = match($estado) {
+                            $estado = is_string($item->estado) ? (int) $item->estado : $item->estado;
+                            $estadoTexto = match ($estado) {
                                 0 => 'Libres',
                                 1 => 'Bloqueadas temporales',
                                 2 => 'Bloqueadas definitivas',
@@ -382,13 +373,14 @@ class AsistenciabloqueoController extends Controller
             return redirect()->route('bloqueo.view', [
                 'periodo_id' => $request->periodo_id,
                 'mes' => $request->mes,
-                'grado_id' => $request->grado_id
+                'grado_id' => $request->grado_id,
             ])->with('success', "{$updated} asistencias liberadas correctamente");
 
         } catch (\Exception $e) {
-            return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Error: '.$e->getMessage());
         }
     }
+
     // Liberar de bloqueo definitivo a temporal (estado 2 -> 1)
     public function liberarDefinitivoMasivo(Request $request)
     {
@@ -397,28 +389,28 @@ class AsistenciabloqueoController extends Controller
             'mes' => 'required|string|size:2',
             'grado_id' => 'nullable|exists:grados,id',
             'usuario_autorizador_id' => 'required|exists:users,id',
-            'password_confirmation' => 'required|string'
+            'password_confirmation' => 'required|string',
         ]);
 
         try {
             // Validar que el usuario tenga rol de admin o director
             $usuarioAutorizador = User::with('roles')->find($request->usuario_autorizador_id);
 
-            if (!$usuarioAutorizador) {
+            if (! $usuarioAutorizador) {
                 return back()->withInput()->with('error', 'Usuario autorizador no encontrado.');
             }
 
             // Verificar que tenga rol admin o director
-            $tieneRol = $usuarioAutorizador->roles->contains(function($role) {
+            $tieneRol = $usuarioAutorizador->roles->contains(function ($role) {
                 return in_array($role->nombre, ['admin', 'director']);
             });
 
-            if (!$tieneRol) {
+            if (! $tieneRol) {
                 return back()->withInput()->with('error', 'El usuario seleccionado no tiene permisos para realizar esta acción.');
             }
 
             // Verificar contraseña
-            if (!Hash::check($request->password_confirmation, $usuarioAutorizador->password)) {
+            if (! Hash::check($request->password_confirmation, $usuarioAutorizador->password)) {
                 return back()->withInput()->with('error', 'Contraseña incorrecta.');
             }
 
@@ -464,12 +456,12 @@ class AsistenciabloqueoController extends Controller
                         ->groupBy('estado')
                         ->get();
 
-                    $mensaje = "No hay asistencias bloqueadas definitivamente (estado 2) para liberar. ";
+                    $mensaje = 'No hay asistencias bloqueadas definitivamente (estado 2) para liberar. ';
                     if ($distribucion->isNotEmpty()) {
-                        $mensaje .= "Distribución actual: ";
+                        $mensaje .= 'Distribución actual: ';
                         foreach ($distribucion as $item) {
-                            $estado = is_string($item->estado) ? (int)$item->estado : $item->estado;
-                            $estadoTexto = match($estado) {
+                            $estado = is_string($item->estado) ? (int) $item->estado : $item->estado;
+                            $estadoTexto = match ($estado) {
                                 0 => 'Libres',
                                 1 => 'Bloqueadas temporales',
                                 2 => 'Bloqueadas definitivas',
@@ -493,19 +485,20 @@ class AsistenciabloqueoController extends Controller
                 'usuario_nombre' => $usuarioAutorizador->nombre,
                 'registros_afectados' => $updated,
                 'periodo_id' => $request->periodo_id,
-                'mes' => $request->mes
+                'mes' => $request->mes,
             ]);
 
             // 5. Redirigir con mensaje de éxito
             return redirect()->route('bloqueo.view', [
                 'periodo_id' => $request->periodo_id,
                 'mes' => $request->mes,
-                'grado_id' => $request->grado_id
+                'grado_id' => $request->grado_id,
             ])->with('success', "{$updated} asistencias cambiadas a bloqueo temporal. Autorizado por: {$usuarioAutorizador->nombre}");
 
         } catch (\Exception $e) {
-            Log::error('LIBERAR DEFINITIVO MASIVO - Error: ' . $e->getMessage());
-            return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
+            Log::error('LIBERAR DEFINITIVO MASIVO - Error: '.$e->getMessage());
+
+            return back()->withInput()->with('error', 'Error: '.$e->getMessage());
         }
     }
 }

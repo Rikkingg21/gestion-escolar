@@ -2,17 +2,9 @@
 
 namespace App\Models;
 
-use App\Models\Materia\Materiacriterio;
-use App\Models\Materia\Materiacompetencia;
-use App\Models\Maya\Cursogradosecnivanio;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-
-use App\Models\Nota;
-use App\Models\Grado;
-
 
 class Estudiante extends Model
 {
@@ -20,7 +12,9 @@ class Estudiante extends Model
     use SoftDeletes;
 
     protected $table = 'estudiantes';
+
     public $timestamps = true;
+
     protected $primaryKey = 'id';
 
     protected $fillable = [
@@ -35,18 +29,22 @@ class Estudiante extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
     public function grado()
     {
         return $this->belongsTo(Grado::class);
     }
+
     public function apoderado()
     {
         return $this->belongsTo(Apoderado::class);
     }
+
     public function asistencias()
     {
         return $this->hasMany(\App\Models\Asistencia\Asistencia::class, 'estudiante_id');
     }
+
     public function notas()
     {
         return $this->hasMany(Nota::class, 'estudiante_id');
@@ -56,11 +54,12 @@ class Estudiante extends Model
     {
         return $this->hasMany(Matricula::class);
     }
+
     public function matriculaActiva()
     {
         return $this->hasOne(Matricula::class)
             ->where('estado', '1')
-            ->whereHas('periodo', function($query) {
+            ->whereHas('periodo', function ($query) {
                 // Si necesitas filtrar por periodo actual
                 $query->where('estado', '1'); // o por periodo específico
             });

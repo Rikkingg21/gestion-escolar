@@ -54,7 +54,7 @@
             </div>
 
             @if(session('sessionmain'))
-            <form action="{{ route('nota.revertir', ['curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id, 'bimestre' => $bimestre]) }}" method="POST">
+            <form action="{{ route('nota.revertir', ['curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id, 'periodo_bimestre_id' => $periodo_bimestre_id]) }}" method="POST">
                 @csrf
 
                 <div class="form-group">

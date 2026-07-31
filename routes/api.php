@@ -1,11 +1,10 @@
 <?php
-use Illuminate\Support\Facades\Route;
-use App\Models\Grado;
-use App\Models\Periodobimestre;
-use App\Models\Materia\Materiacompetencia;
-use \App\Models\Metodopago\Tipopago;
 
-Route::get('/grados-por-nivel/{nivel}', function($nivel) {
+use App\Models\Grado;
+use App\Models\Metodopago\Tipopago;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/grados-por-nivel/{nivel}', function ($nivel) {
     return response()->json(
         Grado::where('nivel', $nivel)
             ->select('id', 'grado')
@@ -14,7 +13,7 @@ Route::get('/grados-por-nivel/{nivel}', function($nivel) {
     );
 });
 
-Route::get('/secciones-por-grado/{nivel}/{grado}', function($nivel, $grado) {
+Route::get('/secciones-por-grado/{nivel}/{grado}', function ($nivel, $grado) {
     return response()->json(
         Grado::where('nivel', $nivel)
             ->where('grado', $grado)
@@ -25,5 +24,6 @@ Route::get('/secciones-por-grado/{nivel}/{grado}', function($nivel, $grado) {
 });
 Route::get('/tipo-pago/{id}', function ($id) {
     $tipoPago = Tipopago::find($id);
+
     return response()->json($tipoPago);
 })->middleware('auth');

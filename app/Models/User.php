@@ -1,10 +1,11 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
@@ -13,7 +14,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'dni', 'nombre_usuario', 'nombre', 'apellido_paterno',
-        'apellido_materno', 'email', 'password', 'foto_path', 'estado', 'telefono'
+        'apellido_materno', 'email', 'password', 'foto_path', 'estado', 'telefono',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -48,13 +49,18 @@ class User extends Authenticatable
         return $this->hasOne(Director::class);
     }
 
+    public function getNombreCompletoAttribute(): string
+    {
+        return trim(sprintf('%s %s, %s', $this->apellido_paterno ?? '', $this->apellido_materno ?? '', $this->nombre ?? ''));
+    }
+
     public function hasRole($role)
     {
         if (is_string($role)) {
             return $this->roles->contains('nombre', $role);
         }
 
-        return !! $role->intersect($this->roles)->count();
+        return (bool) $role->intersect($this->roles)->count();
     }
 
     public function scopeActivos($query)
@@ -73,19 +79,19 @@ class User extends Authenticatable
     }
 
     public function canAccessModule($moduleId)
-{
-    $currentRole = session('current_role');
+    {
+        $currentRole = session('current_role');
 
-    if (!$currentRole) {
-        return false;
+        if (! $currentRole) {
+            return false;
+        }
+
+        return \App\Models\Role::where('nombre', $currentRole)
+            ->where('estado', '1')
+            ->whereHas('modules', function ($query) use ($moduleId) {
+                $query->where('modules.id', $moduleId)
+                    ->where('modules.estado', '1')
+                    ->where('role_modules.estado', '1');
+            })->exists();
     }
-
-    return \App\Models\Role::where('nombre', $currentRole)
-        ->where('estado', '1')
-        ->whereHas('modules', function ($query) use ($moduleId) {
-            $query->where('modules.id', $moduleId)
-                  ->where('modules.estado', '1')
-                  ->where('role_modules.estado', '1');
-        })->exists();
-}
 }

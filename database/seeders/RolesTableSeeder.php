@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -16,7 +15,7 @@ class RolesTableSeeder extends Seeder
             ['nombre' => 'auxiliar'],
             ['nombre' => 'docente'],
             ['nombre' => 'estudiante'],
-            ['nombre' => 'apoderado']
+            ['nombre' => 'apoderado'],
         ]);
     }
 }

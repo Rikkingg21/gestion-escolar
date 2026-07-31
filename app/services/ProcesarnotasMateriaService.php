@@ -9,16 +9,16 @@ class ProcesarnotasMateriaService extends BaseNotasService
         $grupos = [];
 
         foreach ($competencias as $competencia) {
-            $key = $competencia['estudiante_id'] . '_' . $competencia['materia_id'];
+            $key = $competencia['estudiante_id'].'_'.$competencia['materia_id'];
 
-            if (!isset($grupos[$key])) {
+            if (! isset($grupos[$key])) {
                 $grupos[$key] = [
                     'estudiante_id' => $competencia['estudiante_id'],
                     'materia_id' => $competencia['materia_id'],
                     'materia_nombre' => $materias[$competencia['materia_id']] ?? 'Materia',
                     'competencias' => [],
                     'suma_promedios' => 0,
-                    'total_competencias' => 0
+                    'total_competencias' => 0,
                 ];
             }
 
@@ -34,7 +34,7 @@ class ProcesarnotasMateriaService extends BaseNotasService
                 'tiene_recuperacion' => $competencia['tiene_recuperacion'] ?? false,
                 'tiene_registro_recuperacion' => $competencia['tiene_registro_recuperacion'] ?? false,
                 'recuperacion_estado' => $competencia['recuperacion_estado'] ?? null,
-                'recuperacion_id' => $competencia['recuperacion_id'] ?? null  // Agregar esta línea
+                'recuperacion_id' => $competencia['recuperacion_id'] ?? null,  // Agregar esta línea
             ];
 
             $grupos[$key]['competencias'][] = $competenciaInfo;
@@ -54,7 +54,7 @@ class ProcesarnotasMateriaService extends BaseNotasService
                 'promedio' => $promedioMateria,
                 'promedio_cualitativo' => $this->convertirACualitativo($promedioMateria),
                 'competencias' => $grupo['competencias'],
-                'total_competencias' => $grupo['total_competencias']
+                'total_competencias' => $grupo['total_competencias'],
             ];
         }
 
