@@ -60,8 +60,18 @@ class ReporteController extends Controller
 
         $user = auth()->user();
 
-        // Verificar permisos
-        if (! $user->hasRole('admin') && ! $user->hasRole('director') && ! $user->hasRole('docente') && ! $user->hasRole('auxiliar') && ! $user->hasRole('apoderado')) {
+        // Verificar permisos: solo el creador, destinatario, admin o director pueden ver el reporte
+        $puedeVer = $user->hasRole('admin') || $user->hasRole('director');
+
+        if (! $puedeVer && ($user->hasRole('docente') || $user->hasRole('auxiliar'))) {
+            $puedeVer = $reporte->creador_id == $user->id;
+        }
+
+        if (! $puedeVer && $user->hasRole('apoderado')) {
+            $puedeVer = $reporte->destinatario_id == $user->id;
+        }
+
+        if (! $puedeVer) {
             abort(403, 'Acceso no autorizado.');
         }
 

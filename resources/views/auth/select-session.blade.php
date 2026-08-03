@@ -35,11 +35,11 @@
         <div class="mb-3 d-flex flex-column flex-md-row align-items-md-end gap-3">
             <div class="flex-grow-1">
                 <strong>Sesión principal:</strong><br>
-                @if(session('sessionmain'))
-                    {{ session('sessionmain')->nombre_usuario ?? 'No disponible' }}<br>
-                    <span class="">ID: {{ session('sessionmain')->id ?? '-' }}</span>
-                    @if(session('sessionmain')->roles->isNotEmpty())
-                        <br><span class="badge bg-info text-dark">Roles principales: {{ session('sessionmain')->roles->pluck('nombre')->join(', ') }}</span>
+                @if($sessionMainUser)
+                    {{ $sessionMainUser->nombre_usuario ?? 'No disponible' }}<br>
+                    <span class="">ID: {{ $sessionMainUser->id ?? '-' }}</span>
+                    @if($sessionMainUser->roles->isNotEmpty())
+                        <br><span class="badge bg-info text-dark">Roles principales: {{ $sessionMainUser->roles->pluck('nombre')->join(', ') }}</span>
                     @endif
                 @else
                     <span class="">No hay sesión principal.</span>
@@ -61,7 +61,7 @@
     </div>
 
     @php
-        $mainUser = session('sessionmain');
+        $mainUser = $sessionMainUser;
     @endphp
 
     @if($mainUser && ($mainUser->hasRole('admin') || $mainUser->hasRole('director')))
@@ -137,7 +137,7 @@
             @csrf
             <button type="submit" class="btn btn-danger">Cerrar Sesión Principal</button>
         </form>
-        @if(auth()->check() && session('sessionmain') && auth()->user()->id != session('sessionmain')->id)
+        @if(auth()->check() && $sessionMainUser && auth()->user()->id != $sessionMainUser->id)
         <form method="POST" action="{{ route('logout_sub') }}" class="mt-2">
             @csrf
             <button type="submit" class="btn btn-secondary">Cerrar Sub-Sesión</button>

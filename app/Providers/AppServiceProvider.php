@@ -18,13 +18,13 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(User::class, UserPolicy::class);
 
         // Directiva Blade para verificar acceso a módulos
-        Blade::if('canAccessModule', function ($moduleName) {
+        Blade::if('canAccessModule', function ($moduleId) {
             $user = auth()->user();
             if (! $user) {
                 return false;
             }
 
-            return Gate::allows('access-module', $moduleName);
+            return $user->canAccessModule($moduleId);
         });
 
         // Directiva Blade para roles (dinámica desde DB)
@@ -49,6 +49,20 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with('sidebarModules', $modules);
+        });
+
+        // Compartir la sesión principal resuelta (sessionmain puede guardar un ID o un modelo)
+        View::composer('*', function ($view) {
+            $sessionMain = session('sessionmain');
+            $sessionMainUser = null;
+
+            if ($sessionMain instanceof User) {
+                $sessionMainUser = $sessionMain;
+            } elseif ($sessionMain) {
+                $sessionMainUser = User::find($sessionMain);
+            }
+
+            $view->with('sessionMainUser', $sessionMainUser);
         });
 
         // Compartir configuración del colegio

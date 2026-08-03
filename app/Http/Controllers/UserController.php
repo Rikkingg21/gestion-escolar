@@ -242,6 +242,9 @@ class UserController extends Controller
             'telefono' => 'nullable|max:9',
         ], $messages);
 
+        // Verificar autorización según UserPolicy
+        $this->authorize('create', User::class);
+
         // Crear el usuario
         $user = User::create([
             'dni' => $request->dni,
@@ -406,6 +409,9 @@ class UserController extends Controller
             'telefono' => 'nullable|string|max:9',
             'estado' => 'required|in:0,1,2',
         ]);
+
+        // Verificar autorización según UserPolicy
+        $this->authorize('update', $user);
 
         if ($request->filled('password')) {
             $request->validate([

@@ -196,7 +196,7 @@
                                     @php
                                         $userRoles = $user->roles->pluck('id')->toArray();
                                         $oldRoles = old('roles', $userRoles);
-                                        $currentSessionRole = session('sessionmain')->roles->first()->nombre ?? null;
+                                        $currentSessionRole = $sessionMainUser ? ($sessionMainUser->roles->first()->nombre ?? null) : null;
                                         $rolesDisponibles = $roles->whereNotIn('id', $userRoles);
 
                                         if ($currentSessionRole !== 'admin') {

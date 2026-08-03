@@ -570,8 +570,8 @@ class NotaController extends Controller
                 'password' => 'required|string',
             ]);
 
-            // Verificar la contraseña de la sesión principal
-            if (! Hash::check($request->password, $sessionMain->password)) {
+            // Verificar la contraseña del usuario autenticado actual
+            if (! Hash::check($request->password, auth()->user()->password)) {
                 return redirect()
                     ->route('nota.index', [
                         'curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id,

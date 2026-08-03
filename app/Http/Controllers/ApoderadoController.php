@@ -7,9 +7,32 @@ use Illuminate\Http\Request;
 
 class ApoderadoController extends Controller
 {
+    // moduleID 7 = Usuarios (la búsqueda se usa al gestionar usuarios)
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if (! auth()->user()->canAccessModule('7')) {
+                abort(403, 'No tienes permiso para acceder a este módulo.');
+            }
+
+            return $next($request);
+        });
+    }
+
     public function search(Request $request)
     {
-        $term = $request->input('q');
+        $request->validate([
+            'q' => 'nullable|string|max:255',
+        ]);
+
+        $term = trim($request->input('q'));
+
+        if ($term === '') {
+            return response()->json([
+                'items' => [],
+                'total_count' => 0,
+            ]);
+        }
 
         $apoderados = Apoderado::with(['user' => function ($query) {
             $query->where('estado', '1'); // Solo usuarios activos

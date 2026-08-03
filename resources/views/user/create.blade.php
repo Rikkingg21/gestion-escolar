@@ -176,8 +176,8 @@
                                                             name="roles[]" required>
                                                         <option value="">Seleccione un rol</option>
                                                         @php
-                                                            $currentSessionRole = session('sessionmain') && session('sessionmain')->roles->isNotEmpty()
-                                                                ? session('sessionmain')->roles->first()->nombre
+                                                            $currentSessionRole = $sessionMainUser && $sessionMainUser->roles->isNotEmpty()
+                                                                ? $sessionMainUser->roles->first()->nombre
                                                                 : null;
                                                         @endphp
 

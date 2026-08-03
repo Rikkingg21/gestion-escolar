@@ -345,9 +345,9 @@
                 </h2>
                 <div id="collapsePrincipal" class="accordion-collapse collapse" aria-labelledby="headingPrincipal" data-bs-parent="#accordionSesiones">
                     <div class="accordion-body py-2 small">
-                        @if(session('sessionmain'))
-                            <div><strong>Usuario:</strong> {{ session('sessionmain')->nombre_usuario ?? 'No disponible' }}</div>
-                            <div><strong>ID:</strong> <span class="badge bg-primary rounded-pill">{{ session('sessionmain')->id ?? '-' }}</span></div>
+                        @if($sessionMainUser)
+                            <div><strong>Usuario:</strong> {{ $sessionMainUser->nombre_usuario ?? 'No disponible' }}</div>
+                            <div><strong>ID:</strong> <span class="badge bg-primary rounded-pill">{{ $sessionMainUser->id ?? '-' }}</span></div>
                         @else
                             <div class="text-muted">No hay sesión principal.</div>
                         @endif

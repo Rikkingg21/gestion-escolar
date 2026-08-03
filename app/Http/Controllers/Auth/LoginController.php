@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Colegio;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -25,9 +26,9 @@ class LoginController extends Controller
         ]);
 
         if (Auth::attempt($credentials, $request->remember)) {
-            // Regenerar la sesión y guardar el usuario en 'sessionmain'
+            // Regenerar la sesión y guardar el id del usuario principal
             $request->session()->regenerate();
-            $request->session()->put('sessionmain', Auth::user());
+            $request->session()->put('sessionmain', Auth::id());
 
             return redirect()->route('session.selection');
         }
@@ -48,8 +49,15 @@ class LoginController extends Controller
 
     public function logout_sub(Request $request)
     {
-        // Solo elimina la sesión secundaria
-        $request->session()->forget('sub_session');
+        // Volver a la sesión principal y limpiar la sub-sesión
+        $sessionMain = session('sessionmain');
+        $mainUser = $sessionMain instanceof User ? $sessionMain : ($sessionMain ? User::find($sessionMain) : null);
+
+        if ($mainUser) {
+            Auth::login($mainUser);
+        }
+
+        $request->session()->forget(['sub_session_user_id', 'current_role']);
 
         return redirect()->route('session.selection');
     }
