@@ -66,16 +66,6 @@ class GradoController extends Controller
         return view('grado.index', compact('gradosActivos', 'gradosInactivos'));
     }
 
-    public function create()
-    {
-        $grados = Grado::orderBy('nivel')
-            ->orderBy('grado')
-            ->orderBy('seccion')
-            ->get();
-
-        return view('grado.create', compact('grados'));
-    }
-
     public function store(Request $request)
     {
         $request->validate([
@@ -91,17 +81,6 @@ class GradoController extends Controller
         Grado::create($data);
 
         return redirect()->route('grado.index')->with('success', 'Grado creado exitosamente.');
-    }
-
-    public function edit($id)
-    {
-        $grado = Grado::findOrFail($id);
-        $grados = Grado::orderBy('nivel')
-            ->orderBy('grado')
-            ->orderBy('seccion')
-            ->get();
-
-        return view('grado.edit', compact('grado', 'grados'));
     }
 
     public function update(Request $request, Grado $grado)
@@ -165,26 +144,82 @@ class GradoController extends Controller
 
             $estudiante = Estudiante::with(['user'])->findOrFail($estudianteId);
 
-            // Obtener datos actualizados (reutiliza tu lógica existente)
             $periodoAcademico = Periodo::find($periodoAcademicoId);
             $periodoRecuperacion = $periodoRecuperacionId ? Periodo::find($periodoRecuperacionId) : null;
 
-            // Aquí llamas a tus servicios para obtener los datos actualizados
-            // Similar a lo que haces en el método estudiantes()
+            if (! $periodoAcademico) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Período académico no encontrado',
+                ], 404);
+            }
+
+            $materiasArray = $this->getMateriasGrado($periodoAcademico, $estudiante->grado_id);
+
+            if (! empty($materiasArray)) {
+                [$competenciasArray, $competenciasNombres] = $this->getCompetenciasGrado(array_keys($materiasArray), $estudiante->grado_id, $periodoAcademico);
+
+                if (! empty($competenciasArray)) {
+                    $criterios = Materiacriterio::whereIn('materia_competencia_id', array_keys($competenciasArray))
+                        ->where('grado_id', $estudiante->grado_id)
+                        ->whereHas('periodoBimestre', function ($q) use ($periodoAcademico) {
+                            $q->where('periodo_id', $periodoAcademico->id);
+                        })->get();
+
+                    $criteriosArray = [];
+                    foreach ($criterios as $criterio) {
+                        $criteriosArray[$criterio->id] = [
+                            'competencia_id' => $criterio->materia_competencia_id,
+                            'materia_id' => $competenciasArray[$criterio->materia_competencia_id] ?? null,
+                        ];
+                    }
+
+                    $notas = Nota::where('estudiante_id', $estudianteId)
+                        ->whereIn('materia_criterio_id', array_keys($criteriosArray))
+                        ->where('periodo_id', $periodoAcademico->id)
+                        ->select('estudiante_id', 'materia_criterio_id', 'nota')
+                        ->get();
+
+                    $notasArray = [];
+                    foreach ($notas as $nota) {
+                        if (isset($criteriosArray[$nota->materia_criterio_id])) {
+                            $criterioInfo = $criteriosArray[$nota->materia_criterio_id];
+                            $notasArray[] = [
+                                'estudiante_id' => $nota->estudiante_id,
+                                'materia_criterio_id' => $nota->materia_criterio_id,
+                                'materia_competencia_id' => $criterioInfo['competencia_id'],
+                                'materia_id' => $criterioInfo['materia_id'],
+                                'nota' => $nota->nota,
+                            ];
+                        }
+                    }
+
+                    $recuperacionesPorEstudiante = $this->getRecuperacionesPorEstudiante([$estudianteId], array_keys($competenciasArray), $periodoRecuperacion);
+                    $recuperacionesInfoEstudiante = $recuperacionesPorEstudiante[$estudianteId] ?? [];
+
+                    $criteriosProcesados = $this->criterioService->procesar($notasArray);
+                    $competenciasProcesadas = $this->competenciaService->procesar($criteriosProcesados, $recuperacionesPorEstudiante);
+                    $materiasProcesadas = $this->materiaService->procesar($competenciasProcesadas, $materiasArray, $competenciasNombres);
+
+                    $materiasEnriquecidas = $this->evaluacionService->enriquecerMaterias($materiasProcesadas, $recuperacionesInfoEstudiante);
+
+                    $estudiante = $this->calcularEstadisticasEstudiante($estudiante, $materiasEnriquecidas, $periodoRecuperacion);
+                }
+            }
 
             return response()->json([
                 'success' => true,
-                'estado_final' => $estudiante->estado_final,
-                'materias_aprobadas' => $estudiante->materias_aprobadas,
-                'total_materias' => $estudiante->total_materias,
-                'materias_desaprobadas' => $estudiante->materias_desaprobadas_count,
-                'total_competencias_recuperar' => $estudiante->total_competencias_recuperar,
-                'porcentaje_aprobacion' => $estudiante->porcentaje_aprobacion,
-                'competencias_aprobadas' => $estudiante->competencias_aprobadas,
-                'total_competencias' => $estudiante->total_competencias,
-                'competencias_pendientes' => $estudiante->competencias_pendientes,
-                'competencias_pendientes_calificar' => $estudiante->competencias_pendientes_calificar,
-                'competencias' => $this->getCompetenciasDetalle($estudiante, $periodoAcademico, $periodoRecuperacion),
+                'estado_final' => $estudiante->estado_final ?? 'sin_evaluacion',
+                'materias_aprobadas' => $estudiante->materias_aprobadas ?? 0,
+                'total_materias' => $estudiante->total_materias ?? 0,
+                'materias_desaprobadas' => $estudiante->materias_desaprobadas_count ?? 0,
+                'total_competencias_recuperar' => $estudiante->total_competencias_recuperar ?? 0,
+                'porcentaje_aprobacion' => $estudiante->porcentaje_aprobacion ?? 0,
+                'competencias_aprobadas' => $estudiante->competencias_aprobadas ?? 0,
+                'total_competencias' => $estudiante->total_competencias ?? 0,
+                'competencias_pendientes' => $estudiante->competencias_pendientes ?? 0,
+                'competencias_pendientes_calificar' => $estudiante->competencias_pendientes_calificar ?? 0,
+                'competencias' => $this->getCompetenciasDetalle($estudiante, $periodoRecuperacion),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -192,6 +227,83 @@ class GradoController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    // Detalle de competencias (con información de recuperación) para el modal del estudiante
+    private function getCompetenciasDetalle($estudiante, $periodoRecuperacion = null)
+    {
+        $detalle = [];
+
+        if (empty($estudiante->detalle_materias)) {
+            return $detalle;
+        }
+
+        $competenciaIds = [];
+        foreach ($estudiante->detalle_materias as $materia) {
+            foreach ($materia['competencias'] as $competencia) {
+                $competenciaIds[] = $competencia['id'];
+            }
+        }
+
+        $recuperaciones = collect();
+        if ($periodoRecuperacion) {
+            $recuperaciones = Recuperacioncompetencia::where('estudiante_id', $estudiante->id)
+                ->where('periodo_id', $periodoRecuperacion->id)
+                ->whereIn('materia_competencia_id', $competenciaIds)
+                ->get()
+                ->keyBy('materia_competencia_id');
+        }
+
+        foreach ($estudiante->detalle_materias as $materia) {
+            foreach ($materia['competencias'] as $competencia) {
+                $recuperacion = $recuperaciones->get($competencia['id']);
+
+                $notaOriginal = $competencia['promedio_original'] ?? null;
+                $notaRecuperacion = $competencia['nota_recuperacion'] ?? null;
+                $notaFinal = $competencia['promedio_final'] ?? null;
+
+                $detalle[] = [
+                    'id' => $competencia['id'],
+                    'materia_id' => $materia['materia_id'],
+                    'nombre' => $competencia['nombre'] ?? 'Competencia',
+                    'nota_original' => $notaOriginal !== null ? floatval($notaOriginal) : null,
+                    'nota_final' => $notaFinal !== null ? floatval($notaFinal) : null,
+                    'estado_final' => $this->estadoFinalCompetencia($competencia),
+                    'recuperacion' => $recuperacion ? [
+                        'tiene_registro' => true,
+                        'nota' => $notaRecuperacion !== null ? floatval($notaRecuperacion) : null,
+                        'estado' => $recuperacion->estado ?? '0',
+                        'id' => $recuperacion->id,
+                        'nivel_logro_final' => $recuperacion->nivel_logro_final,
+                    ] : null,
+                ];
+            }
+        }
+
+        return $detalle;
+    }
+
+    // Determinar el estado final de una competencia para la vista
+    private function estadoFinalCompetencia($competencia)
+    {
+        $notaRecuperacion = $competencia['nota_recuperacion'] ?? null;
+        $tieneRegistro = $competencia['tiene_registro_recuperacion'] ?? false;
+
+        if ($tieneRegistro && $notaRecuperacion === null) {
+            return 'pendiente_calificar';
+        }
+
+        if ($notaRecuperacion !== null) {
+            return $notaRecuperacion >= 1.5 ? 'recuperado_aprobado' : 'recuperacion_reprobada';
+        }
+
+        $notaOriginal = $competencia['promedio_original'] ?? 0;
+
+        if ($notaOriginal >= 1.5) {
+            return 'aprobada';
+        }
+
+        return ($competencia['requiere_recuperacion'] ?? false) ? 'requiere_recuperacion' : 'desaprobada';
     }
 
     // Obtener materias del grado

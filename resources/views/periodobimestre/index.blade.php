@@ -130,19 +130,18 @@
                                                 <div class="modal-body">
                                                     <div class="mb-3">
                                                         <label class="form-label">Nombre del Bimestre</label>
-                                                        <input type="text" class="form-control" name="bimestre"
-                                                               value="{{ $bimestre->bimestre }}" required>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Tipo de Bimestre</label>
-                                                        <select class="form-select" name="tipo_bimestre" required>
-                                                            <option value="A" {{ $bimestre->tipo_bimestre == 'A' ? 'selected' : '' }}>
-                                                                Académico (A)
-                                                            </option>
-                                                            <option value="R" {{ $bimestre->tipo_bimestre == 'R' ? 'selected' : '' }}>
-                                                                Recuperación (R)
-                                                            </option>
-                                                        </select>
+                                                        @if($periodo->tipo_periodo == 'año escolar')
+                                                            <select class="form-select" name="bimestre" required>
+                                                                <option value="1" {{ $bimestre->bimestre == '1' ? 'selected' : '' }}>Bimestre 1 (B1)</option>
+                                                                <option value="2" {{ $bimestre->bimestre == '2' ? 'selected' : '' }}>Bimestre 2 (B2)</option>
+                                                                <option value="3" {{ $bimestre->bimestre == '3' ? 'selected' : '' }}>Bimestre 3 (B3)</option>
+                                                                <option value="4" {{ $bimestre->bimestre == '4' ? 'selected' : '' }}>Bimestre 4 (B4)</option>
+                                                            </select>
+                                                        @else
+                                                            <select class="form-select" name="bimestre" required>
+                                                                <option value="R" {{ $bimestre->bimestre == 'R' ? 'selected' : '' }}>Bimestre R (BR)</option>
+                                                            </select>
+                                                        @endif
                                                     </div>
                                                     <div class="row">
                                                         <div class="col-md-6 mb-3">
@@ -236,16 +235,19 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Nombre del Bimestre *</label>
-                        <input type="text" class="form-control" name="bimestre"
-                               placeholder="Ej: Bimestre I, Primer Bimestre" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Tipo de Bimestre *</label>
-                        <select class="form-select" name="tipo_bimestre" required>
-                            <option value="">Seleccionar tipo</option>
-                            <option value="A">Académico (A)</option>
-                            <option value="R">Recuperación (R)</option>
-                        </select>
+                        @if($periodo->tipo_periodo == 'año escolar')
+                            <select class="form-select" name="bimestre" required>
+                                <option value="" disabled {{ old('bimestre') == '' ? 'selected' : '' }}>Seleccionar bimestre</option>
+                                <option value="1" {{ old('bimestre') == '1' ? 'selected' : '' }}>Bimestre 1 (B1)</option>
+                                <option value="2" {{ old('bimestre') == '2' ? 'selected' : '' }}>Bimestre 2 (B2)</option>
+                                <option value="3" {{ old('bimestre') == '3' ? 'selected' : '' }}>Bimestre 3 (B3)</option>
+                                <option value="4" {{ old('bimestre') == '4' ? 'selected' : '' }}>Bimestre 4 (B4)</option>
+                            </select>
+                        @else
+                            <select class="form-select" name="bimestre" required>
+                                <option value="R" {{ old('bimestre') == 'R' ? 'selected' : '' }}>Bimestre R (BR)</option>
+                            </select>
+                        @endif
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">

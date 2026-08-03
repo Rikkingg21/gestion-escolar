@@ -35,10 +35,11 @@ class PeriodobimestreController extends Controller
         $periodo = Periodo::where('nombre', $nombre_periodo)->firstOrFail();
 
         $request->validate([
-            'bimestre' => 'required|string|max:100',
+            'bimestre' => $periodo->tipo_periodo === 'año escolar'
+                ? 'required|integer|between:1,4'
+                : 'required|in:R',
             'fecha_inicio' => 'required|date|after_or_equal:'.$periodo->fecha_inicio.'|before_or_equal:'.$periodo->fecha_fin,
             'fecha_fin' => 'required|date|after:fecha_inicio|before_or_equal:'.$periodo->fecha_fin,
-            'tipo_bimestre' => 'required|in:A,R',
         ]);
 
         // Verificar que no haya superposición de fechas
@@ -56,13 +57,11 @@ class PeriodobimestreController extends Controller
             return redirect()->back()->with('error', 'Las fechas del bimestre se superponen con otro bimestre existente.');
         }
 
-        Periodobimestre::create([
+        Periodobimestre::create(array_merge($this->datosBimestre($periodo, $request->bimestre), [
             'periodo_id' => $periodo->id,
-            'bimestre' => $request->bimestre,
             'fecha_inicio' => $request->fecha_inicio,
             'fecha_fin' => $request->fecha_fin,
-            'tipo_bimestre' => $request->tipo_bimestre,
-        ]);
+        ]));
 
         return redirect()->route('periodobimestre.index', $periodo->nombre)
             ->with('success', 'Bimestre creado exitosamente.');
@@ -76,10 +75,11 @@ class PeriodobimestreController extends Controller
             ->firstOrFail();
 
         $request->validate([
-            'bimestre' => 'required|string|max:100',
+            'bimestre' => $periodo->tipo_periodo === 'año escolar'
+                ? 'required|integer|between:1,4'
+                : 'required|in:R',
             'fecha_inicio' => 'required|date|after_or_equal:'.$periodo->fecha_inicio.'|before_or_equal:'.$periodo->fecha_fin,
             'fecha_fin' => 'required|date|after:fecha_inicio|before_or_equal:'.$periodo->fecha_fin,
-            'tipo_bimestre' => 'required|in:A,R',
         ]);
 
         // Verificar superposición excluyendo el bimestre actual
@@ -98,12 +98,10 @@ class PeriodobimestreController extends Controller
             return redirect()->back()->with('error', 'Las fechas del bimestre se superponen con otro bimestre existente.');
         }
 
-        $bimestre->update([
-            'bimestre' => $request->bimestre,
+        $bimestre->update(array_merge($this->datosBimestre($periodo, $request->bimestre), [
             'fecha_inicio' => $request->fecha_inicio,
             'fecha_fin' => $request->fecha_fin,
-            'tipo_bimestre' => $request->tipo_bimestre,
-        ]);
+        ]));
 
         return redirect()->route('periodobimestre.index', $periodo->nombre)
             ->with('success', 'Bimestre actualizado exitosamente.');
@@ -120,5 +118,22 @@ class PeriodobimestreController extends Controller
 
         return redirect()->route('periodobimestre.index', $periodo->nombre)
             ->with('success', 'Bimestre eliminado exitosamente.');
+    }
+
+    private function datosBimestre(Periodo $periodo, $bimestre): array
+    {
+        if ($periodo->tipo_periodo === 'año escolar') {
+            return [
+                'bimestre' => (string) $bimestre,
+                'tipo_bimestre' => 'A',
+                'sigla' => 'B'.$bimestre,
+            ];
+        }
+
+        return [
+            'bimestre' => 'R',
+            'tipo_bimestre' => 'R',
+            'sigla' => 'BR',
+        ];
     }
 }

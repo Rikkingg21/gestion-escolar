@@ -1388,7 +1388,7 @@ class DashboardController extends Controller
                     $compId = $rec->materia_competencia_id;
                     $notaRecuperacion = $this->competenciaService->convertirEnumANota($rec->nivel_logro_final);
                     if ($notaRecuperacion !== null) {
-                        $recuperacionesPorEstudiante[$compId] = [
+                        $recuperacionesPorEstudiante[$estudiante->id][$compId] = [
                             'nota' => $notaRecuperacion,
                             'tiene_registro' => true,
                             'recuperacion_id' => $rec->id,
@@ -1402,7 +1402,7 @@ class DashboardController extends Controller
             $criteriosProcesados = $this->criterioService->procesar($notasArray);
             $competenciasProcesadas = $this->competenciaService->procesar($criteriosProcesados, $recuperacionesPorEstudiante);
             $materiasProcesadas = $this->materiaService->procesar($competenciasProcesadas, $materiasArray, $competenciasNombres);
-            $materiasEnriquecidas = $this->evaluacionService->enriquecerMaterias($materiasProcesadas, $recuperacionesPorEstudiante);
+            $materiasEnriquecidas = $this->evaluacionService->enriquecerMaterias($materiasProcesadas, $recuperacionesPorEstudiante[$estudiante->id] ?? []);
 
             // Obtener promedios por bimestre para cada competencia (solo en modo anual)
             $chartData = [];
@@ -2041,7 +2041,7 @@ class DashboardController extends Controller
                 $notaRecuperacion = $this->competenciaService->convertirEnumANota($rec->nivel_logro_final);
 
                 if ($notaRecuperacion !== null) {
-                    $recuperacionesPorEstudiante[$compId] = [
+                    $recuperacionesPorEstudiante[$estudiante->id][$compId] = [
                         'nota' => $notaRecuperacion,
                         'tiene_registro' => true,
                         'recuperacion_id' => $rec->id,
@@ -2057,7 +2057,7 @@ class DashboardController extends Controller
         $materiasProcesadas = $this->materiaService->procesar($competenciasProcesadas, $materiasArray, $competenciasNombres);
 
         // Aplicar evaluación
-        $materiasEnriquecidas = $this->evaluacionService->enriquecerMaterias($materiasProcesadas, $recuperacionesPorEstudiante);
+        $materiasEnriquecidas = $this->evaluacionService->enriquecerMaterias($materiasProcesadas, $recuperacionesPorEstudiante[$estudiante->id] ?? []);
 
         // Obtener promedios por bimestre para cada competencia (solo en modo anual)
         if ($bimestreFiltro === 'anual') {

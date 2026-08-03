@@ -14,6 +14,7 @@ return new class extends Migration
             $table->string('grado_id')->nullable();
             $table->string('materia_id')->nullable();
             $table->string('anio')->nullable();
+            $table->string('periodo_id')->nullable();
             $table->timestamps();
         });
     }

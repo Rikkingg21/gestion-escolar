@@ -555,10 +555,10 @@
 
                 <div class="modal-body">
                     <!-- Mensajes de alerta -->
-                    @if(session('sessionmain'))
+                    @if($sessionMainUser)
                     <div class="alert alert-info">
                         <i class="fas fa-user-shield me-2"></i>
-                        <strong>Sesión Principal Activa:</strong> {{ session('sessionmain')->nombre_usuario }}
+                        <strong>Sesión Principal Activa:</strong> {{ $sessionMainUser->nombre_usuario }}
                     </div>
                     @else
                     <div class="alert alert-danger">
@@ -597,7 +597,7 @@
                     </div>
 
                     <!-- Campo de contraseña -->
-                    @if(session('sessionmain'))
+                    @if($sessionMainUser)
                     <div class="form-group mt-3">
                         <label for="password" class="form-label">
                             <strong>Contraseña de la Sesión Principal *</strong>
@@ -607,7 +607,7 @@
                                id="password"
                                name="password"
                                required
-                               placeholder="Ingrese la contraseña de {{ session('sessionmain')->nombre_usuario }}">
+                               placeholder="Ingrese la contraseña de {{ $sessionMainUser->nombre_usuario }}">
                         @error('password')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -623,7 +623,7 @@
                         <i class="fas fa-times me-1"></i> Cancelar
                     </button>
 
-                    @if(session('sessionmain'))
+                    @if($sessionMainUser)
                     <button type="submit" class="btn btn-danger">
                         <i class="fas fa-undo me-1"></i> Confirmar Reversión
                     </button>

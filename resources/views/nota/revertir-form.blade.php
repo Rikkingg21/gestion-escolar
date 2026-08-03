@@ -21,10 +21,10 @@
             </div>
 
             <!-- Información de la sesión principal -->
-            @if(session('sessionmain'))
+            @if($sessionMainUser)
             <div class="alert alert-info">
                 <i class="fas fa-user-shield"></i>
-                <strong>Sesión Principal Activa:</strong> {{ session('sessionmain')->nombre_usuario }}
+                <strong>Sesión Principal Activa:</strong> {{ $sessionMainUser->nombre_usuario }}
             </div>
             @else
             <div class="alert alert-danger">
@@ -53,14 +53,14 @@
                 </div>
             </div>
 
-            @if(session('sessionmain'))
+            @if($sessionMainUser)
             <form action="{{ route('nota.revertir', ['curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id, 'periodo_bimestre_id' => $periodo_bimestre_id]) }}" method="POST">
                 @csrf
 
                 <div class="form-group">
                     <label for="password"><strong>Contraseña de la Sesión Principal *</strong></label>
                     <input type="password" class="form-control @error('password') is-invalid @enderror"
-                           id="password" name="password" required placeholder="Ingrese la contraseña de {{ session('sessionmain')->nombre_usuario }}">
+                           id="password" name="password" required placeholder="Ingrese la contraseña de {{ $sessionMainUser->nombre_usuario }}">
                     @error('password')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -73,7 +73,7 @@
                     <button type="submit" class="btn btn-danger">
                         <i class="fas fa-undo"></i> Confirmar Reversión
                     </button>
-                    <a href="{{ route('nota.index', ['curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id, 'bimestre' => $bimestre]) }}"
+                    <a href="{{ route('nota.index', ['curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id, 'periodo_bimestre_id' => $periodo_bimestre_id]) }}"
                        class="btn btn-secondary">
                         <i class="fas fa-times"></i> Cancelar
                     </a>
@@ -83,7 +83,7 @@
             <div class="alert alert-danger">
                 No se puede proceder con la reversión sin una sesión principal activa.
             </div>
-            <a href="{{ route('nota.index', ['curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id, 'bimestre' => $bimestre]) }}"
+            <a href="{{ route('nota.index', ['curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id, 'periodo_bimestre_id' => $periodo_bimestre_id]) }}"
                class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Volver
             </a>

@@ -7,9 +7,9 @@
         <h1 class="h3 mb-0 text-gray-800">
             <i class="bi bi-layers me-2"></i> Gestión de Grados
         </h1>
-        <a href="{{ route('grado.create') }}" class="btn btn-primary shadow-sm">
+        <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCrearGrado">
             <i class="bi bi-plus-lg me-2"></i> Nuevo Grado
-        </a>
+        </button>
     </div>
      @if ($errors->any())
         <div class="alert alert-danger">
@@ -68,9 +68,14 @@
                                             <a href="{{ route('grado.estudiantes', $grado->id) }}" class="btn btn-sm btn-primary" title="Relación de Estudiantes">
                                                 <i class="bi bi-person-rolodex"></i>
                                             </a>
-                                            <a href="{{ route('grado.edit', $grado->id) }}" class="btn btn-sm btn-warning mx-1" title="Editar">
+                                            <button type="button" class="btn btn-sm btn-warning mx-1" title="Editar" data-bs-toggle="modal" data-bs-target="#modalEditarGrado"
+                                                data-id="{{ $grado->id }}"
+                                                data-grado="{{ $grado->grado }}"
+                                                data-seccion="{{ $grado->seccion }}"
+                                                data-nivel="{{ strtolower($grado->nivel) }}"
+                                                data-estado="{{ $grado->estado }}">
                                                 <i class="bi bi-pencil"></i>
-                                            </a>
+                                            </button>
                                             <form action="{{ route('grado.destroy', $grado->id) }}" method="POST">
                                                 @csrf
                                                 @method('DELETE')
@@ -129,9 +134,14 @@
                                     <td>{{ $grado->nombreCompleto }}</td>
                                     <td>
                                         <div class="d-flex">
-                                            <a href="{{ route('grado.edit', $grado->id) }}" class="btn btn-sm btn-warning mx-1" title="Editar">
+                                            <button type="button" class="btn btn-sm btn-warning mx-1" title="Editar" data-bs-toggle="modal" data-bs-target="#modalEditarGrado"
+                                                data-id="{{ $grado->id }}"
+                                                data-grado="{{ $grado->grado }}"
+                                                data-seccion="{{ $grado->seccion }}"
+                                                data-nivel="{{ strtolower($grado->nivel) }}"
+                                                data-estado="{{ $grado->estado }}">
                                                 <i class="bi bi-pencil"></i>
-                                            </a>
+                                            </button>
                                             <form action="{{ route('grado.destroy', $grado->id) }}" method="POST">
                                                 @csrf
                                                 @method('DELETE')
@@ -163,4 +173,176 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Crear Grado -->
+<div class="modal fade" id="modalCrearGrado" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="formCrearGrado" action="{{ route('grado.store') }}" method="POST">
+                @csrf
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-plus-lg me-2"></i> Nuevo Grado
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="grado" class="form-label">Grado</label>
+                        <input type="number" min="1" max="12" class="form-control @error('grado') is-invalid @enderror" id="grado" name="grado" value="{{ old('grado') }}" required>
+                        @error('grado')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="mb-3">
+                        <label for="seccion" class="form-label">Sección</label>
+                        <input type="text" maxlength="1" class="form-control @error('seccion') is-invalid @enderror" id="seccion" name="seccion" value="{{ old('seccion') }}" required>
+                        @error('seccion')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="mb-3">
+                        <label for="nivel" class="form-label">Nivel</label>
+                        <select name="nivel" id="nivel" class="form-select @error('nivel') is-invalid @enderror" required>
+                            <option value="primaria" {{ old('nivel') == 'primaria' ? 'selected' : '' }}>Primaria</option>
+                            <option value="secundaria" {{ old('nivel') == 'secundaria' ? 'selected' : '' }}>Secundaria</option>
+                        </select>
+                        @error('nivel')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="mb-3">
+                        <label for="estado" class="form-label">Estado</label>
+                        <select class="form-select @error('estado') is-invalid @enderror" id="estado" name="estado" required>
+                            <option value="1" {{ old('estado') == '1' ? 'selected' : '' }}>Activo</option>
+                            <option value="0" {{ old('estado') == '0' ? 'selected' : '' }}>Inactivo</option>
+                        </select>
+                        @error('estado')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Grado -->
+<div class="modal fade" id="modalEditarGrado" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="formEditarGrado" action="" method="POST">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="id" value="{{ old('id') }}">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil me-2"></i> Editar Grado
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="grado_edit" class="form-label">Grado</label>
+                        <input type="number" min="1" max="12" class="form-control @error('grado') is-invalid @enderror" id="grado_edit" name="grado" value="{{ old('grado') }}" required>
+                        @error('grado')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="mb-3">
+                        <label for="seccion_edit" class="form-label">Sección</label>
+                        <input type="text" maxlength="1" class="form-control @error('seccion') is-invalid @enderror" id="seccion_edit" name="seccion" value="{{ old('seccion') }}" required>
+                        @error('seccion')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="mb-3">
+                        <label for="nivel_edit" class="form-label">Nivel</label>
+                        <select name="nivel" id="nivel_edit" class="form-select @error('nivel') is-invalid @enderror" required>
+                            <option value="primaria" {{ old('nivel') == 'primaria' ? 'selected' : '' }}>Primaria</option>
+                            <option value="secundaria" {{ old('nivel') == 'secundaria' ? 'selected' : '' }}>Secundaria</option>
+                        </select>
+                        @error('nivel')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="mb-3">
+                        <label for="estado_edit" class="form-label">Estado</label>
+                        <select class="form-select @error('estado') is-invalid @enderror" id="estado_edit" name="estado" required>
+                            <option value="1" {{ old('estado') == '1' ? 'selected' : '' }}>Activo</option>
+                            <option value="0" {{ old('estado') == '0' ? 'selected' : '' }}>Inactivo</option>
+                        </select>
+                        @error('estado')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var formEditarGrado = document.getElementById('formEditarGrado');
+        var modalEditarGradoEl = document.getElementById('modalEditarGrado');
+        var modalCrearGradoEl = document.getElementById('modalCrearGrado');
+
+        if (modalEditarGradoEl) {
+            modalEditarGradoEl.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                if (!button) {
+                    return;
+                }
+
+                var id = button.getAttribute('data-id');
+
+                formEditarGrado.action = '{{ route('grado.update', '__ID__') }}'.replace('__ID__', id);
+                formEditarGrado.querySelector('input[name="id"]').value = id;
+                formEditarGrado.querySelector('input[name="grado"]').value = button.getAttribute('data-grado');
+                formEditarGrado.querySelector('input[name="seccion"]').value = button.getAttribute('data-seccion');
+                formEditarGrado.querySelector('select[name="nivel"]').value = button.getAttribute('data-nivel');
+                formEditarGrado.querySelector('select[name="estado"]').value = button.getAttribute('data-estado');
+            });
+
+            modalEditarGradoEl.addEventListener('hidden.bs.modal', function () {
+                formEditarGrado.reset();
+            });
+        }
+
+        if (modalCrearGradoEl && document.getElementById('formCrearGrado')) {
+            modalCrearGradoEl.addEventListener('hidden.bs.modal', function () {
+                document.getElementById('formCrearGrado').reset();
+            });
+        }
+    });
+
+    @if (old('id'))
+        document.addEventListener('DOMContentLoaded', function () {
+            var form = document.getElementById('formEditarGrado');
+            var id = '{{ old('id') }}';
+
+            form.action = '{{ route('grado.update', '__ID__') }}'.replace('__ID__', id);
+            form.querySelector('input[name="id"]').value = id;
+            form.querySelector('input[name="grado"]').value = '{{ old('grado') }}';
+            form.querySelector('input[name="seccion"]').value = '{{ old('seccion') }}';
+            form.querySelector('select[name="nivel"]').value = '{{ old('nivel') }}';
+            form.querySelector('select[name="estado"]').value = '{{ old('estado') }}';
+
+            new bootstrap.Modal(document.getElementById('modalEditarGrado')).show();
+        });
+    @elseif (old('grado'))
+        document.addEventListener('DOMContentLoaded', function () {
+            new bootstrap.Modal(document.getElementById('modalCrearGrado')).show();
+        });
+    @endif
+</script>
 @endsection
