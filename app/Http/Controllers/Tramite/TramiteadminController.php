@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 
 class TramiteadminController extends Controller
 {
-    // moduleID 16 = Trámites - admin
+    // moduleID 19 = Trámites - admin
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
@@ -37,14 +37,16 @@ class TramiteadminController extends Controller
                     ->groupBy('tramite_id');
             })->get();
 
+        $estadosNombres = Estadotramite::whereIn('id', $ultimosEstados->pluck('estado_tramite_id')->unique())
+            ->pluck('nombre', 'id');
+
         $totalTramites = Tramite::count();
         $totalPendientes = 0;
         $totalEnProceso = 0;
         $totalCompletados = 0;
 
         foreach ($ultimosEstados as $ultimoEstado) {
-            $estado = Estadotramite::find($ultimoEstado->estado_tramite_id);
-            $nombre = strtolower($estado->nombre ?? '');
+            $nombre = strtolower($estadosNombres[$ultimoEstado->estado_tramite_id] ?? '');
 
             if (str_contains($nombre, 'pendiente')) {
                 $totalPendientes++;
@@ -63,13 +65,15 @@ class TramiteadminController extends Controller
                     ->groupBy('tramite_id');
             })->get();
 
+        $estadosPagoNombres = Estadopago::whereIn('id', $ultimosPagos->pluck('estado_pago_id')->unique())
+            ->pluck('nombre', 'id');
+
         $totalPagosPendientes = 0;
         $totalPagosAprobados = 0;
         $totalPagosRechazados = 0;
 
         foreach ($ultimosPagos as $ultimoPago) {
-            $estado = Estadopago::find($ultimoPago->estado_pago_id);
-            $nombre = strtolower($estado->nombre ?? '');
+            $nombre = strtolower($estadosPagoNombres[$ultimoPago->estado_pago_id] ?? '');
 
             if (str_contains($nombre, 'pendiente') || str_contains($nombre, 'revisión')) {
                 $totalPagosPendientes++;
@@ -333,6 +337,7 @@ class TramiteadminController extends Controller
                 'observacion' => $registroPago->observacion,
                 'icono_clase' => $iconoClase,
                 'tiene_comprobante' => $tieneComprobante,
+                'tiene_archivo' => $tieneComprobante && ! is_null($registroPago->pagoComprobante?->comprobante_path),
                 'mostrar_botones_accion' => $mostrarBotonesAccion,
                 'comprobante' => $tieneComprobante ? [
                     'id' => $registroPago->pagoComprobante->id,
@@ -417,10 +422,15 @@ class TramiteadminController extends Controller
             'user_id' => auth()->id(),
         ]);
 
-        // Si el estado es "Completado" o "Resuelto", actualizar fecha de resolución
+        // Si el estado es "Completado" o "Resuelto", actualizar fecha de resolución;
+        // si ya no es un estado final, limpiarla
         $estado = Estadotramite::find($request->estado_tramite_id);
-        if (in_array(strtolower($estado->nombre), ['completado', 'resuelto', 'finalizado'])) {
+        $esEstadoFinal = in_array(strtolower($estado->nombre ?? ''), ['completado', 'resuelto', 'finalizado']);
+
+        if ($esEstadoFinal) {
             $tramite->update(['fecha_resolucion' => now()]);
+        } elseif ($tramite->fecha_resolucion) {
+            $tramite->update(['fecha_resolucion' => null]);
         }
 
         return redirect()->back()->with('success', 'Estado del trámite actualizado correctamente.');
@@ -444,6 +454,11 @@ class TramiteadminController extends Controller
         // Obtener el registro de pago específico
         $registroPago = Tramitepagoregistro::findOrFail($request->pago_registro_id);
 
+        // Validar que el registro de pago pertenezca a este trámite
+        if ($registroPago->tramite_id != $id) {
+            return redirect()->back()->with('error', 'El registro de pago no pertenece a este trámite.');
+        }
+
         // Validar que el registro tenga comprobante (no sea el registro inicial)
         if (is_null($registroPago->pago_comprobante_id)) {
             return redirect()->back()->with('error', 'No se puede cambiar el estado del registro inicial de pago.');
@@ -458,19 +473,18 @@ class TramiteadminController extends Controller
             return redirect()->back()->with('warning', 'El estado ya es el mismo.');
         }
 
-        // Si el nuevo estado es APROBADO
-        if (strtolower($nuevoEstado->nombre) == 'aprobado') {
-            // Verificar que el estado actual no sea ya aprobado
-            if (strtolower($estadoActual->nombre) != 'aprobado') {
-                // Sumar el monto al total pagado
-                $tramite->increment('monto_pagado', $registroPago->monto);
-            }
+        $estadoActualNombre = strtolower($estadoActual->nombre ?? '');
+        $nuevoEstadoNombre = strtolower($nuevoEstado->nombre ?? '');
+
+        // Si el nuevo estado es APROBADO y el actual no lo era, sumar el monto
+        if ($nuevoEstadoNombre == 'aprobado' && $estadoActualNombre != 'aprobado') {
+            $tramite->increment('monto_pagado', $registroPago->monto);
         }
 
-        // Si el nuevo estado es RECHAZADO y el estado actual era APROBADO
-        if (strtolower($nuevoEstado->nombre) == 'rechazado' && strtolower($estadoActual->nombre) == 'aprobado') {
-            // Restar el monto que se había aprobado
-            $tramite->decrement('monto_pagado', $registroPago->monto);
+        // Si el estado actual era APROBADO y el nuevo ya no lo es, restar el monto
+        if ($estadoActualNombre == 'aprobado' && $nuevoEstadoNombre != 'aprobado') {
+            $nuevoTotal = max(0, ($tramite->monto_pagado ?? 0) - $registroPago->monto);
+            $tramite->update(['monto_pagado' => $nuevoTotal]);
         }
 
         // Crear un NUEVO registro de cambio de estado para ese comprobante específico
@@ -491,9 +505,11 @@ class TramiteadminController extends Controller
     {
         $comprobante = Pagocomprobante::with('user', 'tramite')->findOrFail($id);
 
-        // Verificar permisos: solo admin puede ver
-        if (! auth()->user()->hasRole('admin')) {
-            abort(403, 'No tienes permiso para ver este comprobante.');
+        // El acceso ya está restringido al módulo 19 (tramite-admin) en el constructor,
+        // así que cualquier usuario que gestione pagos puede ver el comprobante.
+
+        if (! $comprobante->comprobante_path) {
+            abort(404, 'Este comprobante no tiene archivo adjunto (pago en efectivo).');
         }
 
         if (! Storage::disk('private')->exists($comprobante->comprobante_path)) {

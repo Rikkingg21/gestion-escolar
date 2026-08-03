@@ -262,7 +262,6 @@ Route::middleware('auth')->group(function () {
     Route::prefix('tramite-admin')->name('tramiteadmin.')->group(function () {
         Route::get('/', [TramiteadminController::class, 'index'])->name('index');
         Route::get('/tramites/{id}', [TramiteadminController::class, 'show'])->name('show');
-        Route::put('/tramites/{id}/estado', [TramiteadminController::class, 'updateEstado'])->name('tramites.update.estado');
         Route::post('/{id}/estado-tramite', [TramiteadminController::class, 'updateEstadoTramite'])->name('update-estado-tramite');
         Route::post('/{id}/estado-pago', [TramiteadminController::class, 'updateEstadoPago'])->name('update-estado-pago');
         Route::get('/comprobante/{id}', [TramiteadminController::class, 'verComprobante'])->name('ver-comprobante');
@@ -275,7 +274,6 @@ Route::middleware('auth')->group(function () {
     // Para usuarios (estudiantes, padres, docentes)
     Route::prefix('mis-tramites')->name('mis-tramites.')->group(function () {
         Route::get('/', [TramiteController::class, 'index'])->name('index');
-        Route::get('/create', [TramiteController::class, 'create'])->name('create');
         Route::post('/', [TramiteController::class, 'store'])->name('store');
         Route::get('/{id}', [TramiteController::class, 'show'])->name('show');
         Route::post('/{id}/comprobante', [TramiteController::class, 'subirComprobante'])->name('comprobante');

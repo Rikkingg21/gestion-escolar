@@ -35,7 +35,11 @@ class TramiteController extends Controller
     {
         $tipoTramitesActivos = Tramitetipo::where('estado', '1')->get();
 
-        $query = Tramite::with(['tipoTramite', 'tramiteRegistros.estadoTramite', 'tramitePagoRegistros.estadoPago'])
+        $query = Tramite::with([
+            'tipoTramite',
+            'tramiteRegistros' => fn ($q) => $q->with('estadoTramite')->latest(),
+            'tramitePagoRegistros' => fn ($q) => $q->with('estadoPago')->latest('fecha_registro'),
+        ])
             ->where('user_id', auth()->id());
 
         // Aplicar filtro de fechas
@@ -97,18 +101,25 @@ class TramiteController extends Controller
         $tipoTramite = Tramitetipo::findOrFail($request->tipo_tramite_id);
         $user = Auth::user();
 
-        // Obtener el parentesco del usuario si es apoderado
-        $apoderado = Apoderado::where('user_id', $user->id)->first();
-        $relacion = null;
+        // Validar pertenencia del estudiante
+        $estudianteValido = false;
 
-        if ($apoderado) {
-            $relacion = $apoderado->parentesco;
+        if ($user->hasRole('admin') || $user->hasRole('director')) {
+            $estudianteValido = true;
+        } elseif ($user->hasRole('apoderado')) {
+            $apoderado = Apoderado::where('user_id', $user->id)->first();
+            $estudianteValido = $apoderado && Estudiante::where('id', $request->estudiante_id)
+                ->where('apoderado_id', $apoderado->id)
+                ->exists();
         } else {
-            // Si no es apoderado, verificar si es el mismo estudiante
             $estudiante = Estudiante::where('user_id', $user->id)->first();
-            if ($estudiante && $estudiante->id == $request->estudiante_id) {
-                $relacion = 'Propio estudiante';
-            }
+            $estudianteValido = $estudiante && $estudiante->id == $request->estudiante_id;
+        }
+
+        if (! $estudianteValido) {
+            return redirect()->back()
+                ->with('error', 'No tienes permiso para crear un trámite para este estudiante.')
+                ->withInput();
         }
 
         // Generar código único
@@ -122,7 +133,6 @@ class TramiteController extends Controller
             'user_id' => $user->id,
             'tipo_tramite_id' => $request->tipo_tramite_id,
             'estudiante_id' => $request->estudiante_id,
-            'relacion' => $relacion,
             'monto_pagado' => 0,
             'fecha_solicitud' => now(),
             'observaciones' => $request->observaciones,
@@ -143,12 +153,8 @@ class TramiteController extends Controller
             $estadoPago = Estadopago::where('nombre', 'LIKE', '%Pendiente%')->first();
             $observacionPago = 'Registro de pago inicial - Pendiente';
         } else {
-            // Si no requiere pago, estado "No requiere pago" (ID 4)
-            $estadoPago = Estadopago::find(4); // ID 4 = No requiere pago
-            // Si no existe el estado con ID 4, buscarlo por nombre
-            if (! $estadoPago) {
-                $estadoPago = Estadopago::where('nombre', 'LIKE', '%No requiere pago%')->first();
-            }
+            // Si no requiere pago, estado "No requiere pago"
+            $estadoPago = Estadopago::where('nombre', 'LIKE', '%No requiere pago%')->first();
             $observacionPago = 'Este trámite no requiere pago';
         }
 
@@ -199,7 +205,7 @@ class TramiteController extends Controller
         $costoTotal = $tramite->tipoTramite->requiere_pago ? ($tramite->tipoTramite->costo ?? 0) : 0;
 
         // Calcular monto pagado total usando el accessor del modelo
-        $montoPagado = $tramite->requiere_pago ? ($tramite->monto_pagado_total ?? 0) : 0;
+        $montoPagado = $tramite->tipoTramite->requiere_pago ? ($tramite->monto_pagado_total ?? 0) : 0;
 
         // Calcular saldo pendiente
         $saldoPendiente = $costoTotal - $montoPagado;
@@ -311,6 +317,20 @@ class TramiteController extends Controller
             return redirect()->back()->with('error', 'Este trámite no requiere pago.');
         }
 
+        // No permitir pagos en trámites finalizados o rechazados
+        $ultimoRegistro = $tramite->tramiteRegistros()->latest()->first();
+        if ($ultimoRegistro && $ultimoRegistro->estadoTramite) {
+            $nombreEstado = strtolower($ultimoRegistro->estadoTramite->nombre);
+            if (in_array($nombreEstado, ['completado', 'resuelto', 'finalizado', 'rechazado'])) {
+                return redirect()->back()->with('error', 'No se puede subir comprobantes a un trámite '.$ultimoRegistro->estadoTramite->nombre.'.');
+            }
+        }
+
+        // Calcular saldo pendiente
+        $costoTotal = $tramite->tipoTramite->costo ?? 0;
+        $montoPagado = $tramite->monto_pagado_total;
+        $saldoPendiente = $costoTotal - $montoPagado;
+
         // Obtener el tipo de pago seleccionado
         $tipoPago = Tipopago::findOrFail($request->tipo_pago_id);
 
@@ -336,6 +356,13 @@ class TramiteController extends Controller
 
             $numeroOperacion = $request->numero_operacion;
             $comprobantePath = $request->file('comprobante')->store('comprobantes/'.date('Y/m'), 'private');
+        }
+
+        // Validar que el monto no supere el saldo pendiente
+        if ((float) $request->monto > $saldoPendiente) {
+            return redirect()->back()
+                ->with('error', 'El monto no puede superar el saldo pendiente (S/ '.number_format($saldoPendiente, 2).').')
+                ->withInput();
         }
 
         // Crear el comprobante (para efectivo se guarda sin archivo)

@@ -58,12 +58,12 @@ class Tramite extends Model
     /*
     public function estadoTramite()
     {
-        return $this->belongsTo(EstadoTramite::class, 'estado_tramite_id');
+        return $this->belongsTo(Estadotramite::class, 'estado_tramite_id');
     }
 
     public function estadoPago()
     {
-        return $this->belongsTo(EstadoPago::class, 'estado_pago_id');
+        return $this->belongsTo(Estadopago::class, 'estado_pago_id');
     }
     */
     public function tramiteRegistros()

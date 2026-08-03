@@ -215,7 +215,7 @@
                                             <small class="text-muted"><i class="bi bi-person-circle me-1"></i> {{ $pago['nombre_usuario'] }}</small>
                                             <span class="ms-2 badge bg-light text-dark border">{{ $pago['monto_formateado'] }}</span>
                                         </div>
-                                        @if($pago['tiene_comprobante'])
+                                        @if($pago['tiene_archivo'])
                                         <button type="button" class="btn btn-sm btn-outline-primary rounded-pill"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#modalVerComprobante"

@@ -89,8 +89,8 @@
                     <tbody>
                         @forelse($tramites as $tramite)
                         @php
-                            $ultimoRegistro = $tramite->tramiteRegistros()->latest()->first();
-                            $ultimoPago = $tramite->tramitePagoRegistros()->latest('fecha_registro')->first();
+                            $ultimoRegistro = $tramite->tramiteRegistros->first();
+                            $ultimoPago = $tramite->tramitePagoRegistros->first();
                             $montoTotal = $tramite->tipoTramite->costo ?? 0;
                             $montoPagado = $tramite->monto_pagado_total ?? $tramite->monto_pagado ?? 0;
                         @endphp

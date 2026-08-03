@@ -12,6 +12,8 @@ class DatabaseSeeder extends Seeder
             RolesTableSeeder::class,
             AdminUserSeeder::class,
             ConfigIeSeeder::class,
+            EstadosTramiteSeeder::class,
+            EstadosPagoSeeder::class,
         ]);
     }
 }

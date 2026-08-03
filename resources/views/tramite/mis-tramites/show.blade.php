@@ -3,7 +3,41 @@
 @section('content')
 
 <div class="container-fluid">
-    <!-- ... sección de botón volver y mensajes (igual) ... -->
+    <!-- Sección de botón volver y mensajes -->
+    <div class="row mb-3">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <a href="{{ route('mis-tramites.index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Volver a Mis Trámites
+            </a>
+            <span class="text-muted">Código: <strong>{{ $tramite->codigo_tramite }}</strong></span>
+        </div>
+    </div>
+
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <strong>Revise los siguientes errores:</strong>
+            <ul class="mb-0">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
 
     <!-- SECCIÓN 1: Resumen rápido (simplificado) -->
     <div class="row mb-4">
@@ -268,9 +302,98 @@
     </div>
     @endif
 </div>
+
+{{-- Modal para subir comprobante --}}
+<div class="modal fade" id="modalSubirComprobante" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="" method="POST" enctype="multipart/form-data" id="formComprobante">
+                @csrf
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-cloud-upload me-2"></i> Subir Comprobante de Pago</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="tramite_id" id="tramite_id_comprobante">
+
+                    <div class="mb-3">
+                        <label class="form-label">Método de Pago <span class="text-danger">*</span></label>
+                        <select name="tipo_pago_id" class="form-select" id="tipo_pago_select" required>
+                            <option value="">Seleccione un método de pago...</option>
+                            @foreach($tiposPago as $tipo)
+                                <option value="{{ $tipo->id }}"
+                                        data-es-efectivo="{{ $tipo->es_efectivo }}"
+                                        data-entidad="{{ $tipo->entidad_financiera }}"
+                                        data-numero-cuenta="{{ $tipo->numero_cuenta }}"
+                                        data-cci="{{ $tipo->cci }}"
+                                        data-titular="{{ $tipo->titular_cuenta }}">
+                                    {{ $tipo->nombre }}
+                                    @if($tipo->entidad_financiera)
+                                        - {{ $tipo->entidad_financiera }}
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Información de la cuenta para pagos no efectivos --}}
+                    <div class="mb-3 d-none" id="infoCuenta">
+                        <div class="alert alert-info">
+                            <strong><i class="bi bi-info-circle me-1"></i> Datos para el pago:</strong><br>
+                            <div id="info_entidad"></div>
+                            <div id="info_numero_cuenta"></div>
+                            <div id="info_cci"></div>
+                            <div id="info_titular"></div>
+                        </div>
+                    </div>
+
+                    {{-- Campos para pagos no efectivos (transferencia/depósito) --}}
+                    <div id="camposNoEfectivo">
+                        <div class="mb-3">
+                            <label class="form-label">Número de Operación / Voucher <span class="text-danger">*</span></label>
+                            <input type="text" name="numero_operacion" id="numero_operacion" class="form-control" placeholder="Ej: 1234567890" required>
+                            <small class="text-muted">Número de transferencia, referencia o código de operación</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Comprobante (imagen o PDF) <span class="text-danger">*</span></label>
+                            <input type="file" name="comprobante" id="comprobante_file" class="form-control" accept=".jpg,.jpeg,.png,.pdf" required>
+                            <small class="text-muted">Máx. 5MB. Formatos: JPG, PNG, PDF</small>
+                        </div>
+                    </div>
+
+                    {{-- Mensaje para pagos en efectivo --}}
+                    <div class="alert alert-warning d-none" id="mensajeEfectivo">
+                        <i class="bi bi-cash-stack me-1"></i>
+                        Pagarás en efectivo. El administrador verificará el pago en la institución.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Monto a Pagar <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">S/</span>
+                            <input type="number" step="0.01" name="monto" class="form-control" id="monto_pago" required>
+                        </div>
+                        <small class="text-muted" id="info_monto"></small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Observaciones (opcional)</label>
+                        <textarea name="observaciones" class="form-control" rows="2" placeholder="Información adicional sobre el pago..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Subir Comprobante</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
-    const costoTotal = {{ $tramite->tipoTramite->costo ?? 0 }};
-    const montoPagado = {{ $tramite->monto_pagado_total ?? 0 }};
+    const costoTotal = {{ $costoTotal }};
+    const montoPagado = {{ $montoPagado }};
     const saldoPendiente = costoTotal - montoPagado;
 
     function subirComprobante(id) {
@@ -278,6 +401,7 @@
         document.getElementById('formComprobante').action = "/mis-tramites/" + id + "/comprobante";
         document.getElementById('monto_pago').value = saldoPendiente.toFixed(2);
         document.getElementById('monto_pago').max = saldoPendiente;
+        document.getElementById('info_monto').innerHTML = `Monto total: S/ ${costoTotal.toFixed(2)} | Pagado: S/ ${montoPagado.toFixed(2)} | <strong>Saldo pendiente: S/ ${saldoPendiente.toFixed(2)}</strong>`;
 
         // Resetear campos
         const select = document.getElementById('tipo_pago_select');

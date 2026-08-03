@@ -38,7 +38,7 @@ class Tramiteregistro extends Model
 
     public function estadoTramite()
     {
-        return $this->belongsTo(EstadoTramite::class, 'estado_tramite_id');
+        return $this->belongsTo(Estadotramite::class, 'estado_tramite_id');
     }
 
     public function user()
