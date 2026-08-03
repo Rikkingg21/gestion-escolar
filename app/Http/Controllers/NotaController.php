@@ -684,53 +684,101 @@ class NotaController extends Controller
 
             $periodo_id = $curso->periodo_id;
 
-            // 1. Procesar notas de criterios (sin cambios)
+            // Validar que los estudiantes pertenezcan al grado del curso
+            $estudiantesIds = array_keys($notas_criterios);
+            if (! empty($estudiantesIds)) {
+                $estudiantesValidos = Estudiante::where('grado_id', $curso->grado_id)
+                    ->whereIn('id', $estudiantesIds)
+                    ->pluck('id')
+                    ->all();
+
+                if (count(array_diff($estudiantesIds, $estudiantesValidos)) > 0) {
+                    throw new \Exception('No se puede guardar notas para estudiantes que no pertenecen al curso.');
+                }
+            }
+
+            $puedeEditar = $this->puedeEditarNota($estadoActual);
+
+            // 1. Procesar notas de criterios
+            // Precargar las notas existentes del bimestre en UNA sola consulta
+            $criteriosIds = collect($notas_criterios)
+                ->flatMap(fn ($criterios) => array_keys($criterios))
+                ->unique()
+                ->values()
+                ->all();
+
+            $notasExistentes = collect();
+            if (! empty($criteriosIds) && ! empty($estudiantesIds)) {
+                $notasExistentes = Nota::where('periodo_bimestre_id', $periodo_bimestre_id)
+                    ->whereIn('materia_criterio_id', $criteriosIds)
+                    ->whereIn('estudiante_id', $estudiantesIds)
+                    ->get()
+                    ->keyBy(fn ($nota) => $nota->estudiante_id.'-'.$nota->materia_criterio_id);
+            }
+
             foreach ($notas_criterios as $estudiante_id => $criterios) {
                 foreach ($criterios as $criterio_id => $nota) {
+                    $key = $estudiante_id.'-'.$criterio_id;
+                    $notaExistente = $notasExistentes->get($key);
+
                     if ($nota !== null && $nota !== '') {
                         $nota = intval($nota);
                         if ($nota < 1 || $nota > 4) {
                             continue;
                         }
 
-                        $notaExistente = Nota::where('estudiante_id', $estudiante_id)
-                            ->where('materia_criterio_id', $criterio_id)
-                            ->where('periodo_bimestre_id', $periodo_bimestre_id)
-                            ->first();
+                        if (! $puedeEditar) {
+                            continue;
+                        }
 
                         if ($notaExistente) {
-                            if ($this->puedeEditarNota($estadoActual)) {
-                                $notaExistente->update(['nota' => $nota]);
-                            }
+                            $notaExistente->update(['nota' => $nota]);
                         } else {
-                            if ($this->puedeEditarNota($estadoActual)) {
-                                Nota::create([
-                                    'estudiante_id' => $estudiante_id,
-                                    'materia_criterio_id' => $criterio_id,
-                                    'periodo_id' => $periodo_id,
-                                    'periodo_bimestre_id' => $periodo_bimestre_id,
-                                    'nota' => $nota,
-                                    'publico' => $estadoActual,
-                                ]);
-                            }
+                            Nota::create([
+                                'estudiante_id' => $estudiante_id,
+                                'materia_criterio_id' => $criterio_id,
+                                'periodo_id' => $periodo_id,
+                                'periodo_bimestre_id' => $periodo_bimestre_id,
+                                'nota' => $nota,
+                                'publico' => $estadoActual,
+                            ]);
                         }
                     } else {
-                        if ($this->puedeEditarNota($estadoActual)) {
-                            $notaExistente = Nota::where('estudiante_id', $estudiante_id)
-                                ->where('materia_criterio_id', $criterio_id)
-                                ->where('periodo_bimestre_id', $periodo_bimestre_id)
-                                ->first();
-                            if ($notaExistente) {
-                                $notaExistente->delete();
-                            }
+                        if ($puedeEditar && $notaExistente) {
+                            $notaExistente->delete();
                         }
                     }
                 }
             }
 
             // 2. PROCESAR NOTAS DE CONDUCTAS CON NUEVO MODELO Y CURSO ESPECÍFICO
+            $conductasIds = collect($notas_conductas)
+                ->flatMap(fn ($conductas) => array_keys($conductas))
+                ->unique()
+                ->values()
+                ->all();
+            $estudiantesConductaIds = array_keys($notas_conductas);
+
+            // Precargar las relaciones conducta_periodo_bimestre del bimestre en UNA consulta
+            $relacionesConducta = Conductaperiodobimestre::where('periodo_bimestre_id', $periodo_bimestre_id)
+                ->whereIn('conducta_id', $conductasIds)
+                ->get()
+                ->keyBy('conducta_id');
+
+            // Precargar las notas de conducta existentes del curso/bimestre en UNA consulta
+            $notasConductaExistentes = collect();
+            if (! empty($estudiantesConductaIds) && ! empty($conductasIds)) {
+                $notasConductaExistentes = Conductaperiodobimestrenota::where('periodo_bimestre_id', $periodo_bimestre_id)
+                    ->where('curso_grado_sec_niv_anio_id', $curso_id)
+                    ->whereIn('estudiante_id', $estudiantesConductaIds)
+                    ->get()
+                    ->keyBy(fn ($nota) => $nota->estudiante_id.'-'.$nota->conducta_periodo_bimestre_id);
+            }
+
             foreach ($notas_conductas as $estudiante_id => $conductas) {
                 foreach ($conductas as $conducta_id => $nota) {
+                    $relacion = $relacionesConducta->get($conducta_id);
+
                     if ($nota !== null && $nota !== '') {
                         $nota = intval($nota);
                         if ($nota < 1 || $nota > 4) {
@@ -738,57 +786,45 @@ class NotaController extends Controller
                         }
 
                         // Buscar o crear la relación conducta_periodo_bimestre
-                        $relacion = Conductaperiodobimestre::firstOrCreate([
-                            'periodo_bimestre_id' => $periodo_bimestre_id,
-                            'conducta_id' => $conducta_id,
-                        ]);
+                        if (! $relacion) {
+                            $relacion = Conductaperiodobimestre::firstOrCreate([
+                                'periodo_bimestre_id' => $periodo_bimestre_id,
+                                'conducta_id' => $conducta_id,
+                            ]);
+                            $relacionesConducta->put($conducta_id, $relacion);
+                        }
 
-                        // Buscar nota existente con el nuevo modelo incluyendo curso_id
-                        $notaConductaExistente = Conductaperiodobimestrenota::where('estudiante_id', $estudiante_id)
-                            ->where('conducta_periodo_bimestre_id', $relacion->id)
-                            ->where('periodo_bimestre_id', $periodo_bimestre_id)
-                            ->where('curso_grado_sec_niv_anio_id', $curso_id)
-                            ->first();
+                        $key = $estudiante_id.'-'.$relacion->id;
+                        $notaConductaExistente = $notasConductaExistentes->get($key);
+
+                        if (! $puedeEditar) {
+                            continue;
+                        }
 
                         if ($notaConductaExistente) {
-                            if ($this->puedeEditarNota($estadoActual)) {
-                                $notaConductaExistente->update([
-                                    'nota' => $nota,
-                                    'periodo_id' => $periodo_id,
-                                    'publico' => $estadoActual,
-                                ]);
-                            }
+                            $notaConductaExistente->update([
+                                'nota' => $nota,
+                                'periodo_id' => $periodo_id,
+                                'publico' => $estadoActual,
+                            ]);
                         } else {
-                            if ($this->puedeEditarNota($estadoActual)) {
-                                Conductaperiodobimestrenota::create([
-                                    'estudiante_id' => $estudiante_id,
-                                    'conducta_periodo_bimestre_id' => $relacion->id,
-                                    'periodo_id' => $periodo_id,
-                                    'periodo_bimestre_id' => $periodo_bimestre_id,
-                                    'curso_grado_sec_niv_anio_id' => $curso_id,
-                                    'nota' => $nota,
-                                    'publico' => $estadoActual,
-                                ]);
-                            }
+                            Conductaperiodobimestrenota::create([
+                                'estudiante_id' => $estudiante_id,
+                                'conducta_periodo_bimestre_id' => $relacion->id,
+                                'periodo_id' => $periodo_id,
+                                'periodo_bimestre_id' => $periodo_bimestre_id,
+                                'curso_grado_sec_niv_anio_id' => $curso_id,
+                                'nota' => $nota,
+                                'publico' => $estadoActual,
+                            ]);
                         }
                     } else {
                         // Si la nota está vacía, eliminar
-                        if ($this->puedeEditarNota($estadoActual)) {
-                            // Buscar la relación primero
-                            $relacion = Conductaperiodobimestre::where('periodo_bimestre_id', $periodo_bimestre_id)
-                                ->where('conducta_id', $conducta_id)
-                                ->first();
+                        if ($puedeEditar && $relacion) {
+                            $notaConductaExistente = $notasConductaExistentes->get($estudiante_id.'-'.$relacion->id);
 
-                            if ($relacion) {
-                                $notaConductaExistente = Conductaperiodobimestrenota::where('estudiante_id', $estudiante_id)
-                                    ->where('conducta_periodo_bimestre_id', $relacion->id)
-                                    ->where('periodo_bimestre_id', $periodo_bimestre_id)
-                                    ->where('curso_grado_sec_niv_anio_id', $curso_id)
-                                    ->first();
-
-                                if ($notaConductaExistente) {
-                                    $notaConductaExistente->delete();
-                                }
+                            if ($notaConductaExistente) {
+                                $notaConductaExistente->delete();
                             }
                         }
                     }

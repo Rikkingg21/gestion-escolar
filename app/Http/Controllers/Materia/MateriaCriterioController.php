@@ -152,9 +152,9 @@ class MateriaCriterioController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'materia_id' => 'required|exists:materias,id',
-            'materia_competencia_id' => 'required|exists:materia_competencias,id',
             'criterios' => 'required|array|min:1',
+            'criterios.*.materia_id' => 'required|exists:materias,id',
+            'criterios.*.materia_competencia_id' => 'required|exists:materia_competencias,id',
             'criterios.*.nombre' => 'required|string|max:255',
             'criterios.*.descripcion' => 'nullable|string',
             'criterios.*.periodos_bimestres' => 'required|array|min:1',
@@ -169,10 +169,19 @@ class MateriaCriterioController extends Controller
             $criteriosCreados = 0;
 
             foreach ($request->criterios as $criterioData) {
+                // Verificar que la competencia pertenezca a la materia seleccionada
+                $competenciaValida = Materiacompetencia::where('id', $criterioData['materia_competencia_id'])
+                    ->where('materia_id', $criterioData['materia_id'])
+                    ->exists();
+
+                if (! $competenciaValida) {
+                    throw new \Exception('La competencia no pertenece a la materia seleccionada.');
+                }
+
                 foreach ($criterioData['grados'] as $gradoId) {
                     foreach ($criterioData['periodos_bimestres'] as $periodoBimestreId) {
                         // Verificar si el criterio ya existe
-                        $existe = Materiacriterio::where('materia_competencia_id', $request->materia_competencia_id)
+                        $existe = Materiacriterio::where('materia_competencia_id', $criterioData['materia_competencia_id'])
                             ->where('grado_id', $gradoId)
                             ->where('periodo_bimestre_id', $periodoBimestreId)
                             ->where('nombre', $criterioData['nombre'])
@@ -180,8 +189,8 @@ class MateriaCriterioController extends Controller
 
                         if (! $existe) {
                             Materiacriterio::create([
-                                'materia_competencia_id' => $request->materia_competencia_id,
-                                'materia_id' => $request->materia_id,
+                                'materia_competencia_id' => $criterioData['materia_competencia_id'],
+                                'materia_id' => $criterioData['materia_id'],
                                 'grado_id' => $gradoId,
                                 'periodo_bimestre_id' => $periodoBimestreId,
                                 'nombre' => $criterioData['nombre'],
@@ -211,6 +220,193 @@ class MateriaCriterioController extends Controller
                 ->with('error', 'Error al crear los criterios: '.$e->getMessage())
                 ->withInput();
         }
+    }
+
+    public function criteriosOrigen($periodo_id, $grado_id = null)
+    {
+        try {
+            $criteriosQuery = Materiacriterio::with([
+                'materia',
+                'grado',
+                'materiaCompetencia',
+                'periodoBimestre',
+            ])->whereHas('periodoBimestre', function ($q) use ($periodo_id) {
+                $q->where('periodo_id', $periodo_id);
+            });
+
+            if ($grado_id) {
+                $criteriosQuery->where('grado_id', $grado_id);
+            }
+
+            $criterios = $criteriosQuery->orderBy('materia_id')
+                ->orderBy('grado_id')
+                ->get();
+
+            $arbol = [];
+
+            foreach ($criterios as $criterio) {
+                $materiaNombre = $criterio->materia->nombre ?? 'Sin Materia';
+                $competenciaNombre = $criterio->materiaCompetencia->nombre ?? 'Sin Competencia';
+
+                if (! isset($arbol[$materiaNombre])) {
+                    $arbol[$materiaNombre] = [];
+                }
+                if (! isset($arbol[$materiaNombre][$competenciaNombre])) {
+                    $arbol[$materiaNombre][$competenciaNombre] = [];
+                }
+
+                $arbol[$materiaNombre][$competenciaNombre][] = [
+                    'id' => $criterio->id,
+                    'nombre' => $criterio->nombre,
+                    'descripcion' => $criterio->descripcion,
+                    'grado' => $criterio->grado->nombreCompleto ?? 'Sin Grado',
+                    'bimestre' => $criterio->periodoBimestre->sigla ?? 'N/A',
+                    'materia_competencia_id' => $criterio->materia_competencia_id,
+                    'materia_id' => $criterio->materia_id,
+                    'grado_id' => $criterio->grado_id,
+                    'periodo_bimestre_id' => $criterio->periodo_bimestre_id,
+                    'bimestre_valor' => $criterio->periodoBimestre->bimestre ?? null,
+                ];
+            }
+
+            return response()->json(['arbol' => $arbol]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function clonar(Request $request)
+    {
+        $request->validate([
+            'modo' => 'nullable|in:sin_duplicados,con_duplicados',
+            'periodo_origen_id' => 'required|exists:periodos,id',
+            'criterio_ids' => 'required|array|min:1',
+            'criterio_ids.*' => 'exists:materia_criterios,id',
+            'periodo_destino_ids' => 'required|array|min:1',
+            'periodo_destino_ids.*' => 'exists:periodos,id',
+            'grado_destino_ids' => 'nullable|array',
+            'grado_destino_ids.*' => 'exists:grados,id',
+        ]);
+
+        if (! $request->grado_destino_ids && in_array($request->periodo_origen_id, $request->periodo_destino_ids)) {
+            return response()->json(['error' => 'El período de origen y los de destino deben ser distintos.'], 422);
+        }
+
+        try {
+            $criterios = Materiacriterio::with('periodoBimestre')->find($request->criterio_ids);
+
+            // --- Planificar clonación ---
+            $plan = $this->planificarClonacion($criterios, $request->periodo_destino_ids, $request->grado_destino_ids);
+
+            $tuvoDuplicados = $plan['duplicados'] > 0;
+
+            // Fase 1: sin 'modo', solo devolver el plan para que la UI pregunte
+            if (! $request->has('modo')) {
+                return response()->json([
+                    'fase' => 1,
+                    'nuevos' => $plan['nuevos'],
+                    'duplicados' => $plan['duplicados'],
+                    'tuvo_duplicados' => $tuvoDuplicados,
+                ]);
+            }
+
+            // Fase 2: con 'modo', ejecutar la clonación
+            $crear = $plan['nuevos'];
+            if ($request->modo === 'con_duplicados') {
+                $crear = array_merge($crear, $plan['detalle_duplicados']);
+            }
+
+            if (empty($crear)) {
+                return response()->json([
+                    'fase' => 2,
+                    'creados' => 0,
+                    'omitidos' => $plan['duplicados'],
+                ]);
+            }
+
+            DB::beginTransaction();
+            foreach ($crear as $item) {
+                Materiacriterio::create([
+                    'materia_competencia_id' => $item['materia_competencia_id'],
+                    'materia_id' => $item['materia_id'],
+                    'grado_id' => $item['grado_id'],
+                    'periodo_bimestre_id' => $item['periodo_bimestre_id'],
+                    'nombre' => $item['nombre'],
+                    'descripcion' => $item['descripcion'],
+                ]);
+            }
+            DB::commit();
+
+            return response()->json([
+                'fase' => 2,
+                'creados' => count($crear),
+                'omitidos' => $plan['duplicados'],
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+
+            return response()->json(['error' => 'Error al clonar criterios: '.$e->getMessage()], 500);
+        }
+    }
+
+    private function planificarClonacion($criterios, $periodoDestinoIds, $gradoDestinoIds = null)
+    {
+        $nuevos = [];
+        $duplicadosDetalle = [];
+
+        // Mapa: periodo_destino_id => periodobimestres por valor de bimestre
+        $mapaDestino = [];
+        foreach ($periodoDestinoIds as $pid) {
+            $mapaDestino[$pid] = Periodobimestre::where('periodo_id', $pid)
+                ->get()
+                ->keyBy('bimestre');
+        }
+
+        foreach ($criterios as $criterio) {
+            $periodoBimestreOrigen = $criterio->periodoBimestre;
+            $bimestreValor = $periodoBimestreOrigen->bimestre ?? null;
+
+            foreach ($periodoDestinoIds as $pid) {
+                // Equivalencia de bimestres por valor (B1->B1..., BR->BR); si falta en destino, se omite
+                $destinoBimestre = $mapaDestino[$pid][$bimestreValor] ?? null;
+                if (! $destinoBimestre) {
+                    continue;
+                }
+
+                // Grados destino: modo grado usa los seleccionados; modo período conserva el grado del origen
+                $gradosDestino = $gradoDestinoIds ?: [$criterio->grado_id];
+
+                foreach ($gradosDestino as $gradoDestinoId) {
+                    $existe = Materiacriterio::where('materia_competencia_id', $criterio->materia_competencia_id)
+                        ->where('grado_id', $gradoDestinoId)
+                        ->where('periodo_bimestre_id', $destinoBimestre->id)
+                        ->where('nombre', $criterio->nombre)
+                        ->exists();
+
+                    $item = [
+                        'materia_competencia_id' => $criterio->materia_competencia_id,
+                        'materia_id' => $criterio->materia_id,
+                        'grado_id' => $gradoDestinoId,
+                        'periodo_bimestre_id' => $destinoBimestre->id,
+                        'nombre' => $criterio->nombre,
+                        'descripcion' => $criterio->descripcion,
+                    ];
+
+                    if ($existe) {
+                        $duplicadosDetalle[] = $item;
+                    } else {
+                        $nuevos[] = $item;
+                    }
+                }
+            }
+        }
+
+        return [
+            'nuevos' => $nuevos,
+            'duplicados' => count($duplicadosDetalle),
+            'detalle_duplicados' => $duplicadosDetalle,
+        ];
     }
 
     public function getBimestres($periodo_id)

@@ -33,7 +33,8 @@ class MayaController extends Controller
 
         // Si el usuario tiene rol admin o director se muestran periodos con estado '1' y '0'
         if ($user->hasRole('admin') || $user->hasRole('director')) {
-            $periodos = Periodo::orderBy('anio', 'desc')
+            $periodos = Periodo::where('tipo_periodo', 'año escolar')
+                ->orderBy('anio', 'desc')
                 ->orderBy('nombre')
                 ->get();
         }
@@ -47,7 +48,8 @@ class MayaController extends Controller
                     ->distinct()
                     ->pluck('periodo_id');
 
-                $periodos = Periodo::whereIn('id', $periodosIds)
+                $periodos = Periodo::where('tipo_periodo', 'año escolar')
+                    ->whereIn('id', $periodosIds)
                     ->orderBy('anio', 'desc')
                     ->orderBy('nombre')
                     ->get();
@@ -56,6 +58,7 @@ class MayaController extends Controller
             }
         } else {
             $periodos = Periodo::where('estado', 1)
+                ->where('tipo_periodo', 'año escolar')
                 ->orderBy('anio', 'desc')
                 ->orderBy('nombre')
                 ->get();
@@ -228,7 +231,10 @@ class MayaController extends Controller
             return $a->seccion <=> $b->seccion;
         })->values();
 
-        $periodos = Periodo::where('estado', 1)->orderBy('nombre')->get();
+        $periodos = Periodo::where('estado', 1)
+            ->where('tipo_periodo', 'año escolar')
+            ->orderBy('nombre')
+            ->get();
 
         return view('modulos.maya.create', compact('materias', 'docentes', 'grados', 'periodos'));
     }
@@ -294,7 +300,10 @@ class MayaController extends Controller
             return $a->seccion <=> $b->seccion;
         })->values(); // Re-indexa la colección después de ordenar
 
-        $periodos = Periodo::where('estado', 1)->orderBy('nombre')->get();
+        $periodos = Periodo::where('estado', 1)
+            ->where('tipo_periodo', 'año escolar')
+            ->orderBy('nombre')
+            ->get();
 
         return view('modulos.maya.edit', compact('maya', 'materias', 'docentes', 'grados', 'periodos'));
     }
@@ -329,25 +338,5 @@ class MayaController extends Controller
 
         return redirect()->route('maya.index', ['anio' => $anio])
             ->with('success', 'Maya eliminada exitosamente.');
-    }
-
-    public function dashboard(Request $request)
-    {
-        $user = auth()->user();
-        $anios = Cursogradosecnivanio::select('anio')->distinct()->orderBy('anio', 'desc')->pluck('anio');
-        $anioSeleccionado = $request->get('anio', date('Y'));
-
-        if ($user->hasRole('docente')) {
-            $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
-                ->where('docente_designado_id', $user->docente->id ?? 0)
-                ->orderBy('id')
-                ->get();
-        } else {
-            $mayas = Cursogradosecnivanio::where('anio', $anioSeleccionado)
-                ->orderBy('id')
-                ->get();
-        }
-
-        return view('modulos.maya.index', compact('mayas', 'anios', 'anioSeleccionado'));
     }
 }

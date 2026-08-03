@@ -21,9 +21,9 @@
             <a href="{{ route('materiacriterio.create') }}" class="btn btn-primary shadow-sm">
                 <i class="bi bi-plus-circle me-1"></i> Nuevo Criterio
             </a>
-            <a href="{{ route('materiacriterio.importarPeriodoAnterior') }}" class="btn btn-info shadow-sm">
-                <i class="bi bi-arrow-down-circle me-1"></i> Importar desde otro Periodo
-            </a>
+            <button type="button" class="btn btn-outline-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalClonarCriterio">
+                <i class="bi bi-copy me-1"></i> Clonar Criterio
+            </button>
         </div>
     </div>
 
@@ -215,11 +215,11 @@
                         }
                     @endphp
 
-                    @foreach($materiasAgrupadas as $materiaNombre => $grados)
+                    @foreach($materiasAgrupadas as $materiaNombre => $gradosPorMateria)
                         @php
                             $materiaId = Str::slug($materiaNombre, '-') . '-' . $loop->index;
                             $totalCriteriosMateria = 0;
-                            foreach($grados as $competencias) {
+                            foreach($gradosPorMateria as $competencias) {
                                 foreach($competencias as $criterios) {
                                     $totalCriteriosMateria += count($criterios);
                                 }
@@ -240,7 +240,7 @@
 
                             <div id="materia{{ $materiaId }}" class="collapse">
                                 <div class="card-body p-0">
-                                    @foreach($grados as $gradoNombre => $competencias)
+                                    @foreach($gradosPorMateria as $gradoNombre => $competencias)
                                         @php
                                             $gradoId = Str::slug($gradoNombre, '-') . '-' . $loop->parent->index . '-' . $loop->index;
                                             $totalCriteriosGrado = 0;
@@ -361,6 +361,160 @@
                     </div>
                 </div>
             @endif
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalClonarCriterio" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-copy me-2 text-primary"></i>Clonar Criterios
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-light border mb-3">
+                    <i class="bi bi-info-circle text-primary me-2"></i>
+                    Selecciona el período de origen y los períodos de destino. Los criterios se clonarán respetando la equivalencia de bimestres.
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-calendar-event me-1"></i>Modo de clonación
+                        </label>
+                        <div class="border rounded p-3 bg-light">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="modo_clonar" id="modoPeriodo" value="periodo" checked>
+                                <label class="form-check-label" for="modoPeriodo">Por período</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="modo_clonar" id="modoGrado" value="grado">
+                                <label class="form-check-label" for="modoGrado">Por grado</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-calendar2-arrow-up me-1"></i>Período de origen *
+                        </label>
+                        <select id="clonarPeriodoOrigen" class="form-select shadow-sm">
+                            <option value="">Seleccione...</option>
+                            @foreach($periodos as $periodo)
+                                <option value="{{ $periodo->id }}">{{ $periodo->nombre }} ({{ $periodo->anio }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3" id="columnaGradoOrigen" style="display: none;">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-mortarboard me-1"></i>Grado de origen *
+                        </label>
+                        <select id="clonarGradoOrigen" class="form-select shadow-sm">
+                            <option value="">Todos los grados</option>
+                            @foreach($grados as $grado)
+                                <option value="{{ $grado->id }}">{{ $grado->nombreCompleto }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3" id="columnaGradosDestino" style="display: none;">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-mortarboard me-1"></i>Grados de destino * (multi)
+                        </label>
+                        <select id="clonarGradosDestino" class="form-select shadow-sm" multiple size="5">
+                            @foreach($grados as $grado)
+                                <option value="{{ $grado->id }}">{{ $grado->nombreCompleto }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Mantén Ctrl para elegir varios</small>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-calendar2-arrow-down me-1"></i>Períodos de destino * (multi)
+                        </label>
+                        <select id="clonarPeriodosDestino" class="form-select shadow-sm" multiple size="5">
+                            @foreach($periodos as $periodo)
+                                <option value="{{ $periodo->id }}">{{ $periodo->nombre }} ({{ $periodo->anio }})</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Mantén Ctrl para elegir varios</small>
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-2">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small">
+                            <i class="bi bi-book me-1"></i>Filtrar por materia
+                        </label>
+                        <select id="clonarFiltroMateria" class="form-select form-select-sm shadow-sm">
+                            <option value="">Todos las materias</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small">
+                            <i class="bi bi-star me-1"></i>Filtrar por competencia
+                        </label>
+                        <select id="clonarFiltroCompetencia" class="form-select form-select-sm shadow-sm" disabled>
+                            <option value="">Todas las competencias</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small">
+                            <i class="bi bi-collection me-1"></i>Filtrar por bimestre
+                        </label>
+                        <select id="clonarFiltroBimestre" class="form-select form-select-sm shadow-sm">
+                            <option value="">Todos los bimestres</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="clonarSeleccionarTodos" checked>
+                    <label class="form-check-label fw-semibold" for="clonarSeleccionarTodos">
+                        <i class="bi bi-check2-square me-1"></i>Seleccionar todos los criterios
+                    </label>
+                </div>
+
+                <div id="arbolCriteriosOrigen" class="border rounded p-3 bg-white" style="max-height: 400px; overflow-y: auto;">
+                    <p class="text-muted text-center my-5">
+                        <i class="bi bi-arrow-left me-2"></i>Selecciona el período de origen para cargar los criterios
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnClonarCriterios" disabled>
+                    <i class="bi bi-copy me-1"></i> Continuar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalConfirmarDuplicados" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>Se encontraron duplicados
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Algunos criterios ya existen en los períodos de destino.</p>
+                <p class="mb-0"><strong id="textoDuplicados"></strong></p>
+                <hr>
+                <p class="mb-0 text-muted">¿Cómo deseas continuar?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" id="btnSinDuplicar">
+                    <i class="bi bi-check-circle me-1"></i> Continuar sin duplicar
+                </button>
+                <button type="button" class="btn btn-warning" id="btnConDuplicados">
+                    <i class="bi bi-exclamation-triangle me-1"></i> Proceder con duplicados
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -512,6 +666,373 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // --- Clonar Criterios ---
+    const clonarPeriodoOrigen = document.getElementById('clonarPeriodoOrigen');
+    const clonarGradoOrigen = document.getElementById('clonarGradoOrigen');
+    const clonarPeriodosDestino = document.getElementById('clonarPeriodosDestino');
+    const clonarGradosDestino = document.getElementById('clonarGradosDestino');
+    const columnaGradoOrigen = document.getElementById('columnaGradoOrigen');
+    const columnaGradosDestino = document.getElementById('columnaGradosDestino');
+    const arbolCriteriosOrigen = document.getElementById('arbolCriteriosOrigen');
+    const btnClonarCriterios = document.getElementById('btnClonarCriterios');
+    const clonarSeleccionarTodos = document.getElementById('clonarSeleccionarTodos');
+    const csrfToken = '{{ csrf_token() }}';
+
+    let criteriosSeleccionados = [];
+    let arbolData = {};
+
+    function modoClonarActual() {
+        return document.querySelector('input[name="modo_clonar"]:checked')?.value || 'periodo';
+    }
+
+    function refrescarEstadoClonar() {
+        const modo = modoClonarActual();
+        const valido = clonarPeriodoOrigen.value
+            && clonarPeriodosDestino.selectedOptions.length > 0
+            && (modo === 'periodo' || clonarGradosDestino.selectedOptions.length > 0)
+            && criteriosSeleccionados.length > 0;
+        btnClonarCriterios.disabled = !valido;
+        columnaGradoOrigen.style.display = modo === 'grado' ? '' : 'none';
+        columnaGradosDestino.style.display = modo === 'grado' ? '' : 'none';
+    }
+
+    async function cargarArbolOrigen() {
+        const periodoId = clonarPeriodoOrigen.value;
+        arbolCriteriosOrigen.innerHTML = '<p class="text-muted text-center my-4">Cargando criterios...</p>';
+        criteriosSeleccionados = [];
+        clonarSeleccionarTodos.checked = true;
+
+        if (!periodoId) {
+            arbolCriteriosOrigen.innerHTML = '<p class="text-muted text-center my-5">Selecciona el período de origen</p>';
+            refrescarEstadoClonar();
+            return;
+        }
+
+        try {
+            let url = '{{ route("materiacriterio.origen", ["periodo_id" => "PERIODO_ID"]) }}'.replace('PERIODO_ID', periodoId);
+
+            const modo = modoClonarActual();
+            if (modo === 'grado' && clonarGradoOrigen.value) {
+                url += '/' + clonarGradoOrigen.value;
+            }
+
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (data.error) {
+                arbolCriteriosOrigen.innerHTML = '<p class="text-danger text-center my-4">' + data.error + '</p>';
+                refrescarEstadoClonar();
+                return;
+            }
+
+            arbolData = data.arbol || {};
+            const total = Object.values(arbolData).reduce((acc, comps) =>
+                acc + Object.values(comps).reduce((acc2, crits) => acc2 + crits.length, 0), 0);
+
+            if (total === 0) {
+                arbolCriteriosOrigen.innerHTML = '<p class="text-muted text-center my-4">No hay criterios en el período de origen.</p>';
+                refrescarEstadoClonar();
+                return;
+            }
+
+            poblarFiltros();
+            renderizarArbol();
+            refrescarEstadoClonar();
+        } catch (e) {
+            arbolCriteriosOrigen.innerHTML = '<p class="text-danger text-center my-4">Error al cargar los criterios.</p>';
+            refrescarEstadoClonar();
+        }
+    }
+
+    function poblarFiltros() {
+        const filtroMateria = document.getElementById('clonarFiltroMateria');
+        const filtroCompetencia = document.getElementById('clonarFiltroCompetencia');
+        const filtroBimestre = document.getElementById('clonarFiltroBimestre');
+
+        filtroMateria.innerHTML = '<option value="">Todos las materias</option>';
+        filtroCompetencia.innerHTML = '<option value="">Todas las competencias</option>';
+        filtroBimestre.innerHTML = '<option value="">Todos los bimestres</option>';
+
+        const materias = new Set();
+        const bimestres = new Set();
+        const materiasAprobadas = new Map(); // materia_id => nombre
+
+        for (const [materiaNombre, competencias] of Object.entries(arbolData)) {
+            materias.add(materiaNombre);
+            for (const [compNombre, criterios] of Object.entries(competencias)) {
+                criterios.forEach(c => {
+                    if (c.materia_id) materiasAprobadas.set(String(c.materia_id), materiaNombre);
+                    if (c.bimestre) bimestres.add(c.bimestre);
+                });
+            }
+        }
+
+        materias.forEach(nombre => {
+            const opt = document.createElement('option');
+            opt.value = nombre;
+            opt.textContent = nombre;
+            filtroMateria.appendChild(opt);
+        });
+
+        bimestres.forEach(sigla => {
+            const opt = document.createElement('option');
+            opt.value = sigla;
+            opt.textContent = sigla;
+            filtroBimestre.appendChild(opt);
+        });
+
+        filtroCompetencia.disabled = true;
+        filtroMateria.value = '';
+        filtroBimestre.value = '';
+    }
+
+    function poblarCompetencias() {
+        const filtroMateria = document.getElementById('clonarFiltroMateria');
+        const filtroCompetencia = document.getElementById('clonarFiltroCompetencia');
+        const materiaSeleccionada = filtroMateria.value;
+
+        filtroCompetencia.innerHTML = '<option value="">Todas las competencias</option>';
+
+        if (!materiaSeleccionada) {
+            filtroCompetencia.disabled = true;
+            return;
+        }
+
+        const competencias = Object.keys(arbolData[materiaSeleccionada] || {});
+        competencias.forEach(nombre => {
+            const opt = document.createElement('option');
+            opt.value = nombre;
+            opt.textContent = nombre;
+            filtroCompetencia.appendChild(opt);
+        });
+        filtroCompetencia.disabled = competencias.length === 0;
+    }
+
+    function renderizarArbol() {
+        const filtroMateria = document.getElementById('clonarFiltroMateria');
+        const filtroCompetencia = document.getElementById('clonarFiltroCompetencia');
+        const filtroBimestre = document.getElementById('clonarFiltroBimestre');
+
+        const fMateria = filtroMateria.value;
+        const fCompetencia = filtroCompetencia.value;
+        const fBimestre = filtroBimestre.value;
+
+        let html = '<div class="fw-bold mb-2">Criterios de origen</div>';
+        let index = 0;
+
+        for (const [materiaNombre, competencias] of Object.entries(arbolData)) {
+            if (fMateria && materiaNombre !== fMateria) continue;
+
+            html += '<div class="border rounded mb-2">'
+                + '<div class="bg-light px-3 py-2 fw-semibold d-flex justify-content-between align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#clonMateria' + index + '">'
+                + '<span><i class="bi bi-journal-bookmark-fill text-primary me-2"></i>' + materiaNombre + '</span>'
+                + '<span class="form-check form-switch m-0"><input class="form-check-input clonar-selectall-materia" type="checkbox" data-materia="' + materiaNombre + '" checked></span>'
+                + '</div>'
+                + '<div class="collapse show clonMateriaBody" id="clonMateria' + index + '" data-materia="' + materiaNombre + '">';
+
+            for (const [competenciaNombre, criteriosArr] of Object.entries(competencias)) {
+                if (fCompetencia && competenciaNombre !== fCompetencia) continue;
+
+                const critsFiltrados = criteriosArr.filter(c => !fBimestre || c.bimestre === fBimestre);
+                if (critsFiltrados.length === 0) continue;
+
+                html += '<div class="px-3 py-1 competencia-nodo" data-materia="' + materiaNombre + '" data-competencia="' + competenciaNombre + '">'
+                    + '<div class="fw-semibold text-secondary small py-1 d-flex justify-content-between align-items-center">'
+                    + '<span><i class="bi bi-star-fill me-1"></i>' + competenciaNombre + '</span>'
+                    + '<span class="form-check form-switch m-0"><input class="form-check-input clonar-selectall-competencia" type="checkbox" data-materia="' + materiaNombre + '" data-competencia="' + competenciaNombre + '" checked></span>'
+                    + '</div>'
+                    + '<div class="ps-3">';
+
+                critsFiltrados.forEach(criterio => {
+                    html += '<div class="form-check mb-1">'
+                        + '<input class="form-check-input criterio-origen-check" type="checkbox" value="' + criterio.id + '" data-nombre="' + (criterio.nombre || '') + '" checked>'
+                        + '<label class="form-check-label">' + criterio.nombre
+                        + ' <span class="badge bg-secondary">' + criterio.grado + '</span>'
+                        + ' <span class="badge bg-warning text-dark">' + criterio.bimestre + '</span>'
+                        + '</label></div>';
+                });
+
+                html += '</div></div>';
+            }
+
+            html += '</div></div>';
+            index++;
+        }
+
+        arbolCriteriosOrigen.innerHTML = html;
+
+        arbolCriteriosOrigen.querySelectorAll('.criterio-origen-check').forEach(cb => {
+            cb.addEventListener('change', recogerCriteriosSeleccionados);
+        });
+        arbolCriteriosOrigen.querySelectorAll('.clonar-selectall-materia').forEach(cb => {
+            cb.addEventListener('change', function() {
+                const materia = cb.getAttribute('data-materia');
+                arbolCriteriosOrigen.querySelectorAll('.competencia-nodo').forEach(nodo => {
+                    if (nodo.getAttribute('data-materia') === materia) {
+                        const box = nodo.querySelector('.clonar-selectall-competencia');
+                        if (box) box.checked = cb.checked;
+                        nodo.querySelectorAll('.criterio-origen-check').forEach(c => c.checked = cb.checked);
+                    }
+                });
+                recogerCriteriosSeleccionados();
+            });
+        });
+        arbolCriteriosOrigen.querySelectorAll('.clonar-selectall-competencia').forEach(cb => {
+            cb.addEventListener('change', function() {
+                const materia = cb.getAttribute('data-materia');
+                const competencia = cb.getAttribute('data-competencia');
+                arbolCriteriosOrigen.querySelectorAll('.competencia-nodo').forEach(nodo => {
+                    if (nodo.getAttribute('data-materia') === materia && nodo.getAttribute('data-competencia') === competencia) {
+                        nodo.querySelectorAll('.criterio-origen-check').forEach(c => c.checked = cb.checked);
+                    }
+                });
+                recogerCriteriosSeleccionados();
+            });
+        });
+        arbolCriteriosOrigen.querySelectorAll('[data-bs-toggle="collapse"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const chevron = this.querySelector('.bi-chevron-down, .bi-chevron-up');
+                if (chevron) {
+                    const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                    chevron.classList.remove(isExpanded ? 'bi-chevron-up' : 'bi-chevron-down');
+                    chevron.classList.add(isExpanded ? 'bi-chevron-down' : 'bi-chevron-up');
+                }
+            });
+        });
+
+        if (clonarSeleccionarTodos) clonarSeleccionarTodos.checked = true;
+        recogerCriteriosSeleccionados();
+    }
+
+    function recogerCriteriosSeleccionados() {
+        criteriosSeleccionados = Array.from(document.querySelectorAll('.criterio-origen-check:checked')).map(cb => cb.value);
+        const totalCbs = document.querySelectorAll('.criterio-origen-check').length;
+        const marcados = document.querySelectorAll('.criterio-origen-check:checked').length;
+        if (clonarSeleccionarTodos) {
+            clonarSeleccionarTodos.checked = totalCbs > 0 && marcados === totalCbs;
+            clonarSeleccionarTodos.indeterminate = marcados > 0 && marcados < totalCbs;
+        }
+        refrescarEstadoClonar();
+    }
+
+    if (clonarSeleccionarTodos) {
+        clonarSeleccionarTodos.addEventListener('change', function() {
+            document.querySelectorAll('.criterio-origen-check').forEach(cb => {
+                cb.checked = clonarSeleccionarTodos.checked;
+            });
+            recogerCriteriosSeleccionados();
+        });
+    }
+
+    if (clonarPeriodoOrigen) {
+        clonarPeriodoOrigen.addEventListener('change', cargarArbolOrigen);
+    }
+    if (clonarGradoOrigen) {
+        clonarGradoOrigen.addEventListener('change', cargarArbolOrigen);
+    }
+    document.querySelectorAll('input[name="modo_clonar"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            refrescarEstadoClonar();
+            cargarArbolOrigen();
+        });
+    });
+    if (clonarPeriodosDestino) {
+        clonarPeriodosDestino.addEventListener('change', refrescarEstadoClonar);
+    }
+    if (clonarGradosDestino) {
+        clonarGradosDestino.addEventListener('change', refrescarEstadoClonar);
+    }
+
+    const filtroMateria = document.getElementById('clonarFiltroMateria');
+    const filtroCompetencia = document.getElementById('clonarFiltroCompetencia');
+    const filtroBimestre = document.getElementById('clonarFiltroBimestre');
+
+    if (filtroMateria) {
+        filtroMateria.addEventListener('change', function() {
+            poblarCompetencias();
+            renderizarArbol();
+        });
+    }
+    if (filtroCompetencia) {
+        filtroCompetencia.addEventListener('change', renderizarArbol);
+    }
+    if (filtroBimestre) {
+        filtroBimestre.addEventListener('change', renderizarArbol);
+    }
+
+    async function ejecutarClonacion(modo) {
+        const payload = {
+            _token: csrfToken,
+            modo: modo,
+            periodo_origen_id: clonarPeriodoOrigen.value,
+            criterio_ids: criteriosSeleccionados,
+            periodo_destino_ids: Array.from(clonarPeriodosDestino.selectedOptions).map(o => o.value),
+        };
+
+        if (modoClonarActual() === 'grado' && clonarGradosDestino.selectedOptions.length > 0) {
+            payload.grado_destino_ids = Array.from(clonarGradosDestino.selectedOptions).map(o => o.value);
+        }
+
+        try {
+            const res = await fetch('{{ route("materiacriterio.clonar") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.error || 'Error al clonar criterios.');
+                return;
+            }
+
+            if (data.fase === 1) {
+                const sinDuplicados = (data.duplicados || 0) === 0;
+                if (sinDuplicados) {
+                    await ejecutarClonacion('sin_duplicados');
+                } else {
+                    document.getElementById('textoDuplicados').innerText =
+                        data.nuevos + ' criterio(s) nuevo(s) y ' + data.duplicados + ' criterio(s) duplicado(s).';
+                    const modalDuplicados = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalConfirmarDuplicados'));
+                    modalDuplicados.show();
+                    window.__clonarModo = null;
+                }
+                return;
+            }
+
+            const msg = 'Clonación completada: ' + (data.creados || 0) + ' criterio(s) creado(s), '
+                + (data.omitidos || 0) + ' omitido(s).';
+            alert(msg);
+            bootstrap.Modal.getInstance(document.getElementById('modalClonarCriterio'))?.hide();
+            window.location.reload();
+        } catch (e) {
+            alert('Error de conexión al clonar criterios.');
+        }
+    }
+
+    if (btnClonarCriterios) {
+        btnClonarCriterios.addEventListener('click', function() {
+            ejecutarClonacion(null);
+        });
+    }
+
+    const btnSinDuplicar = document.getElementById('btnSinDuplicar');
+    const btnConDuplicados = document.getElementById('btnConDuplicados');
+    if (btnSinDuplicar) {
+        btnSinDuplicar.addEventListener('click', function() {
+            bootstrap.Modal.getInstance(document.getElementById('modalConfirmarDuplicados'))?.hide();
+            ejecutarClonacion('sin_duplicados');
+        });
+    }
+    if (btnConDuplicados) {
+        btnConDuplicados.addEventListener('click', function() {
+            bootstrap.Modal.getInstance(document.getElementById('modalConfirmarDuplicados'))?.hide();
+            ejecutarClonacion('con_duplicados');
+        });
+    }
+
+    refrescarEstadoClonar();
 });
 </script>
 

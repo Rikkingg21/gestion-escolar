@@ -172,7 +172,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/materia-criterio/importar', [MateriaCriterioController::class, 'importar'])->name('materiacriterio.importar');
     Route::post('/materia-criterio/importar/criterio', [MateriaCriterioController::class, 'importarCriterio'])->name('importar.criterio');
 
-    Route::get('/materia-criterio/importar-periodo-anterior', [MateriaCriterioController::class, 'importarPeriodo'])->name('materiacriterio.importarPeriodoAnterior');
+    Route::get('/materia-criterio/origen/{periodo_id}/{grado_id?}', [MateriaCriterioController::class, 'criteriosOrigen'])->name('materiacriterio.origen');
+    Route::post('/materia-criterio/clonar', [MateriaCriterioController::class, 'clonar'])->name('materiacriterio.clonar');
 
     Route::get('/materia-criterio', [MateriaCriterioController::class, 'index'])->name('materiacriterio.index');
     Route::get('/materia-criterio/create', [MateriaCriterioController::class, 'create'])->name('materiacriterio.create');
