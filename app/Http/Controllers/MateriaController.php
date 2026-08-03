@@ -32,12 +32,6 @@ class MateriaController extends Controller
         return view('materia.index', compact('materiasActivas', 'materiasInactivas'));
     }
 
-    public function create()
-    {
-
-        return view('materia.create');
-    }
-
     public function store(Request $request)
     {
         $request->validate([
@@ -51,13 +45,6 @@ class MateriaController extends Controller
         Materia::create($data);
 
         return redirect()->route('materia.index')->with('success', 'Materia creada exitosamente.');
-    }
-
-    public function edit($id)
-    {
-        $materia = Materia::findOrFail($id);
-
-        return view('materia.edit', compact('materia'));
     }
 
     public function update(Request $request, Materia $materia)

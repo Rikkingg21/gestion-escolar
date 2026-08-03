@@ -16,7 +16,6 @@ use App\Models\Periodobimestre;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Maatwebsite\Excel\Facades\Excel;
 
 class NotaController extends Controller
 {

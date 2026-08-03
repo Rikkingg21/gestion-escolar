@@ -80,9 +80,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/periodo/{id}', [PeriodoController::class, 'destroy'])->name('periodo.destroy');
 
     Route::get('/periodo/{nombre_periodo}/bimestres', [PeriodobimestreController::class, 'index'])->name('periodobimestre.index');
-    Route::get('/periodo/{nombre_periodo}/bimestres/create', [PeriodobimestreController::class, 'create'])->name('periodobimestre.create');
     Route::post('/periodo/{nombre_periodo}/bimestres', [PeriodobimestreController::class, 'store'])->name('periodobimestre.store');
-    Route::get('/periodo/{nombre_periodo}/bimestres/{id}/edit', [PeriodobimestreController::class, 'edit'])->name('periodobimestre.edit');
     Route::put('/periodo/{nombre_periodo}/bimestres/{id}', [PeriodobimestreController::class, 'update'])->name('periodobimestre.update');
     Route::delete('/periodo/{nombre_periodo}/bimestres/{id}', [PeriodobimestreController::class, 'destroy'])->name('periodobimestre.destroy');
 
@@ -90,10 +88,6 @@ Route::middleware('auth')->group(function () {
         return redirect()->route('matricula.index', ['nombre' => 'anioActual']);
     });
     Route::get('/matricula/{nombre}', [MatriculaController::class, 'index'])->name('matricula.index');
-    Route::get('/matricula/create', [MatriculaController::class, 'create'])->name('matricula.create');
-    Route::get('/matricula/{id}/edit', [MatriculaController::class, 'edit'])->name('matricula.edit');
-    Route::put('/matricula/{id}', [MatriculaController::class, 'update'])->name('matricula.update');
-    Route::delete('/matricula/{id}', [MatriculaController::class, 'destroy'])->name('matricula.destroy');
     Route::get('/matricula/grado/{nombre}/{grado_id}', [MatriculaController::class, 'grado'])->name('matricula.grado');
     Route::post('/matricula', [MatriculaController::class, 'store'])->name('matricula.store');
     Route::post('/matricula/masiva', [MatriculaController::class, 'matricularMasivamente'])->name('matricula.masiva');
@@ -105,7 +99,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/maya/{id}/edit', [MayaController::class, 'edit'])->name('maya.edit');
     Route::put('/maya/{id}', [MayaController::class, 'update'])->name('maya.update');
     Route::delete('/maya/{id}', [MayaController::class, 'destroy'])->name('maya.destroy');
-    Route::get('/maya/dashboard', [MayaController::class, 'dashboard'])->name('maya.dashboard');
 
     Route::get('/nota/{curso_grado_sec_niv_anio_id}/{periodo_bimestre_id}', [NotaController::class, 'index'])->name('nota.index');
     Route::post('/nota-guardar', [NotaController::class, 'guardarNotas'])->name('nota.guardarNotas');
@@ -146,16 +139,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/estudiante/recuperacion-competencias/{estudianteId}/{periodoRecuperacionId}', [GradoController::class, 'getCompetenciasRecuperacion'])->name('estudiante.recuperacion.competencias');
     Route::get('/estudiante/datos/{estudianteId}', [GradoController::class, 'getDatosEstudiante'])->name('estudiante.datos');
 
-    Route::get('/grado/create', [GradoController::class, 'create'])->name('grado.create');
     Route::post('/grado', [GradoController::class, 'store'])->name('grado.store');
-    Route::get('/grado/{id}/edit', [GradoController::class, 'edit'])->name('grado.edit');
     Route::put('/grado/{grado}', [GradoController::class, 'update'])->name('grado.update');
     Route::delete('/grado/{id}', [GradoController::class, 'destroy'])->name('grado.destroy');
 
     Route::get('/materia', [MateriaController::class, 'index'])->name('materia.index');
-    Route::get('/materia/create', [MateriaController::class, 'create'])->name('materia.create');
     Route::post('/materia', [MateriaController::class, 'store'])->name('materia.store');
-    Route::get('/materia/{id}/edit', [MateriaController::class, 'edit'])->name('materia.edit');
     Route::put('/materia/{materia}', [MateriaController::class, 'update'])->name('materia.update');
     Route::delete('/materia/{id}', [MateriaController::class, 'destroy'])->name('materia.destroy');
 
@@ -210,7 +199,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/reporte/create', [ReporteController::class, 'create'])->name('reporte.create');
     Route::get('/reporte/{id}', [ReporteController::class, 'show'])->name('reporte.show');
     Route::post('/reporte', [ReporteController::class, 'store'])->name('reporte.store');
-    Route::get('/reporte/{id}/edit', [ReporteController::class, 'edit'])->name('reporte.edit');
     Route::put('/reporte/{reporte}', [ReporteController::class, 'update'])->name('reporte.update');
     Route::delete('/reporte/{id}', [ReporteController::class, 'destroy'])->name('reporte.destroy');
 
