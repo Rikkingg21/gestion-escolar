@@ -28,14 +28,14 @@ WORKDIR /var/www/html
 
 COPY . /var/www/html
 
+COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 RUN mkdir -p storage/framework/cache/data \
         storage/framework/sessions \
         storage/framework/views \
-        storage/logs \
-    && chown -R www-data:www-data /var/www/html
-
-USER www-data
+        storage/logs
 
 EXPOSE 9000
 
-CMD ["php-fpm"]
+CMD ["entrypoint.sh"]
