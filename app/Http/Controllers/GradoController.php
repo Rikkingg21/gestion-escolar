@@ -471,8 +471,7 @@ class GradoController extends Controller
         if (empty($materiasArray)) {
             return view('grado.gradoestudiantes', compact(
                 'grado', 'aniosDisponibles', 'anioSeleccionado',
-                'periodoAcademico', 'periodoRecuperacion',
-                'estudiantesMatriculados', 'estudiantesNoMatriculados'
+                'periodoAcademico', 'periodoRecuperacion'
             ) + ['estudiantesMatriculados' => collect(), 'estudiantesNoMatriculados' => $estudiantesRegistrados]);
         }
 
