@@ -7,10 +7,10 @@
             <div class="card shadow">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-cubes me-2"></i>Asignar Módulos al Rol: {{ $role->nombre }}
+                        <i class="bi bi-boxes me-2"></i>Asignar Módulos al Rol: {{ $role->nombre }}
                     </h5>
                     <a href="{{ route('role.index') }}" class="btn btn-light btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i>Volver a Roles
+                        <i class="bi bi-arrow-left me-1"></i>Volver a Roles
                     </a>
                 </div>
                 <div class="card-body">
@@ -20,19 +20,19 @@
                             <div class="alert alert-info">
                                 <div class="row">
                                     <div class="col-md-4">
-                                        <strong><i class="fas fa-id-card me-1"></i>ID:</strong> {{ $role->id }}
+                                        <strong><i class="bi bi-person-vcard me-1"></i>ID:</strong> {{ $role->id }}
                                     </div>
                                     <div class="col-md-4">
-                                        <strong><i class="fas fa-users me-1"></i>Usuarios:</strong> {{ $role->users()->count() }}
+                                        <strong><i class="bi bi-people me-1"></i>Usuarios:</strong> {{ $role->users()->count() }}
                                     </div>
                                     <div class="col-md-4">
-                                        <strong><i class="fas fa-cube me-1"></i>Módulos asignados:</strong> {{ $modulesAsignados->count() }}
+                                        <strong><i class="bi bi-box me-1"></i>Módulos asignados:</strong> {{ $modulesAsignados->count() }}
                                     </div>
                                 </div>
                                 @if($role->descripcion)
                                 <div class="row mt-2">
                                     <div class="col-12">
-                                        <strong><i class="fas fa-align-left me-1"></i>Descripción:</strong> {{ $role->descripcion }}
+                                        <strong><i class="bi bi-text-left me-1"></i>Descripción:</strong> {{ $role->descripcion }}
                                     </div>
                                 </div>
                                 @endif
@@ -46,7 +46,7 @@
                             <div class="card border-success">
                                 <div class="card-header bg-success text-white">
                                     <h6 class="mb-0">
-                                        <i class="fas fa-check-circle me-1"></i>Módulos Asignados
+                                        <i class="bi bi-check-circle me-1"></i>Módulos Asignados
                                         <span class="badge bg-light text-success ms-1">{{ $modulesAsignados->count() }}</span>
                                     </h6>
                                 </div>
@@ -78,7 +78,7 @@
                                         </div>
                                     @else
                                         <div class="text-center py-4">
-                                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                            <i class="bi bi-inbox fs-1 text-muted mb-3"></i>
                                             <p class="text-muted mb-0">No hay módulos asignados a este rol.</p>
                                         </div>
                                     @endif
@@ -91,7 +91,7 @@
                             <div class="card border-primary">
                                 <div class="card-header bg-primary text-white">
                                     <h6 class="mb-0">
-                                        <i class="fas fa-plus-circle me-1"></i>Módulos Disponibles
+                                        <i class="bi bi-plus-circle me-1"></i>Módulos Disponibles
                                         <span class="badge bg-light text-primary ms-1">{{ $modulesDisponibles->count() }}</span>
                                     </h6>
                                 </div>
@@ -115,7 +115,7 @@
                                                         <input type="hidden" name="module_id" value="{{ $module->id }}">
                                                         <input type="hidden" name="estado" value="1">
                                                         <button type="submit" class="btn btn-outline-success btn-sm">
-                                                            <i class="fas fa-plus"></i> Asignar
+                                                            <i class="bi bi-plus"></i> Asignar
                                                         </button>
                                                     </form>
                                                 </div>
@@ -123,7 +123,7 @@
                                         </div>
                                     @else
                                         <div class="text-center py-4">
-                                            <i class="fas fa-check-circle fa-3x text-muted mb-3"></i>
+                                            <i class="bi bi-check-circle fs-1 text-muted mb-3"></i>
                                             <p class="text-muted mb-0">Todos los módulos están asignados.</p>
                                         </div>
                                     @endif
@@ -138,7 +138,7 @@
                             <div class="card border-warning">
                                 <div class="card-header bg-warning text-dark">
                                     <h6 class="mb-0">
-                                        <i class="fas fa-bolt me-1"></i>Asignación Rápida
+                                        <i class="bi bi-lightning me-1"></i>Asignación Rápida
                                     </h6>
                                 </div>
                                 <div class="card-body">
@@ -164,7 +164,7 @@
                                         </div>
                                         <div class="col-md-2 d-flex align-items-end">
                                             <button type="submit" class="btn btn-warning w-100">
-                                                <i class="fas fa-plus me-1"></i>Asignar
+                                                <i class="bi bi-plus me-1"></i>Asignar
                                             </button>
                                         </div>
                                     </form>

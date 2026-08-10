@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Tipos de Trámite')
 
 @section('content')
 <div class="container-fluid">
@@ -6,10 +7,10 @@
         <div class="card-header bg-primary text-white">
             <div class="d-flex justify-content-between align-items-center">
                 <h4 class="mb-0">
-                    <i class="fas fa-file-alt me-2"></i>Tipos de Trámites
+                    <i class="bi bi-file-earmark-text me-2"></i>Tipos de Trámites
                 </h4>
                 <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#modalCreate">
-                    <i class="fas fa-plus me-1"></i> Nuevo Tipo
+                    <i class="bi bi-plus me-1"></i> Nuevo Tipo
                 </button>
             </div>
         </div>
@@ -51,10 +52,10 @@
                             </td>
                             <td class="text-center">
                                 <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalEdit{{ $tipo->id }}">
-                                    <i class="fas fa-edit"></i> Editar
+                                    <i class="bi bi-pencil"></i> Editar
                                 </button>
                                 <button type="button" class="btn btn-sm btn-danger" onclick="eliminar({{ $tipo->id }}, '{{ $tipo->nombre }}')">
-                                    <i class="fas fa-trash"></i> Eliminar
+                                    <i class="bi bi-trash"></i> Eliminar
                                 </button>
                             </td>
                         </tr>

@@ -1,10 +1,16 @@
 @extends('layouts.app')
 @section('title', 'Crear Reporte')
 @section('content')
-<div class="container">
-    <h1 class="h3 mb-4 text-gray-800">Crear Reporte</h1>
-    <form action="{{ route('reporte.store') }}" method="POST">
-        @csrf
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-folder2 me-2"></i> Crear Reporte</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ route('reporte.store') }}" method="POST">
+                        @csrf
         <div class="form-group">
             <label for="materia_id">Materia (opcional)</label>
             <select name="materia_id" id="materia_id" class="form-control">
@@ -59,7 +65,11 @@
         <div class="form-group">
             <button type="submit" class="btn btn-primary">Guardar</button>
         </div>
-    </form>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>

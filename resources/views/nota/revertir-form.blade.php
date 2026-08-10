@@ -2,33 +2,29 @@
 @section('title', 'Revertir Estado de Notas')
 @section('content')
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="fas fa-undo"></i> Revertir Estado de Notas
-        </h1>
-    </div>
-
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 bg-warning">
-            <h6 class="m-0 font-weight-bold text-dark">
-                Confirmación de Reversión
-            </h6>
-        </div>
-        <div class="card-body">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-arrow-counterclockwise me-2"></i> Revertir Estado de Notas
+                    </h5>
+                </div>
+                <div class="card-body">
             <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle"></i>
+                <i class="bi bi-exclamation-triangle"></i>
                 <strong>Advertencia:</strong> Está a punto de revertir el estado de las notas. Esta acción requiere autenticación con la sesión principal.
             </div>
 
             <!-- Información de la sesión principal -->
             @if($sessionMainUser)
             <div class="alert alert-info">
-                <i class="fas fa-user-shield"></i>
+                <i class="bi bi-shield-lock"></i>
                 <strong>Sesión Principal Activa:</strong> {{ $sessionMainUser->nombre_usuario }}
             </div>
             @else
             <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle"></i>
+                <i class="bi bi-exclamation-circle"></i>
                 <strong>Error:</strong> No hay sesión principal activa.
             </div>
             @endif
@@ -71,11 +67,11 @@
 
                 <div class="form-group mt-4">
                     <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-undo"></i> Confirmar Reversión
+                        <i class="bi bi-arrow-counterclockwise"></i> Confirmar Reversión
                     </button>
                     <a href="{{ route('nota.index', ['curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id, 'periodo_bimestre_id' => $periodo_bimestre_id]) }}"
                        class="btn btn-secondary">
-                        <i class="fas fa-times"></i> Cancelar
+                        <i class="bi bi-x"></i> Cancelar
                     </a>
                 </div>
             </form>
@@ -85,9 +81,11 @@
             </div>
             <a href="{{ route('nota.index', ['curso_grado_sec_niv_anio_id' => $curso_grado_sec_niv_anio_id, 'periodo_bimestre_id' => $periodo_bimestre_id]) }}"
                class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Volver
+                <i class="bi bi-arrow-left"></i> Volver
             </a>
             @endif
+                </div>
+            </div>
         </div>
     </div>
 </div>

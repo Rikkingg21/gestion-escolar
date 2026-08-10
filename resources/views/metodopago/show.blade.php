@@ -1,18 +1,19 @@
 @extends('layouts.app')
+@section('title', 'Detalle de Método de Pago')
 
 @section('content')
 <div class="container-fluid">
     <div class="card shadow">
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <h4 class="mb-0">
-                <i class="fas fa-credit-card me-2"></i>{{ $tipopago->nombre }}
+                <i class="bi bi-credit-card me-2"></i>{{ $tipopago->nombre }}
             </h4>
             <div>
                 <a href="{{ route('metodopago.edit', $tipopago->id) }}" class="btn btn-light btn-sm">
-                    <i class="fas fa-edit me-1"></i>Editar
+                    <i class="bi bi-pencil me-1"></i>Editar
                 </a>
                 <a href="{{ route('metodopago.index') }}" class="btn btn-light btn-sm">
-                    <i class="fas fa-arrow-left me-1"></i>Volver
+                    <i class="bi bi-arrow-left me-1"></i>Volver
                 </a>
             </div>
         </div>

@@ -7,7 +7,7 @@
             <div class="card shadow">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
-                        <i class="fas fa-edit me-2"></i>Editar Periodo: {{ $periodo->nombre }}
+                        <i class="bi bi-pencil me-2"></i>Editar Periodo: {{ $periodo->nombre }}
                     </h5>
                 </div>
 
@@ -114,7 +114,7 @@
                         </div>
 
                         <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
+                            <i class="bi bi-info-circle me-2"></i>
                             <strong>Información adicional:</strong>
                             <ul class="mb-0 mt-2">
                                 <li>ID: <strong>{{ $periodo->id }}</strong></li>
@@ -122,7 +122,7 @@
                                 <li>Matrículas asociadas: <strong>{{ $periodo->matriculas()->count() }}</strong></li>
                                 @if($periodo->matriculas()->count() > 0)
                                     <li class="text-warning">
-                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                        <i class="bi bi-exclamation-triangle me-1"></i>
                                         <small>Cambiar año o tipo puede afectar matrículas existentes</small>
                                     </li>
                                 @endif
@@ -131,10 +131,10 @@
 
                         <div class="d-flex justify-content-between">
                             <a href="{{ route('periodo.index') }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-1"></i>Cancelar
+                                <i class="bi bi-arrow-left me-1"></i>Cancelar
                             </a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i>Actualizar Periodo
+                                <i class="bi bi-check-lg me-1"></i>Actualizar Periodo
                             </button>
                         </div>
                     </form>

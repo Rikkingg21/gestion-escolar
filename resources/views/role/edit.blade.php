@@ -7,10 +7,10 @@
             <div class="card shadow">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-edit me-2"></i>Editar Rol: {{ $role->nombre }}
+                        <i class="bi bi-pencil me-2"></i>Editar Rol: {{ $role->nombre }}
                     </h5>
                     <a href="{{ route('role.index') }}" class="btn btn-light btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i>Volver
+                        <i class="bi bi-arrow-left me-1"></i>Volver
                     </a>
                 </div>
                 <div class="card-body">
@@ -58,7 +58,7 @@
                             <div class="col-12">
                                 <div class="alert alert-info">
                                     <h6 class="alert-heading mb-2">
-                                        <i class="fas fa-info-circle me-1"></i>Información del Rol
+                                        <i class="bi bi-info-circle me-1"></i>Información del Rol
                                     </h6>
                                     <div class="row">
                                         <div class="col-md-4">
@@ -78,16 +78,16 @@
                         <div class="row mt-4">
                             <div class="col-12">
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-1"></i>Actualizar Rol
+                                    <i class="bi bi-check-lg me-1"></i>Actualizar Rol
                                 </button>
                                 <a href="{{ route('role.index') }}" class="btn btn-secondary">
-                                    <i class="fas fa-times me-1"></i>Cancelar
+                                    <i class="bi bi-x me-1"></i>Cancelar
                                 </a>
 
                                 @if($role->users()->count() == 0 && $role->modules()->count() == 0)
                                     <button type="button" class="btn btn-danger float-end"
                                             data-bs-toggle="modal" data-bs-target="#modalEliminar">
-                                        <i class="fas fa-trash me-1"></i>Eliminar Rol
+                                        <i class="bi bi-trash me-1"></i>Eliminar Rol
                                     </button>
                                 @endif
                             </div>
@@ -106,7 +106,7 @@
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Eliminación
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -114,7 +114,7 @@
                 <p>¿Está seguro que desea eliminar el rol <strong>{{ $role->nombre }}</strong>?</p>
                 <p class="text-danger mb-0">
                     <small>
-                        <i class="fas fa-info-circle me-1"></i>
+                        <i class="bi bi-info-circle me-1"></i>
                         Esta acción no se puede deshacer.
                     </small>
                 </p>

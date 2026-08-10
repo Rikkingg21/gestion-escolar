@@ -1,11 +1,12 @@
 @extends('layouts.app')
+@section('title', 'Crear Método de Pago')
 
 @section('content')
 <div class="container-fluid">
     <div class="card shadow">
         <div class="card-header bg-primary text-white">
             <h4 class="mb-0">
-                <i class="fas fa-plus me-2"></i>Nuevo Método de Pago
+                <i class="bi bi-plus me-2"></i>Nuevo Método de Pago
             </h4>
         </div>
 
@@ -108,10 +109,10 @@
 
                     <div class="col-12 text-end">
                         <a href="{{ route('metodopago.index') }}" class="btn btn-secondary">
-                            <i class="fas fa-times me-1"></i> Cancelar
+                            <i class="bi bi-x me-1"></i> Cancelar
                         </a>
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-1"></i> Guardar
+                            <i class="bi bi-check-lg me-1"></i> Guardar
                         </button>
                     </div>
                 </div>

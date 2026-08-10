@@ -1,16 +1,17 @@
 @extends('layouts.app')
+@section('title', 'Panel del Director')
 
 @section('content')
 <div class="container-fluid">
     <!-- Header -->
     <div class="d-sm-flex align-items-center justify-content-between mb-4 pb-3 border-bottom">
         <div>
-            <h1 class="h4 mb-0 text-gray-800">
-                <i class="fas fa-chalkboard-user text-primary me-2"></i>Dashboard Director
+            <h1 class="h4 mb-0 text-body">
+                <i class="bi bi-person-video3 text-primary me-2"></i>Dashboard Director
             </h1>
             <p class="text-muted small mb-0 mt-1">
-                <i class="fas fa-calendar-alt me-1"></i> {{ now()->format('d/m/Y H:i') }} |
-                <i class="fas fa-chart-bar me-1"></i> Análisis Institucional
+                <i class="bi bi-calendar3 me-1"></i> {{ now()->format('d/m/Y H:i') }} |
+                <i class="bi bi-bar-chart me-1"></i> Análisis Institucional
             </p>
         </div>
         <div class="mt-3 mt-sm-0">
@@ -59,7 +60,7 @@
     @if($periodoSeleccionado)
         <!-- Alert de periodo activo -->
         <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
-            <i class="fas fa-info-circle me-2"></i>
+            <i class="bi bi-info-circle me-2"></i>
             <strong>Periodo seleccionado:</strong> {{ $periodoSeleccionado->nombre }} ({{ $periodoSeleccionado->anio }})
             @if($bimestreSeleccionado)
                 <strong> | Bimestre:</strong> {{ $bimestreSeleccionado->sigla }} - {{ $bimestreSeleccionado->nombre ?? $bimestreSeleccionado->bimestre . '° Bimestre' }}
@@ -73,17 +74,17 @@
                 <div class="card border-left-primary shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                    <i class="fas fa-graduation-cap me-1"></i> Grados Activos
+                            <div class="col me-2">
+                                <div class="text-xs fw-bold text-primary text-uppercase mb-1">
+                                    <i class="bi bi-mortarboard me-1"></i> Grados Activos
                                 </div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                <div class="h5 mb-0 fw-bold text-body">
                                     {{ $estadisticas['total_grados'] }}
                                 </div>
                                 <small class="text-muted">Con estudiantes matriculados</small>
                             </div>
                             <div class="col-auto">
-                                <i class="fas fa-chalkboard fa-2x text-gray-300"></i>
+                                <i class="bi bi-easel fs-1 text-muted"></i>
                             </div>
                         </div>
                     </div>
@@ -94,17 +95,17 @@
                 <div class="card border-left-success shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                    <i class="fas fa-users me-1"></i> Estudiantes Matriculados
+                            <div class="col me-2">
+                                <div class="text-xs fw-bold text-success text-uppercase mb-1">
+                                    <i class="bi bi-people me-1"></i> Estudiantes Matriculados
                                 </div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                <div class="h5 mb-0 fw-bold text-body">
                                     {{ number_format($estadisticas['total_estudiantes']) }}
                                 </div>
                                 <small class="text-muted">En {{ $estadisticas['total_grados'] }} grados</small>
                             </div>
                             <div class="col-auto">
-                                <i class="fas fa-users fa-2x text-gray-300"></i>
+                                <i class="bi bi-people fs-1 text-muted"></i>
                             </div>
                         </div>
                     </div>
@@ -115,17 +116,17 @@
                 <div class="card border-left-info shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                    <i class="fas fa-book-open me-1"></i> Total Materias
+                            <div class="col me-2">
+                                <div class="text-xs fw-bold text-info text-uppercase mb-1">
+                                    <i class="bi bi-book me-1"></i> Total Materias
                                 </div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                <div class="h5 mb-0 fw-bold text-body">
                                     {{ number_format($estadisticas['total_materias']) }}
                                 </div>
                                 <small class="text-muted">Promedio por grado: {{ $estadisticas['total_grados'] > 0 ? round($estadisticas['total_materias'] / $estadisticas['total_grados'], 1) : 0 }}</small>
                             </div>
                             <div class="col-auto">
-                                <i class="fas fa-book fa-2x text-gray-300"></i>
+                                <i class="bi bi-book fs-1 text-muted"></i>
                             </div>
                         </div>
                     </div>
@@ -136,11 +137,11 @@
                 <div class="card border-left-warning shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                    <i class="fas fa-chart-line me-1"></i> Promedio General
+                            <div class="col me-2">
+                                <div class="text-xs fw-bold text-warning text-uppercase mb-1">
+                                    <i class="bi bi-graph-up me-1"></i> Promedio General
                                 </div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                <div class="h5 mb-0 fw-bold text-body">
                                     {{ number_format($estadisticas['promedio_general'], 2) }}
                                 </div>
                                 <small class="text-muted">
@@ -157,7 +158,7 @@
                                 </small>
                             </div>
                             <div class="col-auto">
-                                <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                                <i class="bi bi-graph-up fs-1 text-muted"></i>
                             </div>
                         </div>
                     </div>
@@ -171,17 +172,17 @@
                 <div class="card border-left-success shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                    <i class="fas fa-calendar-check me-1"></i> Total Asistencias
+                            <div class="col me-2">
+                                <div class="text-xs fw-bold text-success text-uppercase mb-1">
+                                    <i class="bi bi-calendar-check me-1"></i> Total Asistencias
                                 </div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                <div class="h5 mb-0 fw-bold text-body">
                                     {{ number_format($estadisticas['total_registros_asistencia'] ?? 0) }}
                                 </div>
                                 <small class="text-muted">Total de registros</small>
                             </div>
                             <div class="col-auto">
-                                <i class="fas fa-calendar-check fa-2x text-gray-300"></i>
+                                <i class="bi bi-calendar-check fs-1 text-muted"></i>
                             </div>
                         </div>
                     </div>
@@ -192,11 +193,11 @@
                 <div class="card border-left-warning shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                    <i class="fas fa-chart-pie me-1"></i> Desglose
+                            <div class="col me-2">
+                                <div class="text-xs fw-bold text-warning text-uppercase mb-1">
+                                    <i class="bi bi-pie-chart me-1"></i> Desglose
                                 </div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                <div class="h5 mb-0 fw-bold text-body">
                                     <span class="text-success">{{ number_format($estadisticas['total_puntualidad'] ?? 0) }}</span> /
                                     <span class="text-danger">{{ number_format($estadisticas['total_falta'] ?? 0) }}</span> /
                                     <span class="text-warning">{{ number_format($estadisticas['total_tardanza'] ?? 0) }}</span>
@@ -204,7 +205,7 @@
                                 <small class="text-muted">Puntualidad / Faltas / Tardanzas</small>
                             </div>
                             <div class="col-auto">
-                                <i class="fas fa-chart-pie fa-2x text-gray-300"></i>
+                                <i class="bi bi-pie-chart fs-1 text-muted"></i>
                             </div>
                         </div>
                     </div>
@@ -215,11 +216,11 @@
                 <div class="card border-left-info shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                    <i class="fas fa-percent me-1"></i> Porcentaje Puntualidad
+                            <div class="col me-2">
+                                <div class="text-xs fw-bold text-info text-uppercase mb-1">
+                                    <i class="bi bi-percent me-1"></i> Porcentaje Puntualidad
                                 </div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                <div class="h5 mb-0 fw-bold text-body">
                                     {{ number_format($estadisticas['porcentaje_puntualidad'], 2) }}%
                                 </div>
                                 <small class="text-muted">
@@ -228,7 +229,7 @@
                                 </small>
                             </div>
                             <div class="col-auto">
-                                <i class="fas fa-percent fa-2x text-gray-300"></i>
+                                <i class="bi bi-percent fs-1 text-muted"></i>
                             </div>
                         </div>
                     </div>
@@ -241,8 +242,8 @@
             <div class="col-xl-6 col-lg-6 mb-4">
                 <div class="card shadow">
                     <div class="card-header py-3 bg-light">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-chart-bar me-2"></i> Rendimiento por Grado
+                        <h6 class="m-0 fw-bold text-primary">
+                            <i class="bi bi-bar-chart me-2"></i> Rendimiento por Grado
                         </h6>
                     </div>
                     <div class="card-body">
@@ -252,7 +253,7 @@
                             </div>
                         @else
                             <div class="text-center py-5">
-                                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                                <i class="bi bi-bar-chart fs-1 text-muted mb-3"></i>
                                 <p class="text-muted mb-0">No hay datos para mostrar</p>
                             </div>
                         @endif
@@ -263,8 +264,8 @@
             <div class="col-xl-6 col-lg-6 mb-4">
                 <div class="card shadow">
                     <div class="card-header py-3 bg-light">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-chart-bar me-2"></i> Asistencia por Grado
+                        <h6 class="m-0 fw-bold text-primary">
+                            <i class="bi bi-bar-chart me-2"></i> Asistencia por Grado
                         </h6>
                     </div>
                     <div class="card-body">
@@ -274,7 +275,7 @@
                             </div>
                         @else
                             <div class="text-center py-5">
-                                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                                <i class="bi bi-bar-chart fs-1 text-muted mb-3"></i>
                                 <p class="text-muted mb-0">No hay datos para mostrar</p>
                             </div>
                         @endif
@@ -288,8 +289,8 @@
             <div class="col-xl-6 col-lg-6 mb-4">
                 <div class="card shadow">
                     <div class="card-header py-3 bg-light">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-chart-pie me-2"></i> Distribución por Categoría Académica
+                        <h6 class="m-0 fw-bold text-primary">
+                            <i class="bi bi-pie-chart me-2"></i> Distribución por Categoría Académica
                         </h6>
                     </div>
                     <div class="card-body">
@@ -307,7 +308,7 @@
                             </div>
                         @else
                             <div class="text-center py-5">
-                                <i class="fas fa-chart-pie fa-3x text-muted mb-3"></i>
+                                <i class="bi bi-pie-chart fs-1 text-muted mb-3"></i>
                                 <p class="text-muted mb-0">No hay datos para mostrar</p>
                             </div>
                         @endif
@@ -318,8 +319,8 @@
             <div class="col-xl-6 col-lg-6 mb-4">
                 <div class="card shadow">
                     <div class="card-header py-3 bg-light">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-chart-pie me-2"></i> Distribución por Nivel
+                        <h6 class="m-0 fw-bold text-primary">
+                            <i class="bi bi-pie-chart me-2"></i> Distribución por Nivel
                         </h6>
                     </div>
                     <div class="card-body">
@@ -340,7 +341,7 @@
                             </div>
                         @else
                             <div class="text-center py-5">
-                                <i class="fas fa-chart-pie fa-3x text-muted mb-3"></i>
+                                <i class="bi bi-pie-chart fs-1 text-muted mb-3"></i>
                                 <p class="text-muted mb-0">No hay datos para mostrar</p>
                             </div>
                         @endif
@@ -354,8 +355,8 @@
             <div class="col-12">
                 <div class="card shadow">
                     <div class="card-header py-3 bg-light">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-chart-bar me-2"></i> Comparativa: Académico vs Conducta por Grado
+                        <h6 class="m-0 fw-bold text-primary">
+                            <i class="bi bi-bar-chart me-2"></i> Comparativa: Académico vs Conducta por Grado
                         </h6>
                     </div>
                     <div class="card-body">
@@ -365,7 +366,7 @@
                             </div>
                         @else
                             <div class="text-center py-5">
-                                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                                <i class="bi bi-bar-chart fs-1 text-muted mb-3"></i>
                                 <p class="text-muted mb-0">No hay datos para mostrar</p>
                             </div>
                         @endif
@@ -377,8 +378,8 @@
         <!-- Tabla de Grados -->
         <div class="card shadow">
             <div class="card-header py-3 bg-light d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-table me-2"></i> Detalle de Rendimiento por Grado
+                <h6 class="m-0 fw-bold text-primary">
+                    <i class="bi bi-table me-2"></i> Detalle de Rendimiento por Grado
                 </h6>
                 <div>
                     <span class="badge bg-primary">{{ $grados->count() }} grados</span>
@@ -469,13 +470,13 @@
                                  </td>
                                 <td class="text-center">
                                     @if($promGeneral >= 3.0)
-                                        <span class="badge bg-success"><i class="fas fa-trophy me-1"></i>Excelente</span>
+                                        <span class="badge bg-success"><i class="bi bi-trophy me-1"></i>Excelente</span>
                                     @elseif($promGeneral >= 2.5)
-                                        <span class="badge bg-primary"><i class="fas fa-medal me-1"></i>Bueno</span>
+                                        <span class="badge bg-primary"><i class="bi bi-medal me-1"></i>Bueno</span>
                                     @elseif($promGeneral >= 2.0)
-                                        <span class="badge bg-warning"><i class="fas fa-certificate me-1"></i>Regular</span>
+                                        <span class="badge bg-warning"><i class="bi bi-award me-1"></i>Regular</span>
                                     @else
-                                        <span class="badge bg-danger"><i class="fas fa-exclamation-triangle me-1"></i>Crítico</span>
+                                        <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Crítico</span>
                                     @endif
                                  </td>
                              </tr>
@@ -516,7 +517,7 @@
         <div class="text-center py-5">
             <div class="card shadow-sm mx-auto" style="max-width: 500px;">
                 <div class="card-body p-5">
-                    <i class="fas fa-calendar-alt fa-4x text-muted mb-3"></i>
+                    <i class="bi bi-calendar3 fs-1 text-muted mb-3"></i>
                     <h5>Seleccione un periodo académico</h5>
                     <p class="text-muted">Por favor, seleccione un periodo para visualizar las estadísticas institucionales.</p>
                     <div class="input-group mt-3" style="max-width: 300px; margin: 0 auto;">

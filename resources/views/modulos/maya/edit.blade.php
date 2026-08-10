@@ -1,8 +1,20 @@
 @extends('layouts.app')
+@section('title', 'Editar Planificación')
 
 @section('content')
 <div class="container-fluid">
-    <h1>Editar Maya</h1>
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-journal-text me-2"></i>Editar Maya
+                    </h5>
+                    <a href="{{ route('maya.index', ['anio' => $maya->anio]) }}" class="btn btn-light btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>Volver
+                    </a>
+                </div>
+                <div class="card-body">
     <form action="{{ route('maya.update', $maya->id) }}" method="POST">
         @csrf
         @method('PUT')
@@ -60,8 +72,16 @@
             </select>
         </div>
 
-        <button type="submit" class="btn btn-primary">Actualizar</button>
-        <a href="{{ route('maya.index', ['anio' => $maya->anio]) }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>Actualizar
+        </button>
+        <a href="{{ route('maya.index', ['anio' => $maya->anio]) }}" class="btn btn-secondary">
+            <i class="bi bi-x me-1"></i>Cancelar
+        </a>
     </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

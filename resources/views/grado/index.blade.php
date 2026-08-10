@@ -1,16 +1,19 @@
 @extends('layouts.app')
+@section('title', 'Gestión de Grados')
 
 @section('content')
 
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-layers me-2"></i> Gestión de Grados
-        </h1>
-        <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCrearGrado">
-            <i class="bi bi-plus-lg me-2"></i> Nuevo Grado
-        </button>
-    </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-layers me-2"></i> Gestión de Grados</h5>
+                    <button type="button" class="btn btn-light btn-sm text-primary" data-bs-toggle="modal" data-bs-target="#modalCrearGrado">
+                        <i class="bi bi-plus-lg me-2"></i> Nuevo Grado
+                    </button>
+                </div>
+                <div class="card-body">
      @if ($errors->any())
         <div class="alert alert-danger">
             <ul>
@@ -98,7 +101,7 @@
                                 Mostrando {{ $gradosActivos->firstItem() ?? 0 }} a {{ $gradosActivos->lastItem() ?? 0 }} de {{ $gradosActivos->total() }} grados
                             </div>
                             <div>
-                                {{ $gradosActivos->links('pagination::bootstrap-4') }}
+                                {{ $gradosActivos->links('pagination::bootstrap-5') }}
                             </div>
                         </div>
                     </div>
@@ -164,14 +167,18 @@
                                 Mostrando {{ $gradosInactivos->firstItem() ?? 0 }} a {{ $gradosInactivos->lastItem() ?? 0 }} de {{ $gradosInactivos->total() }} grados
                             </div>
                             <div>
-                                {{ $gradosInactivos->links('pagination::bootstrap-4') }}
+                                {{ $gradosInactivos->links('pagination::bootstrap-5') }}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+                </div>
+            </div>
+        </div>
     </div>
+</div>
 </div>
 
 <!-- Modal Crear Grado -->

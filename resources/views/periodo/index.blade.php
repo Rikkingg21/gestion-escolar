@@ -4,7 +4,7 @@
     <div class="container py-4">
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle me-2"></i>
+                <i class="bi bi-check-circle me-2"></i>
                 {{ session('success') }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
@@ -12,10 +12,10 @@
         <div class="card shadow">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h4 class="mb-0">
-                    <i class="fas fa-calendar-alt me-2"></i>Gestión de Periodos Académicos
+                    <i class="bi bi-calendar3 me-2"></i>Gestión de Periodos Académicos
                 </h4>
                 <a href="{{ route('periodo.create') }}" class="btn btn-light btn-sm">
-                    <i class="fas fa-plus me-1"></i> Nuevo Periodo
+                    <i class="bi bi-plus me-1"></i> Nuevo Periodo
                 </a>
             </div>
 
@@ -24,13 +24,13 @@
                 <ul class="nav nav-tabs nav-underline mb-4" role="tablist">
                     <li class="nav-item" role="presentation">
                         <a class="nav-link active" data-bs-toggle="tab" href="#activo" aria-selected="true" role="tab">
-                            <i class="fas fa-check-circle me-1"></i> Activos
+                            <i class="bi bi-check-circle me-1"></i> Activos
                             <span class="badge bg-primary ms-1">{{ $periodosActivos->total() }}</span>
                         </a>
                     </li>
                     <li class="nav-item" role="presentation">
                         <a class="nav-link" data-bs-toggle="tab" href="#inactivo" aria-selected="false" role="tab">
-                            <i class="fas fa-times-circle me-1"></i> Inactivos
+                            <i class="bi bi-x-circle me-1"></i> Inactivos
                             <span class="badge bg-secondary ms-1">{{ $periodosInactivos->total() }}</span>
                         </a>
                     </li>
@@ -72,10 +72,10 @@
                                                 </td>
                                                 <td>
                                                     <small>
-                                                        <i class="fas fa-calendar-alt text-muted me-1"></i>
+                                                        <i class="bi bi-calendar3 text-muted me-1"></i>
                                                         {{ \Carbon\Carbon::parse($periodo->fecha_inicio)->format('d/m/Y') }}
                                                         <br>
-                                                        <i class="fas fa-calendar-check text-muted me-1"></i>
+                                                        <i class="bi bi-calendar-check text-muted me-1"></i>
                                                         {{ \Carbon\Carbon::parse($periodo->fecha_fin)->format('d/m/Y') }}
                                                     </small>
                                                 </td>
@@ -123,7 +123,7 @@
                             @endif
                         @else
                             <div class="text-center py-5">
-                                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                                <i class="bi bi-calendar-x fs-1 text-muted mb-3"></i>
                                 <h5>No hay periodos activos</h5>
                                 <p class="text-muted">Crea un nuevo periodo académico.</p>
                             </div>
@@ -163,10 +163,10 @@
                                                 </td>
                                                 <td>
                                                     <small>
-                                                        <i class="fas fa-calendar-alt text-muted me-1"></i>
+                                                        <i class="bi bi-calendar3 text-muted me-1"></i>
                                                         {{ \Carbon\Carbon::parse($periodo->fecha_inicio)->format('d/m/Y') }}
                                                         <br>
-                                                        <i class="fas fa-calendar-check text-muted me-1"></i>
+                                                        <i class="bi bi-calendar-check text-muted me-1"></i>
                                                         {{ \Carbon\Carbon::parse($periodo->fecha_fin)->format('d/m/Y') }}
                                                     </small>
                                                 </td>
@@ -225,7 +225,7 @@
                             @endif
                         @else
                             <div class="text-center py-5">
-                                <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+                                <i class="bi bi-calendar-check fs-1 text-muted mb-3"></i>
                                 <h5>No hay periodos inactivos</h5>
                                 <p class="text-muted">Todos los periodos están activos.</p>
                             </div>
@@ -239,7 +239,7 @@
                 <div class="row">
                     <div class="col-md-4">
                         <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
+                            <i class="bi bi-info-circle me-1"></i>
                             <strong>Total:</strong> {{ $periodosActivos->total() + $periodosInactivos->total() }} periodos
                         </small>
                     </div>

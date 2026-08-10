@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Panel del Docente')
 
 @section('content')
 <div class="container-fluid py-4">
@@ -16,7 +17,7 @@
                 </div>
                 <div>
                     <span class="badge bg-primary">
-                        <i class="fas fa-chalkboard-teacher me-1"></i> Docente
+                        <i class="bi bi-person-video3 me-1"></i> Docente
                     </span>
                 </div>
             </div>
@@ -29,7 +30,7 @@
             <div class="card">
                 <div class="card-header bg-light">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-calendar-alt me-2"></i>Seleccionar Periodo Académico
+                        <i class="bi bi-calendar3 me-2"></i>Seleccionar Periodo Académico
                     </h5>
                 </div>
                 <div class="card-body">
@@ -47,7 +48,7 @@
                         </div>
                         <div class="col-md-4">
                             <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-filter me-1"></i> Filtrar
+                                <i class="bi bi-filter me-1"></i> Filtrar
                             </button>
                         </div>
                     </form>
@@ -60,7 +61,7 @@
             <div class="card">
                 <div class="card-header bg-light">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-info-circle me-2"></i>Resumen del Periodo
+                        <i class="bi bi-info-circle me-2"></i>Resumen del Periodo
                     </h5>
                 </div>
                 <div class="card-body">
@@ -118,26 +119,26 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h4 class="mb-0">
-                            <i class="fas fa-book-open me-2"></i>
+                            <i class="bi bi-book me-2"></i>
                             {{ $data['materia_nombre'] }}
                             <small class="text-white-50">- {{ $data['grado_nombre'] }}</small>
                         </h4>
                         <p class="mb-0 mt-1">
                             <small>
-                                <i class="fas fa-calendar me-1"></i> {{ $data['periodo_anio'] }}
-                                | <i class="fas fa-users me-1"></i> {{ $data['total_estudiantes'] }} estudiantes
+                                <i class="bi bi-calendar me-1"></i> {{ $data['periodo_anio'] }}
+                                | <i class="bi bi-people me-1"></i> {{ $data['total_estudiantes'] }} estudiantes
                             </small>
                         </p>
                     </div>
                     <div class="d-flex gap-2">
                         <button class="btn btn-sm btn-light toggle-section" data-target="#graficos-{{ $asignacionId }}">
-                            <i class="fas fa-chart-line"></i> Gráficos
+                            <i class="bi bi-graph-up"></i> Gráficos
                         </button>
                         <button class="btn btn-sm btn-light toggle-section" data-target="#detalles-{{ $asignacionId }}">
-                            <i class="fas fa-chart-bar"></i> Estadísticas
+                            <i class="bi bi-bar-chart"></i> Estadísticas
                         </button>
                         <button class="btn btn-sm btn-light toggle-section" data-target="#estudiantes-{{ $asignacionId }}">
-                            <i class="fas fa-list"></i> Estudiantes
+                            <i class="bi bi-list"></i> Estudiantes
                         </button>
                     </div>
                 </div>
@@ -159,7 +160,7 @@
                                         </div>
                                     @else
                                         <div class="text-center py-5">
-                                            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                                            <i class="bi bi-graph-up fs-1 text-muted mb-3"></i>
                                             <p class="text-muted mb-0">No hay datos de notas disponibles</p>
                                         </div>
                                     @endif
@@ -178,7 +179,7 @@
                                         </div>
                                     @else
                                         <div class="text-center py-5">
-                                            <i class="fas fa-heart fa-3x text-muted mb-3"></i>
+                                            <i class="bi bi-heart fs-1 text-muted mb-3"></i>
                                             <p class="text-muted mb-0">No hay datos de conducta disponibles</p>
                                         </div>
                                     @endif
@@ -198,7 +199,7 @@
                             <div class="col-12">
                                 <div class="card border">
                                     <div class="card-header bg-light">
-                                        <h6 class="mb-0"><i class="fas fa-info-circle me-1"></i>Resumen General</h6>
+                                        <h6 class="mb-0"><i class="bi bi-info-circle me-1"></i>Resumen General</h6>
                                     </div>
                                     <div class="card-body">
                                         <div class="row">
@@ -245,7 +246,7 @@
                             <div class="col-md-6 mb-4">
                                 <div class="card border h-100">
                                     <div class="card-header bg-light">
-                                        <h6 class="mb-0"><i class="fas fa-chart-line me-1 text-success"></i>Notas Académicas por Bimestre</h6>
+                                        <h6 class="mb-0"><i class="bi bi-graph-up me-1 text-success"></i>Notas Académicas por Bimestre</h6>
                                     </div>
                                     <div class="card-body p-0">
                                         <div class="table-responsive">
@@ -308,7 +309,7 @@
                             <div class="col-md-6 mb-4">
                                 <div class="card border h-100">
                                     <div class="card-header bg-light">
-                                        <h6 class="mb-0"><i class="fas fa-heart me-1 text-info"></i>Conducta por Bimestre</h6>
+                                        <h6 class="mb-0"><i class="bi bi-heart me-1 text-info"></i>Conducta por Bimestre</h6>
                                     </div>
                                     <div class="card-body p-0">
                                         <div class="table-responsive">
@@ -372,7 +373,7 @@
                         </div>
                     @else
                         <div class="text-center py-5">
-                            <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                            <i class="bi bi-bar-chart fs-1 text-muted mb-3"></i>
                             <p class="text-muted mb-0">No hay datos estadísticos disponibles</p>
                         </div>
                     @endif
@@ -430,7 +431,7 @@
                                         <td class="text-start @if($tieneNotasIncompletas || $tieneConductaIncompleta) incompleto-total @endif">
                                             {{ $estudiante['nombre_completo'] }}
                                             @if($tieneNotasIncompletas || $tieneConductaIncompleta)
-                                                <i class="fas fa-exclamation-triangle text-warning ms-1"
+                                                <i class="bi bi-exclamation-triangle text-warning ms-1"
                                                 title="Faltan datos por completar"></i>
                                             @endif
                                         </td>
@@ -445,7 +446,7 @@
                                             @else
                                                 <span class="badge bg-secondary"
                                                     title="Falta registrar nota para {{ $bimestre }}">
-                                                    <i class="fas fa-clock me-1"></i> Pendiente
+                                                    <i class="bi bi-clock me-1"></i> Pendiente
                                                 </span>
                                             @endif
                                         </td>
@@ -471,7 +472,7 @@
                                             <span class="badge bg-{{ $completitudColor }}"
                                                 title="{{ $estudiante['notas_completas_texto'] }} criterios registrados de {{ $estudiante['total_criterios_posibles'] }} posibles">
                                                 @if($tieneNotasIncompletas)
-                                                    <i class="fas fa-exclamation-circle me-1"></i>
+                                                    <i class="bi bi-exclamation-circle me-1"></i>
                                                 @endif
                                                 {{ $estudiante['notas_completas_texto'] }}
                                                 ({{ $completitudNotas }}%)
@@ -488,7 +489,7 @@
                                             @else
                                                 <span class="badge bg-secondary"
                                                     title="Falta registrar conducta para {{ $bimestre }}">
-                                                    <i class="fas fa-clock me-1"></i> Pendiente
+                                                    <i class="bi bi-clock me-1"></i> Pendiente
                                                 </span>
                                             @endif
                                         </td>
@@ -514,7 +515,7 @@
                                             <span class="badge bg-{{ $completitudColorCond }}"
                                                 title="{{ $estudiante['conducta_completa_texto'] }} conductas registradas de {{ $estudiante['total_conductas_posibles'] }} posibles">
                                                 @if($tieneConductaIncompleta)
-                                                    <i class="fas fa-exclamation-circle me-1"></i>
+                                                    <i class="bi bi-exclamation-circle me-1"></i>
                                                 @endif
                                                 {{ $estudiante['conducta_completa_texto'] }}
                                                 ({{ $completitudConducta }}%)
@@ -548,7 +549,7 @@
                                         <td colspan="5" class="text-center">
                                             <span class="badge {{ $notasCompletasTodos ? 'bg-success' : 'bg-warning' }}">
                                                 @if(!$notasCompletasTodos)
-                                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>
                                                 @endif
                                                 Notas: {{ $totalCriteriosRegistrados }}/{{ $totalCriteriosPosibles }} ({{ $porcentajeTotalNotas }}%)
                                             </span>
@@ -570,7 +571,7 @@
                                         <td colspan="5" class="text-center">
                                             <span class="badge {{ $conductaCompletaTodos ? 'bg-success' : 'bg-warning' }}">
                                                 @if(!$conductaCompletaTodos)
-                                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>
                                                 @endif
                                                 Conducta: {{ $totalConductasRegistradas }}/{{ $totalConductasPosibles }} ({{ $porcentajeTotalConducta }}%)
                                             </span>
@@ -584,7 +585,7 @@
                         </div>
                     @else
                         <div class="text-center py-5">
-                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <i class="bi bi-people fs-1 text-muted mb-3"></i>
                             <p class="text-muted mb-0">No hay estudiantes registrados</p>
                         </div>
                     @endif
@@ -594,7 +595,7 @@
         @endforeach
     @elseif($periodoSeleccionado && count($asignacionesData) == 0)
         <div class="alert alert-info text-center py-5">
-            <i class="fas fa-info-circle fa-3x mb-3"></i>
+            <i class="bi bi-info-circle fs-1 mb-3"></i>
             <h5>No tiene asignaciones para el período seleccionado</h5>
             <p class="mb-0">No se encontraron materias asignadas a usted en este período académico.</p>
         </div>

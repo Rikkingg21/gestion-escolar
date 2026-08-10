@@ -7,10 +7,10 @@
             <div class="card shadow">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-cubes me-2"></i>Gestión de Módulos del Sistema
+                        <i class="bi bi-boxes me-2"></i>Gestión de Módulos del Sistema
                     </h5>
                     <a href="{{ route('module.create') }}" class="btn btn-light btn-sm">
-                        <i class="fas fa-plus me-1"></i>Nuevo Módulo
+                        <i class="bi bi-plus me-1"></i>Nuevo Módulo
                     </a>
                 </div>
                 <div class="card-body">
@@ -18,13 +18,13 @@
                     <ul class="nav nav-tabs mb-4" id="modulesTab" role="tablist">
                         <li class="nav-item" role="presentation">
                             <a class="nav-link active" data-bs-toggle="tab" href="#activo" aria-selected="true" role="tab">
-                                <i class="fas fa-check-circle me-1"></i>Activos
+                                <i class="bi bi-check-circle me-1"></i>Activos
                                 <span class="badge bg-success ms-1">{{ $modulesActivos->count() }}</span>
                             </a>
                         </li>
                         <li class="nav-item" role="presentation">
                             <a class="nav-link" data-bs-toggle="tab" href="#inactivo" aria-selected="false" role="tab" tabindex="-1">
-                                <i class="fas fa-times-circle me-1"></i>Inactivos
+                                <i class="bi bi-x-circle me-1"></i>Inactivos
                                 <span class="badge bg-danger ms-1">{{ $modulesInactivos->count() }}</span>
                             </a>
                         </li>
@@ -68,19 +68,19 @@
                                                     </td>
                                                     <td>
                                                         <span class="badge bg-light text-dark border">
-                                                            <i class="fas fa-link me-1 text-muted"></i>
+                                                            <i class="bi bi-link-45deg me-1 text-muted"></i>
                                                             {{ $module->ruta_base }}
                                                         </span>
                                                     </td>
                                                     <td>
                                                         <span class="badge bg-info">
-                                                            <i class="fas fa-users me-1"></i>
+                                                            <i class="bi bi-people me-1"></i>
                                                             {{ $module->roles()->count() }} roles
                                                         </span>
                                                     </td>
                                                     <td>
                                                         <span class="badge bg-success">
-                                                            <i class="fas fa-check me-1"></i>Activo
+                                                            <i class="bi bi-check me-1"></i>Activo
                                                         </span>
                                                     </td>
                                                     <td>
@@ -106,11 +106,11 @@
                                 </div>
                             @else
                                 <div class="alert alert-info text-center py-4">
-                                    <i class="fas fa-cubes fa-3x text-info mb-3"></i>
+                                    <i class="bi bi-boxes fs-1 text-info mb-3"></i>
                                     <h5>No hay módulos activos</h5>
                                     <p class="mb-0">Comienza creando el primer módulo del sistema.</p>
                                     <a href="{{ route('module.create') }}" class="btn btn-primary mt-3">
-                                        <i class="fas fa-plus me-1"></i>Crear Primer Módulo
+                                        <i class="bi bi-plus me-1"></i>Crear Primer Módulo
                                     </a>
                                 </div>
                             @endif
@@ -152,19 +152,19 @@
                                                     </td>
                                                     <td>
                                                         <span class="badge bg-light text-muted border">
-                                                            <i class="fas fa-link me-1"></i>
+                                                            <i class="bi bi-link-45deg me-1"></i>
                                                             {{ $module->ruta_base }}
                                                         </span>
                                                     </td>
                                                     <td>
                                                         <span class="badge bg-secondary">
-                                                            <i class="fas fa-users me-1"></i>
+                                                            <i class="bi bi-people me-1"></i>
                                                             {{ $module->roles()->count() }} roles
                                                         </span>
                                                     </td>
                                                     <td>
                                                         <span class="badge bg-danger">
-                                                            <i class="fas fa-times me-1"></i>Inactivo
+                                                            <i class="bi bi-x me-1"></i>Inactivo
                                                         </span>
                                                     </td>
                                                     <td>
@@ -190,7 +190,7 @@
                                 </div>
                             @else
                                 <div class="alert alert-warning text-center py-4">
-                                    <i class="fas fa-ban fa-3x text-warning mb-3"></i>
+                                    <i class="bi bi-ban fs-1 text-warning mb-3"></i>
                                     <h5>No hay módulos inactivos</h5>
                                     <p class="mb-0">Todos los módulos se encuentran activos en el sistema.</p>
                                 </div>
@@ -209,7 +209,7 @@
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Eliminación
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -217,7 +217,7 @@
                 <p>¿Está seguro que desea eliminar el módulo <strong id="nombreModuloEliminar"></strong>?</p>
                 <div class="alert alert-warning mt-3">
                     <h6 class="alert-heading mb-2">
-                        <i class="fas fa-exclamation-circle me-1"></i>Información del módulo:
+                        <i class="bi bi-exclamation-circle me-1"></i>Información del módulo:
                     </h6>
                     <ul class="mb-0">
                         <li>Roles asignados: <strong id="rolesModulo"></strong></li>
@@ -225,7 +225,7 @@
                 </div>
                 <p class="text-danger mb-0">
                     <small>
-                        <i class="fas fa-info-circle me-1"></i>
+                        <i class="bi bi-info-circle me-1"></i>
                         Solo se puede eliminar módulos sin roles asignados.
                     </small>
                 </p>

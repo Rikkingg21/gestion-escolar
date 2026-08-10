@@ -7,10 +7,10 @@
             <div class="card shadow">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-edit me-2"></i>Editar Módulo
+                        <i class="bi bi-pencil me-2"></i>Editar Módulo
                     </h5>
                     <a href="{{ route('module.index') }}" class="btn btn-light btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i>Volver
+                        <i class="bi bi-arrow-left me-1"></i>Volver
                     </a>
                 </div>
                 <div class="card-body">
@@ -21,7 +21,7 @@
                         <div class="row">
                             <div class="col-12 mb-3">
                                 <label for="nombre" class="form-label">
-                                    <i class="fas fa-tag me-1 text-primary"></i>Nombre del Módulo *
+                                    <i class="bi bi-tag me-1 text-primary"></i>Nombre del Módulo *
                                 </label>
                                 <input type="text" class="form-control @error('nombre') is-invalid @enderror"
                                        id="nombre" name="nombre" value="{{ old('nombre', $module->nombre) }}"
@@ -37,7 +37,7 @@
 
                             <div class="col-12 mb-3">
                                 <label for="icono" class="form-label">
-                                    <i class="fas fa-icons me-1 text-primary"></i>Icono (Bootstrap Icons) *
+                                    <i class="bi bi-grid me-1 text-primary"></i>Icono (Bootstrap Icons) *
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light">
@@ -45,7 +45,7 @@
                                     </span>
                                     <input type="text" class="form-control @error('icono') is-invalid @enderror"
                                            id="icono" name="icono" value="{{ old('icono', $module->icono) }}"
-                                           placeholder="Ej: bi-people, bi-gear, bi-graph-up"
+                                           placeholder="Ej: bi bi-people, bi bi-gear, bi bi-graph-up"
                                            required>
                                     @error('icono')
                                         <div class="invalid-feedback">{{ $message }}</div>
@@ -53,9 +53,9 @@
                                 </div>
                                 <small class="form-text text-muted">
                                     Usa clases de Bootstrap Icons. Ej:
-                                    <code>bi-people</code>,
-                                    <code>bi-gear</code>,
-                                    <code>bi-book</code>
+                                    <code>bi bi-people</code>,
+                                    <code>bi bi-gear</code>,
+                                    <code>bi bi-book</code>
                                 </small>
                                 <small class="form-text text-muted">
                                     Ver más iconos en
@@ -94,7 +94,7 @@
 
                             <div class="col-12 mb-3">
                                 <label for="ruta_base" class="form-label">
-                                    <i class="fas fa-route me-1 text-primary"></i>Ruta Base *
+                                    <i class="bi bi-signpost me-1 text-primary"></i>Ruta Base *
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light">/</span>
@@ -113,7 +113,7 @@
 
                             <div class="col-12 mb-3">
                                 <label for="estado" class="form-label">
-                                    <i class="fas fa-power-off me-1 text-primary"></i>Estado *
+                                    <i class="bi bi-power me-1 text-primary"></i>Estado *
                                 </label>
                                 <div class="form-check form-switch">
                                     <input class="form-check-input @error('estado') is-invalid @enderror"
@@ -137,7 +137,7 @@
                             <div class="col-12">
                                 <div class="alert alert-info">
                                     <h6 class="alert-heading mb-2">
-                                        <i class="fas fa-info-circle me-1"></i>Información del Módulo
+                                        <i class="bi bi-info-circle me-1"></i>Información del Módulo
                                     </h6>
                                     <div class="row">
                                         <div class="col-md-4">
@@ -160,13 +160,13 @@
                                 <div class="card border-info">
                                     <div class="card-header bg-info text-white">
                                         <h6 class="mb-0">
-                                            <i class="fas fa-eye me-1"></i>Vista Previa del Módulo
+                                            <i class="bi bi-eye me-1"></i>Vista Previa del Módulo
                                         </h6>
                                     </div>
                                     <div class="card-body">
                                         <div class="d-flex align-items-center">
                                             <div class="me-3">
-                                                <i id="previewIcono" class="{{ $module->icono }} fa-2x text-primary"></i>
+                                                <i id="previewIcono" class="{{ $module->icono }} fs-1 text-primary"></i>
                                             </div>
                                             <div>
                                                 <h5 id="previewNombre" class="mb-1">{{ $module->nombre }}</h5>
@@ -184,10 +184,10 @@
                         <div class="row mt-4">
                             <div class="col-12 d-flex justify-content-between align-items-center">
                                 <a href="{{ route('module.index') }}" class="btn btn-secondary">
-                                    <i class="fas fa-times me-1"></i>Cancelar
+                                    <i class="bi bi-x me-1"></i>Cancelar
                                 </a>
                                 <button type="submit" class="btn btn-primary" id="btnSubmit">
-                                    <i class="fas fa-save me-1"></i>Actualizar Módulo
+                                    <i class="bi bi-check-lg me-1"></i>Actualizar Módulo
                                 </button>
                             </div>
                         </div>
@@ -220,10 +220,10 @@ $(document).ready(function() {
         // Preview del icono
         const icono = $icono.val();
         if (icono) {
-            $previewIcono.attr('class', icono + ' fa-2x text-primary');
+            $previewIcono.attr('class', icono + ' fs-1 text-primary');
             $iconoPreview.attr('class', icono + ' text-primary');
         } else {
-            $previewIcono.attr('class', 'bi-question-circle fa-2x text-muted');
+            $previewIcono.attr('class', 'bi-question-circle fs-1 text-muted');
             $iconoPreview.attr('class', 'bi-question-circle text-muted');
         }
 
@@ -253,13 +253,13 @@ $(document).ready(function() {
 
         // Deshabilitar botón y mostrar loading
         $btnSubmit.prop('disabled', true)
-                 .html('<i class="fas fa-spinner fa-spin me-1"></i>Actualizando...');
+                 .html('<i class="bi bi-arrow-repeat fa-spin me-1"></i>Actualizando...');
 
         // Validación adicional
         if (!$nombre.val().trim()) {
             e.preventDefault();
             $btnSubmit.prop('disabled', false)
-                     .html('<i class="fas fa-save me-1"></i>Actualizar Módulo');
+                     .html('<i class="bi bi-check-lg me-1"></i>Actualizar Módulo');
             $nombre.focus();
         }
     });

@@ -1,15 +1,20 @@
 @extends('layouts.app')
+@section('title', 'Importar Criterios')
 
 @section('content')
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-file-earmark-excel me-2"></i> Importar Criterios desde Excel
-        </h1>
-        <a href="{{ route('materiacriterio.index', $materia->id ?? 0) }}" class="btn btn-secondary shadow-sm">
-            <i class="bi bi-arrow-left me-2"></i> Volver a Criterios
-        </a>
-    </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-excel me-2"></i> Importar Criterios desde Excel
+                    </h5>
+                    <a href="{{ route('materiacriterio.index', $materia->id ?? 0) }}" class="btn btn-light btn-sm text-primary">
+                        <i class="bi bi-arrow-left me-2"></i> Volver a Criterios
+                    </a>
+                </div>
+                <div class="card-body">
 
     <!-- Pantalla de carga -->
     <div id="loadingScreen" class="d-none">
@@ -236,7 +241,7 @@
         <div class="col-md-8">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 bg-success text-white">
-                    <h6 class="m-0 font-weight-bold">
+                    <h6 class="m-0 fw-bold">
                         <i class="bi bi-upload me-2"></i> Cargar Archivo Excel
                     </h6>
                 </div>
@@ -304,7 +309,7 @@
         <div class="col-md-4">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 bg-info text-white">
-                    <h6 class="m-0 font-weight-bold">
+                    <h6 class="m-0 fw-bold">
                         <i class="bi bi-download me-2"></i> Descargar Plantilla
                     </h6>
                 </div>
@@ -326,7 +331,7 @@
 
             <div class="card shadow">
                 <div class="card-header py-3 bg-warning">
-                    <h6 class="m-0 font-weight-bold">
+                    <h6 class="m-0 fw-bold">
                         <i class="bi bi-info-circle me-2"></i> Instrucciones
                     </h6>
                 </div>
@@ -357,6 +362,10 @@
                             El grado debe existir en el sistema
                         </li>
                     </ul>
+                </div>
+            </div>
+        </div>
+    </div>
                 </div>
             </div>
         </div>

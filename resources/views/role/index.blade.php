@@ -109,7 +109,7 @@
                                 </div>
                             @else
                                 <div class="alert alert-info text-center">
-                                    <i class="fas fa-info-circle me-2"></i>No hay roles activos registrados.
+                                    <i class="bi bi-info-circle me-2"></i>No hay roles activos registrados.
                                 </div>
                             @endif
                         </div>
@@ -184,7 +184,7 @@
                                 </div>
                             @else
                                 <div class="alert alert-info text-center">
-                                    <i class="fas fa-info-circle me-2"></i>No hay roles inactivos.
+                                    <i class="bi bi-info-circle me-2"></i>No hay roles inactivos.
                                 </div>
                             @endif
                         </div>
@@ -201,7 +201,7 @@
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Eliminación
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -209,7 +209,7 @@
                 <p>¿Está seguro que desea eliminar el rol <strong id="nombreRolEliminar"></strong>?</p>
                 <p class="text-danger mb-0">
                     <small>
-                        <i class="fas fa-info-circle me-1"></i>
+                        <i class="bi bi-info-circle me-1"></i>
                         Esta acción no se puede deshacer.
                     </small>
                 </p>

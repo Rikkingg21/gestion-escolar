@@ -4,14 +4,16 @@
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3 mb-0 text-gray-800">
-                    <i class="bi bi-file-earmark-excel me-2"></i> Importar Usuarios desde Excel
-                </h1>
-                <a href="{{ route('user.index') }}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left me-1"></i> Volver
-                </a>
-            </div>
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-excel me-2"></i> Importar Usuarios desde Excel
+                    </h5>
+                    <a href="{{ route('user.index') }}" class="btn btn-light btn-sm text-primary">
+                        <i class="bi bi-arrow-left me-1"></i> Volver
+                    </a>
+                </div>
+                <div class="card-body">
 
             <!-- Pantalla de carga -->
             <div id="loadingScreen" class="d-none">
@@ -547,6 +549,8 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
                 </div>
             </div>
         </div>

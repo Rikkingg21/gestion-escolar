@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Conducta')
 
 @section('content')
 <div class="container-fluid">
@@ -22,8 +23,16 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
-    <h1>Gestión de Conductas</h1>
-
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-clipboard-check me-2"></i> Gestión de Conductas
+            </h5>
+            <a href="{{ route('conducta.create') }}" class="btn btn-light btn-sm text-primary">
+                <i class="bi bi-plus-lg me-1"></i> Nueva Conducta
+            </a>
+        </div>
+        <div class="card-body">
     <div class="row">
         <!-- SECCIÓN 1: LISTA DE CONDUCTAS -->
         <div class="col-md-5">
@@ -31,7 +40,7 @@
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Conductas Registradas</h4>
                     <a href="{{ route('conducta.create') }}" class="btn btn-success btn-sm">
-                        <i class="fas fa-plus"></i> Crear Conducta
+                        <i class="bi bi-plus"></i> Crear Conducta
                     </a>
                 </div>
                 <div class="card-body">
@@ -139,7 +148,7 @@
                     <h4 class="mb-0">Conductas por Periodo y Bimestre</h4>
                     <div>
                         <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalMigrar">
-                            <i class="fas fa-copy"></i> Migrar Conductas
+                            <i class="bi bi-clipboard"></i> Migrar Conductas
                         </button>
                     </div>
                 </div>
@@ -173,7 +182,7 @@
                                                                     class="btn btn-primary btn-sm btn-asignar-conductas"
                                                                     data-bimestre-id="{{ $bimestre->id }}"
                                                                     data-bimestre-nombre="Bimestre {{ $bimestre->bimestre }} - {{ $periodo->nombre }}">
-                                                                <i class="fas fa-tasks"></i> Asignar Conductas
+                                                                <i class="bi bi-list-task"></i> Asignar Conductas
                                                             </button>
                                                         </div>
                                                     </div>
@@ -210,7 +219,7 @@
                                                             </div>
                                                         @else
                                                             <div class="alert alert-warning mb-0">
-                                                                <i class="fas fa-exclamation-triangle"></i>
+                                                                <i class="bi bi-exclamation-triangle"></i>
                                                                 No hay conductas asignadas a este bimestre
                                                             </div>
                                                         @endif
@@ -249,6 +258,8 @@
                     @endif
                 </div>
             </div>
+        </div>
+    </div>
         </div>
     </div>
 </div>
@@ -320,7 +331,7 @@
                             </table>
                         </div>
                         <div id="bloqueoWarning" class="alert alert-warning mt-2 d-none">
-                            <i class="fas fa-exclamation-triangle"></i>
+                            <i class="bi bi-exclamation-triangle"></i>
                             Las conductas bloqueadas no pueden desmarcarse porque ya tienen notas registradas.
                         </div>
                     </div>
@@ -347,7 +358,7 @@
                 @csrf
                 <div class="modal-body">
                     <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
+                        <i class="bi bi-info-circle"></i>
                         Esta acción copiará todas las conductas asignadas del periodo origen al periodo destino<br>
                         <strong>Nota:</strong> La migración se realizará usando las siglas (B1, B2, B3, B4)
                     </div>

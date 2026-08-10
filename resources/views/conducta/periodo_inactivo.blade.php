@@ -1,17 +1,23 @@
 @extends('layouts.app')
+@section('title', 'Periodo Inactivo')
 
 @section('content')
 <div class="container">
-    <div class="card">
-        <div class="card-header bg-secondary text-white">
-            <h4>Periodo: {{ $periodo->nombre }} ({{ $periodo->anio }})</h4>
-            <small>{{ $periodo->descripcion }}</small>
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar2-x me-2"></i> Periodo: {{ $periodo->nombre }} ({{ $periodo->anio }})
+                </h5>
+                @if($periodo->descripcion)
+                    <small class="d-block mt-1">{{ $periodo->descripcion }}</small>
+                @endif
+            </div>
+            <a href="{{ route('conducta.index') }}" class="btn btn-light btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Volver
+            </a>
         </div>
         <div class="card-body">
-            <a href="{{ route('conducta.index') }}" class="btn btn-primary mb-3">
-                <i class="fas fa-arrow-left"></i> Volver
-            </a>
-
             @foreach($periodo->periodobimestres as $bimestre)
                 <div class="card mb-3">
                     <div class="card-header bg-light">

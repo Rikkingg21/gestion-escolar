@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Panel de Administración')
 
 @section('content')
 <div class="container mt-4">

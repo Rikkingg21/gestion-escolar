@@ -1,10 +1,11 @@
 @extends('layouts.app')
+@section('title', 'Panel del Auxiliar')
 
 @section('content')
 <div class="container-fluid">
     <div class="d-sm-flex align-items-center justify-content-between mb-4 pb-3 border-bottom">
-        <h1 class="h4 mb-0 text-gray-800">
-            <i class="fas fa-clipboard-check text-primary me-2"></i>Dashboard Auxiliar
+        <h1 class="h4 mb-0 text-body">
+            <i class="bi bi-clipboard-check text-primary me-2"></i>Dashboard Auxiliar
         </h1>
 
         <div class="mt-3 mt-sm-0">
@@ -87,16 +88,16 @@
             <div class="card border-left-primary shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                        <div class="col me-2">
+                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">
                                 Estudiantes Activos
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            <div class="h5 mb-0 fw-bold text-body">
                                 {{ $estadisticasGenerales['totalEstudiantes'] }}
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                            <i class="bi bi-people fs-1 text-muted"></i>
                         </div>
                     </div>
                 </div>
@@ -107,16 +108,16 @@
             <div class="card border-left-success shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                        <div class="col me-2">
+                            <div class="text-xs fw-bold text-success text-uppercase mb-1">
                                 Total Asistencias
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            <div class="h5 mb-0 fw-bold text-body">
                                 {{ $estadisticasGenerales['totalAsistencias'] }}
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                            <i class="bi bi-clipboard-data fs-1 text-muted"></i>
                         </div>
                     </div>
                 </div>
@@ -127,16 +128,16 @@
             <div class="card border-left-info shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                        <div class="col me-2">
+                            <div class="text-xs fw-bold text-info text-uppercase mb-1">
                                 Grados Activos
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            <div class="h5 mb-0 fw-bold text-body">
                                 {{ count($datosAsistencias) }}
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-graduation-cap fa-2x text-gray-300"></i>
+                            <i class="bi bi-mortarboard fs-1 text-muted"></i>
                         </div>
                     </div>
                 </div>
@@ -147,16 +148,16 @@
             <div class="card border-left-warning shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                        <div class="col me-2">
+                            <div class="text-xs fw-bold text-warning text-uppercase mb-1">
                                 Tipos de Asistencia
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            <div class="h5 mb-0 fw-bold text-body">
                                 {{ $tiposAsistencia->count() }}
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-list-alt fa-2x text-gray-300"></i>
+                            <i class="bi bi-list-ul fs-1 text-muted"></i>
                         </div>
                     </div>
                 </div>
@@ -166,7 +167,7 @@
 
     @if(empty($datosAsistencias))
         <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>
+            <i class="bi bi-info-circle me-2"></i>
             No hay grados activos con estudiantes para mostrar estadísticas de asistencia.
         </div>
     @else
@@ -182,13 +183,13 @@
                                 aria-expanded="{{ $loop->first ? 'true' : 'false' }}"
                                 aria-controls="collapse{{ $index }}">
                             <div>
-                                <i class="fas fa-graduation-cap me-2"></i>
+                                <i class="bi bi-mortarboard me-2"></i>
                                 <strong>{{ $gradoData['grado'] }}</strong>
                                 <span class="badge bg-primary ms-2">{{ $gradoData['estadisticas']['totalEstudiantes'] }} estudiantes</span>
                                 <span class="badge bg-success ms-1">{{ $gradoData['estadisticas']['totalAsistencias'] }} asistencias</span>
                             </div>
                             <div class="text-muted small">
-                                <i class="fas fa-chevron-down"></i>
+                                <i class="bi bi-chevron-down"></i>
                             </div>
                         </button>
                     </h2>
@@ -206,8 +207,8 @@
                                     <div class="card-header py-2 bg-light">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
-                                                <h6 class="m-0 font-weight-bold text-dark">
-                                                    <i class="fas fa-chart-pie me-1"></i> Estadísticas de Asistencia - {{ $gradoData['grado'] }}
+                                                <h6 class="m-0 fw-bold text-dark">
+                                                    <i class="bi bi-pie-chart me-1"></i> Estadísticas de Asistencia - {{ $gradoData['grado'] }}
                                                 </h6>
                                                 <small class="text-muted">
                                                     Período: {{ $periodoSeleccionado->nombre }}
@@ -215,10 +216,10 @@
                                             </div>
                                             <div class="text-end">
                                                 <span class="badge bg-primary">
-                                                    <i class="fas fa-users"></i> {{ $gradoData['estadisticas']['totalEstudiantes'] }} estudiantes
+                                                    <i class="bi bi-people"></i> {{ $gradoData['estadisticas']['totalEstudiantes'] }} estudiantes
                                                 </span>
                                                 <span class="badge bg-success ms-1">
-                                                    <i class="fas fa-clipboard-check"></i> {{ $gradoData['estadisticas']['totalAsistencias'] }} registros
+                                                    <i class="bi bi-clipboard-check"></i> {{ $gradoData['estadisticas']['totalAsistencias'] }} registros
                                                 </span>
                                             </div>
                                         </div>
@@ -228,7 +229,7 @@
                                         @if($gradoData['estadisticas']['totalAsistencias'] == 0)
                                         <div class="alert alert-warning mb-0">
                                             <div class="d-flex align-items-center">
-                                                <i class="fas fa-exclamation-triangle fa-2x me-3 text-warning"></i>
+                                                <i class="bi bi-exclamation-triangle fs-1 me-3 text-warning"></i>
                                                 <div>
                                                     <h6 class="alert-heading mb-1">No hay registros de asistencia</h6>
                                                     <p class="mb-0">No se encontraron registros de asistencia para este grado en el período seleccionado.</p>
@@ -250,21 +251,21 @@
                                                             <div class="rounded-circle d-flex align-items-center justify-content-center me-2"
                                                                 style="width: 40px; height: 40px; background-color: {{ $colorHex }}20;">
                                                                 @if($tipo->nombre == 'PUNTUALIDAD')
-                                                                    <i class="fas fa-check text-success" style="color: {{ $colorHex }}"></i>
+                                                                    <i class="bi bi-check text-success" style="color: {{ $colorHex }}"></i>
                                                                 @elseif($tipo->nombre == 'FALTA')
-                                                                    <i class="fas fa-times text-danger" style="color: {{ $colorHex }}"></i>
+                                                                    <i class="bi bi-x text-danger" style="color: {{ $colorHex }}"></i>
                                                                 @elseif($tipo->nombre == 'TARDANZA')
-                                                                    <i class="fas fa-clock text-warning" style="color: {{ $colorHex }}"></i>
+                                                                    <i class="bi bi-clock text-warning" style="color: {{ $colorHex }}"></i>
                                                                 @else
-                                                                    <i class="fas fa-chart-bar" style="color: {{ $colorHex }}"></i>
+                                                                    <i class="bi bi-bar-chart" style="color: {{ $colorHex }}"></i>
                                                                 @endif
                                                             </div>
                                                             <div class="flex-grow-1">
-                                                                <div class="text-xs font-weight-bold text-uppercase mb-0"
+                                                                <div class="text-xs fw-bold text-uppercase mb-0"
                                                                     style="color: {{ $colorHex }}">
                                                                     {{ $tipo->nombre }}
                                                                 </div>
-                                                                <div class="h5 mb-0 font-weight-bold {{ $conteo > 0 ? 'text-gray-800' : 'text-muted' }}">
+                                                                <div class="h5 mb-0 fw-bold {{ $conteo > 0 ? 'text-body' : 'text-muted' }}">
                                                                     {{ $porcentaje }}%
                                                                 </div>
                                                             </div>
@@ -273,7 +274,7 @@
                                                         <div class="mt-2">
                                                             <div class="d-flex justify-content-between small mb-1">
                                                                 <span class="text-muted">Registros</span>
-                                                                <span class="font-weight-bold">{{ $conteo }}</span>
+                                                                <span class="fw-bold">{{ $conteo }}</span>
                                                             </div>
                                                             @if($conteo > 0)
                                                             <div class="progress" style="height: 6px;">
@@ -303,7 +304,7 @@
                                                             @php
                                                                 $asistenciaPositiva = $gradoData['estadisticas']['porcentajesTipo']['PUNTUALIDAD'] ?? 0;
                                                             @endphp
-                                                            <div class="h4 font-weight-bold {{ $asistenciaPositiva > 80 ? 'text-success' : ($asistenciaPositiva > 60 ? 'text-warning' : 'text-danger') }}">
+                                                            <div class="h4 fw-bold {{ $asistenciaPositiva > 80 ? 'text-success' : ($asistenciaPositiva > 60 ? 'text-warning' : 'text-danger') }}">
                                                                 {{ $asistenciaPositiva }}%
                                                             </div>
                                                         </div>
@@ -312,7 +313,7 @@
                                                             @php
                                                                 $inasistencias = $gradoData['estadisticas']['porcentajesTipo']['FALTA'] ?? 0;
                                                             @endphp
-                                                            <div class="h4 font-weight-bold {{ $inasistencias < 10 ? 'text-success' : ($inasistencias < 20 ? 'text-warning' : 'text-danger') }}">
+                                                            <div class="h4 fw-bold {{ $inasistencias < 10 ? 'text-success' : ($inasistencias < 20 ? 'text-warning' : 'text-danger') }}">
                                                                 {{ $inasistencias }}%
                                                             </div>
                                                         </div>
@@ -323,7 +324,7 @@
                                                                     ? round($gradoData['estadisticas']['totalAsistencias'] / $gradoData['estadisticas']['totalEstudiantes'], 1)
                                                                     : 0;
                                                             @endphp
-                                                            <div class="h4 font-weight-bold text-info">{{ $promedioPorEstudiante }}</div>
+                                                            <div class="h4 fw-bold text-info">{{ $promedioPorEstudiante }}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -340,8 +341,8 @@
                             <div class="col-12">
                                 <div class="card shadow-sm">
                                     <div class="card-header py-3 bg-light">
-                                        <h6 class="m-0 font-weight-bold text-primary">
-                                            <i class="fas fa-chart-bar me-2"></i> Distribución por Estudiante - {{ $gradoData['grado'] }}
+                                        <h6 class="m-0 fw-bold text-primary">
+                                            <i class="bi bi-bar-chart me-2"></i> Distribución por Estudiante - {{ $gradoData['grado'] }}
                                         </h6>
                                     </div>
                                     <div class="card-body">
@@ -351,7 +352,7 @@
                                         </div>
                                         @else
                                         <div class="text-center py-5">
-                                            <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                                            <i class="bi bi-bar-chart fs-1 text-muted mb-3"></i>
                                             <p class="text-muted mb-0">No hay datos suficientes para generar el gráfico</p>
                                         </div>
                                         @endif
@@ -365,8 +366,8 @@
                             <div class="col-12">
                                 <div class="card shadow-sm">
                                     <div class="card-header py-3 bg-light d-flex justify-content-between align-items-center">
-                                        <h6 class="m-0 font-weight-bold text-primary">
-                                            <i class="fas fa-table me-2"></i> Detalle por Estudiante
+                                        <h6 class="m-0 fw-bold text-primary">
+                                            <i class="bi bi-table me-2"></i> Detalle por Estudiante
                                         </h6>
                                         <span class="badge bg-info">{{ count($gradoData['estudiantes']) }} estudiantes</span>
                                     </div>

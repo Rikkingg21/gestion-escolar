@@ -2,32 +2,28 @@
 @section('title', 'Crear Criterios de Evaluación')
 @section('content')
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-plus-circle me-2"></i> Crear Criterios de Evaluación
-        </h1>
-        <a href="{{ route('materiacriterio.index') }}" class="btn btn-secondary">
-            <i class="bi bi-arrow-left me-1"></i> Volver a Criterios
-        </a>
-    </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-plus-circle me-2"></i> Crear Criterios de Evaluación
+                    </h5>
+                    <a href="{{ route('materiacriterio.index') }}" class="btn btn-light btn-sm text-primary">
+                        <i class="bi bi-arrow-left me-1"></i> Volver a Criterios
+                    </a>
+                </div>
+                <div class="card-body">
+                    @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
 
-    @if($errors->any())
-    <div class="alert alert-danger">
-        <ul class="mb-0">
-            @foreach($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-    @endif
-
-    <div class="card shadow">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">
-                <i class="bi bi-card-checklist me-2"></i> Formulario de Criterios
-            </h5>
-        </div>
-        <div class="card-body">
             <form action="{{ route('materiacriterio.store') }}" method="POST" id="criterioForm">
                 @csrf
 
@@ -187,6 +183,8 @@
                     </div>
                 </div>
             </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Competencias')
 
 @section('content')
 <div class="container-fluid">
@@ -192,7 +193,7 @@
                         Mostrando {{ $competencias->firstItem() ?? 0 }} a {{ $competencias->lastItem() ?? 0 }} de {{ $competencias->total() }} competencias
                     </div>
                     <div>
-                        {{ $competencias->appends(request()->query())->links('pagination::bootstrap-4') }}
+                        {{ $competencias->appends(request()->query())->links('pagination::bootstrap-5') }}
                     </div>
                 </div>
             </div>

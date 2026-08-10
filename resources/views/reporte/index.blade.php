@@ -2,22 +2,25 @@
 @section('title', 'Reportes')
 @section('content')
 <div class="container-fluid">
-    <!-- Header Mejorado -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-2 text-gray-800">
-                <i class="bi bi-file-text me-2"></i>Reportes Generales
-            </h1>
-            <p class="text-muted mb-0">Gestión y seguimiento de reportes académicos</p>
-        </div>
-        @if(auth()->check())
-            @if(session('current_role') == 'admin' || session('current_role') == 'director' || session('current_role') == 'auxiliar' || session('current_role') == 'docente')
-                <a href="{{ route('reporte.create') }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle me-2"></i>Crear Reporte
-                </a>
-            @endif
-        @endif
-    </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow border-0">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">
+                            <i class="bi bi-file-text me-2"></i>Reportes Generales
+                        </h5>
+                        <small class="d-block mt-1">Gestión y seguimiento de reportes académicos</small>
+                    </div>
+                    @if(auth()->check())
+                        @if(session('current_role') == 'admin' || session('current_role') == 'director' || session('current_role') == 'auxiliar' || session('current_role') == 'docente')
+                            <a href="{{ route('reporte.create') }}" class="btn btn-light btn-sm text-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Crear Reporte
+                            </a>
+                        @endif
+                    @endif
+                </div>
+                <div class="card-body p-0">
 
     <!-- Información de Sesión -->
     @if(auth()->check())
@@ -35,15 +38,6 @@
             <i class="bi bi-exclamation-triangle me-2"></i>No hay sesión sub activa.
         </div>
     @endif
-
-    <!-- Card Principal -->
-    <div class="card shadow border-0">
-        <div class="card-header bg-white py-3">
-            <h5 class="mb-0 text-gray-800">
-                <i class="bi bi-list-ul me-2"></i>Lista de Reportes
-            </h5>
-        </div>
-        <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
@@ -143,6 +137,8 @@
                         @endforeach
                     </tbody>
                 </table>
+            </div>
+                </div>
             </div>
         </div>
     </div>
@@ -272,9 +268,6 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 </style>
-
-<!-- Bootstrap Icons -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 
 <!-- Script para tooltips -->
 <script>

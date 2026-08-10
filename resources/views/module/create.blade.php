@@ -7,10 +7,10 @@
             <div class="card shadow">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-plus-circle me-2"></i>Crear Nuevo Módulo
+                        <i class="bi bi-plus-circle me-2"></i>Crear Nuevo Módulo
                     </h5>
                     <a href="{{ route('module.index') }}" class="btn btn-light btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i>Volver
+                        <i class="bi bi-arrow-left me-1"></i>Volver
                     </a>
                 </div>
                 <div class="card-body">
@@ -20,7 +20,7 @@
                         <div class="row">
                             <div class="col-12 mb-3">
                                 <label for="nombre" class="form-label">
-                                    <i class="fas fa-tag me-1 text-primary"></i>Nombre del Módulo *
+                                    <i class="bi bi-tag me-1 text-primary"></i>Nombre del Módulo *
                                 </label>
                                 <input type="text" class="form-control @error('nombre') is-invalid @enderror"
                                        id="nombre" name="nombre" value="{{ old('nombre') }}"
@@ -36,25 +36,25 @@
 
                             <div class="col-12 mb-3">
                                 <label for="icono" class="form-label">
-                                    <i class="fas fa-icons me-1 text-primary"></i>Icono (Font Awesome) *
+                                    <i class="bi bi-grid me-1 text-primary"></i>Icono (Bootstrap Icons) *
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light">
-                                        <i id="iconoPreview" class="fas fa-question text-muted"></i>
+                                        <i id="iconoPreview" class="bi bi-question-circle text-muted"></i>
                                     </span>
                                     <input type="text" class="form-control @error('icono') is-invalid @enderror"
                                            id="icono" name="icono" value="{{ old('icono') }}"
-                                           placeholder="Ej: fas fa-users, fas fa-cog, fas fa-chart-bar"
+                                           placeholder="Ej: bi bi-people, bi bi-gear, bi bi-bar-chart"
                                            required>
                                     @error('icono')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
                                 <small class="form-text text-muted">
-                                    Usa clases de Font Awesome. Ej:
-                                    <code>fas fa-users</code>,
-                                    <code>fas fa-cog</code>,
-                                    <code>fas fa-graduation-cap</code>
+                                    Usa clases de Bootstrap Icons. Ej:
+                                    <code>bi bi-people</code>,
+                                    <code>bi bi-gear</code>,
+                                    <code>bi bi-mortarboard</code>
                                 </small>
                                 <small class="form-text text-muted">
                                     Ver más iconos en #estado
@@ -67,7 +67,7 @@
 
                             <div class="col-12 mb-3">
                                 <label for="ruta_base" class="form-label">
-                                    <i class="fas fa-route me-1 text-primary"></i>Ruta Base *
+                                    <i class="bi bi-signpost me-1 text-primary"></i>Ruta Base *
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light">/</span>
@@ -86,7 +86,7 @@
 
                             <div class="col-12 mb-3">
                                 <label for="estado" class="form-label">
-                                    <i class="fas fa-power-off me-1 text-primary"></i>Estado *
+                                    <i class="bi bi-power me-1 text-primary"></i>Estado *
                                 </label>
                                 <div class="form-check form-switch">
                                     <input class="form-check-input @error('estado') is-invalid @enderror"
@@ -111,13 +111,13 @@
                                 <div class="card border-info">
                                     <div class="card-header bg-info text-white">
                                         <h6 class="mb-0">
-                                            <i class="fas fa-eye me-1"></i>Vista Previa del Módulo
+                                            <i class="bi bi-eye me-1"></i>Vista Previa del Módulo
                                         </h6>
                                     </div>
                                     <div class="card-body">
                                         <div class="d-flex align-items-center">
                                             <div class="me-3">
-                                                <i id="previewIcono" class="fas fa-question fa-2x text-primary"></i>
+                                                <i id="previewIcono" class="bi bi-question-circle fs-1 text-primary"></i>
                                             </div>
                                             <div>
                                                 <h5 id="previewNombre" class="mb-1">Nombre del módulo</h5>
@@ -135,10 +135,10 @@
                         <div class="row mt-4">
                             <div class="col-12 d-flex justify-content-between align-items-center">
                                 <a href="{{ route('module.index') }}" class="btn btn-secondary">
-                                    <i class="fas fa-times me-1"></i>Cancelar
+                                    <i class="bi bi-x me-1"></i>Cancelar
                                 </a>
                                 <button type="submit" class="btn btn-primary" id="btnSubmit">
-                                    <i class="fas fa-save me-1"></i>Guardar Módulo
+                                    <i class="bi bi-check-lg me-1"></i>Guardar Módulo
                                 </button>
                             </div>
                         </div>
@@ -173,11 +173,11 @@ $(document).ready(function() {
         // Preview del icono
         const icono = $icono.val();
         if (icono) {
-            $previewIcono.attr('class', icono + ' fa-2x text-primary');
+            $previewIcono.attr('class', icono + ' fs-1 text-primary');
             $iconoPreview.attr('class', icono + ' text-primary');
         } else {
-            $previewIcono.attr('class', 'fas fa-question fa-2x text-muted');
-            $iconoPreview.attr('class', 'fas fa-question text-muted');
+            $previewIcono.attr('class', 'bi bi-question-circle fs-1 text-muted');
+            $iconoPreview.attr('class', 'bi bi-question-circle text-muted');
         }
 
         // Preview de la ruta
@@ -210,13 +210,13 @@ $(document).ready(function() {
 
         // Deshabilitar botón y mostrar loading
         $btnSubmit.prop('disabled', true)
-                 .html('<i class="fas fa-spinner fa-spin me-1"></i>Guardando...');
+                 .html('<i class="bi bi-arrow-repeat spin me-1"></i>Guardando...');
 
         // Validación adicional
         if (!$nombre.val().trim()) {
             e.preventDefault();
             $btnSubmit.prop('disabled', false)
-                     .html('<i class="fas fa-save me-1"></i>Guardar Módulo');
+                     .html('<i class="bi bi-check-lg me-1"></i>Guardar Módulo');
             $nombre.focus();
         }
     });

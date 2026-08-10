@@ -1,53 +1,54 @@
 @extends('layouts.app')
+@section('title', 'Asistencia por Grado')
 
 @section('content')
 <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h3 class="mb-2">
-                Asistencia: {{ $grado_nombre }} - {{ $grado_nivel }}
-            </h3>
-            <div class="d-flex align-items-center flex-wrap gap-2">
-                <span class="badge {{ $existenRegistros ? 'bg-success' : 'bg-warning' }} me-2">
-                    {{ $existenRegistros ? 'Registrada' : 'Pendiente' }}
-                </span>
-
-                @if($mesBloqueado)
-                    <span class="badge bg-danger me-2">
-                        <i class="fas fa-lock me-1"></i>
-                        Mes Bloqueado ({{ $cantidadBloqueados }} registros bloqueados)
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-0">
+                    <i class="bi bi-person-check me-2"></i> Asistencia: {{ $grado_nombre }} - {{ $grado_nivel }}
+                </h5>
+                <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
+                    <span class="badge {{ $existenRegistros ? 'bg-light text-success' : 'bg-light text-warning' }}">
+                        {{ $existenRegistros ? 'Registrada' : 'Pendiente' }}
                     </span>
-                @else
-                    <span class="badge bg-success me-2">
-                        <i class="fas fa-unlock me-1"></i>
-                        Mes Libre
-                    </span>
-                @endif
 
-                <small class="text-muted">
-                    <i class="far fa-calendar-alt me-1"></i>
-                    {{ $fechaLegible }}
-                </small>
+                    @if($mesBloqueado)
+                        <span class="badge bg-danger">
+                            <i class="bi bi-lock me-1"></i>
+                            Mes Bloqueado ({{ $cantidadBloqueados }} registros bloqueados)
+                        </span>
+                    @else
+                        <span class="badge bg-light text-success">
+                            <i class="bi bi-unlock me-1"></i>
+                            Mes Libre
+                        </span>
+                    @endif
 
-                @if(isset($periodoActual))
-                <small class="text-muted ms-2">
-                    <i class="fas fa-calendar-alt me-1"></i>
-                    Período: {{ $periodoActual->nombre }}
-                </small>
-                @endif
+                    <small class="text-white-50">
+                        <i class="bi bi-calendar3 me-1"></i>
+                        {{ $fechaLegible }}
+                    </small>
+
+                    @if(isset($periodoActual))
+                    <small class="text-white-50 ms-2">
+                        <i class="bi bi-calendar3 me-1"></i>
+                        Período: {{ $periodoActual->nombre }}
+                    </small>
+                    @endif
+                </div>
             </div>
-        </div>
-        <div>
-            <a href="{{ route('asistencia.index') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-1"></i> Volver
+            <a href="{{ route('asistencia.index') }}" class="btn btn-light btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Volver
             </a>
         </div>
-    </div>
+        <div class="card-body">
 
     @if($mesBloqueado)
         <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
             <div class="d-flex align-items-center">
-                <i class="fas fa-lock fa-2x me-3"></i>
+                <i class="bi bi-lock fs-1 me-3"></i>
                 <div>
                     <strong>Mes bloqueado:</strong> Este mes ya tiene {{ $cantidadBloqueados }} asistencia(s) bloqueada(s).
                     No se pueden realizar modificaciones ni agregar nuevos registros.
@@ -105,7 +106,7 @@
                     </select>
                     @if($mesBloqueado)
                         <small class="text-danger d-block mt-1">
-                            <i class="fas fa-info-circle"></i> Mes bloqueado - No se puede modificar
+                            <i class="bi bi-info-circle"></i> Mes bloqueado - No se puede modificar
                         </small>
                     @endif
                 </div>
@@ -121,7 +122,7 @@
                             min="{{ $bimestreActual ? $bimestreActual->fecha_inicio : ($periodoActual ? $periodoActual->fecha_inicio : '2000-01-01') }}"
                             max="{{ $bimestreActual ? $bimestreActual->fecha_fin : ($periodoActual ? $periodoActual->fecha_fin : now()->format('Y-m-d')) }}">
                         <button class="btn btn-outline-secondary" type="button" id="btnHoy">
-                            <i class="fas fa-calendar-day"></i> Hoy
+                            <i class="bi bi-calendar-day"></i> Hoy
                         </button>
                     </div>
                 </div>
@@ -187,7 +188,7 @@
             <div class="card-header {{ $mesBloqueado ? 'bg-secondary' : 'bg-success' }} text-white">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-user-check me-1"></i>
+                        <i class="bi bi-person-check me-1"></i>
                         Estudiantes Matriculados Activos
                         <span class="badge bg-light {{ $mesBloqueado ? 'text-secondary' : 'text-success' }} ms-2">
                             {{ count($estudiantesActivos) }}
@@ -195,7 +196,7 @@
                     </h5>
                     @if($mesBloqueado)
                         <span class="badge bg-danger">
-                            <i class="fas fa-lock me-1"></i> Solo lectura - Mes bloqueado
+                            <i class="bi bi-lock me-1"></i> Solo lectura - Mes bloqueado
                         </span>
                     @endif
                 </div>
@@ -226,7 +227,7 @@
                                                 {{ $estudiante['nombre_completo'] }}
                                             </div>
                                             <small class="{{ $mesBloqueado ? 'text-muted' : 'text-success' }}">
-                                                <i class="fas fa-check-circle"></i> Matriculado Activo
+                                                <i class="bi bi-check-circle"></i> Matriculado Activo
                                             </small>
                                         </div>
                                     </div>
@@ -279,7 +280,7 @@
                                                 data-tipo="5"
                                                 title="Marcar como Puntual"
                                                 {{ $mesBloqueado ? 'disabled' : '' }}>
-                                            <i class="fas fa-check"></i> Puntual
+                                            <i class="bi bi-check"></i> Puntual
                                         </button>
                                         <button type="button"
                                                 class="btn btn-outline-danger btn-marcar-rapido"
@@ -287,7 +288,7 @@
                                                 data-tipo="1"
                                                 title="Marcar como Tardanza"
                                                 {{ $mesBloqueado ? 'disabled' : '' }}>
-                                            <i class="fas fa-clock"></i> Tardanza
+                                            <i class="bi bi-clock"></i> Tardanza
                                         </button>
                                     </div>
                                 </td>
@@ -296,7 +297,7 @@
                             <tr>
                                 <td colspan="6" class="text-center py-4">
                                     <div class="text-muted">
-                                        <i class="fas fa-user-graduate fa-2x mb-2"></i>
+                                        <i class="bi bi-mortarboard fs-1 mb-2"></i>
                                         <p>No hay estudiantes matriculados activos</p>
                                     </div>
                                 </td>
@@ -314,7 +315,7 @@
             <div class="card-header bg-secondary text-white">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-user-slash me-1"></i>
+                        <i class="bi bi-person-slash me-1"></i>
                         Estudiantes Retirados
                         <span class="badge bg-light text-dark ms-2">
                             {{ count($estudiantesRetirados) }}
@@ -346,7 +347,7 @@
                                                 {{ $estudiante['nombre_completo'] }}
                                             </div>
                                             <small class="text-danger">
-                                                <i class="fas fa-user-times"></i> Retirado
+                                                <i class="bi bi-person-x"></i> Retirado
                                             </small>
                                         </div>
                                     </div>
@@ -372,10 +373,10 @@
                                 <td class="align-middle text-center">
                                     <div class="btn-group btn-group-sm" role="group">
                                         <button type="button" class="btn btn-outline-secondary" disabled>
-                                            <i class="fas fa-check"></i> Puntual
+                                            <i class="bi bi-check"></i> Puntual
                                         </button>
                                         <button type="button" class="btn btn-outline-secondary" disabled>
-                                            <i class="fas fa-clock"></i> Tardanza
+                                            <i class="bi bi-clock"></i> Tardanza
                                         </button>
                                     </div>
                                 </td>
@@ -393,7 +394,7 @@
                 <div class="row align-items-center">
                     <div class="col-md-6">
                         <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
+                            <i class="bi bi-info-circle me-1"></i>
                             @if($existenRegistros)
                                 Total registrado: {{ count($estudiantesActivos) + count($estudiantesRetirados) }} estudiantes
                             @else
@@ -407,7 +408,7 @@
                         <button type="submit"
                                 class="btn btn-primary"
                                 {{ $mesBloqueado ? 'disabled' : '' }}>
-                            <i class="fas fa-save"></i>
+                            <i class="bi bi-check-lg"></i>
                             {{ $existenRegistros ? 'Actualizar Asistencia' : 'Guardar Asistencia' }}
                         </button>
                     </div>
@@ -415,6 +416,8 @@
             </div>
         </div>
     </form>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -552,7 +555,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 this.disabled = true;
                 const originalText = this.innerHTML;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                this.innerHTML = '<i class="bi bi-arrow-repeat fa-spin"></i>';
                 const periodobimestreValue = periodobimestreSelect.value || periodobimestreHidden.value;
 
                 try {

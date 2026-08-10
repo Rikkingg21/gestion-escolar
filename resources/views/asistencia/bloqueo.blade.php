@@ -3,15 +3,17 @@
 @section('title', 'Bloqueo de Asistencias')
 
 @section('content')
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="h3 mb-0 text-primary fw-bold">
-            <i class="fas fa-lock me-2"></i> Bloqueo de Asistencias
-        </h2>
-        <a href="{{ route('asistencia.index') }}" class="btn btn-secondary btn-sm">
-            <i class="fas fa-arrow-left me-1"></i> Volver
-        </a>
-    </div>
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0">
+                <i class="bi bi-lock me-2"></i> Bloqueo de Asistencias
+            </h5>
+            <a href="{{ route('asistencia.index') }}" class="btn btn-light btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Volver
+            </a>
+        </div>
+        <div class="card-body">
 
     <!-- Filtros -->
     <div class="card mb-4">
@@ -62,10 +64,10 @@
                 <div class="row">
                     <div class="col-12">
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-search me-1"></i> Buscar
+                            <i class="bi bi-search me-1"></i> Buscar
                         </button>
                         <a href="{{ route('bloqueo.view') }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-broom me-1"></i> Limpiar
+                            <i class="bi bi-broom me-1"></i> Limpiar
                         </a>
                     </div>
                 </div>
@@ -119,22 +121,22 @@
                 <div class="row g-2">
                     <div class="col-md-3">
                         <button type="button" class="btn btn-warning w-100" data-bs-toggle="modal" data-bs-target="#bloquearModal">
-                            <i class="fas fa-lock me-1"></i> Bloquear Temporal
+                            <i class="bi bi-lock me-1"></i> Bloquear Temporal
                         </button>
                     </div>
                     <div class="col-md-3">
                         <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#bloquearDefinitivoModal">
-                            <i class="fas fa-lock me-1"></i> Bloquear Definitivo
+                            <i class="bi bi-lock me-1"></i> Bloquear Definitivo
                         </button>
                     </div>
                     <div class="col-md-3">
                         <button type="button" class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#liberarModal">
-                            <i class="fas fa-unlock-alt me-1"></i> Liberar Temporal
+                            <i class="bi bi-unlock me-1"></i> Liberar Temporal
                         </button>
                     </div>
                     <div class="col-md-3">
                         <button type="button" class="btn btn-secondary w-100" data-bs-toggle="modal" data-bs-target="#liberarDefinitivoModal">
-                            <i class="fas fa-unlock me-1"></i> Liberar Definitivo
+                            <i class="bi bi-unlock me-1"></i> Liberar Definitivo
                         </button>
                     </div>
                 </div>
@@ -196,7 +198,7 @@
                             @empty
                             <tr>
                                 <td colspan="7" class="text-center py-4">
-                                    <i class="fas fa-calendar-times fa-2x text-muted mb-2 d-block"></i>
+                                    <i class="bi bi-calendar-x fs-1 text-muted mb-2 d-block"></i>
                                     No se encontraron registros para los filtros seleccionados.
                                 </td>
                             </tr>
@@ -207,6 +209,8 @@
             </div>
         </div>
     @endif
+        </div>
+    </div>
 </div>
 
 <!-- Modal Bloquear Temporal -->
@@ -387,7 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toast.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 end-0 m-3';
         toast.style.zIndex = '9999';
         toast.innerHTML = `
-            <i class="fas fa-check-circle me-2"></i> ${session('success')}
+            <i class="bi bi-check-circle me-2"></i> ${session('success')}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         document.body.appendChild(toast);
@@ -399,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toastError.className = 'alert alert-danger alert-dismissible fade show position-fixed top-0 end-0 m-3';
         toastError.style.zIndex = '9999';
         toastError.innerHTML = `
-            <i class="fas fa-exclamation-triangle me-2"></i> ${session('error')}
+            <i class="bi bi-exclamation-triangle me-2"></i> ${session('error')}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         document.body.appendChild(toastError);
@@ -411,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toastInfo.className = 'alert alert-info alert-dismissible fade show position-fixed top-0 end-0 m-3';
         toastInfo.style.zIndex = '9999';
         toastInfo.innerHTML = `
-            <i class="fas fa-info-circle me-2"></i> ${session('info')}
+            <i class="bi bi-info-circle me-2"></i> ${session('info')}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         document.body.appendChild(toastInfo);

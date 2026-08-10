@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Panel')
 
 @section('content')
 <div class="container">
@@ -14,7 +15,7 @@
                 <div class="col-md-6">
                     <div class="card h-100 border-0 shadow-sm">
                         <div class="card-body">
-                            <i class="fas fa-book-open fa-2x text-primary mb-3"></i>
+                            <i class="bi bi-book fs-1 text-primary mb-3"></i>
                             <h5 class="card-title">Explora</h5>
                             <p class="card-text small">Descubre todas las herramientas disponibles</p>
                         </div>
@@ -23,7 +24,7 @@
                 <div class="col-md-6">
                     <div class="card h-100 border-0 shadow-sm">
                         <div class="card-body">
-                            <i class="fas fa-users fa-2x text-success mb-3"></i>
+                            <i class="bi bi-people fs-1 text-success mb-3"></i>
                             <h5 class="card-title">Conecta</h5>
                             <p class="card-text small">Interactúa con tu comunidad educativa</p>
                         </div>
@@ -31,7 +32,7 @@
                 </div>
             </div>
             <button class="btn btn-primary btn-lg px-5 shadow-sm">
-                <i class="fas fa-rocket me-2"></i>Comenzar
+                <i class="bi bi-rocket me-2"></i>Comenzar
             </button>
         </div>
     </div>

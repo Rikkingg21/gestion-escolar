@@ -7,10 +7,10 @@
             <div class="card shadow">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="fas fa-plus-circle me-2"></i>Crear Nuevo Rol
+                        <i class="bi bi-plus-circle me-2"></i>Crear Nuevo Rol
                     </h5>
                     <a href="{{ route('role.index') }}" class="btn btn-light btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i>Volver
+                        <i class="bi bi-arrow-left me-1"></i>Volver
                     </a>
                 </div>
                 <div class="card-body">
@@ -54,10 +54,10 @@
                         <div class="row mt-4">
                             <div class="col-12">
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-1"></i>Guardar Rol
+                                    <i class="bi bi-check-lg me-1"></i>Guardar Rol
                                 </button>
                                 <a href="{{ route('role.index') }}" class="btn btn-secondary">
-                                    <i class="fas fa-times me-1"></i>Cancelar
+                                    <i class="bi bi-x me-1"></i>Cancelar
                                 </a>
                             </div>
                         </div>

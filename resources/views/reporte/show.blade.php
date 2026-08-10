@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Reporte')
 
 @section('content')
 <section class="py-5">

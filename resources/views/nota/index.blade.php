@@ -2,47 +2,37 @@
 @section('title','Notas')
 @section('content')
 <div class="container-fluid">
-    <!-- Encabezado -->
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            Notas - {{ $grado->NombreCompleto }} - {{ $materia->nombre }} - {{ $periodoBimestre->sigla }} ({{ $periodoBimestre->bimestre }})
-            <span class="h6 text-primary">
-                {{ $periodo->anio }} ({{ $periodo->nombre }})
-            </span>
-        </h1>
-
-        <div class="d-flex align-items-center">
-            <!-- Estado actual -->
-            <div class="mr-3">
-                <span class="badge badge-{{ $estadosNotas[$estadoActual][1] ?? 'secondary' }}">
-                    {{ $estadosNotas[$estadoActual][0] ?? 'Desconocido' }}
-                </span>
-            </div>
-
-            <button class="btn btn-secondary" onclick="window.location='{{ route('maya.index') }}'">
-                <i class="fas fa-arrow-left me-1"></i>
-                Regresar a Mayas
-            </button>
-
-            <div class="btn-group" role="group">
-            <!-- PUBLICAR / AVANZAR -->
-                @if($puedePublicar)
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#publicarModal">
-                    <i class="fas fa-paper-plane me-1"></i>
-                    {{ $textoBotonPublicar }}
-                </button>
-                @endif
-
-                <!-- REVERTIR -->
-                @if($puedeRevertir)
-                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#revertirModal">
-                    <i class="fas fa-undo me-1"></i>
-                    Revertir
-                </button>
-                @endif
-            </div>
-        </div>
-    </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h5 class="mb-0">
+                        <i class="bi bi-folder2 me-2"></i>Notas - {{ $grado->NombreCompleto }} - {{ $materia->nombre }} - {{ $periodoBimestre->sigla }} ({{ $periodoBimestre->bimestre }})
+                        <span class="h6 text-white-50 ms-2">{{ $periodo->anio }} ({{ $periodo->nombre }})</span>
+                    </h5>
+                    <div class="d-flex align-items-center flex-wrap gap-2">
+                        <span class="badge bg-{{ $estadosNotas[$estadoActual][1] ?? 'secondary' }}">
+                            {{ $estadosNotas[$estadoActual][0] ?? 'Desconocido' }}
+                        </span>
+                        <button class="btn btn-light btn-sm" onclick="window.location='{{ route('maya.index') }}'">
+                            <i class="bi bi-arrow-left me-1"></i>
+                            Regresar a Mayas
+                        </button>
+                        @if($puedePublicar)
+                        <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#publicarModal">
+                            <i class="bi bi-send me-1"></i>
+                            {{ $textoBotonPublicar }}
+                        </button>
+                        @endif
+                        @if($puedeRevertir)
+                        <button type="button" class="btn btn-light btn-sm text-danger" data-bs-toggle="modal" data-bs-target="#revertirModal">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>
+                            Revertir
+                        </button>
+                        @endif
+                    </div>
+                </div>
+                <div class="card-body">
 
     <!-- Información del curso -->
     <div class="row mb-4">
@@ -50,11 +40,11 @@
             <div class="card border-left-primary shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                        <div class="col me-2">
+                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">
                                 Docente
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            <div class="h5 mb-0 fw-bold text-body">
                                 @if($docente && $docente->user)
                                     {{ $docente->user->apellido_paterno.' '.
                                     $docente->user->apellido_materno.', '.
@@ -65,7 +55,7 @@
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-chalkboard-teacher fa-2x text-gray-300"></i>
+                            <i class="bi bi-person-video3 fs-1 text-muted"></i>
                         </div>
                     </div>
                 </div>
@@ -76,16 +66,16 @@
             <div class="card border-left-success shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                        <div class="col me-2">
+                            <div class="text-xs fw-bold text-success text-uppercase mb-1">
                                 Estudiantes Matriculados
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            <div class="h5 mb-0 fw-bold text-body">
                                 {{ $estudiantesMatriculadosActivos->count() }}
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-user-graduate fa-2x text-gray-300"></i>
+                            <i class="bi bi-mortarboard fs-1 text-muted"></i>
                         </div>
                     </div>
                 </div>
@@ -96,16 +86,16 @@
             <div class="card border-left-info shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                        <div class="col me-2">
+                            <div class="text-xs fw-bold text-info text-uppercase mb-1">
                                 Estado de Notas
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            <div class="h5 mb-0 fw-bold text-body">
                                 {{ $estadosNotas[$estadoActual][0] ?? 'Desconocido' }}
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-columns fa-2x text-gray-300"></i>
+                            <i class="bi bi-columns fs-1 text-muted"></i>
                         </div>
                     </div>
                 </div>
@@ -120,7 +110,7 @@
                 <div class="alert alert-danger border-left-danger shadow-sm" role="alert">
                     <ul class="mb-0">
                         @foreach ($errors->all() as $error)
-                            <li><i class="fas fa-times-circle me-1"></i> {{ $error }}</li>
+                            <li><i class="bi bi-x-circle me-1"></i> {{ $error }}</li>
                         @endforeach
                     </ul>
                 </div>
@@ -129,7 +119,7 @@
             {{-- Mensaje de éxito (si acabas de realizar una acción) --}}
             @if(session('success'))
                 <div class="alert alert-success border-left-success shadow-sm" role="alert">
-                    <i class="fas fa-check-circle me-1"></i> {{ session('success') }}
+                    <i class="bi bi-check-circle me-1"></i> {{ session('success') }}
                 </div>
             @endif
         </div>
@@ -138,10 +128,10 @@
     <!-- Tabla de notas -->
     <div class="card shadow mb-4">
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Registro de Notas</h6>
+            <h6 class="m-0 fw-bold text-primary">Registro de Notas</h6>
             <div>
-                <div class="switch-container mr-4">
-                    <label class="mr-2 mb-0">Formato:</label>
+                <div class="switch-container me-4">
+                    <label class="me-2 mb-0">Formato:</label>
                     <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
                         <input type="radio" class="btn-check" name="btnradio" id="btncuantitativo" autocomplete="off" checked value="cuantitativo">
                         <label class="btn btn-outline-primary" for="btncuantitativo">Cuantitativo</label>
@@ -153,11 +143,11 @@
                         <button type="button" class="btn btn-success" id="btnExportarExcel">Excel</button>
                     </div>
                 </div>
-                <span class="text-xs text-gray-600 mr-3">
-                    <i class="fas fa-edit text-primary"></i> Puede guardar: {{ $puedeGuardar ? 'Sí' : 'No' }}
+                <span class="text-xs text-secondary me-3">
+                    <i class="bi bi-pencil text-primary"></i> Puede guardar: {{ $puedeGuardar ? 'Sí' : 'No' }}
                 </span>
-                <span class="text-xs text-gray-600">
-                    <i class="fas fa-paper-plane text-success"></i> Puede publicar: {{ $puedePublicar ? 'Sí' : 'No' }}
+                <span class="text-xs text-secondary">
+                    <i class="bi bi-send text-success"></i> Puede publicar: {{ $puedePublicar ? 'Sí' : 'No' }}
                 </span>
             </div>
         </div>
@@ -174,7 +164,7 @@
                             @foreach($competencias as $competencia)
                                 @if($competencia->criterios->count() > 0)
                                 <th colspan="{{ $competencia->criterios->count() }}" class="text-center bg-light">
-                                    <div class="font-weight-bold">{{ $competencia->nombre }}</div>
+                                    <div class="fw-bold">{{ $competencia->nombre }}</div>
                                     <small class="text-muted">Competencia</small>
                                 </th>
                                 @endif
@@ -182,21 +172,21 @@
 
                             @if($competenciasNoTransversales->count() > 0)
                             <th colspan="{{ $competenciasNoTransversales->count() }}" class="text-center bg-info text-white">
-                                <div class="font-weight-bold">SIAGIE</div>
+                                <div class="fw-bold">SIAGIE</div>
                                 <small>Competencias</small>
                             </th>
                             @endif
 
                             @if($competenciaTransversal && $competenciaTransversal->criterios->count() > 0)
                             <th colspan="{{ $competenciaTransversal->criterios->count() }}" class="text-center bg-info text-white">
-                                <div class="font-weight-bold">SIAGIE</div>
+                                <div class="fw-bold">SIAGIE</div>
                                 <small>Transversales</small>
                             </th>
                             @endif
 
                             @if($conductas->count() > 0)
                             <th colspan="{{ $conductas->count() }}" class="text-center bg-warning">
-                                <div class="font-weight-bold">CONDUCTAS</div>
+                                <div class="fw-bold">CONDUCTAS</div>
                             </th>
                             @endif
                         </tr>
@@ -242,7 +232,7 @@
                             <td class="text-center align-middle">{{ $index + 1 }}</td>
 
                             <td class="align-middle" style="white-space: nowrap;">
-                                <div class="font-weight-bold">
+                                <div class="fw-bold">
                                     {{ $estudiante->user->apellido_paterno }}
                                     {{ $estudiante->user->apellido_materno }},
                                     {{ $estudiante->user->nombre }}
@@ -272,7 +262,7 @@
                                         data-original="{{ $nota ?? '' }}"
                                         data-type="criterio">
                                     @else
-                                    <div class="font-weight-bold
+                                    <div class="fw-bold
                                         @if($nota >= 3) text-success
                                         @elseif($nota == 2) text-warning
                                         @elseif($nota == 1) text-danger
@@ -300,7 +290,7 @@
                                         }
                                         $promedio = $count > 0 ? round($suma / $count, 1) : null;
                                     @endphp
-                                    <div class="font-weight-bold promedio-siagie
+                                    <div class="fw-bold promedio-siagie
                                         @if($promedio >= 3) text-success
                                         @elseif($promedio == 2) text-warning
                                         @elseif($promedio == 1) text-danger
@@ -318,7 +308,7 @@
                                         $notaTrans = $notasExistentes[$keyTrans]['nota'] ?? null;
                                         $publicoTrans = $notasExistentes[$keyTrans]['publico'] ?? '0';
                                     @endphp
-                                    <div class="font-weight-bold
+                                    <div class="fw-bold
                                         @if($notaTrans >= 3) text-success
                                         @elseif($notaTrans == 2) text-warning
                                         @elseif($notaTrans == 1) text-danger
@@ -350,7 +340,7 @@
                                        data-conducta="{{ $conducta->id }}"
                                        style="width: 70px; display: inline-block;">
                                 @else
-                                <div class="font-weight-bold
+                                <div class="fw-bold
                                     @if($notaCond >= 13) text-success
                                     @elseif($notaCond >= 11) text-warning
                                     @elseif($notaCond !== null) text-danger
@@ -366,8 +356,8 @@
                         @if($estudiantesMatriculadosRetirados->count() > 0)
                         <tr class="bg-gray-200">
                             <td colspan="{{ 2 + $competencias->sum(fn($c) => $c->criterios->count()) + $totalColumnasSIAGIE + $conductas->count() }}"
-                                class="text-center font-weight-bold py-2">
-                                <i class="fas fa-user-slash text-gray-600 mr-2"></i>
+                                class="text-center fw-bold py-2">
+                                <i class="bi bi-person-slash text-secondary me-2"></i>
                                 ESTUDIANTES MATRICULADOS RETIRADOS CON NOTAS REGISTRADAS
                             </td>
                         </tr>
@@ -375,11 +365,11 @@
                         @foreach($estudiantesMatriculadosRetirados as $index => $estudiante)
                         <tr class="text-muted">
                             <td class="text-center align-middle">
-                                <i class="fas fa-user-slash text-gray-400"></i>
+                                <i class="bi bi-person-slash text-muted"></i>
                             </td>
 
                             <td class="align-middle">
-                                <div class="font-weight-bold text-gray-600">
+                                <div class="fw-bold text-secondary">
                                     {{ $estudiante->user->apellido_paterno }}
                                     {{ $estudiante->user->apellido_materno }},
                                     {{ $estudiante->user->nombre }}
@@ -397,7 +387,7 @@
                                         $puedeGuardarCampo = $puedeGuardar && in_array($publico, ['0', '1']);
                                     @endphp
 
-                                    <div class="font-weight-bold
+                                    <div class="fw-bold
                                         @if($nota >= 3) text-success
                                         @elseif($nota == 2) text-warning
                                         @elseif($nota == 1) text-danger
@@ -424,7 +414,7 @@
                                         }
                                         $promedio = $count > 0 ? round($suma / $count, 1) : null;
                                     @endphp
-                                    <div class="font-weight-bold promedio-siagie
+                                    <div class="fw-bold promedio-siagie
                                         @if($promedio >= 3) text-success
                                         @elseif($promedio == 2) text-warning
                                         @elseif($promedio == 1) text-danger
@@ -442,7 +432,7 @@
                                         $notaTrans = $notasExistentes[$keyTrans]['nota'] ?? null;
                                         $publicoTrans = $notasExistentes[$keyTrans]['publico'] ?? '0';
                                     @endphp
-                                    <div class="font-weight-bold
+                                    <div class="fw-bold
                                         @if($notaTrans >= 3) text-success
                                         @elseif($notaTrans == 2) text-warning
                                         @elseif($notaTrans == 1) text-danger
@@ -461,7 +451,7 @@
                                     $publicoCond = $conductaNotas[$keyCond]['publico'] ?? '0';
                                 @endphp
 
-                                <div class="font-weight-bold
+                                <div class="fw-bold
                                     @if($notaCond >= 3) text-success
                                     @elseif($notaCond == 2) text-warning
                                     @elseif($notaCond == 1) text-danger
@@ -480,10 +470,14 @@
             @if($puedeGuardar)
             <div class="mt-3 text-right">
                 <button type="button" class="btn btn-success" id="btnGuardarNotas">
-                    <i class="fas fa-save mr-2"></i>Guardar Cambios
+                    <i class="bi bi-check-lg me-2"></i>Guardar Cambios
                 </button>
             </div>
             @endif
+        </div>
+    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -495,7 +489,7 @@
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title" id="publicarModalLabel">
-                    <i class="fas fa-paper-plane me-2"></i>
+                    <i class="bi bi-send me-2"></i>
                     {{ $textoBotonPublicar }}
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -517,7 +511,7 @@
                     </div>
 
                     <div class="alert alert-warning small mt-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <i class="bi bi-exclamation-triangle me-2"></i>
                         Esta acción avanzará el estado de visibilidad de las notas.
                     </div>
                 </div>
@@ -525,7 +519,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-check me-1"></i> Confirmar
+                        <i class="bi bi-check me-1"></i> Confirmar
                     </button>
                 </div>
             </form>
@@ -541,7 +535,7 @@
         <div class="modal-content">
             <div class="modal-header bg-warning text-dark">
                 <h5 class="modal-title" id="revertirModalLabel">
-                    <i class="fas fa-undo me-2"></i>
+                    <i class="bi bi-arrow-counterclockwise me-2"></i>
                     Revertir Estado de Notas
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -557,18 +551,18 @@
                     <!-- Mensajes de alerta -->
                     @if($sessionMainUser)
                     <div class="alert alert-info">
-                        <i class="fas fa-user-shield me-2"></i>
+                        <i class="bi bi-shield-lock me-2"></i>
                         <strong>Sesión Principal Activa:</strong> {{ $sessionMainUser->nombre_usuario }}
                     </div>
                     @else
                     <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <i class="bi bi-exclamation-circle me-2"></i>
                         <strong>Error:</strong> No hay sesión principal activa.
                     </div>
                     @endif
 
                     <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <i class="bi bi-exclamation-triangle me-2"></i>
                         <strong>Advertencia:</strong> Está a punto de revertir el estado de las notas. Esta acción requiere autenticación con la sesión principal.
                     </div>
 
@@ -620,16 +614,16 @@
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i> Cancelar
+                        <i class="bi bi-x me-1"></i> Cancelar
                     </button>
 
                     @if($sessionMainUser)
                     <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-undo me-1"></i> Confirmar Reversión
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Confirmar Reversión
                     </button>
                     @else
                     <button type="button" class="btn btn-danger" disabled>
-                        <i class="fas fa-ban me-1"></i> No disponible
+                        <i class="bi bi-ban me-1"></i> No disponible
                     </button>
                     @endif
                 </div>
@@ -732,7 +726,7 @@
             }
         });
         actualizarTodosLosPromediosSIAGIE();
-        $('td .font-weight-bold').each(function() {
+        $('td .fw-bold').each(function() {
             const $celda = $(this);
             const texto = $celda.text().trim();
             if (texto !== '-') {
@@ -948,7 +942,7 @@
             const valor = $(this).val() || '-';
             $(this).replaceWith('<div>' + valor + '</div>');
         });
-        $(tablaClon).find('td .font-weight-bold, td div').each(function() {
+        $(tablaClon).find('td .fw-bold, td div').each(function() {
             const $celda = $(this);
             const texto = $celda.text().trim();
             // Solo aplicar formato si el texto es un número entre 1 y 4
@@ -957,7 +951,7 @@
                 $celda.text(valorFormateado);
             }
         });
-        $(tablaClon).find('td .font-weight-bold, td div').each(function() {
+        $(tablaClon).find('td .fw-bold, td div').each(function() {
             const $celda = $(this);
             const texto = $celda.text().trim();
             $celda.removeClass('text-success text-warning text-danger');

@@ -1,16 +1,16 @@
 @extends('layouts.app')
 @section('title', 'Estudiantes - ' . $grado->nombre_completo)
 @section('content')
-    <div class="container py-4">
+    <div class="container-fluid">
         <!-- Header con información del grado y período -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="alert alert-info">
-                    <h5 class="mb-1">{{ $grado->nombre_completo }}</h5>
-                    <p class="mb-0">Período: <strong>{{ $nombre }}</strong></p>
-                </div>
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-mortarboard me-2"></i> {{ $grado->nombre_completo }}
+                    <span class="badge bg-light text-dark ms-2">Período: {{ $nombre }}</span>
+                </h5>
             </div>
-        </div>
+            <div class="card-body">
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
                 {{ session('success') }}
@@ -29,7 +29,7 @@
         <div class="card mb-4">
             <div class="card-header bg-success text-white">
                 <h5 class="mb-0">
-                    <i class="fas fa-user-check me-2"></i>
+                    <i class="bi bi-person-check me-2"></i>
                     Estudiantes Matriculados
                     <span class="badge bg-light text-dark ms-2">
                         {{ $matriculas->where('estado', '1')->count() }} activo(s)
@@ -118,7 +118,7 @@
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <div>
                     <h5 class="mb-0">
-                        <i class="fas fa-user-plus me-2"></i>
+                        <i class="bi bi-person-plus me-2"></i>
                         Estudiantes Disponibles para Matricular
                         <span class="badge bg-light text-dark ms-2">
                             {{ $estudiantesNoMatriculados->count() }} estudiante(s)
@@ -257,8 +257,10 @@
         <div class="mt-4">
             <a href="{{ route('matricula.index', ['nombre' => $nombre]) }}"
                class="btn btn-secondary">
-                <i class="fas fa-arrow-left me-2"></i> Volver a Grados
+                <i class="bi bi-arrow-left me-2"></i> Volver a Grados
             </a>
+        </div>
+            </div>
         </div>
     </div>
 

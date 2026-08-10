@@ -1,7 +1,14 @@
 @extends('layouts.app')
 @section('title', 'Matrículas')
 @section('content')
-    <div class="container py-4">
+    <div class="container-fluid">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-journal-text me-2"></i> Gestión de Matrículas
+                </h5>
+            </div>
+            <div class="card-body">
         <div class="row mb-4">
             <div class="col-md-6">
                 <label for="periodo_id" class="form-label">Seleccionar Período:</label>
@@ -37,7 +44,7 @@
             <div class="card mb-4">
                 <div class="card-header bg-success text-white">
                     <h5 class="mb-0">
-                        <i class="fas fa-user-check me-2"></i>
+                        <i class="bi bi-person-check me-2"></i>
                         Grados con Matrículas Registradas
                         <span class="badge bg-light text-dark ms-2">
                             {{ $gradosConMatriculas->count() }} grado(s)
@@ -78,7 +85,7 @@
                                         <td>
                                             <a href="{{ route('matricula.grado', ['nombre' => $nombre, 'grado_id' => $grado->id]) }}"
                                                class="btn btn-sm btn-primary">
-                                                <i class="fas fa-eye me-1"></i> Ver Matrículas
+                                                <i class="bi bi-eye me-1"></i> Ver Matrículas
                                             </a>
                                         </td>
                                     </tr>
@@ -95,7 +102,7 @@
             <div class="card mb-4">
                 <div class="card-header bg-secondary text-white">
                     <h5 class="mb-0">
-                        <i class="fas fa-user-plus me-2"></i>
+                        <i class="bi bi-person-plus me-2"></i>
                         Grados Disponibles para Matrícula
                         <span class="badge bg-light text-dark ms-2">
                             {{ $gradosSinMatriculas->count() }} grado(s)
@@ -136,7 +143,7 @@
                                         <td>
                                             <a href="{{ route('matricula.grado', ['nombre' => $nombre, 'grado_id' => $grado->id]) }}"
                                                class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-plus me-1"></i> Iniciar Matrículas
+                                                <i class="bi bi-plus me-1"></i> Iniciar Matrículas
                                             </a>
                                         </td>
                                     </tr>
@@ -155,8 +162,10 @@
             </div>
         @endif
         <a href="{{ route('periodo.index') }}" class="btn btn-secondary mt-3">
-            Regresar a Períodos
+            Regresar a Per��odos
         </a>
+            </div>
+        </div>
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {

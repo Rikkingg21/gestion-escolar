@@ -7,7 +7,7 @@
             <div class="card shadow">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
-                        <i class="fas fa-plus-circle me-2"></i>Nuevo Periodo Académico
+                        <i class="bi bi-plus-circle me-2"></i>Nuevo Periodo Académico
                     </h5>
                 </div>
 
@@ -114,10 +114,10 @@
 
                         <div class="d-flex justify-content-between">
                             <a href="{{ route('periodo.index') }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-1"></i>Cancelar
+                                <i class="bi bi-arrow-left me-1"></i>Cancelar
                             </a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i>Guardar Periodo
+                                <i class="bi bi-check-lg me-1"></i>Guardar Periodo
                             </button>
                         </div>
                     </form>

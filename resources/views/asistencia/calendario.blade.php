@@ -3,22 +3,19 @@
 @section('content')
 <div class="container py-4">
     <!-- Encabezado -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center flex-wrap">
-                <h2 class="mb-2">
-                    <i class="fas fa-calendar-check text-primary"></i>
-                    Mi Calendario de Asistencias
-                </h2>
-                <div class="text-muted">
-                    <strong>{{ $estudiante->user->nombre ?? '' }} {{ $estudiante->user->apellido_paterno ?? '' }}</strong>
-                    @if($gradoActual)
-                        • {{ $gradoActual->grado }}° {{ $gradoActual->seccion }} - {{ $gradoActual->nivel }}
-                    @endif
-                </div>
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0">
+                <i class="bi bi-calendar-check me-2"></i> Mi Calendario de Asistencias
+            </h5>
+            <div class="text-white-50">
+                <strong class="text-white">{{ $estudiante->user->nombre ?? '' }} {{ $estudiante->user->apellido_paterno ?? '' }}</strong>
+                @if($gradoActual)
+                    • {{ $gradoActual->grado }}° {{ $gradoActual->seccion }} - {{ $gradoActual->nivel }}
+                @endif
             </div>
         </div>
-    </div>
+        <div class="card-body">
 
     <!-- Filtros -->
     <div class="row mb-4">
@@ -47,7 +44,7 @@
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
                             <button type="button" class="btn btn-outline-secondary w-100" id="btnLimpiar">
-                                <i class="fas fa-times me-1"></i> Limpiar
+                                <i class="bi bi-x me-1"></i> Limpiar
                             </button>
                         </div>
                     </form>
@@ -84,7 +81,7 @@
                     <hr class="my-2">
                     <div class="text-center">
                         <span class="badge bg-secondary fs-6">
-                            <i class="fas fa-chart-line me-1"></i> Total: {{ $estadisticas['total'] ?? 0 }}
+                            <i class="bi bi-graph-up me-1"></i> Total: {{ $estadisticas['total'] ?? 0 }}
                         </span>
                     </div>
                 </div>
@@ -100,6 +97,8 @@
                     <div id="calendario"></div>
                 </div>
             </div>
+        </div>
+    </div>
         </div>
     </div>
 </div>

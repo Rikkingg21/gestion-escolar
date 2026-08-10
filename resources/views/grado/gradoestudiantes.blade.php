@@ -1,24 +1,26 @@
 @extends('layouts.app')
+@section('title', 'Estudiantes del Grado')
 
 @section('content')
 <div class="container-fluid">
-    <!-- Header -->
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <div>
-            <h1 class="h3 mb-0 text-gray-800">
-                <i class="bi bi-person-rolodex me-2"></i> Evaluación de Estudiantes
-            </h1>
-            <p class="text-muted mt-1 mb-0">{{ $grado->grado }}° {{ $grado->seccion }} - {{ $grado->nivel }}</p>
-        </div>
-        <a href="{{ route('grado.index') }}" class="btn btn-secondary">
-            <i class="bi bi-arrow-left me-2"></i> Volver a Grados
-        </a>
-    </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0"><i class="bi bi-person-rolodex me-2"></i> Evaluación de Estudiantes</h5>
+                        <small class="d-block mt-1">{{ $grado->grado }}° {{ $grado->seccion }} - {{ $grado->nivel }}</small>
+                    </div>
+                    <a href="{{ route('grado.index') }}" class="btn btn-light btn-sm">
+                        <i class="bi bi-arrow-left me-2"></i> Volver a Grados
+                    </a>
+                </div>
+                <div class="card-body">
 
     <!-- Selector de Año y Formato -->
     <div class="card shadow mb-4">
         <div class="card-header py-3 bg-primary text-white">
-            <h6 class="m-0 font-weight-bold"><i class="bi bi-sliders2 me-2"></i>Configuración</h6>
+            <h6 class="m-0 fw-bold"><i class="bi bi-sliders2 me-2"></i>Configuración</h6>
         </div>
         <div class="card-body">
             <div class="row g-3">
@@ -77,7 +79,7 @@
         <div class="card shadow mb-4">
             <div class="card-header py-3 bg-gradient-success text-white">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold text-black">
+                    <h6 class="m-0 fw-bold text-black">
                         <i class="bi bi-journal-check me-2"></i>
                         Estudiantes Matriculados {{ $anioSeleccionado }}
                     </h6>
@@ -238,7 +240,7 @@
         @if($estudiantesNoMatriculados->count() > 0)
         <div class="card shadow mb-4">
             <div class="card-header py-3 bg-secondary text-white">
-                <h6 class="m-0 font-weight-bold">
+                <h6 class="m-0 fw-bold">
                     <i class="bi bi-people me-2"></i>
                     Estudiantes Registrados sin Matrícula {{ $anioSeleccionado }}
                     <span class="badge bg-light text-dark ms-2">{{ $estudiantesNoMatriculados->count() }}</span>
@@ -281,6 +283,10 @@
         </button>
     </div>
     @endif
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- MODALES: Detalle de cada estudiante matriculado -->
     @foreach($estudiantesMatriculados as $estudiante)

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Libreta de Notas')
 
 @section('content')
 <div class="container-fluid p-0">
@@ -12,7 +13,7 @@
             <div class="row g-3 align-items-end mb-4">
                 <div class="col-12 col-sm-6 col-md-4">
                     <label for="periodo_id" class="form-label fw-bold text-primary">
-                        <i class="fas fa-calendar-alt me-2"></i>Período Escolar
+                        <i class="bi bi-calendar3 me-2"></i>Período Escolar
                     </label>
                     <select name="periodo_id" id="periodo_id" class="form-select border-2 border-primary shadow-sm" onchange="cambiarPeriodo(this.value)">
                         @foreach($periodos as $periodo)
@@ -25,7 +26,7 @@
 
                 <div class="col-12 col-sm-6 col-md-4">
                     <label for="bimestre" class="form-label fw-bold text-success">
-                        <i class="fas fa-chart-line me-2"></i>Bimestre
+                        <i class="bi bi-graph-up me-2"></i>Bimestre
                     </label>
                     <select name="bimestre" id="bimestre" class="form-select border-2 border-success shadow-sm" onchange="cambiarBimestre(this.value)">
                         @foreach($bimestres_disponibles as $bimestre)
@@ -48,10 +49,10 @@
         <div class="d-flex justify-content-end mb-3">
             <div class="btn-group" role="group">
                 <button type="button" class="btn btn-outline-primary active" id="btnCuantitativo" onclick="cambiarVisualizacion('cuantitativo')">
-                    <i class="fas fa-chart-line me-1"></i> Cuantitativo (Notas)
+                    <i class="bi bi-graph-up me-1"></i> Cuantitativo (Notas)
                 </button>
                 <button type="button" class="btn btn-outline-primary" id="btnCualitativo" onclick="cambiarVisualizacion('cualitativo')">
-                    <i class="fas fa-tag me-1"></i> Cualitativo (AD/A/B/C)
+                    <i class="bi bi-tag me-1"></i> Cualitativo (AD/A/B/C)
                 </button>
             </div>
         </div>
@@ -72,7 +73,7 @@
                             <img src="{{ Storage::url($colegio->logo_path) }}" alt="Logo" class="img-fluid" style="max-height: 250px; width: auto; object-fit: contain;">
                         @else
                             <div class="text-center">
-                                <i class="fas fa-school fa-4x text-muted"></i>
+                                <i class="bi bi-buildings fs-1 text-muted"></i>
                                 <div class="small text-muted mt-1">LOGO</div>
                             </div>
                         @endif
@@ -169,7 +170,7 @@
                                         <td colspan="5" class="text-center py-2">
                                             <small>Escala: C=1 (Desaprobado) | B=2 (Aprobado) | A=3 (Sobresaliente) | AD=4 (Destacado)</small>
                                             <br>
-                                            <small><i class="fas fa-sync-alt"></i> Las notas de recuperación reemplazan a las notas originales</small>
+                                            <small><i class="bi bi-arrow-repeat"></i> Las notas de recuperación reemplazan a las notas originales</small>
                                         </td>
                                     </tr>
                                 </tfoot>
@@ -253,7 +254,7 @@
                                                 @php $contadorN++; @endphp
                                                 <tr class="bg-warning bg-opacity-25">
                                                     <td class="align-middle fw-bold">
-                                                        <i class="fas fa-star me-2"></i>VALORACIÓN DE COMPETENCIA
+                                                        <i class="bi bi-star me-2"></i>VALORACIÓN DE COMPETENCIA
                                                     </td>
                                                     <td class="text-center align-middle fw-bold">N{{ $contadorN }}</td>
                                                     <td class="text-center align-middle fw-bold">
@@ -380,7 +381,7 @@
             <div class="border border-dark border-top-0">
                 <div class="border-bottom border-dark p-1 bg-light">
                     <div class="d-flex justify-content-between align-items-center">
-                        <strong><i class="fas fa-calendar-check me-2"></i>ASISTENCIAS</strong>
+                        <strong><i class="bi bi-calendar-check me-2"></i>ASISTENCIAS</strong>
                         @if($sigla_param != 'anual')
                             <span class="badge bg-info">{{ strtoupper($sigla_param) }}</span>
                         @endif

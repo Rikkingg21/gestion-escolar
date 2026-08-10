@@ -1,20 +1,23 @@
 @extends('layouts.app')
+@section('title', 'Materias')
 
 @section('content')
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-layers me-2"></i> Gestión de Materias
-        </h1>
-        <div class="d-flex gap-2">
-            <a href="{{ route('materiacompetencia.index') }}" class="btn btn-info shadow-sm">
-                <i class="bi bi-clipboard2-check me-2"></i> Competencias
-            </a>
-            <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCrearMateria">
-                <i class="bi bi-plus-lg me-2"></i> Nueva Materia
-            </button>
-        </div>
-    </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-layers me-2"></i> Gestión de Materias</h5>
+                    <div class="btn-group">
+                        <a href="{{ route('materiacompetencia.index') }}" class="btn btn-light btn-sm text-primary">
+                            <i class="bi bi-clipboard2-check me-1"></i> Competencias
+                        </a>
+                        <button type="button" class="btn btn-light btn-sm text-primary" data-bs-toggle="modal" data-bs-target="#modalCrearMateria">
+                            <i class="bi bi-plus-lg me-1"></i> Nueva Materia
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
 
     @if ($errors->any())
         <div class="alert alert-danger">
@@ -93,7 +96,7 @@
                                 Mostrando {{ $materiasActivas->firstItem() ?? 0 }} a {{ $materiasActivas->lastItem() ?? 0 }} de {{ $materiasActivas->total()}} materias
                             </div>
                             <div>
-                                {{ $materiasActivas->links('pagination::bootstrap-4') }}
+                                {{ $materiasActivas->links('pagination::bootstrap-5') }}
                             </div>
                         </div>
                     </div>
@@ -152,14 +155,18 @@
                                 Mostrando {{ $materiasInactivas->firstItem() ?? 0 }} a {{ $materiasInactivas->lastItem() ?? 0 }} de {{ $materiasInactivas->total()}} materias
                             </div>
                             <div>
-                                {{ $materiasInactivas->links('pagination::bootstrap-4') }}
+                                {{ $materiasInactivas->links('pagination::bootstrap-5') }}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+                </div>
+            </div>
+        </div>
     </div>
+</div>
 </div>
 
 <!-- Modal Crear Materia -->

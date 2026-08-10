@@ -1,12 +1,18 @@
 @extends('layouts.app')
+@section('title', 'Editar Conducta')
 
 @section('content')
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Editar Conducta</h3>
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-check me-2"></i>Editar Conducta
+                    </h5>
+                    <a href="{{ route('conducta.index') }}" class="btn btn-light btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>Volver
+                    </a>
                 </div>
                 <div class="card-body">
                     <form action="{{ route('conducta.update', $conducta->id) }}" method="POST">
@@ -38,10 +44,10 @@
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="{{ route('conducta.index') }}" class="btn btn-secondary me-md-2">
-                                <i class="fas fa-arrow-left"></i> Cancelar
+                                <i class="bi bi-arrow-left"></i> Cancelar
                             </a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Actualizar Conducta
+                                <i class="bi bi-check-lg"></i> Actualizar Conducta
                             </button>
                         </div>
                     </form>
@@ -50,17 +56,4 @@
         </div>
     </div>
 </div>
-@endsection
-
-@section('styles')
-<style>
-    .card {
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-        border: 1px solid rgba(0, 0, 0, 0.125);
-    }
-    .card-header {
-        background: linear-gradient(45deg, #f8f9fa, #e9ecef);
-        border-bottom: 1px solid #dee2e6;
-    }
-</style>
 @endsection

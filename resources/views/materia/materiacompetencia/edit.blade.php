@@ -1,32 +1,32 @@
 @extends('layouts.app')
+@section('title', 'Editar Competencia')
 
 @section('content')
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-pencil-square me-2"></i> Editar Competencia: {{ $competencia->nombre }}
-        </h1>
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pencil-square me-2"></i> Editar Competencia: {{ $competencia->nombre }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul>
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
 
-    </div>
-
-    @if($errors->any())
-    <div class="alert alert-danger">
-        <ul>
-            @foreach($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-    @endif
-
-    @if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-    @endif
-
-    <div class="card shadow">
-        <div class="card-body">
+                    @if(session('success'))
+                    <div class="alert alert-success">
+                        {{ session('success') }}
+                    </div>
+                    @endif
             <form action="{{ route('materiacompetencia.update', $competencia->id) }}" method="POST">
                 @csrf
                 @method('PUT')
@@ -74,6 +74,8 @@
                     </a>
                 </div>
             </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>

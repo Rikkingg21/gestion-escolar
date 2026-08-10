@@ -1,12 +1,17 @@
 @extends('layouts.app')
 @section('title', 'Asistencia')
 @section('content')
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-5 border-bottom pb-3">
-        <h2 class="h3 mb-0 text-primary fw-bold">
-            <i class="bi bi-person-check me-2"></i> Registro de Asistencias
-        </h2>
-    </div>
+<div class="container-fluid">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-person-check me-2"></i> Registro de Asistencias
+            </h5>
+            @if(isset($gradoNombre))
+                <span class="badge bg-light text-primary">{{ $gradoNombre }}</span>
+            @endif
+        </div>
+        <div class="card-body">
 
     <!-- FILTROS: Período, Bimestre y Fecha -->
     <div class="row mb-4">
@@ -326,6 +331,8 @@
         </div>
     </div>
     @endif
+        </div>
+    </div>
 </div>
 
 <script>

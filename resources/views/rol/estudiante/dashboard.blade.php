@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Panel del Estudiante')
 
 @section('content')
 <div class="container-fluid">
@@ -9,15 +10,15 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h1 class="h3 mb-0">
-                            <i class="fas fa-user-graduate"></i> Dashboard Estudiante
+                            <i class="bi bi-mortarboard"></i> Dashboard Estudiante
                         </h1>
                         <!-- Switch de visualización -->
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-outline-primary active" id="btnCuantitativo" onclick="cambiarVisualizacion('cuantitativo')">
-                                <i class="fas fa-chart-line me-1"></i> Cuantitativo (Notas)
+                                <i class="bi bi-graph-up me-1"></i> Cuantitativo (Notas)
                             </button>
                             <button type="button" class="btn btn-outline-primary" id="btnCualitativo" onclick="cambiarVisualizacion('cualitativo')">
-                                <i class="fas fa-tag me-1"></i> Cualitativo (AD/A/B/C)
+                                <i class="bi bi-tag me-1"></i> Cualitativo (AD/A/B/C)
                             </button>
                         </div>
                     </div>
@@ -47,7 +48,7 @@
                         </div>
                         <div class="col-md-4 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-filter me-1"></i> Filtrar
+                                <i class="bi bi-filter me-1"></i> Filtrar
                             </button>
                         </div>
                     </form>
@@ -61,7 +62,7 @@
     <div class="row mb-3">
         <div class="col-md-12">
             <div class="alert alert-info alert-dismissible fade show" role="alert">
-                <i class="fas fa-info-circle me-2"></i>
+                <i class="bi bi-info-circle me-2"></i>
                 {{ $mensajeRecuperacion }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
@@ -74,7 +75,7 @@
         <div class="card-header bg-primary text-white">
             <div class="d-flex justify-content-between align-items-center">
                 <h4 class="mb-0">
-                    <i class="fas fa-user-graduate me-2"></i>
+                    <i class="bi bi-mortarboard me-2"></i>
                     @if($infoEstudiante)
                         {{ $infoEstudiante['nombre_completo'] ?? 'Estudiante' }} - {{ $infoEstudiante['grado'] ?? 'Sin grado' }}
                     @else
@@ -91,17 +92,17 @@
         <div class="card-body">
             @if(!$infoEstudiante)
                 <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <i class="bi bi-exclamation-triangle me-2"></i>
                     No se pudo cargar la información del estudiante.
                 </div>
             @elseif(isset($infoEstudiante['mensaje']))
                 <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <i class="bi bi-exclamation-triangle me-2"></i>
                     {{ $infoEstudiante['mensaje'] }}
                 </div>
             @elseif($infoEstudiante['total_cursos'] == 0 && $infoEstudiante['total_conducta'] == 0)
                 <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>
+                    <i class="bi bi-info-circle me-2"></i>
                     No hay notas registradas para este período.
                 </div>
             @else
@@ -112,7 +113,7 @@
                         <button class="nav-link active" id="notas-tab"
                                 data-bs-toggle="tab" data-bs-target="#notas"
                                 type="button" role="tab">
-                            <i class="fas fa-graduation-cap me-1"></i> Notas Académicas
+                            <i class="bi bi-mortarboard me-1"></i> Notas Académicas
                             @if($infoEstudiante['total_cursos'] > 0)
                                 <span class="badge bg-primary ms-1">{{ $infoEstudiante['total_cursos'] }}</span>
                             @endif
@@ -122,7 +123,7 @@
                         <button class="nav-link" id="conducta-tab"
                                 data-bs-toggle="tab" data-bs-target="#conducta"
                                 type="button" role="tab">
-                            <i class="fas fa-hand-peace me-1"></i> Conducta
+                            <i class="bi bi-emoji-smile me-1"></i> Conducta
                             @if($infoEstudiante['total_conducta'] > 0)
                                 <span class="badge bg-success ms-1">{{ $infoEstudiante['total_conducta'] }}</span>
                             @endif
@@ -156,10 +157,10 @@
                                 <div class="col-md-3 mb-3">
                                     <div class="card border-left-success shadow h-100">
                                         <div class="card-body">
-                                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                            <div class="text-xs fw-bold text-success text-uppercase mb-1">
                                                 Promedio General
                                             </div>
-                                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                            <div class="h3 mb-0 fw-bold text-body">
                                                 {{ number_format($promedioGeneral, 1) }}
                                             </div>
                                         </div>
@@ -170,10 +171,10 @@
                                 <div class="col-md-3 mb-3">
                                     <div class="card border-left-warning shadow h-100">
                                         <div class="card-body">
-                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                            <div class="text-xs fw-bold text-warning text-uppercase mb-1">
                                                 Competencias Aprobadas
                                             </div>
-                                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                            <div class="h3 mb-0 fw-bold text-body">
                                                 {{ $competenciasAprobadas }} / {{ $totalCompetencias }}
                                             </div>
                                         </div>
@@ -184,7 +185,7 @@
                             @if($bimestreFiltro == 'anual' && !empty($chartData))
                             <div class="mb-5">
                                 <h5 class="mb-3">
-                                    <i class="fas fa-chart-line me-2"></i> Progreso de Competencias por Bimestre
+                                    <i class="bi bi-graph-up me-2"></i> Progreso de Competencias por Bimestre
                                 </h5>
                                 <div class="card">
                                     <div class="card-body">
@@ -230,7 +231,7 @@
                                                         <strong>{{ $competencia['nombre'] }}</strong>
                                                         @if($competencia['nota_recuperacion'] ?? false)
                                                             <span class="badge bg-info ms-1" title="Nota de recuperación aplicada">
-                                                                <i class="fas fa-sync-alt"></i> Rec
+                                                                <i class="bi bi-arrow-repeat"></i> Rec
                                                             </span>
                                                         @endif
                                                         @if(($competencia['nota_recuperacion'] ?? false) && isset($competencia['promedio_original']))
@@ -319,25 +320,25 @@
                                                         @if($bimestreFiltro == 'anual')
                                                             @if($competencia['requiere_recuperacion'] ?? false)
                                                                 <span class="badge bg-warning text-dark">
-                                                                    <i class="fas fa-exclamation-triangle me-1"></i>Recuperación
+                                                                    <i class="bi bi-exclamation-triangle me-1"></i>Recuperación
                                                                 </span>
                                                             @elseif($estaAprobada)
                                                                 <span class="badge bg-success">
-                                                                    <i class="fas fa-check me-1"></i>Aprobado
+                                                                    <i class="bi bi-check me-1"></i>Aprobado
                                                                 </span>
                                                             @else
                                                                 <span class="badge bg-danger">
-                                                                    <i class="fas fa-times me-1"></i>Desaprobado
+                                                                    <i class="bi bi-x me-1"></i>Desaprobado
                                                                 </span>
                                                             @endif
                                                         @else
                                                             @if($estaAprobada)
                                                                 <span class="badge bg-success">
-                                                                    <i class="fas fa-check me-1"></i>Aprobado
+                                                                    <i class="bi bi-check me-1"></i>Aprobado
                                                                 </span>
                                                             @else
                                                                 <span class="badge bg-danger">
-                                                                    <i class="fas fa-times me-1"></i>Desaprobado
+                                                                    <i class="bi bi-x me-1"></i>Desaprobado
                                                                 </span>
                                                             @endif
                                                         @endif
@@ -357,10 +358,10 @@
 
                             <!-- Leyenda de colores -->
                             <div class="mt-4 p-3 bg-light rounded">
-                                <h6 class="mb-2"><i class="fas fa-info-circle me-1"></i> Leyenda:</h6>
+                                <h6 class="mb-2"><i class="bi bi-info-circle me-1"></i> Leyenda:</h6>
                                 <div class="row">
                                     <div class="col-md-4">
-                                        <i class="fas fa-sync-alt text-info me-1"></i> Rec = Nota mejorada por recuperación
+                                        <i class="bi bi-arrow-repeat text-info me-1"></i> Rec = Nota mejorada por recuperación
                                     </div>
                                     <div class="col-md-4">
                                         <span class="text-danger fw-bold me-1">Nota roja</span> = Nota desaprobatoria (&lt; 1.5)
@@ -379,7 +380,7 @@
                             </div>
                         @else
                             <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-2"></i>
+                                <i class="bi bi-info-circle me-2"></i>
                                 No hay notas académicas registradas para este período.
                             </div>
                         @endif
@@ -414,10 +415,10 @@
                                 <div class="col-md-3 mb-3">
                                     <div class="card border-left-primary shadow h-100">
                                         <div class="card-body">
-                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">
                                                 Promedio Conducta
                                             </div>
-                                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                            <div class="h3 mb-0 fw-bold text-body">
                                                 {{ $promedioConductaGeneral }}
                                             </div>
                                         </div>
@@ -428,10 +429,10 @@
                                 <div class="col-md-3 mb-3">
                                     <div class="card border-left-info shadow h-100">
                                         <div class="card-body">
-                                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                            <div class="text-xs fw-bold text-info text-uppercase mb-1">
                                                 Áreas Evaluadas
                                             </div>
-                                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                            <div class="h3 mb-0 fw-bold text-body">
                                                 {{ $infoEstudiante['total_conducta'] }}
                                             </div>
                                         </div>
@@ -441,10 +442,10 @@
                                 <div class="col-md-3 mb-3">
                                     <div class="card border-left-success shadow h-100">
                                         <div class="card-body">
-                                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                            <div class="text-xs fw-bold text-success text-uppercase mb-1">
                                                 Conducta Adecuada
                                             </div>
-                                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                            <div class="h3 mb-0 fw-bold text-body">
                                                 {{ $conductasAdecuadas }}
                                             </div>
                                         </div>
@@ -454,10 +455,10 @@
                                 <div class="col-md-3 mb-3">
                                     <div class="card border-left-warning shadow h-100">
                                         <div class="card-body">
-                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                            <div class="text-xs fw-bold text-warning text-uppercase mb-1">
                                                 Conducta Inadecuada
                                             </div>
-                                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                            <div class="h3 mb-0 fw-bold text-body">
                                                 {{ $conductasInadecuadas }}
                                             </div>
                                         </div>
@@ -505,12 +506,12 @@
                                                     @if($conducta['promedio_general'] !== null)
                                                         @if($conducta['promedio_general'] >= 1.5)
                                                             <span class="badge bg-success">
-                                                                <i class="fas fa-check me-1"></i>
+                                                                <i class="bi bi-check me-1"></i>
                                                                 Adecuado
                                                             </span>
                                                         @else
                                                             <span class="badge bg-danger">
-                                                                <i class="fas fa-times me-1"></i>
+                                                                <i class="bi bi-x me-1"></i>
                                                                 Inadecuado
                                                             </span>
                                                         @endif
@@ -527,7 +528,7 @@
                             </div>
                         @else
                             <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-2"></i>
+                                <i class="bi bi-info-circle me-2"></i>
                                 No hay notas de conducta registradas para este período.
                             </div>
                         @endif
@@ -684,7 +685,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const filtrosHTML = `
         <div class="mb-4">
             <label class="form-label fw-bold mb-2">
-                <i class="fas fa-filter me-1"></i> Filtrar por Materia:
+                <i class="bi bi-filter me-1"></i> Filtrar por Materia:
             </label>
             <div class="d-flex flex-wrap gap-2" id="filtrosMaterias">
                 ${materias.map(materia => `
@@ -699,10 +700,10 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="mt-2">
                 <button type="button" class="btn btn-link btn-sm" onclick="seleccionarTodasMaterias(true)" style="font-size: 0.8rem;">
-                    <i class="fas fa-check-square me-1"></i> Seleccionar todas
+                    <i class="bi bi-check-square me-1"></i> Seleccionar todas
                 </button>
                 <button type="button" class="btn btn-link btn-sm" onclick="seleccionarTodasMaterias(false)" style="font-size: 0.8rem;">
-                    <i class="fas fa-square me-1"></i> Limpiar todas
+                    <i class="bi bi-square me-1"></i> Limpiar todas
                 </button>
             </div>
         </div>

@@ -4,14 +4,14 @@
 <div class="container py-4">
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show">
-            <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
+            <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
     @if(session('error'))
         <div class="alert alert-danger alert-dismissible fade show">
-            <i class="fas fa-exclamation-circle me-2"></i>{{ session('error') }}
+            <i class="bi bi-exclamation-circle me-2"></i>{{ session('error') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
@@ -19,7 +19,7 @@
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <div>
                 <h4 class="mb-0">
-                    <i class="fas fa-calendar-week me-2"></i>
+                    <i class="bi bi-calendar-week me-2"></i>
                     Bimestres del Periodo: {{ $periodo->nombre }}
                 </h4>
                 <small class="text-white-50">
@@ -31,7 +31,7 @@
             </div>
             <div>
                 <a href="{{ route('periodo.index') }}" class="btn btn-light btn-sm me-2">
-                    <i class="fas fa-arrow-left me-1"></i>Volver
+                    <i class="bi bi-arrow-left me-1"></i>Volver
                 </a>
                 <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createBimestreModal">
                     <i class="bi bi-plus-lg"></i> Nuevo Bimestre
@@ -41,7 +41,7 @@
 
         <div class="card-body">
             <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>
+                <i class="bi bi-info-circle me-2"></i>
                 <strong>Rango permitido:</strong>
                 {{ \Carbon\Carbon::parse($periodo->fecha_inicio)->format('d/m/Y') }} -
                 {{ \Carbon\Carbon::parse($periodo->fecha_fin)->format('d/m/Y') }}
@@ -71,20 +71,20 @@
                                     <td>
                                         @if($bimestre->tipo_bimestre == 'A')
                                             <span class="badge bg-primary">
-                                                <i class="fas fa-graduation-cap me-1"></i>Académico
+                                                <i class="bi bi-mortarboard me-1"></i>Académico
                                             </span>
                                         @else
                                             <span class="badge bg-warning text-dark">
-                                                <i class="fas fa-clock me-1"></i>Recuperación
+                                                <i class="bi bi-clock me-1"></i>Recuperación
                                             </span>
                                         @endif
                                     </td>
                                     <td>
-                                        <i class="fas fa-calendar-alt text-muted me-1"></i>
+                                        <i class="bi bi-calendar3 text-muted me-1"></i>
                                         {{ \Carbon\Carbon::parse($bimestre->fecha_inicio)->format('d/m/Y') }}
                                     </td>
                                     <td>
-                                        <i class="fas fa-calendar-check text-muted me-1"></i>
+                                        <i class="bi bi-calendar-check text-muted me-1"></i>
                                         {{ \Carbon\Carbon::parse($bimestre->fecha_fin)->format('d/m/Y') }}
                                     </td>
                                     <td>
@@ -123,7 +123,7 @@
                                                 @method('PUT')
                                                 <div class="modal-header bg-warning text-dark">
                                                     <h5 class="modal-title">
-                                                        <i class="fas fa-edit me-2"></i>Editar Bimestre
+                                                        <i class="bi bi-pencil me-2"></i>Editar Bimestre
                                                     </h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                 </div>
@@ -178,7 +178,7 @@
                                                 @method('DELETE')
                                                 <div class="modal-header bg-danger text-white">
                                                     <h5 class="modal-title">
-                                                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
+                                                        <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Eliminación
                                                     </h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                 </div>
@@ -209,10 +209,10 @@
                 </div>
             @else
                 <div class="text-center py-5">
-                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                    <i class="bi bi-calendar-x fs-1 text-muted mb-3"></i>
                     <h5>No hay bimestres configurados</h5>
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createBimestreModal">
-                        <i class="fas fa-plus me-1"></i>Crear Primer Bimestre
+                        <i class="bi bi-plus me-1"></i>Crear Primer Bimestre
                     </button>
                 </div>
             @endif
@@ -228,7 +228,7 @@
                 @csrf
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title">
-                        <i class="fas fa-plus-circle me-2"></i>Nuevo Bimestre
+                        <i class="bi bi-plus-circle me-2"></i>Nuevo Bimestre
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -264,7 +264,7 @@
                         </div>
                     </div>
                     <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
+                        <i class="bi bi-info-circle me-2"></i>
                         <small>
                             Rango permitido: {{ \Carbon\Carbon::parse($periodo->fecha_inicio)->format('d/m/Y') }} -
                             {{ \Carbon\Carbon::parse($periodo->fecha_fin)->format('d/m/Y') }}

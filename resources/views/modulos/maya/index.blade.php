@@ -13,16 +13,18 @@
 @endif
 
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-diagram-3-fill text-primary me-2"></i> Administración de Mayas
-        </h1>
-        @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
-            <a href="{{ route('maya.create') }}" class="btn btn-primary shadow-sm">
-                <i class="bi bi-plus-lg me-2"></i> Nueva Maya
-            </a>
-        @endif
-    </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-diagram-3-fill me-2"></i> Administración de Mayas</h5>
+                    @if(auth()->user()->hasRole('admin') || auth()->user()->hasRole('director'))
+                        <a href="{{ route('maya.create') }}" class="btn btn-light btn-sm text-primary">
+                            <i class="bi bi-plus-lg me-1"></i> Nueva Maya
+                        </a>
+                    @endif
+                </div>
+                <div class="card-body">
 
     <!-- Filtros -->
     <div class="card mb-4">
@@ -337,6 +339,10 @@
             </div>
         </div>
         @endif
+            </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
