@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Colegio;
 use App\Models\Module;
 use App\Models\Role;
 use Illuminate\Http\Request;
 
 class RoleController extends Controller
 {
-    // moduleID 3 = Roles
+    // Módulos de pensiones solo asignables si la IE es privada y tiene pensiones activas
+    const MODULOS_PENSIONES = [24, 25];
+
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
@@ -137,11 +140,14 @@ class RoleController extends Controller
             ->get();
 
         // Módulos disponibles (todos los activos menos los ya asignados)
+        $pensionesHabilitadas = Colegio::configuracion()->pensionesHabilitadas();
+
         $modulesDisponibles = Module::where('estado', '1')
             ->whereNotIn('id', $modulesAsignados->pluck('id'))
+            ->when(! $pensionesHabilitadas, fn ($query) => $query->whereNotIn('id', self::MODULOS_PENSIONES))
             ->get();
 
-        return view('role.module', compact('role', 'modulesAsignados', 'modulesDisponibles'));
+        return view('role.module', compact('role', 'modulesAsignados', 'modulesDisponibles', 'pensionesHabilitadas'));
     }
 
     public function assignModule(Request $request, $roleId)
@@ -153,6 +159,14 @@ class RoleController extends Controller
 
         try {
             $role = Role::findOrFail($roleId);
+
+            // Los módulos de pensiones solo pueden asignarse si la IE es privada
+            // y tiene el módulo de pensiones activado
+            if (in_array((int) $request->module_id, self::MODULOS_PENSIONES)
+                && ! Colegio::configuracion()->pensionesHabilitadas()) {
+                return redirect()->back()
+                    ->with('error', 'No puedes asignar módulos de pensiones porque la institución no es privada o el módulo de pensiones está desactivado.');
+            }
 
             // Verificar si ya existe la relación
             $existing = $role->modules()->where('module_id', $request->module_id)->first();

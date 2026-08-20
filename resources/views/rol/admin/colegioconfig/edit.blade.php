@@ -93,6 +93,114 @@
                     </div>
                 </div>
 
+                <!-- SECCIÓN DE TIPO DE INSTITUCIÓN -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-toggles me-2"></i>Tipo de Institución
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check form-switch form-check-inline me-5">
+                                    <input class="form-check-input" type="checkbox" role="switch"
+                                           id="es_privado" name="es_privado"
+                                           value="1" @checked($colegio->es_privado)>
+                                    <label class="form-check-label" for="es_privado">
+                                        <i class="bi bi-shield-lock me-1"></i> Institución Privada
+                                    </label>
+                                </div>
+
+                                <div class="form-check form-switch form-check-inline" id="pensionesWrapper" style="display: none;">
+                                    <input class="form-check-input" type="checkbox" role="switch"
+                                           id="pensiones_activo" name="pensiones_activo"
+                                           value="1" @checked($colegio->pensiones_activo)>
+                                    <label class="form-check-label" for="pensiones_activo">
+                                        <i class="bi bi-cash-coin me-1"></i> Activar Módulo de Pensiones
+                                    </label>
+                                </div>
+
+                                <div class="text-muted small mt-2">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Si la institución es privada podrás habilitar los módulos de pensiones
+                                    (Pensiones Admin y Pensiones) para asignarlos a los roles.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN DE PASARELA DE PAGOS (CULQI) -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card border-success">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-credit-card me-2"></i>Pasarela de Pagos (Culqi)
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" role="switch"
+                                           id="usa_pasarela_pagos" name="usa_pasarela_pagos"
+                                           value="1" @checked($colegio->usa_pasarela_pagos)>
+                                    <label class="form-check-label" for="usa_pasarela_pagos">
+                                        <i class="bi bi-toggle-on me-1"></i> Activar cobros online con Culqi
+                                    </label>
+                                </div>
+
+                                <div id="pasarelaConfig" style="display: none;">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="culqi_public_key" class="form-label">Llave pública (pk_...)</label>
+                                            <input type="text" class="form-control" id="culqi_public_key"
+                                                   name="culqi_public_key" maxlength="255"
+                                                   value="{{ $colegio->culqi_public_key }}"
+                                                   placeholder="pk_test_...">
+                                            <div class="form-text">Dejar en blanco para conservar la actual.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="culqi_secret_key" class="form-label">Llave secreta (sk_...)</label>
+                                            <input type="password" class="form-control" id="culqi_secret_key"
+                                                   name="culqi_secret_key" maxlength="255"
+                                                   value="{{ $colegio->culqi_secret_key ? '********' : '' }}"
+                                                   placeholder="sk_test_...">
+                                            <div class="form-text">
+                                                @if($colegio->culqi_secret_key)
+                                                    Hay una llave secreta guardada. Escribe una nueva solo si deseas reemplazarla.
+                                                @else
+                                                    No hay llave secreta guardada.
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-check form-switch mt-3">
+                                        <input class="form-check-input" type="checkbox" role="switch"
+                                               id="culqi_modo_prueba" name="culqi_modo_prueba"
+                                               value="1" @checked($colegio->culqi_modo_prueba)>
+                                        <label class="form-check-label" for="culqi_modo_prueba">
+                                            <i class="bi bi-bug me-1"></i> Modo prueba (sandbox)
+                                        </label>
+                                        <div class="form-text">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            En modo prueba los cobros se realizan contra la API de prueba de Culqi
+                                            (llaves <code>pk_test_</code> / <code>sk_test_</code>). Desactívalo al salir a producción.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="text-muted small mt-2">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Al activar la pasarela, los trámites con pago podrán cobrarse online.
+                                    Los montos se cobran en céntimos (S/ 1.00 = 100 céntimos).
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- SECCIÓN DE COMPARACIÓN DE LOGOS -->
                 <div class="row mb-4">
                     <!-- Columna para el logo actual -->
@@ -204,6 +312,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+    }
+
+    // Mostrar/ocultar la opción de activar pensiones según si la IE es privada
+    const esPrivado = document.getElementById('es_privado');
+    const pensionesWrapper = document.getElementById('pensionesWrapper');
+    const pensionesActivo = document.getElementById('pensiones_activo');
+
+    function togglePensiones() {
+        if (esPrivado && pensionesWrapper) {
+            pensionesWrapper.style.display = esPrivado.checked ? 'inline-block' : 'none';
+            if (!esPrivado.checked && pensionesActivo) {
+                pensionesActivo.checked = false;
+            }
+        }
+    }
+
+    if (esPrivado) {
+        esPrivado.addEventListener('change', togglePensiones);
+        togglePensiones();
+    }
+
+    // Mostrar/ocultar la configuración de la pasarela según el switch
+    const usaPasarela = document.getElementById('usa_pasarela_pagos');
+    const pasarelaConfig = document.getElementById('pasarelaConfig');
+
+    function togglePasarela() {
+        if (usaPasarela && pasarelaConfig) {
+            pasarelaConfig.style.display = usaPasarela.checked ? 'block' : 'none';
+        }
+    }
+
+    if (usaPasarela) {
+        usaPasarela.addEventListener('change', togglePasarela);
+        togglePasarela();
     }
 
     // Inicializar estado de previsualización

@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Models\Colegio;
+use App\Models\Matricula;
 use App\Models\User;
+use App\Observers\MatriculaObserver;
 use App\Policies\UserPolicy;
 use App\Services\ModuleService;
 use Illuminate\Support\Facades\Blade;
@@ -15,6 +17,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function boot()
     {
+        Matricula::observe(MatriculaObserver::class);
+
         Gate::policy(User::class, UserPolicy::class);
 
         // Directiva Blade para verificar acceso a módulos

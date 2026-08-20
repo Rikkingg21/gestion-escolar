@@ -35,7 +35,7 @@
                             <td class="text-center">{{ $tipo->id }}</td>
                             <td>{{ $tipo->codigo ?? '--' }}</td>
                             <td>{{ $tipo->nombre }}</td>
-                            <td class="text-end">S/ {{ number_format($tipo->costo ?? 0, 2) }}</td>
+                            <td class="text-end">S/ {{ number_format(($tipo->costo ?? 0) / 100, 2) }}</td>
                             <td class="text-center">
                                 @if($tipo->requiere_pago)
                                     <span class="badge bg-warning text-dark">Sí</span>
@@ -87,7 +87,7 @@
                                             <div class="row">
                                                 <div class="col-md-6 mb-3">
                                                     <label class="form-label">Costo</label>
-                                                    <input type="number" step="0.01" name="costo" class="form-control" value="{{ $tipo->costo ?? 0 }}">
+                                                    <input type="number" step="0.01" name="costo" class="form-control" value="{{ ($tipo->costo ?? 0) / 100 }}">
                                                 </div>
                                                 <div class="col-md-6 mb-3">
                                                     <label class="form-label">Tiempo estimado (días)</label>

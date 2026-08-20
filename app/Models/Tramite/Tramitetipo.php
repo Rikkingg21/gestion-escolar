@@ -29,10 +29,16 @@ class Tramitetipo extends Model
     ];
 
     protected $casts = [
-        'costo' => 'decimal:2',
+        'costo' => 'integer', // en céntimos
         'requiere_pago' => 'boolean',
         'requiere_documentos' => 'boolean',
         'tiempo_estimado_dias' => 'integer',
         'estado' => 'string',
     ];
+
+    // Costo en soles para mostrar (céntimos / 100)
+    public function getCostoFormateadoAttribute(): string
+    {
+        return 'S/ '.number_format($this->costo / 100, 2);
+    }
 }

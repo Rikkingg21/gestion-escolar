@@ -313,11 +313,11 @@
                                 </div>
                             </td>
                             <td class="text-end fw-semibold text-success">
-                                S/ {{ number_format($tramite->tipoTramite->costo ?? 0, 2) }}
+                                S/ {{ number_format(($tramite->tipoTramite->costo ?? 0) / 100, 2) }}
                             </td>
                             <td class="text-end">
                                 <span class="fw-semibold {{ $tramite->monto_pagado_total >= ($tramite->tipoTramite->costo ?? 0) ? 'text-success' : 'text-warning' }}">
-                                    S/ {{ number_format($tramite->monto_pagado_total, 2) }}
+                                    S/ {{ number_format($tramite->monto_pagado_total / 100, 2) }}
                                 </span>
                             </td>
                             <td class="text-center">

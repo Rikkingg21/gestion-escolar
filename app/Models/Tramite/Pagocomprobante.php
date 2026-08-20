@@ -31,7 +31,7 @@ class Pagocomprobante extends Model
     ];
 
     protected $casts = [
-        'monto' => 'decimal:2',
+        'monto' => 'integer', // en céntimos
         'fecha_pago' => 'datetime',
     ];
 
@@ -51,10 +51,10 @@ class Pagocomprobante extends Model
         return $this->belongsTo(Tipopago::class, 'metodo_pago_id');
     }
 
-    // Accessor para monto formateado
+    // Accessor para monto formateado (céntimos / 100)
     public function getMontoFormateadoAttribute()
     {
-        return 'S/ '.number_format($this->monto, 2);
+        return 'S/ '.number_format($this->monto / 100, 2);
     }
 
     // Accessor para saber si es imagen

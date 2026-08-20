@@ -14,6 +14,8 @@ class DatabaseSeeder extends Seeder
             ConfigIeSeeder::class,
             EstadosTramiteSeeder::class,
             EstadosPagoSeeder::class,
+            AulaVirtualModuleSeeder::class,
+            PensionesModuleSeeder::class,
         ]);
     }
 }

@@ -14,7 +14,7 @@ return new class extends Migration
                 $table->string('nombre');
                 $table->string('codigo')->nullable()->unique();
                 $table->text('descripcion')->nullable();
-                $table->decimal('costo', 10, 2)->default(0);
+                $table->bigInteger('costo')->default(0)->comment('Costo en céntimos (S/ 0.03 = 3)');
                 $table->boolean('requiere_pago')->default(false);
                 $table->boolean('requiere_documentos')->default(false);
                 $table->integer('tiempo_estimado_dias')->nullable();

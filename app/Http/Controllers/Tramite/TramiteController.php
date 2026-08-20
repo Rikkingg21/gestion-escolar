@@ -230,7 +230,7 @@ class TramiteController extends Controller
                 'registro' => $registroPago,
                 'metodo_pago' => $metodoPago,
                 'es_efectivo' => $esEfectivo,
-                'monto_formateado' => 'S/ '.number_format($registroPago->monto, 2),
+                'monto_formateado' => 'S/ '.number_format($registroPago->monto / 100, 2),
                 'fecha_formateada' => $registroPago->fecha_registro
                     ? \Carbon\Carbon::parse($registroPago->fecha_registro)->format('d/m/Y H:i:s')
                     : $registroPago->created_at->format('d/m/Y H:i:s'),
@@ -358,10 +358,13 @@ class TramiteController extends Controller
             $comprobantePath = $request->file('comprobante')->store('comprobantes/'.date('Y/m'), 'private');
         }
 
+        // Convertir el monto ingresado (soles) a céntimos para almacenar
+        $montoCentavos = (int) round((float) $request->monto * 100);
+
         // Validar que el monto no supere el saldo pendiente
-        if ((float) $request->monto > $saldoPendiente) {
+        if ($montoCentavos > $saldoPendiente) {
             return redirect()->back()
-                ->with('error', 'El monto no puede superar el saldo pendiente (S/ '.number_format($saldoPendiente, 2).').')
+                ->with('error', 'El monto no puede superar el saldo pendiente (S/ '.number_format($saldoPendiente / 100, 2).').')
                 ->withInput();
         }
 
@@ -371,7 +374,7 @@ class TramiteController extends Controller
             'user_id' => auth()->id(),
             'metodo_pago_id' => $request->tipo_pago_id,
             'numero_operacion' => $numeroOperacion,
-            'monto' => $request->monto,
+            'monto' => $montoCentavos,
             'fecha_pago' => now(),
             'comprobante_path' => $comprobantePath,
             'observaciones' => $request->observaciones,
@@ -391,7 +394,7 @@ class TramiteController extends Controller
             'tramite_id' => $id,
             'pago_comprobante_id' => $comprobante->id,
             'estado_pago_id' => $estadoPagoEnRevision ? $estadoPagoEnRevision->id : 1,
-            'monto' => $request->monto,
+            'monto' => $montoCentavos,
             'fecha_registro' => now(),
             'observacion' => $observacionPago,
             'user_id' => auth()->id(),

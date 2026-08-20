@@ -125,11 +125,11 @@
                                 @endif
                             </td>
                             <td class="text-end fw-semibold text-success">
-                                S/ {{ number_format($montoTotal, 2) }}
+                                S/ {{ number_format($montoTotal / 100, 2) }}
                             </td>
                             <td class="text-end">
                                 <span class="fw-semibold {{ $montoPagado >= $montoTotal ? 'text-success' : 'text-warning' }}">
-                                    S/ {{ number_format($montoPagado, 2) }}
+                                    S/ {{ number_format($montoPagado / 100, 2) }}
                                 </span>
                             </td>
                             <td class="text-center">
@@ -182,7 +182,7 @@
                             <option value="">Seleccione...</option>
                             @foreach($tipoTramitesActivos as $tipo)
                             <option value="{{ $tipo->id }}" data-costo="{{ $tipo->costo }}" data-requiere-pago="{{ $tipo->requiere_pago }}">
-                                {{ $tipo->nombre }} - S/ {{ number_format($tipo->costo, 2) }}
+                                {{ $tipo->nombre }} - S/ {{ number_format($tipo->costo / 100, 2) }}
                             </option>
                             @endforeach
                         </select>

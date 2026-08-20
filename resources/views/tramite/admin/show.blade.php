@@ -44,7 +44,7 @@
                                 </div>
                                 <h6 class="text-muted mb-1">{{ $requierePago ? 'Costo Total' : 'Trámite' }}</h6>
                                 @if($requierePago)
-                                    <h5 class="mb-0 fw-bold">S/ {{ number_format($costoTotal, 2) }}</h5>
+                                    <h5 class="mb-0 fw-bold">S/ {{ number_format($costoTotal / 100, 2) }}</h5>
                                 @else
                                     <h5 class="mb-0 fw-bold">Sin costo</h5>
                                 @endif
@@ -56,12 +56,12 @@
                         @if($saldoPendiente > 0)
                         <div class="alert alert-warning mb-0 mt-4 text-center py-2">
                             <i class="bi bi-exclamation-triangle me-2"></i>
-                            <strong>Saldo pendiente:</strong> S/ {{ number_format($saldoPendiente, 2) }}
+                            <strong>Saldo pendiente:</strong> S/ {{ number_format($saldoPendiente / 100, 2) }}
                         </div>
                         @elseif($saldoPendiente <= 0 && $montoPagado > 0)
                         <div class="alert alert-success mb-0 mt-4 text-center py-2">
                             <i class="bi bi-check-circle-fill me-2"></i>
-                            <strong>Pago completado</strong> - Total pagado: S/ {{ number_format($montoPagado, 2) }}
+                            <strong>Pago completado</strong> - Total pagado: S/ {{ number_format($montoPagado / 100, 2) }}
                         </div>
                         @endif
                     @endif

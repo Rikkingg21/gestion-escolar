@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Pension\Pension;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -37,5 +38,10 @@ class Matricula extends Model
     public function grado()
     {
         return $this->belongsTo(Grado::class);
+    }
+
+    public function pensiones()
+    {
+        return $this->hasMany(Pension::class, 'matricula_id');
     }
 }

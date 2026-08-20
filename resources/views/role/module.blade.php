@@ -14,6 +14,30 @@
                     </a>
                 </div>
                 <div class="card-body">
+                    @if(session('success'))
+                        <div class="alert alert-success alert-dismissible fade show">
+                            {{ session('success') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
+
+                    @if(session('error'))
+                        <div class="alert alert-danger alert-dismissible fade show">
+                            {{ session('error') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
+
+                    @unless($pensionesHabilitadas)
+                        <div class="alert alert-warning">
+                            <i class="bi bi-cash-coin me-2"></i>
+                            Los módulos <strong>Pensiones Admin</strong> y <strong>Pensiones</strong> no están disponibles.
+                            Actívalos desde
+                            <a href="{{ route('colegioconfig.edit', 1) }}" class="alert-link">Configuración del Colegio</a>
+                            marcando <em>Institución Privada</em> y <em>Activar Módulo de Pensiones</em>.
+                        </div>
+                    @endunless
+
                     <!-- Información del Rol -->
                     <div class="row mb-4">
                         <div class="col-12">

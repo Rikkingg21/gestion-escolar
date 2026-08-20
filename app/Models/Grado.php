@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Asistencia\Asistencia;
+use App\Models\Pension\PensionConfig;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -60,5 +61,10 @@ class Grado extends Model
     public function getGradoSeccionAttribute()
     {
         return $this->grado.$this->seccion;
+    }
+
+    public function pensionConfigs()
+    {
+        return $this->hasMany(PensionConfig::class, 'grado_id');
     }
 }

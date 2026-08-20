@@ -22,6 +22,7 @@ php artisan sessions:clear # Clear stale sessions
 - **Permission system:** Custom `App\Models\Role` + `role_modules` pivot + `ModuleService`. **Spatie was removed** (was never wired).
 - **"Maya"** namespace = curriculum planning: Bimestre → Unidad → Semana → Clase → Tema → Criterio. Controllers/Models under `Maya/`.
 - Core modules under `app/`: `Asistencia/`, `Tramite/`, `Materia/`, `Metodopago/`, `Reporte/`.
+- **"Pension"** namespace = pensiones por periodo: `PensionConfig` (plantilla periodo+grado) → `PensionConfigCuota` (cuotas mensuales) → `Pension` (cuota generada por matrícula; estado `pendiente|pagado|anulado`, "atrasado" es accessor `estado_efectivo`, no se almacena) → `PensionPago` + `PensionPagoRegistro`. Montos en céntimos. Generación automática vía `MatriculaObserver` + `PensionService`. Módulos 24 (admin, `pensiones-admin.*`) y 25 (apoderado, `pensiones.*`).
 - Services live under `app/Services/` (PSR-4 `App\Services`). Trámites tables/seeders were added as guarded migrations + idempotent seeders (DB was created manually).
 - `User` model has `nombre_completo` accessor and `canAccessModule()` (takes numeric module id) for authorization.
 

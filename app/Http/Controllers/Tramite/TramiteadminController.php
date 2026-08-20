@@ -333,7 +333,7 @@ class TramiteadminController extends Controller
                 'color_estado' => $registroPago->estadoPago->color ?? '#6c757d',
                 'nombre_estado' => $registroPago->estadoPago->nombre ?? 'N/A',
                 'nombre_usuario' => $registroPago->user->nombre ?? 'Sistema',
-                'monto_formateado' => 'S/ '.number_format($registroPago->monto, 2),
+                'monto_formateado' => 'S/ '.number_format($registroPago->monto / 100, 2),
                 'observacion' => $registroPago->observacion,
                 'icono_clase' => $iconoClase,
                 'tiene_comprobante' => $tieneComprobante,
@@ -375,8 +375,8 @@ class TramiteadminController extends Controller
                     'fecha' => $pagoRegistro->fecha_registro
                         ? \Carbon\Carbon::parse($pagoRegistro->fecha_registro)->format('d/m/Y H:i')
                         : $pagoRegistro->created_at->format('d/m/Y H:i'),
-                    'monto' => $pagoRegistro->monto,
-                    'monto_formateado' => 'S/ '.number_format($pagoRegistro->monto, 2),
+                    'monto' => number_format($pagoRegistro->monto / 100, 2, '.', ''),
+                    'monto_formateado' => 'S/ '.number_format($pagoRegistro->monto / 100, 2),
                     'estado_nombre' => $pagoRegistro->estadoPago->nombre ?? 'N/A',
                     'icono' => $icono,
                     'numero_operacion' => $pagoRegistro->pagoComprobante->numero_operacion ?? 'N/A',
@@ -542,7 +542,10 @@ class TramiteadminController extends Controller
             'estado' => 'required|in:1,0',
         ]);
 
-        Tramitetipo::create($request->all());
+        $data = $request->all();
+        $data['costo'] = (int) round((float) ($request->costo ?? 0) * 100);
+
+        Tramitetipo::create($data);
 
         return redirect()->route('tramiteadmin.tipos-tramite.index')
             ->with('success', 'Tipo de trámite creado correctamente.');
@@ -563,7 +566,10 @@ class TramiteadminController extends Controller
             'estado' => 'required|in:1,0',
         ]);
 
-        $tipo->update($request->all());
+        $data = $request->all();
+        $data['costo'] = (int) round((float) ($request->costo ?? 0) * 100);
+
+        $tipo->update($data);
 
         return redirect()->route('tramiteadmin.tipos-tramite.index')
             ->with('success', 'Tipo de trámite actualizado correctamente.');

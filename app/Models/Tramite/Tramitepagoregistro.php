@@ -29,7 +29,7 @@ class Tramitepagoregistro extends Model
     ];
 
     protected $casts = [
-        'monto' => 'decimal:2',
+        'monto' => 'integer', // en céntimos
         'fecha_registro' => 'datetime',
     ];
 
@@ -54,10 +54,10 @@ class Tramitepagoregistro extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    // Accessor para monto formateado
+    // Accessor para monto formateado (céntimos / 100)
     public function getMontoFormateadoAttribute()
     {
-        return 'S/ '.number_format($this->monto, 2);
+        return 'S/ '.number_format($this->monto / 100, 2);
     }
 
     // Accessor para fecha formateada

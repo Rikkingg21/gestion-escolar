@@ -34,7 +34,7 @@ class Tramite extends Model
     ];
 
     protected $casts = [
-        'monto_pagado' => 'decimal:2',
+        'monto_pagado' => 'integer', // en céntimos
         'fecha_solicitud' => 'date',
         'fecha_resolucion' => 'date',
     ];
@@ -91,13 +91,10 @@ class Tramite extends Model
         return $this->hasOne(Tramitepagoregistro::class, 'tramite_id')->latest('fecha_registro');
     }
 
+    // Monto total pagado en céntimos. Fuente única: la columna monto_pagado,
+    // mantenida por TramiteadminController al aprobar/rechazar pagos.
     public function getMontoPagadoTotalAttribute()
     {
-        // Sumar solo los montos de registros de pago con estado "Aprobado"
-        return $this->tramitePagoRegistros()
-            ->whereHas('estadoPago', function ($query) {
-                $query->where('nombre', 'LIKE', '%Aprobado%');
-            })
-            ->sum('monto');
+        return $this->monto_pagado ?? 0;
     }
 }

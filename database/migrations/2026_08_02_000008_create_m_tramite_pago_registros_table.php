@@ -14,7 +14,7 @@ return new class extends Migration
                 $table->foreignId('tramite_id')->constrained('m_tramite_tramites')->cascadeOnDelete();
                 $table->foreignId('pago_comprobante_id')->nullable()->constrained('m_tramite_pago_comprobantes')->nullOnDelete();
                 $table->foreignId('estado_pago_id')->constrained('estado_pagos')->cascadeOnDelete();
-                $table->decimal('monto', 10, 2)->default(0);
+                $table->bigInteger('monto')->default(0)->comment('Monto en céntimos');
                 $table->dateTime('fecha_registro')->nullable();
                 $table->text('observacion')->nullable();
                 $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();

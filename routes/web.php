@@ -4,6 +4,8 @@ use App\Http\Controllers\ApoderadoController;
 use App\Http\Controllers\AsistenciabloqueoController;
 use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\AsistenciahistorialController;
+use App\Http\Controllers\AulaVirtual\AulavirtualdocenteController;
+use App\Http\Controllers\AulaVirtual\AulavirtualestudianteController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ColegioController;
 use App\Http\Controllers\ConductaController;
@@ -17,6 +19,8 @@ use App\Http\Controllers\Maya\MayaController;
 use App\Http\Controllers\Metodopago\TipopagoController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\NotaController;
+use App\Http\Controllers\Pension\PensionadminController;
+use App\Http\Controllers\Pension\PensionController;
 use App\Http\Controllers\PeriodobimestreController;
 use App\Http\Controllers\PeriodoController;
 use App\Http\Controllers\ReporteController;
@@ -92,6 +96,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/matricula', [MatriculaController::class, 'store'])->name('matricula.store');
     Route::post('/matricula/masiva', [MatriculaController::class, 'matricularMasivamente'])->name('matricula.masiva');
     Route::put('/matricula/{matricula}/estado', [MatriculaController::class, 'cambiarEstado'])->name('matricula.estado');
+
+    Route::prefix('aula-virtual-docente')->name('aula-virtual-docente.')->group(function () {
+        Route::get('/', [AulavirtualdocenteController::class, 'index'])->name('index');
+        Route::get('/create', [AulavirtualdocenteController::class, 'create'])->name('create');
+        Route::post('/', [AulavirtualdocenteController::class, 'store'])->name('store');
+        Route::post('/material', [AulavirtualdocenteController::class, 'materialGuardar'])->name('material');
+        Route::get('/{id}/edit', [AulavirtualdocenteController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [AulavirtualdocenteController::class, 'update'])->name('update');
+        Route::delete('/{id}', [AulavirtualdocenteController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::get('/aula-virtual-estudiante', [AulavirtualestudianteController::class, 'index'])->name('aula-virtual-estudiante.index');
 
     Route::get('/maya', [MayaController::class, 'index'])->name('maya.index');
     Route::get('/maya/create', [MayaController::class, 'create'])->name('maya.create');
@@ -266,5 +282,33 @@ Route::middleware('auth')->group(function () {
         Route::get('/{id}', [TramiteController::class, 'show'])->name('show');
         Route::post('/{id}/comprobante', [TramiteController::class, 'subirComprobante'])->name('comprobante');
         Route::get('/comprobante/{id}', [TramiteController::class, 'verComprobante'])->name('ver-comprobante');
+    });
+
+    // Pensiones - administración (módulo 24)
+    Route::prefix('pensiones-admin')->name('pensiones-admin.')->group(function () {
+        Route::get('/', [PensionadminController::class, 'index'])->name('index');
+        Route::get('/configuracion/create', [PensionadminController::class, 'configuracionCreate'])->name('configuracion.create');
+        Route::post('/configuracion', [PensionadminController::class, 'configuracionStore'])->name('configuracion.store');
+        Route::get('/configuracion/{id}/edit', [PensionadminController::class, 'configuracionEdit'])->name('configuracion.edit');
+        Route::put('/configuracion/{id}', [PensionadminController::class, 'configuracionUpdate'])->name('configuracion.update');
+        Route::delete('/configuracion/{id}', [PensionadminController::class, 'configuracionDestroy'])->name('configuracion.destroy');
+        Route::get('/cuotas', [PensionadminController::class, 'cuotas'])->name('cuotas');
+        Route::get('/pensiones/{id}', [PensionadminController::class, 'showPension'])->name('pensiones.show');
+        Route::get('/registrar-pago', [PensionadminController::class, 'registrarPago'])->name('registrar-pago');
+        Route::post('/registrar-pago', [PensionadminController::class, 'registrarPagoStore'])->name('registrar-pago.store');
+        Route::get('/buscar-estudiantes', [PensionadminController::class, 'buscarEstudiantes'])->name('buscar-estudiantes');
+        Route::get('/estudiante/{estudianteId}/cuotas', [PensionadminController::class, 'cuotasEstudiante'])->name('estudiante.cuotas');
+        Route::get('/pagos-pendientes', [PensionadminController::class, 'pagosPendientes'])->name('pagos-pendientes');
+        Route::post('/pensiones/{id}/estado-pago', [PensionadminController::class, 'updateEstadoPago'])->name('update-estado-pago');
+        Route::get('/comprobante/{id}', [PensionadminController::class, 'verComprobante'])->name('ver-comprobante');
+    });
+
+    // Pensiones - apoderado/estudiante (módulo 25)
+    Route::prefix('pensiones')->name('pensiones.')->group(function () {
+        Route::get('/', [PensionController::class, 'index'])->name('index');
+        Route::get('/{id}', [PensionController::class, 'show'])->name('show');
+        Route::post('/{id}/comprobante', [PensionController::class, 'subirComprobante'])->name('comprobante');
+        Route::post('/{id}/tarjeta', [PensionController::class, 'pagarConTarjeta'])->name('tarjeta');
+        Route::get('/comprobante/{id}', [PensionController::class, 'verComprobante'])->name('ver-comprobante');
     });
 });

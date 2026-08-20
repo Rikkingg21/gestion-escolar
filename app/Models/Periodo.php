@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Maya\Cursogradosecnivanio;
+use App\Models\Pension\PensionConfig;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -41,5 +42,10 @@ class Periodo extends Model
     public function cursosGradoSecNivAnio()
     {
         return $this->hasMany(Cursogradosecnivanio::class, 'periodo_id');
+    }
+
+    public function pensionConfigs()
+    {
+        return $this->hasMany(PensionConfig::class, 'periodo_id');
     }
 }

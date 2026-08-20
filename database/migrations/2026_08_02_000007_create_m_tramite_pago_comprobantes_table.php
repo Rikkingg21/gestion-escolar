@@ -15,7 +15,7 @@ return new class extends Migration
                 $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
                 $table->foreignId('metodo_pago_id')->nullable()->constrained('m_tipo_pagos')->nullOnDelete();
                 $table->string('numero_operacion')->nullable();
-                $table->decimal('monto', 10, 2)->default(0);
+                $table->bigInteger('monto')->default(0)->comment('Monto en céntimos');
                 $table->dateTime('fecha_pago')->nullable();
                 $table->string('comprobante_path')->nullable();
                 $table->text('observaciones')->nullable();

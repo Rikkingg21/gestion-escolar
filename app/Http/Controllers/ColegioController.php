@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Colegio;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class ColegioController extends Controller
@@ -37,6 +38,12 @@ class ColegioController extends Controller
             'ruc' => 'nullable|string|size:11',
             'director_actual' => 'nullable|string|max:255',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg|max:5000',
+            'es_privado' => 'nullable|boolean',
+            'pensiones_activo' => 'nullable|boolean',
+            'usa_pasarela_pagos' => 'nullable|boolean',
+            'culqi_modo_prueba' => 'nullable|boolean',
+            'culqi_public_key' => 'nullable|string|max:255',
+            'culqi_secret_key' => 'nullable|string|max:255',
         ]);
 
         $colegio = Colegio::configuracion();
@@ -80,7 +87,39 @@ class ColegioController extends Controller
         }
 
         // Actualizar otros campos
+        // Las llaves de la pasarela se gestionan abajo para no pisarlas con placeholders
+        unset($validated['culqi_public_key'], $validated['culqi_secret_key']);
         $colegio->fill($validated);
+        $colegio->es_privado = $request->boolean('es_privado');
+        $colegio->pensiones_activo = $request->boolean('pensiones_activo');
+
+        // Pasarela de pagos: solo se guardan las keys si la pasarela está activa.
+        // Si un campo de key llega vacío, se conserva la key existente.
+        $colegio->usa_pasarela_pagos = $request->boolean('usa_pasarela_pagos');
+        $colegio->culqi_modo_prueba = $request->boolean('culqi_modo_prueba');
+
+        if ($colegio->usa_pasarela_pagos) {
+            if ($request->filled('culqi_public_key')) {
+                $colegio->culqi_public_key = trim($request->culqi_public_key);
+            }
+
+            if ($request->filled('culqi_secret_key') && $request->culqi_secret_key !== '********') {
+                $colegio->culqi_secret_key = trim($request->culqi_secret_key);
+            }
+        } else {
+            // Al desactivar la pasarela se limpian las keys para no dejarlas huérfanas
+            $colegio->culqi_public_key = null;
+            $colegio->culqi_secret_key = null;
+        }
+
+        // Si las pensiones no están habilitadas, se quitan los módulos de pensiones
+        // de todos los roles para evitar asignaciones huérfanas.
+        if (! $colegio->pensionesHabilitadas()) {
+            DB::table('role_modules')
+                ->whereIn('module_id', [24, 25])
+                ->delete();
+        }
+
         $colegio->save();
 
         return redirect()->route('colegioconfig.edit', $colegio)
